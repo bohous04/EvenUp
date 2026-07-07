@@ -652,6 +652,20 @@ describe('activity log (FR-9.1, FR-9.2)', () => {
     // Concretely: the most-recent action (adding "C" last) leads.
     expect(page1.items[0]!.action).toBe('member.added');
     expect((page1.items[0]!.payload as { name: string }).name).toBe('C');
+
+    // Walking the feed one row at a time via nextCursor must visit every row
+    // exactly once, in the same order as a single unpaginated call -- no
+    // skipped rows and no duplicates at page boundaries.
+    const full = await caller.activity.list({ groupId: group.id, limit: 100 });
+    const walked: string[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await caller.activity.list({ groupId: group.id, limit: 1, cursor });
+      walked.push(...page.items.map((i) => i.id));
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+    expect(walked).toEqual(full.items.map((i) => i.id));
   });
 });
 

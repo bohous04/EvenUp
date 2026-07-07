@@ -31,7 +31,7 @@ export const activityRouter = router({
         where: { groupId: input.groupId, action: input.action, actorId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: input.limit + 1,
-        ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+        ...(input.cursor ? { cursor: { id: input.cursor } } : {}),
         include: {
           actor: {
             select: { members: { where: { groupId: input.groupId }, select: { displayName: true } } },
