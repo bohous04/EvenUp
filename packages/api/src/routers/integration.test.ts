@@ -322,6 +322,9 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     ).rejects.toThrow();
   });
 
+  const RECEIPT_PNG_BASE64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
+
   test('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', async () => {
     const puts: { key: string; bytes: Uint8Array }[] = [];
     const deletes: string[] = [];
@@ -338,18 +341,28 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
+    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
     process.env.RECEIPT_AUTO_DELETE = 'true';
-    const res = await caller.ocr.scan({
-      groupId: group.id,
-      imageDataUrl:
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
-    });
+    try {
+      const res = await caller.ocr.scan({
+        groupId: group.id,
+        imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      });
 
-    expect(puts).toHaveLength(1);
-    expect(puts[0]!.key).toContain(`receipts/${group.id}/`);
-    expect(deletes).toEqual([puts[0]!.key]); // auto-deleted
-    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toBe(''); // cleared after auto-delete
+      expect(puts).toHaveLength(1);
+      expect(puts[0]!.key).toMatch(/^receipts\//);
+      expect(puts[0]!.key).toContain(`receipts/${group.id}/`);
+      expect(puts[0]!.bytes.length).toBeGreaterThan(0);
+      expect(Buffer.from(puts[0]!.bytes).equals(Buffer.from(RECEIPT_PNG_BASE64, 'base64'))).toBe(
+        true,
+      );
+      expect(deletes).toEqual([puts[0]!.key]); // auto-deleted
+      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKey).toBe(''); // cleared after auto-delete
+    } finally {
+      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
+      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
+    }
   });
 
   test('retains the receipt image when auto-delete is off (FR-5.8)', async () => {
@@ -368,17 +381,58 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R2', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
+    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
     process.env.RECEIPT_AUTO_DELETE = 'false';
-    const res = await caller.ocr.scan({
-      groupId: group.id,
-      imageDataUrl:
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
-    });
+    try {
+      const res = await caller.ocr.scan({
+        groupId: group.id,
+        imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      });
 
-    expect(puts).toHaveLength(1);
-    expect(deletes).toEqual([]); // retained
-    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
+      expect(puts).toHaveLength(1);
+      expect(puts[0]!.key).toMatch(/^receipts\//);
+      expect(puts[0]!.bytes.length).toBeGreaterThan(0);
+      expect(Buffer.from(puts[0]!.bytes).equals(Buffer.from(RECEIPT_PNG_BASE64, 'base64'))).toBe(
+        true,
+      );
+      expect(deletes).toEqual([]); // retained
+      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
+    } finally {
+      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
+      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
+    }
+  });
+
+  test('a storage failure does not break OCR (best-effort, FR-5.8)', async () => {
+    const store = {
+      async putReceipt(): Promise<void> {
+        throw new Error('s3 down');
+      },
+      async deleteObject(): Promise<void> {},
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'R3', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+
+    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
+    process.env.RECEIPT_AUTO_DELETE = 'true';
+    try {
+      const res = await caller.ocr.scan({
+        groupId: group.id,
+        imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      });
+
+      expect(res.result).toBeDefined();
+      expect(res.receiptId).toBeDefined();
+      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKey).toBe('');
+      expect(receipt.status).toBe('COMPLETED');
+    } finally {
+      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
+      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
+    }
   });
 });
 
