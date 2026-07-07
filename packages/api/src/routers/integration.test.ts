@@ -486,6 +486,40 @@ describe('FX resolution (FR-8.2, FR-8.5)', () => {
   });
 });
 
+describe('GDPR account deletion (FR-1.6)', () => {
+  it('smart-deletes the account: solo group gone, shared group unlinked (FR-1.6)', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const petr = await createTestUser('petr@example.com');
+
+    // Solo group: only Olivia is linked.
+    const oliviaCaller = makeCaller(olivia);
+    const solo = await oliviaCaller.group.create({ name: 'Solo', baseCurrency: 'CZK' });
+
+    // Shared group: Olivia creates, Petr joins via a claimed member, with an expense.
+    const shared = await oliviaCaller.group.create({ name: 'Shared', baseCurrency: 'CZK' });
+    const petrMember = await oliviaCaller.member.add({ groupId: shared.id, displayName: 'Petr' });
+    await testPrisma.member.update({ where: { id: petrMember.id }, data: { userId: petr.id } });
+    const oliviaMember = await testPrisma.member.findFirstOrThrow({
+      where: { groupId: shared.id, userId: olivia.id },
+    });
+    await oliviaCaller.transaction.createExpense({
+      groupId: shared.id, title: 'Dinner', currency: 'CZK', date: new Date(),
+      payers: [{ memberId: oliviaMember.id, amountMinorUnits: 20000 }],
+      split: { type: 'EQUAL', members: [{ memberId: oliviaMember.id }, { memberId: petrMember.id }] },
+    });
+
+    await oliviaCaller.user.deleteAccount();
+
+    expect(await testPrisma.group.findUnique({ where: { id: solo.id } })).toBeNull();
+    const keptGroup = await testPrisma.group.findUnique({ where: { id: shared.id } });
+    expect(keptGroup).not.toBeNull(); // shared group survives for Petr
+    const oliviaMemberAfter = await testPrisma.member.findUnique({ where: { id: oliviaMember.id } });
+    expect(oliviaMemberAfter?.isActive).toBe(false); // deactivated (had a transaction)
+    expect(oliviaMemberAfter?.userId).toBeNull(); // unlinked
+    expect(await testPrisma.user.findUnique({ where: { id: olivia.id } })).toBeNull(); // user gone
+  });
+});
+
 describe('access control', () => {
   test('a non-member cannot read another group', async () => {
     const { group } = await seedGroupWithMembers();

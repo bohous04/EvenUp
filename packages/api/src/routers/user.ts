@@ -55,11 +55,60 @@ export const userRouter = router({
     return { ok: true };
   }),
 
-  /** GDPR export of the user's groups & transactions (FR-1.6). */
+  /** GDPR export of the user's personal data (FR-1.6). */
   exportData: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.group.findMany({
-      where: { OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }] },
-      include: { members: true, transactions: { include: { payers: true, splits: true } } },
+    const [profile, groups, bankDetails] = await Promise.all([
+      ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
+        select: { id: true, email: true, name: true, locale: true, defaultCurrency: true, createdAt: true },
+      }),
+      ctx.prisma.group.findMany({
+        where: { OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }] },
+        include: {
+          members: true,
+          transactions: { include: { payers: true, splits: true } },
+          receipts: { select: { id: true, merchant: true, detectedCurrency: true, createdAt: true } },
+        },
+      }),
+      ctx.prisma.bankDetail.findMany({
+        where: { member: { userId: ctx.user.id } },
+        select: { memberId: true, recipientName: true, variableSymbol: true },
+      }),
+    ]);
+    return { profile, groups, bankDetails };
+  }),
+
+  /** GDPR account deletion (FR-1.6): delete solo groups, unlink shared ones. */
+  deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    await ctx.prisma.$transaction(async (tx) => {
+      const memberships = await tx.member.findMany({ where: { userId }, select: { id: true, groupId: true } });
+      const groupIds = [...new Set(memberships.map((m) => m.groupId))];
+      for (const groupId of groupIds) {
+        // "Other linked members" = members with a different account. Explicit
+        // not-null AND not-self to avoid Prisma null-handling ambiguity.
+        const others = await tx.member.count({
+          where: { groupId, AND: [{ userId: { not: null } }, { userId: { not: userId } }] },
+        });
+        if (others === 0) {
+          await tx.group.delete({ where: { id: groupId } }); // solo -> cascade delete
+          continue;
+        }
+        for (const m of memberships.filter((mm) => mm.groupId === groupId)) {
+          await tx.bankDetail.deleteMany({ where: { memberId: m.id } }); // PII
+          const used =
+            (await tx.transactionSplit.count({ where: { memberId: m.id } })) +
+            (await tx.transactionPayer.count({ where: { memberId: m.id } }));
+          if (used > 0) {
+            await tx.member.update({ where: { id: m.id }, data: { isActive: false, userId: null } });
+          } else {
+            await tx.member.delete({ where: { id: m.id } });
+          }
+        }
+      }
+      // Sessions + accounts cascade on user delete (schema onDelete: Cascade).
+      await tx.user.delete({ where: { id: userId } });
     });
+    return { ok: true as const };
   }),
 });
