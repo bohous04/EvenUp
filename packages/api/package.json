@@ -23,6 +23,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1080.0",
     "@evenup/core": "workspace:*",
     "@evenup/db": "workspace:*",
     "@evenup/i18n": "workspace:*",
