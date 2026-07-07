@@ -98,7 +98,14 @@ export const userRouter = router({
           await tx.bankDetail.deleteMany({ where: { memberId: m.id } }); // PII
           const used =
             (await tx.transactionSplit.count({ where: { memberId: m.id } })) +
-            (await tx.transactionPayer.count({ where: { memberId: m.id } }));
+            (await tx.transactionPayer.count({ where: { memberId: m.id } })) +
+            // Defensive: also count transfer endpoints. Today recordTransfer already
+            // creates a payer/split row for both sides, so this doesn't change
+            // behavior yet -- it guards against a future refactor decoupling
+            // transfers from payer/split rows.
+            (await tx.transaction.count({
+              where: { OR: [{ fromMemberId: m.id }, { toMemberId: m.id }] },
+            }));
           if (used > 0) {
             await tx.member.update({ where: { id: m.id }, data: { isActive: false, userId: null } });
           } else {

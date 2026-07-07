@@ -508,6 +508,23 @@ describe('GDPR account deletion (FR-1.6)', () => {
       split: { type: 'EQUAL', members: [{ memberId: oliviaMember.id }, { memberId: petrMember.id }] },
     });
 
+    // Olivia's member in the shared group has an IBAN on file -- PII that must
+    // be purged even though the member row itself survives (deactivate+unlink).
+    await oliviaCaller.member.setBankDetail({
+      memberId: oliviaMember.id,
+      iban: 'CZ6508000000192000145399',
+      recipientName: 'Olivia',
+    });
+
+    // Second shared group: Petr is linked too, but Olivia's member here has no
+    // transactions -- it should be hard-deleted while the group and Petr survive.
+    const shared2 = await oliviaCaller.group.create({ name: 'Shared2', baseCurrency: 'CZK' });
+    const petrMember2 = await oliviaCaller.member.add({ groupId: shared2.id, displayName: 'Petr' });
+    await testPrisma.member.update({ where: { id: petrMember2.id }, data: { userId: petr.id } });
+    const oliviaMember2 = await testPrisma.member.findFirstOrThrow({
+      where: { groupId: shared2.id, userId: olivia.id },
+    });
+
     await oliviaCaller.user.deleteAccount();
 
     expect(await testPrisma.group.findUnique({ where: { id: solo.id } })).toBeNull();
@@ -517,6 +534,15 @@ describe('GDPR account deletion (FR-1.6)', () => {
     expect(oliviaMemberAfter?.isActive).toBe(false); // deactivated (had a transaction)
     expect(oliviaMemberAfter?.userId).toBeNull(); // unlinked
     expect(await testPrisma.user.findUnique({ where: { id: olivia.id } })).toBeNull(); // user gone
+
+    // BankDetail PII is gone even though the member row itself survives.
+    expect(await testPrisma.bankDetail.findUnique({ where: { memberId: oliviaMember.id } })).toBeNull();
+
+    // Second shared group: unused member is hard-deleted; group + Petr survive.
+    expect(await testPrisma.member.findUnique({ where: { id: oliviaMember2.id } })).toBeNull();
+    const keptGroup2 = await testPrisma.group.findUnique({ where: { id: shared2.id } });
+    expect(keptGroup2).not.toBeNull();
+    expect(await testPrisma.member.findUnique({ where: { id: petrMember2.id } })).not.toBeNull();
   });
 });
 
