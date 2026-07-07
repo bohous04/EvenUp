@@ -24,7 +24,9 @@ describe('fetchRate (Frankfurter)', () => {
 
   it('returns null on a non-ok response', async () => {
     const rate = await fetchRate({
-      baseCurrency: 'CZK', quoteCurrency: 'EUR', date: new Date('2026-06-22'),
+      baseCurrency: 'CZK',
+      quoteCurrency: 'EUR',
+      date: new Date('2026-06-22'),
       providerUrl: 'https://api.frankfurter.app',
       fetchImpl: async () => jsonResponse({}, false),
     });
@@ -33,9 +35,13 @@ describe('fetchRate (Frankfurter)', () => {
 
   it('returns null when the fetch throws', async () => {
     const rate = await fetchRate({
-      baseCurrency: 'CZK', quoteCurrency: 'EUR', date: new Date('2026-06-22'),
+      baseCurrency: 'CZK',
+      quoteCurrency: 'EUR',
+      date: new Date('2026-06-22'),
       providerUrl: 'https://api.frankfurter.app',
-      fetchImpl: async () => { throw new Error('network'); },
+      fetchImpl: async () => {
+        throw new Error('network');
+      },
     });
     expect(rate).toBeNull();
   });

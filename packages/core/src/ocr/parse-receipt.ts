@@ -106,10 +106,7 @@ function priceToMinor(token: string, currency: CurrencyCode): number | null {
 }
 
 /** The right-most price on a line (the amount column) with its raw match text. */
-function lastPrice(
-  text: string,
-  currency: CurrencyCode,
-): { minor: number; match: string } | null {
+function lastPrice(text: string, currency: CurrencyCode): { minor: number; match: string } | null {
   const re = /(?:\d{1,3}(?:[ .]\d{3})*|\d+)[.,]\d{2}(?!\d)/g;
   const matches = [...text.matchAll(re)];
   for (let i = matches.length - 1; i >= 0; i--) {

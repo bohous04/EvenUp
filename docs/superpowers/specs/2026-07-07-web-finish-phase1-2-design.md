@@ -10,32 +10,35 @@
 The EvenUp web app is already feature-complete for most of PRD Phase 1 (MVP) and
 Phase 2, and every automated gate is green (verified 2026-07-07):
 
-| Gate | Result |
-|---|---|
-| Typecheck (6 packages, incl. web + mobile) | pass |
-| Lint | pass (2 warnings, mobile only) |
-| Unit — `core` / `i18n` | 195 / 19 pass |
-| Integration — `api` (tRPC + ephemeral Postgres) | 39 pass |
-| Web production build (`next build`) | pass |
-| Playwright E2E — 6 critical flows (chromium verified; CI also runs firefox/webkit/mobile) | pass |
+| Gate                                                                                      | Result                         |
+| ----------------------------------------------------------------------------------------- | ------------------------------ |
+| Typecheck (6 packages, incl. web + mobile)                                                | pass                           |
+| Lint                                                                                      | pass (2 warnings, mobile only) |
+| Unit — `core` / `i18n`                                                                    | 195 / 19 pass                  |
+| Integration — `api` (tRPC + ephemeral Postgres)                                           | 39 pass                        |
+| Web production build (`next build`)                                                       | pass                           |
+| Playwright E2E — 6 critical flows (chromium verified; CI also runs firefox/webkit/mobile) | pass                           |
 
 This spec closes the remaining PRD **Phase 1+2 (strict)** gaps so the web app is
 "done" per the PRD Definition of Done (§10.3): code + tests + CZ/EN strings +
 E2E, green CI, a11y pass.
 
 ### Confirmed design decisions
+
 1. **Receipt storage:** store to S3/MinIO, then **auto-delete after successful OCR** (instance-level env, default on). **No image-viewing UI.**
 2. **FX rate:** **on-demand fetch-and-cache** from Frankfurter (no scheduler). Fall back to last cached rate, then manual.
 3. **§9 verification:** run the full a11y (axe) matrix across all four Playwright projects and fix violations. **No visual-regression snapshots.**
 4. **GDPR delete:** **smart** — delete groups where the user is the only member; for shared groups deactivate + unlink their member so history survives.
 
 ### Guiding pattern (already established in the codebase)
+
 External dependencies are injected through the tRPC **context** (see
 `packages/api/src/context.ts`: `prisma`, `secretBox`, `ocrFetch`). Every new
 external dependency in this spec follows the same pattern so unit/integration
 tests use in-memory fakes and **CI makes no live S3 / FX / OpenRouter calls**.
 
 ### Non-goals (explicitly out of scope here)
+
 - Apple OAuth (mobile / iOS concern; magic link + Google already work) — Phase 3.
 - Web push notifications (FR-11 is "mobile-first, later web").
 - Real-time sync, offline write-sync (Phase 4).
@@ -77,6 +80,7 @@ the uploaded image is sent to the OCR adapter and then discarded. MinIO is in
 `docker-compose.yml` but unused.
 
 **Design:**
+
 - New module `packages/api/src/storage/object-store.ts` exporting an
   `ObjectStore` interface:
   ```ts
@@ -106,6 +110,7 @@ the uploaded image is sent to the OCR adapter and then discarded. MinIO is in
 **Data model:** none. `Receipt.storageKey` already exists.
 
 **Tests (api integration, in-memory fake store):**
+
 - Successful scan uploads the exact image bytes to the derived key.
 - `RECEIPT_AUTO_DELETE=on` → `deleteObject` called, `storageKey` cleared.
 - `RECEIPT_AUTO_DELETE=off` → object retained, `storageKey` persisted.
@@ -120,6 +125,7 @@ called. Rates come only from a per-group locked rate, a manual override, or a
 pre-existing cached row; otherwise `resolveRateDecimal` throws "provide manually".
 
 **Design:**
+
 - New module `packages/api/src/services/fx-provider.ts`:
   ```ts
   fetchRate(opts: {
@@ -143,8 +149,8 @@ pre-existing cached row; otherwise `resolveRateDecimal` throws "provide manually
   6. **new:** provider failed → newest cached row for the pair (any date),
      returned with `stale: true`
   7. else throw (client surfaces "enter the rate manually")
-  Return type gains `source: string` and `stale: boolean`; update callers in
-  `routers/transaction.ts`.
+     Return type gains `source: string` and `stale: boolean`; update callers in
+     `routers/transaction.ts`.
 - New `fx.resolve` query (`routers/fx.ts`): given `{base, quote, date}` returns
   the resolved `{ rateDecimal, source, stale }` (fetching + caching as needed) so
   the web form can prefill.
@@ -158,6 +164,7 @@ pre-existing cached row; otherwise `resolveRateDecimal` throws "provide manually
 **Data model:** none. `FxRate` + `Group.fxLockedRate` already exist.
 
 **Tests (api integration, fake `fxFetch`):**
+
 - Foreign-currency expense with no cache → provider fetched, `FxRate` cached,
   amount converted to base correctly.
 - Second expense same day → served from cache (provider not called again).
@@ -172,6 +179,7 @@ pre-existing cached row; otherwise `resolveRateDecimal` throws "provide manually
 account deletion.
 
 **Design:**
+
 - **Export:** extend `user.exportData` to a single JSON document: profile
   (`email, name, locale, defaultCurrency`), memberships, transactions
   (payers + splits), bank details, receipt metadata, and the user's activity.
@@ -195,6 +203,7 @@ account deletion.
 migration only if a relation lacks it).
 
 **Tests (api integration):**
+
 - User in (a) a solo group and (b) a shared group with transactions →
   `deleteAccount` → solo group deleted; shared group survives with the user's
   member `isActive:false, userId:null`; bank details, encrypted key, and
@@ -211,6 +220,7 @@ migration only if a relation lacks it).
 renders the transactions list. No filtering. Edit events are not logged.
 
 **Design:**
+
 - New `activityRouter` mounted in `root.ts`:
   `activity.list({ groupId, memberId?, action?, cursor?, limit })` →
   access-checked, paginated (`cursor` on `createdAt`+`id`), newest first,
@@ -227,12 +237,13 @@ renders the transactions list. No filtering. Edit events are not logged.
   - a member filter dropdown (group members),
   - an action-type filter dropdown,
   - the localized log list, paginated ("load more").
-  Actor is shown as the group member `displayName` (map `actorId` → the member
-  whose `userId` matches).
+    Actor is shown as the group member `displayName` (map `actorId` → the member
+    whose `userId` matches).
 - **Migration (optional, perf §9.1):** add indexes on
   `ActivityLog(groupId, createdAt)` and `(groupId, actorId, action)`.
 
 **Tests:**
+
 - api: create/edit/delete/settle each write a log row; `activity.list` filters by
   member and by action type; pagination returns a stable order.
 - E2E: after adding an expense and settling a payment, the Activity card shows the
@@ -246,6 +257,7 @@ renders the transactions list. No filtering. Edit events are not logged.
 `!authDevEcho`); the OCR `scan` endpoint is not.
 
 **Design:**
+
 - New pure module `packages/api/src/rate-limit.ts`: an in-memory sliding-window
   limiter keyed by a string (userId), with an **injectable clock** for
   deterministic tests. Single-instance assumption matches self-hosting.
@@ -257,6 +269,7 @@ renders the transactions list. No filtering. Edit events are not logged.
   user (exact value fixed in the plan; documented).
 
 **Tests:**
+
 - unit: allows `max` calls in a window, blocks `max+1`, refills after the window
   (via injected clock).
 - api: repeated `scan` beyond the limit throws `TOO_MANY_REQUESTS`.
@@ -266,6 +279,7 @@ renders the transactions list. No filtering. Edit events are not logged.
 ### Item 6 — §9 non-functional verification pass
 
 **Design:**
+
 - Run the full Playwright matrix (chromium / firefox / webkit / mobile) to green
   after item 0.
 - Add `@axe-core/playwright` assertions on the **settings** page and the

@@ -19,10 +19,15 @@ export const fxRouter = router({
         undefined,
         null,
         ctx.fxFetch
-          ? { fetchImpl: ctx.fxFetch, providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app' }
+          ? {
+              fetchImpl: ctx.fxFetch,
+              providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
+            }
           : undefined,
       ).catch(() => null);
-      return info ? { rateDecimal: info.rateDecimal, source: info.source, stale: info.stale } : null;
+      return info
+        ? { rateDecimal: info.rateDecimal, source: info.source, stale: info.stale }
+        : null;
     }),
 
   /** Latest known rate for base->quote (most recent cached row). */

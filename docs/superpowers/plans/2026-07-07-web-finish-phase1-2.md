@@ -32,23 +32,28 @@
 Local `next start` auto-loads `apps/web/.env.local`, whose live `RESEND_API_KEY` makes the Playwright server try (and fail) to email magic links to fake test addresses, so every E2E fails at sign-in. Force the dev/console mail path in the E2E server, and remove the real secret from disk.
 
 **Files:**
+
 - Modify: `apps/web/playwright.config.ts:31-41` (the `webServer.env` block)
 - Modify: `apps/web/.env.local` (replace the real key with a placeholder)
 
 **Interfaces:**
+
 - Produces: a green local E2E run — every later task's E2E step depends on this.
 
 - [ ] **Step 1: Confirm the failure first**
 
 Bring up the dev DB (see Global Constraints), then:
+
 ```bash
 cd apps/web && DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm exec playwright test --project=chromium -g "language switch"
 ```
+
 Expected: FAIL — `getByTestId('magic-sent')` never appears (sign-in helper times out).
 
 - [ ] **Step 2: Force the dev mail path in the E2E web server**
 
 In `apps/web/playwright.config.ts`, add two keys to the existing `webServer.env` object (right after `AUTH_DEV_ECHO: 'true',`):
+
 ```ts
       AUTH_DEV_ECHO: 'true',
       // Force the console/dev-echo mail path regardless of a developer's
@@ -63,14 +68,17 @@ In `apps/web/playwright.config.ts`, add two keys to the existing `webServer.env`
 ```bash
 cd apps/web && DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm exec playwright test --project=chromium -g "language switch"
 ```
+
 Expected: PASS.
 
 - [ ] **Step 4: Scrub the real Resend key from `.env.local`**
 
 Replace the `RESEND_API_KEY=re_...` line in `apps/web/.env.local` with:
+
 ```
 RESEND_API_KEY=
 ```
+
 (The file is gitignored; this just removes a live secret from disk. Note in the PR description that the key should be rotated in the Resend dashboard.)
 
 - [ ] **Step 5: Commit**
@@ -87,11 +95,13 @@ git commit -m "test(web): force dev mail path in E2E web server so local runs pa
 A thin, injectable object-storage abstraction with an S3 implementation (MinIO-compatible), a no-op implementation for bare self-hosts, and a pure data-URL parser (unit-tested).
 
 **Files:**
+
 - Create: `packages/api/src/storage/object-store.ts`
 - Create: `packages/api/src/storage/object-store.test.ts`
 - Modify: `packages/api/package.json` (add `@aws-sdk/client-s3`)
 
 **Interfaces:**
+
 - Produces:
   - `interface ObjectStore { putReceipt(key: string, bytes: Uint8Array, contentType: string): Promise<void>; deleteObject(key: string): Promise<void>; }`
   - `createS3ObjectStore(cfg: S3Config): ObjectStore`
@@ -103,11 +113,13 @@ A thin, injectable object-storage abstraction with an S3 implementation (MinIO-c
 ```bash
 pnpm --filter @evenup/api add @aws-sdk/client-s3
 ```
+
 Expected: `@aws-sdk/client-s3` appears under `dependencies` in `packages/api/package.json`.
 
 - [ ] **Step 2: Write the failing test for the data-URL parser**
 
 Create `packages/api/src/storage/object-store.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { parseImageDataUrl, createNoopObjectStore } from './object-store.js';
@@ -144,11 +156,13 @@ describe('createNoopObjectStore', () => {
 ```bash
 pnpm --filter @evenup/api exec vitest run src/storage/object-store.test.ts
 ```
+
 Expected: FAIL — cannot resolve `./object-store.js`.
 
 - [ ] **Step 4: Implement the module**
 
 Create `packages/api/src/storage/object-store.ts`:
+
 ```ts
 /**
  * Injectable object storage for receipt images (PRD §4.5, FR-5.8). The S3
@@ -181,7 +195,12 @@ export function createS3ObjectStore(cfg: S3Config): ObjectStore {
   return {
     async putReceipt(key, bytes, contentType) {
       await client.send(
-        new PutObjectCommand({ Bucket: cfg.bucket, Key: key, Body: bytes, ContentType: contentType }),
+        new PutObjectCommand({
+          Bucket: cfg.bucket,
+          Key: key,
+          Body: bytes,
+          ContentType: contentType,
+        }),
       );
     },
     async deleteObject(key) {
@@ -216,6 +235,7 @@ export function parseImageDataUrl(dataUrl: string): {
 ```bash
 pnpm --filter @evenup/api exec vitest run src/storage/object-store.test.ts
 ```
+
 Expected: PASS (4 tests).
 
 - [ ] **Step 6: Commit**
@@ -232,6 +252,7 @@ git commit -m "feat(api): add injectable ObjectStore (S3/MinIO) + data-URL parse
 Extend the tRPC context with the three new injectable dependencies at once (they share the same wiring points), and construct concrete implementations in the web tRPC context from env. This is a single reviewable unit: the context contract plus its one production wiring.
 
 **Files:**
+
 - Modify: `packages/api/src/context.ts`
 - Modify: `packages/api/src/index.ts` (export new types)
 - Modify: `apps/web/src/server/env.ts`
@@ -239,12 +260,14 @@ Extend the tRPC context with the three new injectable dependencies at once (they
 - Modify: `.env.example`, `docs/SELF_HOSTING.md`
 
 **Interfaces:**
+
 - Consumes: `ObjectStore` (Task 2), `FetchLike` (`packages/api/src/ocr/openrouter-adapter.ts`).
 - Produces: `Context.objectStore?: ObjectStore`, `Context.fxFetch?: FetchLike`, `Context.ocrRateLimit?: RateLimiter`; `CreateContextOptions` mirrors them. (`RateLimiter` is fully defined in Task 11; here it is referenced as an optional structural type `{ check(key: string): boolean }` to avoid an import cycle — declare it inline in `context.ts`.)
 
 - [ ] **Step 1: Extend the context type + factory**
 
 In `packages/api/src/context.ts`, add the import and fields. Add after the existing `FetchLike` import:
+
 ```ts
 import type { ObjectStore } from './storage/object-store.js';
 
@@ -253,7 +276,9 @@ export interface RateLimiter {
   check(key: string): boolean;
 }
 ```
+
 Add to `interface Context` (after `ocrFetch`):
+
 ```ts
   /** Injectable object storage for receipt images (no-op/fake in tests). */
   readonly objectStore?: ObjectStore;
@@ -262,7 +287,9 @@ Add to `interface Context` (after `ocrFetch`):
   /** Per-user rate limiter for OCR (fake in tests; unset disables limiting). */
   readonly ocrRateLimit?: RateLimiter;
 ```
+
 Add the same three (optional) to `interface CreateContextOptions`, and pass them through in `createContext`:
+
 ```ts
     ocrFetch: opts.ocrFetch,
     objectStore: opts.objectStore,
@@ -273,6 +300,7 @@ Add the same three (optional) to `interface CreateContextOptions`, and pass them
 - [ ] **Step 2: Export the new type from the api barrel**
 
 In `packages/api/src/index.ts`, add to the `context.js` re-export block:
+
 ```ts
 export {
   createContext,
@@ -293,6 +321,7 @@ export {
 - [ ] **Step 3: Add env accessors for storage + auto-delete + FX provider**
 
 In `apps/web/src/server/env.ts`, add to the exported `env` object (after the `email` block):
+
 ```ts
   storage: {
     endpoint: process.env.STORAGE_ENDPOINT,
@@ -309,6 +338,7 @@ In `apps/web/src/server/env.ts`, add to the exported `env` object (after the `em
 - [ ] **Step 4: Construct the dependencies in the web tRPC context**
 
 Replace the body of `apps/web/src/server/trpc.ts` with (the `ocrRateLimit` wiring is added later, in Task 11 — leave it out here):
+
 ```ts
 /** Build the tRPC context for a request from the Better Auth session. */
 import 'server-only';
@@ -348,15 +378,18 @@ export async function createTrpcContext(headers: Headers): Promise<Context> {
   });
 }
 ```
+
 > `ocrRateLimit` is intentionally not wired here — Task 11 adds the `./rate-limit.js` singleton, its import, and the `ocrRateLimit` field. The app compiles fine without it (the field is optional).
 
 - [ ] **Step 5: Document the new env vars**
 
 In `.env.example`, under the storage block, add:
+
 ```
 # Delete the receipt image after successful OCR extraction (privacy). Default true.
 RECEIPT_AUTO_DELETE=true
 ```
+
 In `docs/SELF_HOSTING.md`, add a one-line row noting `RECEIPT_AUTO_DELETE` (default `true`) controls receipt-image retention.
 
 - [ ] **Step 6: Typecheck**
@@ -364,6 +397,7 @@ In `docs/SELF_HOSTING.md`, add a one-line row noting `RECEIPT_AUTO_DELETE` (defa
 ```bash
 pnpm --filter @evenup/db exec prisma generate >/dev/null && pnpm turbo run typecheck --filter=@evenup/api --filter=@evenup/web
 ```
+
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -380,17 +414,20 @@ git commit -m "feat(api): inject objectStore, fxFetch, ocrRateLimit through cont
 Wire storage into the `ocr.scan` mutation: upload the decoded image to the object store, persist the `storageKey`, and (when `RECEIPT_AUTO_DELETE` is on) delete the object and clear the key after a successful extraction. Storage is **best-effort** — a failure is swallowed and never blocks OCR.
 
 **Files:**
+
 - Modify: `packages/api/src/routers/ocr.ts`
 - Modify: `packages/api/src/routers/integration.test.ts` (add a test) or create `packages/api/src/routers/ocr.test.ts`
 - Modify: `packages/api/src/test/harness.ts` (let `makeCaller` accept `objectStore`)
 
 **Interfaces:**
+
 - Consumes: `ObjectStore`, `parseImageDataUrl` (Task 2); `ctx.objectStore` (Task 3).
 - Produces: receipts now persist a non-empty `storageKey` when auto-delete is off.
 
 - [ ] **Step 1: Let the test harness inject an object store**
 
 In `packages/api/src/test/harness.ts`, extend the `makeCaller` options to carry all three injectables used by later tasks (objectStore now, fxFetch in Task 6, ocrRateLimit in Task 11):
+
 ```ts
 import type { ObjectStore } from '../storage/object-store.js';
 import type { RateLimiter } from '../context.js';
@@ -421,6 +458,7 @@ export function makeCaller(
 - [ ] **Step 2: Write the failing test**
 
 Add to `packages/api/src/routers/integration.test.ts` a test that captures uploads with an in-memory fake store. Use the existing OCR fixture/fetch pattern already in that file (search for the existing `ocr` test to reuse its `ocrFetch` fake and group/user setup). Add:
+
 ```ts
 it('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', async () => {
   const puts: { key: string; bytes: Uint8Array }[] = [];
@@ -451,6 +489,7 @@ it('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', as
   expect(receipt.storageKey).toBe(''); // cleared after auto-delete
 });
 ```
+
 > `makeOcrFetch()` is the existing helper/fixture the current OCR test uses to fake OpenRouter (returns the two-item receipt). Reuse it verbatim — do not add a new fixture. If the current test builds the fake inline, extract it to a small local helper in the test file first.
 
 - [ ] **Step 3: Run the test to verify it fails**
@@ -458,15 +497,19 @@ it('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', as
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts -t "uploads the receipt image"
 ```
+
 Expected: FAIL — `puts` is empty (upload not wired) and `storageKey` is `''` for the wrong reason.
 
 - [ ] **Step 4: Implement upload + auto-delete in `ocr.scan`**
 
 In `packages/api/src/routers/ocr.ts`, add the import:
+
 ```ts
 import { parseImageDataUrl } from '../storage/object-store.js';
 ```
+
 Replace the success-path `receipt` creation (the block that currently sets `storageKey: ''`) with an upload-first flow:
+
 ```ts
       // Best-effort image storage (FR-5.8): a storage failure must never block OCR.
       let storageKey = '';
@@ -513,6 +556,7 @@ Replace the success-path `receipt` creation (the block that currently sets `stor
       } catch (err) {
         // ...existing FAILED-receipt + TRPCError fallback stays unchanged...
 ```
+
 > Keep the existing `catch` block (the `status: 'FAILED'` receipt + `UNPROCESSABLE_CONTENT`/`OcrError` handling) exactly as-is. `crypto` is the global Web Crypto (`globalThis.crypto`) available in Node 20+ and Next server — no import needed.
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -520,11 +564,13 @@ Replace the success-path `receipt` creation (the block that currently sets `stor
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts
 ```
+
 Expected: PASS (existing tests + the new one).
 
 - [ ] **Step 6: Add the auto-delete-off case, run, commit**
 
 Add a second test asserting that with `process.env.RECEIPT_AUTO_DELETE = 'false'`, `deletes` is empty and `receipt.storageKey` starts with `receipts/`. Run the file again (Expected: PASS), then:
+
 ```bash
 git add packages/api/src/routers/ocr.ts packages/api/src/routers/integration.test.ts packages/api/src/test/harness.ts
 git commit -m "feat(api): store receipt image in object storage with auto-delete (FR-5.8)"
@@ -537,16 +583,19 @@ git commit -m "feat(api): store receipt image in object storage with auto-delete
 A pure, injectable function that fetches a day's rate from Frankfurter and returns it as a decimal string, or `null` on any error/timeout (never throws).
 
 **Files:**
+
 - Create: `packages/api/src/services/fx-provider.ts`
 - Create: `packages/api/src/services/fx-provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `FetchLike` (`../ocr/openrouter-adapter.js`).
 - Produces: `fetchRate(args: FetchRateArgs): Promise<{ rateDecimal: string; source: string } | null>` where `FetchRateArgs = { baseCurrency: string; quoteCurrency: string; date: Date; providerUrl: string; fetchImpl: FetchLike; timeoutMs?: number }`. Semantics: returns the multiplier for `quote → base` (i.e. `baseAmount = quoteAmount × rate`).
 
 - [ ] **Step 1: Write the failing test**
 
 Create `packages/api/src/services/fx-provider.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { fetchRate } from './fx-provider.js';
@@ -574,7 +623,9 @@ describe('fetchRate (Frankfurter)', () => {
 
   it('returns null on a non-ok response', async () => {
     const rate = await fetchRate({
-      baseCurrency: 'CZK', quoteCurrency: 'EUR', date: new Date('2026-06-22'),
+      baseCurrency: 'CZK',
+      quoteCurrency: 'EUR',
+      date: new Date('2026-06-22'),
       providerUrl: 'https://api.frankfurter.app',
       fetchImpl: async () => jsonResponse({}, false),
     });
@@ -583,9 +634,13 @@ describe('fetchRate (Frankfurter)', () => {
 
   it('returns null when the fetch throws', async () => {
     const rate = await fetchRate({
-      baseCurrency: 'CZK', quoteCurrency: 'EUR', date: new Date('2026-06-22'),
+      baseCurrency: 'CZK',
+      quoteCurrency: 'EUR',
+      date: new Date('2026-06-22'),
       providerUrl: 'https://api.frankfurter.app',
-      fetchImpl: async () => { throw new Error('network'); },
+      fetchImpl: async () => {
+        throw new Error('network');
+      },
     });
     expect(rate).toBeNull();
   });
@@ -597,11 +652,13 @@ describe('fetchRate (Frankfurter)', () => {
 ```bash
 pnpm --filter @evenup/api exec vitest run src/services/fx-provider.test.ts
 ```
+
 Expected: FAIL — cannot resolve `./fx-provider.js`.
 
 - [ ] **Step 3: Implement the module**
 
 Create `packages/api/src/services/fx-provider.ts`:
+
 ```ts
 /**
  * FX provider fetch (PRD §4.8, FR-8.2). Frankfurter returns the multiplier
@@ -649,6 +706,7 @@ export async function fetchRate(
 ```bash
 pnpm --filter @evenup/api exec vitest run src/services/fx-provider.test.ts
 ```
+
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
@@ -665,17 +723,20 @@ git commit -m "feat(api): add Frankfurter FX provider fetch (FR-8.2)"
 Extend `resolveRateDecimal` so that, when no cached/locked/override rate exists AND a fetch impl is provided, it fetches from the provider, caches the row, and returns it; if the provider fails it returns the newest cached row flagged `stale`. Guarded on an explicit fetch impl so tests without one keep the old throw-on-missing behavior (no live calls in CI).
 
 **Files:**
+
 - Modify: `packages/api/src/services/fx-service.ts`
 - Modify: `packages/api/src/routers/transaction.ts` (pass the fetch impl)
 - Modify: `packages/api/src/routers/integration.test.ts` (tests)
 
 **Interfaces:**
+
 - Consumes: `fetchRate` (Task 5); `ctx.fxFetch` (Task 3).
 - Produces: `resolveRateDecimal(prisma, fromCurrency, baseCurrency, date, override?, lockedRate?, fetch?)` returning `{ rateDecimal: string; overridden: boolean; source: string; stale: boolean }`, where `fetch?: { fetchImpl: FetchLike; providerUrl: string }`.
 
 - [ ] **Step 1: Write failing tests**
 
 Add to `packages/api/src/routers/integration.test.ts` (using the `fxFetch` option added to `makeCaller` in Task 4). Each `fxFetch` is a typed fake — `FetchLike = (input: string, init: RequestInit) => Promise<Response>`:
+
 ```ts
 it('auto-fetches + caches an FX rate for a foreign-currency expense (FR-8.2)', async () => {
   const user = await createTestUser();
@@ -687,7 +748,10 @@ it('auto-fetches + caches an FX rate for a foreign-currency expense (FR-8.2)', a
   const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
 
   const created = await caller.transaction.createExpense({
-    groupId: group.id, title: 'Lanovka', currency: 'EUR', date: new Date('2026-06-22'),
+    groupId: group.id,
+    title: 'Lanovka',
+    currency: 'EUR',
+    date: new Date('2026-06-22'),
     payers: [{ memberId: m.id, amountMinorUnits: 10000 }], // 100.00 EUR
     split: { type: 'EQUAL', members: [{ memberId: m.id }] },
   });
@@ -699,19 +763,29 @@ it('auto-fetches + caches an FX rate for a foreign-currency expense (FR-8.2)', a
 it('falls back to the newest cached rate when the provider is down (FR-8.5)', async () => {
   const user = await createTestUser();
   await testPrisma.fxRate.create({
-    data: { base: 'CZK', quote: 'EUR', rate: new Prisma.Decimal('24'), date: new Date('2026-06-01'), source: 'frankfurter' },
+    data: {
+      base: 'CZK',
+      quote: 'EUR',
+      rate: new Prisma.Decimal('24'),
+      date: new Date('2026-06-01'),
+      source: 'frankfurter',
+    },
   });
   const caller = makeCaller(user, { fxFetch: async () => ({ ok: false }) as Response }); // provider down
   const group = await caller.group.create({ name: 'Trip2', baseCurrency: 'CZK' });
   const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
   const created = await caller.transaction.createExpense({
-    groupId: group.id, title: 'x', currency: 'EUR', date: new Date('2026-06-22'),
+    groupId: group.id,
+    title: 'x',
+    currency: 'EUR',
+    date: new Date('2026-06-22'),
     payers: [{ memberId: m.id, amountMinorUnits: 10000 }],
     split: { type: 'EQUAL', members: [{ memberId: m.id }] },
   });
   expect(Number(created.baseMinorUnits)).toBe(240000); // uses the stale 24 rate
 });
 ```
+
 > Add `import { Prisma } from '@evenup/db';` to the test file if it isn't already imported.
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -719,17 +793,21 @@ it('falls back to the newest cached rate when the provider is down (FR-8.5)', as
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts -t "auto-fetches"
 ```
+
 Expected: FAIL — no rate cached/fetched → `resolveRateDecimal` throws "provide one manually".
 
 - [ ] **Step 3: Extend `resolveRateDecimal`**
 
 Rewrite `packages/api/src/services/fx-service.ts`'s `resolveRateDecimal` (keep `convertToBase` unchanged). Add imports at the top:
+
 ```ts
 import { Prisma } from '@evenup/db';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
 import { fetchRate } from './fx-provider.js';
 ```
+
 Replace the function with:
+
 ```ts
 export interface ResolveRateFetch {
   readonly fetchImpl: FetchLike;
@@ -759,14 +837,24 @@ export async function resolveRateDecimal(
     return { rateDecimal: override, overridden: true, source: 'override', stale: false };
   }
   if (lockedRate) {
-    return { rateDecimal: lockedRate.toString(), overridden: false, source: 'locked', stale: false };
+    return {
+      rateDecimal: lockedRate.toString(),
+      overridden: false,
+      source: 'locked',
+      stale: false,
+    };
   }
   const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const row = await prisma.fxRate.findUnique({
     where: { base_quote_date: { base: baseCurrency, quote: fromCurrency, date: day } },
   });
   if (row) {
-    return { rateDecimal: row.rate.toString(), overridden: false, source: row.source, stale: false };
+    return {
+      rateDecimal: row.rate.toString(),
+      overridden: false,
+      source: row.source,
+      stale: false,
+    };
   }
   if (fetch?.fetchImpl) {
     const fetched = await fetchRate({
@@ -788,14 +876,24 @@ export async function resolveRateDecimal(
         },
         update: { rate: new Prisma.Decimal(fetched.rateDecimal), source: fetched.source },
       });
-      return { rateDecimal: fetched.rateDecimal, overridden: false, source: fetched.source, stale: false };
+      return {
+        rateDecimal: fetched.rateDecimal,
+        overridden: false,
+        source: fetched.source,
+        stale: false,
+      };
     }
     const latest = await prisma.fxRate.findFirst({
       where: { base: baseCurrency, quote: fromCurrency },
       orderBy: { date: 'desc' },
     });
     if (latest) {
-      return { rateDecimal: latest.rate.toString(), overridden: false, source: latest.source, stale: true };
+      return {
+        rateDecimal: latest.rate.toString(),
+        overridden: false,
+        source: latest.source,
+        stale: true,
+      };
     }
   }
   throw new Error(
@@ -807,38 +905,46 @@ export async function resolveRateDecimal(
 - [ ] **Step 4: Pass the fetch impl from the transaction router**
 
 In `packages/api/src/routers/transaction.ts`, both `createExpense` and `recordTransfer` call `resolveRateDecimal`. Add a helper just above `export const transactionRouter` :
+
 ```ts
 import type { Context } from '../context.js';
 
 function fxArgs(ctx: Context) {
   return ctx.fxFetch
-    ? { fetchImpl: ctx.fxFetch, providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app' }
+    ? {
+        fetchImpl: ctx.fxFetch,
+        providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
+      }
     : undefined;
 }
 ```
+
 In `createExpense`, extend the call:
+
 ```ts
-    const { rateDecimal, overridden } = await resolveRateDecimal(
-      ctx.prisma,
-      input.currency,
-      group.baseCurrency,
-      input.date,
-      input.exchangeRateToBase,
-      group.fxLockedRate,
-      fxArgs(ctx),
-    );
+const { rateDecimal, overridden } = await resolveRateDecimal(
+  ctx.prisma,
+  input.currency,
+  group.baseCurrency,
+  input.date,
+  input.exchangeRateToBase,
+  group.fxLockedRate,
+  fxArgs(ctx),
+);
 ```
+
 In `recordTransfer`, extend its call:
+
 ```ts
-    const { rateDecimal } = await resolveRateDecimal(
-      ctx.prisma,
-      input.currency,
-      group.baseCurrency,
-      date,
-      undefined,
-      undefined,
-      fxArgs(ctx),
-    );
+const { rateDecimal } = await resolveRateDecimal(
+  ctx.prisma,
+  input.currency,
+  group.baseCurrency,
+  date,
+  undefined,
+  undefined,
+  fxArgs(ctx),
+);
 ```
 
 - [ ] **Step 5: Run the full api suite to verify pass + no regressions**
@@ -846,6 +952,7 @@ In `recordTransfer`, extend its call:
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run
 ```
+
 Expected: PASS (all existing + the 2 new FX tests).
 
 - [ ] **Step 6: Commit**
@@ -862,19 +969,23 @@ git commit -m "feat(api): on-demand FX fetch + cache with stale fallback (FR-8.2
 Add a query so the web form can look up (and cache) the day's rate, and prefill the exchange-rate field when a foreign currency is chosen — still editable as an override, with a source/stale indicator.
 
 **Files:**
+
 - Modify: `packages/api/src/routers/fx.ts`
 - Modify: `apps/web/src/components/add-expense-form.tsx`
 
 **Interfaces:**
+
 - Consumes: `resolveRateDecimal` (Task 6); `ctx.fxFetch`.
 - Produces: `fx.resolve({ base, quote, date? }) -> { rateDecimal: string; source: string; stale: boolean } | null`.
 
 - [ ] **Step 1: Add the `fx.resolve` query**
 
 In `packages/api/src/routers/fx.ts`, add the import and a new procedure inside `fxRouter`:
+
 ```ts
 import { resolveRateDecimal } from '../services/fx-service.js';
 ```
+
 ```ts
   /** Resolve (and cache) the day's rate for base<-quote so the client can prefill. */
   resolve: protectedProcedure
@@ -899,6 +1010,7 @@ import { resolveRateDecimal } from '../services/fx-service.js';
 - [ ] **Step 2: Prefill the rate in the add-expense form**
 
 In `apps/web/src/components/add-expense-form.tsx`:
+
 - Add `useEffect` to the imports from `react`:
   ```ts
   import { useEffect, useState } from 'react';
@@ -917,16 +1029,19 @@ In `apps/web/src/components/add-expense-form.tsx`:
   }, [currency, baseCurrency, fxResolve.data, fxRate]);
   ```
 - Under the existing FX `<Input id="e-fx" .../>`, add a small indicator:
+
   ```tsx
-              {fxResolve.data ? (
-                <p className="mt-1 text-xs text-neutral-500" data-testid="fx-source">
-                  {fxResolve.data.stale
-                    ? t('fx.cached', { date: '' })
-                    : fxResolve.data.source === 'frankfurter'
-                      ? `${t('fx.rate')} · Frankfurter`
-                      : t('fx.override')}
-                </p>
-              ) : null}
+  {
+    fxResolve.data ? (
+      <p className="mt-1 text-xs text-neutral-500" data-testid="fx-source">
+        {fxResolve.data.stale
+          ? t('fx.cached', { date: '' })
+          : fxResolve.data.source === 'frankfurter'
+            ? `${t('fx.rate')} · Frankfurter`
+            : t('fx.override')}
+      </p>
+    ) : null;
+  }
   ```
 
 - [ ] **Step 3: Typecheck**
@@ -934,14 +1049,17 @@ In `apps/web/src/components/add-expense-form.tsx`:
 ```bash
 pnpm --filter @evenup/db exec prisma generate >/dev/null && pnpm turbo run typecheck --filter=@evenup/api --filter=@evenup/web
 ```
+
 Expected: PASS.
 
 - [ ] **Step 4: Update the FX E2E to assert prefill, then run it**
 
 In `apps/web/e2e/critical-flow.spec.ts`, the "foreign-currency expense" test currently fills the rate manually. Point the E2E FX provider at a stub OR keep the manual override (the field still accepts it). Minimal change: after selecting EUR, assert the source hint appears when a rate resolves. Since the E2E web server has no live provider, the query returns `null` and the user types the rate — so keep the existing manual `expense-fx-input` fill (no assertion change strictly required). Add one assertion that the field is present and editable (already covered). Run:
+
 ```bash
 cd apps/web && DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm exec playwright test --project=chromium -g "foreign-currency"
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -958,15 +1076,18 @@ git commit -m "feat(web): prefill FX rate from fx.resolve with source indicator 
 Extend `user.exportData` to a full personal-data document, and add `user.deleteAccount` with the "smart" semantics: delete solo groups, deactivate + unlink members in shared groups, remove bank details / BYO key / sessions, then delete the user.
 
 **Files:**
+
 - Modify: `packages/api/src/routers/user.ts`
 - Modify: `packages/api/src/routers/integration.test.ts` (test)
 
 **Interfaces:**
+
 - Produces: `user.exportData` (extended shape) and `user.deleteAccount() -> { ok: true }`.
 
 - [ ] **Step 1: Write the failing test**
 
 Add to `packages/api/src/routers/integration.test.ts`:
+
 ```ts
 it('smart-deletes the account: solo group gone, shared group unlinked (FR-1.6)', async () => {
   const olivia = await createTestUser('olivia@example.com');
@@ -984,7 +1105,10 @@ it('smart-deletes the account: solo group gone, shared group unlinked (FR-1.6)',
     where: { groupId: shared.id, userId: olivia.id },
   });
   await oliviaCaller.transaction.createExpense({
-    groupId: shared.id, title: 'Dinner', currency: 'CZK', date: new Date(),
+    groupId: shared.id,
+    title: 'Dinner',
+    currency: 'CZK',
+    date: new Date(),
     payers: [{ memberId: oliviaMember.id, amountMinorUnits: 20000 }],
     split: { type: 'EQUAL', members: [{ memberId: oliviaMember.id }, { memberId: petrMember.id }] },
   });
@@ -1006,11 +1130,13 @@ it('smart-deletes the account: solo group gone, shared group unlinked (FR-1.6)',
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts -t "smart-deletes"
 ```
+
 Expected: FAIL — `user.deleteAccount` does not exist.
 
 - [ ] **Step 3: Implement export round-out + deleteAccount**
 
 In `packages/api/src/routers/user.ts`, replace `exportData` and add `deleteAccount`:
+
 ```ts
   /** GDPR export of the user's personal data (FR-1.6). */
   exportData: protectedProcedure.query(async ({ ctx }) => {
@@ -1075,6 +1201,7 @@ In `packages/api/src/routers/user.ts`, replace `exportData` and add `deleteAccou
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1091,23 +1218,28 @@ git commit -m "feat(api): GDPR data export + smart account deletion (FR-1.6)"
 Add a "Your data (GDPR)" card to the settings page: export downloads the JSON blob; delete asks for confirmation, deletes, signs out, and redirects.
 
 **Files:**
+
 - Modify: `apps/web/src/app/settings/page.tsx`
 - Modify: `packages/i18n/src/locales/cs.ts` and `en.ts` (new keys)
 
 **Interfaces:**
+
 - Consumes: `user.exportData`, `user.deleteAccount` (Task 8); `signOut` from `@/lib/auth-client`.
 - Produces: `settings.data.title`, `settings.data.export`, `settings.data.delete`, `settings.data.deleteConfirm` message keys.
 
 - [ ] **Step 1: Add i18n keys (both catalogs)**
 
 In `packages/i18n/src/locales/cs.ts` add (Czech source — keep `Messages` in sync):
+
 ```ts
   'settings.data.title': 'Vaše data (GDPR)',
   'settings.data.export': 'Exportovat moje data',
   'settings.data.delete': 'Smazat účet',
   'settings.data.deleteConfirm': 'Opravdu smazat účet? Tuto akci nelze vzít zpět.',
 ```
+
 In `packages/i18n/src/locales/en.ts` add the matching keys:
+
 ```ts
   'settings.data.title': 'Your data (GDPR)',
   'settings.data.export': 'Export my data',
@@ -1118,11 +1250,13 @@ In `packages/i18n/src/locales/en.ts` add the matching keys:
 - [ ] **Step 2: Add the GDPR card + handlers**
 
 In `apps/web/src/app/settings/page.tsx`:
+
 - Extend the auth-client import:
   ```ts
   import { useSession, signOut } from '@/lib/auth-client';
   ```
 - Add the export query (lazy) and delete mutation inside the component, after `clearKey`:
+
   ```ts
   const exportData = trpc.user.exportData.useQuery(undefined, { enabled: false });
   const deleteAccount = trpc.user.deleteAccount.useMutation({
@@ -1144,34 +1278,38 @@ In `apps/web/src/app/settings/page.tsx`:
     URL.revokeObjectURL(url);
   }
   ```
+
 - Before the closing `</div>` (after the OpenRouter `Card`), add the GDPR card:
+
   ```tsx
-      <Card>
-        <h3 className="mb-3 font-semibold">{t('settings.data.title')}</h3>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={handleExport} data-testid="export-data-btn">
-            {t('settings.data.export')}
-          </Button>
-          <Button
-            variant="danger"
-            data-testid="delete-account-btn"
-            disabled={deleteAccount.isPending}
-            onClick={() => {
-              if (window.confirm(t('settings.data.deleteConfirm'))) deleteAccount.mutate();
-            }}
-          >
-            {t('settings.data.delete')}
-          </Button>
-        </div>
-      </Card>
+  <Card>
+    <h3 className="mb-3 font-semibold">{t('settings.data.title')}</h3>
+    <div className="flex flex-wrap gap-2">
+      <Button variant="ghost" onClick={handleExport} data-testid="export-data-btn">
+        {t('settings.data.export')}
+      </Button>
+      <Button
+        variant="danger"
+        data-testid="delete-account-btn"
+        disabled={deleteAccount.isPending}
+        onClick={() => {
+          if (window.confirm(t('settings.data.deleteConfirm'))) deleteAccount.mutate();
+        }}
+      >
+        {t('settings.data.delete')}
+      </Button>
+    </div>
+  </Card>
   ```
-> `window.confirm` is acceptable here (a settings action the E2E does not traverse). Do not add `confirm()` calls in flows the E2E drives (see the browser-dialog note in the repo guidance).
+
+  > `window.confirm` is acceptable here (a settings action the E2E does not traverse). Do not add `confirm()` calls in flows the E2E drives (see the browser-dialog note in the repo guidance).
 
 - [ ] **Step 3: Typecheck + i18n unit test**
 
 ```bash
 pnpm turbo run typecheck --filter=@evenup/web && pnpm --filter @evenup/i18n test
 ```
+
 Expected: PASS (i18n test confirms cs/en key parity).
 
 - [ ] **Step 4: Commit**
@@ -1188,17 +1326,20 @@ git commit -m "feat(web): GDPR export + delete account in settings (FR-1.6)"
 Add a read/filter API for the activity log, and log the missing edit events so the feed shows create/edit/delete/settle.
 
 **Files:**
+
 - Create: `packages/api/src/routers/activity.ts`
 - Modify: `packages/api/src/root.ts` (mount it)
 - Modify: `packages/api/src/routers/member.ts`, `packages/api/src/routers/group.ts` (log edits)
 - Modify: `packages/api/src/routers/integration.test.ts` (test)
 
 **Interfaces:**
+
 - Produces: `activity.list({ groupId, memberId?, action?, cursor?, limit? }) -> { items: ActivityItem[]; nextCursor: string | null }` where `ActivityItem = { id: string; action: string; payload: unknown; createdAt: Date; actorName: string | null }`.
 
 - [ ] **Step 1: Write the failing test**
 
 Add to `packages/api/src/routers/integration.test.ts`:
+
 ```ts
 it('lists activity and filters by action type (FR-9.1, FR-9.2)', async () => {
   const user = await createTestUser();
@@ -1206,7 +1347,10 @@ it('lists activity and filters by action type (FR-9.1, FR-9.2)', async () => {
   const group = await caller.group.create({ name: 'Log', baseCurrency: 'CZK' });
   const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
   await caller.transaction.createExpense({
-    groupId: group.id, title: 'Chata', currency: 'CZK', date: new Date(),
+    groupId: group.id,
+    title: 'Chata',
+    currency: 'CZK',
+    date: new Date(),
     payers: [{ memberId: m.id, amountMinorUnits: 30000 }],
     split: { type: 'EQUAL', members: [{ memberId: m.id }] },
   });
@@ -1228,11 +1372,13 @@ it('lists activity and filters by action type (FR-9.1, FR-9.2)', async () => {
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts -t "lists activity"
 ```
+
 Expected: FAIL — `caller.activity` is undefined.
 
 - [ ] **Step 3: Implement the activity router**
 
 Create `packages/api/src/routers/activity.ts`:
+
 ```ts
 /** Activity log read + filtering (PRD §4.9, FR-9.1/9.2). */
 import { z } from 'zod';
@@ -1270,7 +1416,9 @@ export const activityRouter = router({
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         include: {
           actor: {
-            select: { members: { where: { groupId: input.groupId }, select: { displayName: true } } },
+            select: {
+              members: { where: { groupId: input.groupId }, select: { displayName: true } },
+            },
           },
         },
       });
@@ -1293,9 +1441,11 @@ export const activityRouter = router({
 - [ ] **Step 4: Mount the router**
 
 In `packages/api/src/root.ts`, add the import and the `activity` key:
+
 ```ts
 import { activityRouter } from './routers/activity.js';
 ```
+
 ```ts
   activity: activityRouter,
 ```
@@ -1303,47 +1453,52 @@ import { activityRouter } from './routers/activity.js';
 - [ ] **Step 5: Log the edit events**
 
 In `packages/api/src/routers/member.ts` `update`, capture the result and log:
+
 ```ts
-      const updated = await ctx.prisma.member.update({
-        where: { id: input.memberId },
-        data: {
-          displayName: input.displayName,
-          initials: input.displayName ? deriveInitials(input.displayName) : undefined,
-          defaultShare: input.defaultShare,
-          role: input.role,
-          isActive: input.isActive,
-        },
-      });
-      await logActivity(ctx.prisma, groupId, ctx.user.id, 'member.updated', {
-        name: updated.displayName,
-      });
-      return updated;
+const updated = await ctx.prisma.member.update({
+  where: { id: input.memberId },
+  data: {
+    displayName: input.displayName,
+    initials: input.displayName ? deriveInitials(input.displayName) : undefined,
+    defaultShare: input.defaultShare,
+    role: input.role,
+    isActive: input.isActive,
+  },
+});
+await logActivity(ctx.prisma, groupId, ctx.user.id, 'member.updated', {
+  name: updated.displayName,
+});
+return updated;
 ```
+
 In `packages/api/src/routers/group.ts` `update`, capture + log:
+
 ```ts
-      const updated = await ctx.prisma.group.update({
-        where: { id: input.groupId },
-        data: { name: input.name, simplifyDebts: input.simplifyDebts },
-      });
-      await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'group.updated', {
-        name: updated.name,
-      });
-      return updated;
+const updated = await ctx.prisma.group.update({
+  where: { id: input.groupId },
+  data: { name: input.name, simplifyDebts: input.simplifyDebts },
+});
+await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'group.updated', {
+  name: updated.name,
+});
+return updated;
 ```
+
 In `packages/api/src/routers/group.ts` `archive`, capture + log:
+
 ```ts
-      const updated = await ctx.prisma.group.update({
-        where: { id: input.groupId },
-        data: { archivedAt: input.archived ? new Date() : null },
-      });
-      await logActivity(
-        ctx.prisma,
-        input.groupId,
-        ctx.user.id,
-        input.archived ? 'group.archived' : 'group.restored',
-        { name: updated.name },
-      );
-      return updated;
+const updated = await ctx.prisma.group.update({
+  where: { id: input.groupId },
+  data: { archivedAt: input.archived ? new Date() : null },
+});
+await logActivity(
+  ctx.prisma,
+  input.groupId,
+  ctx.user.id,
+  input.archived ? 'group.archived' : 'group.restored',
+  { name: updated.name },
+);
+return updated;
 ```
 
 - [ ] **Step 6: Run tests to verify they pass**
@@ -1351,6 +1506,7 @@ In `packages/api/src/routers/group.ts` `archive`, capture + log:
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts
 ```
+
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -1367,6 +1523,7 @@ git commit -m "feat(api): activity list/filter router + edit-event logging (FR-9
 A pure, clock-injectable sliding-window limiter; a web singleton wired into the context (completing Task 3's placeholder); and enforcement in `ocr.scan`.
 
 **Files:**
+
 - Create: `packages/api/src/rate-limit.ts`
 - Create: `packages/api/src/rate-limit.test.ts`
 - Create: `apps/web/src/server/rate-limit.ts`
@@ -1376,11 +1533,13 @@ A pure, clock-injectable sliding-window limiter; a web singleton wired into the 
 - Modify: `packages/api/src/routers/integration.test.ts` (test the 429 path)
 
 **Interfaces:**
+
 - Produces: `createRateLimiter(opts: { max: number; windowMs: number; now?: () => number }): RateLimiter` where `RateLimiter = { check(key: string): boolean }` (matches the inline type from Task 3). `check` returns `true` if allowed, `false` if over the limit.
 
 - [ ] **Step 1: Write the failing unit test**
 
 Create `packages/api/src/rate-limit.test.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { createRateLimiter } from './rate-limit.js';
@@ -1410,11 +1569,13 @@ describe('createRateLimiter', () => {
 ```bash
 pnpm --filter @evenup/api exec vitest run src/rate-limit.test.ts
 ```
+
 Expected: FAIL — cannot resolve `./rate-limit.js`.
 
 - [ ] **Step 3: Implement the limiter**
 
 Create `packages/api/src/rate-limit.ts`:
+
 ```ts
 /**
  * In-memory sliding-window rate limiter (PRD §9.2). Single-instance assumption
@@ -1445,6 +1606,7 @@ export function createRateLimiter(opts: {
   };
 }
 ```
+
 > `Date.now()` here is production runtime code (allowed); tests always inject `now`.
 
 - [ ] **Step 4: Run the unit test to verify it passes**
@@ -1452,27 +1614,32 @@ export function createRateLimiter(opts: {
 ```bash
 pnpm --filter @evenup/api exec vitest run src/rate-limit.test.ts
 ```
+
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Export the factory + enforce in `ocr.scan`**
 
 In `packages/api/src/index.ts` add:
+
 ```ts
 export { createRateLimiter } from './rate-limit.js';
 ```
+
 In `packages/api/src/routers/ocr.ts`, right after `await assertGroupAccess(...)` in `scan`:
+
 ```ts
-      if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
-        throw new TRPCError({
-          code: 'TOO_MANY_REQUESTS',
-          message: 'Too many receipt scans; please wait a moment and try again.',
-        });
-      }
+if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
+  throw new TRPCError({
+    code: 'TOO_MANY_REQUESTS',
+    message: 'Too many receipt scans; please wait a moment and try again.',
+  });
+}
 ```
 
 - [ ] **Step 6: Create the web singleton + restore the context wiring**
 
 Create `apps/web/src/server/rate-limit.ts`:
+
 ```ts
 import 'server-only';
 import { createRateLimiter } from '@evenup/api';
@@ -1480,11 +1647,13 @@ import { createRateLimiter } from '@evenup/api';
 // 10 receipt scans per minute per user (PRD §9.2).
 export const ocrRateLimit = createRateLimiter({ max: 10, windowMs: 60_000 });
 ```
+
 In `apps/web/src/server/trpc.ts`, add the import `import { ocrRateLimit } from './rate-limit.js';` and add `ocrRateLimit,` to the `createContext({ ... })` call (Task 3 deliberately left this out).
 
 - [ ] **Step 7: Write + run the api 429 test**
 
 Add to `packages/api/src/routers/integration.test.ts`:
+
 ```ts
 it('rate-limits OCR scans per user (§9.2)', async () => {
   const user = await createTestUser();
@@ -1495,10 +1664,13 @@ it('rate-limits OCR scans per user (§9.2)', async () => {
   ).rejects.toThrow(/TOO_MANY_REQUESTS|Too many/);
 });
 ```
+
 > The rate-limit check must sit **before** the group's key/precondition checks in `scan` (Step 5 places it right after `assertGroupAccess`, so the 429 fires before the "add your API key" precondition — no key setup needed in the test).
+
 ```bash
 DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm --filter @evenup/api exec vitest run src/routers/integration.test.ts
 ```
+
 Expected: PASS.
 
 - [ ] **Step 8: Typecheck web + commit**
@@ -1516,12 +1688,14 @@ git commit -m "feat: rate-limit OCR scans per user (§9.2)"
 Render the real activity log with member + action-type filters, and rename the current transaction list to "Transactions". Descriptions are localized by mapping each action to the existing generic `activity.*` templates (DRY — no new i18n keys).
 
 **Files:**
+
 - Create: `apps/web/src/lib/activity-message.ts`
 - Create: `apps/web/src/components/activity-feed.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx`
 - Modify: `packages/i18n/src/locales/cs.ts` and `en.ts` (add `nav.transactions`)
 
 **Interfaces:**
+
 - Consumes: `activity.list` (Task 10); `useI18n` `t`/`formatCurrency`/`formatDate`.
 - Produces: `describeActivity(action, payload, t, formatCurrency, actorName): string`.
 
@@ -1533,6 +1707,7 @@ Render the real activity log with member + action-type filters, and rename the c
 - [ ] **Step 2: Implement the action → message mapper**
 
 Create `apps/web/src/lib/activity-message.ts`:
+
 ```ts
 import type { MessageKey, InterpolationValues } from '@evenup/i18n';
 
@@ -1557,7 +1732,10 @@ export function describeActivity(
     case 'expense.created':
       return t('activity.created', { actor, item: str(p.title) });
     case 'expenses.imported':
-      return t('activity.created', { actor, item: `${Number(p.created ?? 0)}× ${t('expense.add')}` });
+      return t('activity.created', {
+        actor,
+        item: `${Number(p.created ?? 0)}× ${t('expense.add')}`,
+      });
     case 'settlement.recorded':
       return t('activity.settled', { actor, amount: formatCurrency(Number(p.amount ?? 0)) });
     case 'transaction.deleted':
@@ -1572,11 +1750,13 @@ export function describeActivity(
   }
 }
 ```
+
 > `formatCurrency` takes only the minor amount; the caller (Step 3) supplies a closure that applies the group's base currency (transfers are recorded in base, so that is correct).
 
 - [ ] **Step 3: Build the ActivityFeed component**
 
 Create `apps/web/src/components/activity-feed.tsx`:
+
 ```tsx
 'use client';
 import { useState } from 'react';
@@ -1678,23 +1858,26 @@ export function ActivityFeed({
   );
 }
 ```
+
 > The `(minor) => formatCurrency(minor, baseCurrency)` closure matches the mapper's `formatCurrency: (minor: number) => string` param defined in Step 2 — the base currency is captured here.
 
 - [ ] **Step 4: Rename the Transactions card + mount ActivityFeed in group-detail**
 
 In `apps/web/src/components/group-detail.tsx`:
+
 - Add the import:
   ```ts
   import { ActivityFeed } from '@/components/activity-feed';
   ```
 - Change the existing transactions `Card`'s heading from `{t('nav.activity')}` to `{t('nav.transactions')}`.
 - Immediately after that transactions `Card` (before the outer closing `</div>`), add:
+
   ```tsx
-      <ActivityFeed
-        groupId={groupId}
-        members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}
-        baseCurrency={group.data.baseCurrency}
-      />
+  <ActivityFeed
+    groupId={groupId}
+    members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}
+    baseCurrency={group.data.baseCurrency}
+  />
   ```
 
 - [ ] **Step 5: Typecheck + i18n test**
@@ -1702,22 +1885,26 @@ In `apps/web/src/components/group-detail.tsx`:
 ```bash
 pnpm turbo run typecheck --filter=@evenup/web && pnpm --filter @evenup/i18n test
 ```
+
 Expected: PASS. Fix the `describeActivity` `formatCurrency` signature per Step 3's resolution if the typecheck complains.
 
 - [ ] **Step 6: Extend the E2E to assert the feed, then run it**
 
 In `apps/web/e2e/critical-flow.spec.ts`, in the first test (after the expense is added), add:
+
 ```ts
-    // Activity feed shows the create events (FR-9.1).
-    await expect(page.getByTestId('activity-list')).toBeVisible();
-    await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
-    // Filtering by type narrows the list.
-    await page.getByTestId('activity-action-filter').selectOption('expense.created');
-    await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
+// Activity feed shows the create events (FR-9.1).
+await expect(page.getByTestId('activity-list')).toBeVisible();
+await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
+// Filtering by type narrows the list.
+await page.getByTestId('activity-action-filter').selectOption('expense.created');
+await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
 ```
+
 ```bash
 cd apps/web && DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm exec playwright test --project=chromium -g "sign in, create group"
 ```
+
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -1734,23 +1921,27 @@ git commit -m "feat(web): filterable activity feed; rename transactions list (FR
 Add axe assertions on the settings and invite pages, run the full browser matrix, and fix any WCAG 2.1 AA violations found.
 
 **Files:**
+
 - Modify: `apps/web/e2e/critical-flow.spec.ts` (axe on settings + invite)
 - Modify: any component with a violation (only if found)
 
 **Interfaces:**
+
 - Consumes: `AxeBuilder` (already imported in the spec).
 
 - [ ] **Step 1: Add an a11y assertion to the OCR/settings test**
 
 In the OCR test (which visits `/settings`), after the key is saved and `key-status` is visible, add:
+
 ```ts
-    const settingsA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
+const settingsA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
 ```
 
 - [ ] **Step 2: Add an invite-page a11y test**
 
 Add a new test that creates a group, generates an invite, opens `/invite/<token>` in the same session, and asserts axe is clean:
+
 ```ts
 test('invite page is accessible (§9.4)', async ({ page }, testInfo) => {
   const email = uniqueEmail('inv', testInfo.workerIndex + Date.now());
@@ -1772,6 +1963,7 @@ test('invite page is accessible (§9.4)', async ({ page }, testInfo) => {
 ```bash
 cd apps/web && DATABASE_URL="postgresql://evenup:pass@localhost:55432/evenup" pnpm exec playwright test
 ```
+
 Expected: PASS across chromium, firefox, webkit, mobile. If axe reports a violation (e.g. a `<Select>` filter missing a label, low-contrast text), fix it in the offending component — the filters in Task 12 already carry `aria-label`s — then re-run.
 
 - [ ] **Step 4: Commit**
@@ -1789,11 +1981,13 @@ git commit -m "test(web): a11y assertions on settings + invite; full matrix gree
 Final verification across the whole workspace as CI runs it, and a short docs update.
 
 **Files:**
+
 - Modify: `README.md` and/or `docs/PRD.md` status note (optional), `docs/SELF_HOSTING.md` (confirm the two env additions are present)
 
 - [ ] **Step 1: Whole-workspace gates (mirrors CI)**
 
 With the dev DB up and `DATABASE_URL` exported:
+
 ```bash
 pnpm --filter @evenup/db exec prisma generate
 pnpm format:check
@@ -1802,6 +1996,7 @@ pnpm turbo run test:coverage
 pnpm --filter @evenup/web build
 cd apps/web && pnpm exec playwright test && cd ../..
 ```
+
 Expected: all PASS; `packages/core` coverage ≥ 95%.
 
 - [ ] **Step 2: Format-fix if needed + commit**
@@ -1826,4 +2021,7 @@ gh pr create --title "Finish web app to PRD Phase 1+2" --body "Closes receipt st
 - **Spec coverage:** Item 0 → Task 1; receipt storage (FR-5.8) → Tasks 2–4; FX (FR-8.2/8.5) → Tasks 5–7; GDPR (FR-1.6) → Tasks 8–9; activity feed (FR-9.1/9.2) → Tasks 10, 12; OCR rate limit (§9.2) → Task 11; a11y (§9.4) → Task 13; cross-cutting green + docs → Task 14. All spec sections mapped.
 - **Type consistency:** `RateLimiter` is declared once in `context.ts` (Task 3) and implemented by `createRateLimiter` (Task 11); `ObjectStore`/`parseImageDataUrl` defined in Task 2 and consumed in Tasks 3–4; `resolveRateDecimal`'s new 7th param `fetch?: ResolveRateFetch` is defined in Task 6 and passed in Tasks 6–7; `describeActivity` currency-formatter signature is pinned to `(minor: number) => string` (Task 12, Step 3 resolution).
 - **Ordering:** Task 3 wires `ocrRateLimit` with a documented placeholder that Task 11 completes — the only forward reference, called out explicitly in both tasks.
+
+```
+
 ```

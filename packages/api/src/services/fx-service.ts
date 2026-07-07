@@ -41,14 +41,24 @@ export async function resolveRateDecimal(
     return { rateDecimal: override, overridden: true, source: 'override', stale: false };
   }
   if (lockedRate) {
-    return { rateDecimal: lockedRate.toString(), overridden: false, source: 'locked', stale: false };
+    return {
+      rateDecimal: lockedRate.toString(),
+      overridden: false,
+      source: 'locked',
+      stale: false,
+    };
   }
   const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const row = await prisma.fxRate.findUnique({
     where: { base_quote_date: { base: baseCurrency, quote: fromCurrency, date: day } },
   });
   if (row) {
-    return { rateDecimal: row.rate.toString(), overridden: false, source: row.source, stale: false };
+    return {
+      rateDecimal: row.rate.toString(),
+      overridden: false,
+      source: row.source,
+      stale: false,
+    };
   }
   if (fetchArgs?.fetchImpl) {
     const fetched = await fetchRate({
@@ -70,14 +80,24 @@ export async function resolveRateDecimal(
         },
         update: { rate: new Prisma.Decimal(fetched.rateDecimal), source: fetched.source },
       });
-      return { rateDecimal: fetched.rateDecimal, overridden: false, source: fetched.source, stale: false };
+      return {
+        rateDecimal: fetched.rateDecimal,
+        overridden: false,
+        source: fetched.source,
+        stale: false,
+      };
     }
     const latest = await prisma.fxRate.findFirst({
       where: { base: baseCurrency, quote: fromCurrency },
       orderBy: { date: 'desc' },
     });
     if (latest) {
-      return { rateDecimal: latest.rate.toString(), overridden: false, source: latest.source, stale: true };
+      return {
+        rateDecimal: latest.rate.toString(),
+        overridden: false,
+        source: latest.source,
+        stale: true,
+      };
     }
   }
   throw new Error(

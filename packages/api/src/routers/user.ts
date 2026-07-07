@@ -60,14 +60,25 @@ export const userRouter = router({
     const [profile, groups, bankDetails] = await Promise.all([
       ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
-        select: { id: true, email: true, name: true, locale: true, defaultCurrency: true, createdAt: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          locale: true,
+          defaultCurrency: true,
+          createdAt: true,
+        },
       }),
       ctx.prisma.group.findMany({
-        where: { OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }] },
+        where: {
+          OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }],
+        },
         include: {
           members: true,
           transactions: { include: { payers: true, splits: true } },
-          receipts: { select: { id: true, merchant: true, detectedCurrency: true, createdAt: true } },
+          receipts: {
+            select: { id: true, merchant: true, detectedCurrency: true, createdAt: true },
+          },
         },
       }),
       ctx.prisma.bankDetail.findMany({
@@ -82,7 +93,10 @@ export const userRouter = router({
   deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
     const userId = ctx.user.id;
     await ctx.prisma.$transaction(async (tx) => {
-      const memberships = await tx.member.findMany({ where: { userId }, select: { id: true, groupId: true } });
+      const memberships = await tx.member.findMany({
+        where: { userId },
+        select: { id: true, groupId: true },
+      });
       const groupIds = [...new Set(memberships.map((m) => m.groupId))];
       for (const groupId of groupIds) {
         // "Other linked members" = members with a different account. Explicit
@@ -107,7 +121,10 @@ export const userRouter = router({
               where: { OR: [{ fromMemberId: m.id }, { toMemberId: m.id }] },
             }));
           if (used > 0) {
-            await tx.member.update({ where: { id: m.id }, data: { isActive: false, userId: null } });
+            await tx.member.update({
+              where: { id: m.id },
+              data: { isActive: false, userId: null },
+            });
           } else {
             await tx.member.delete({ where: { id: m.id } });
           }

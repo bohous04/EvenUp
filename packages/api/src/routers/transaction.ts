@@ -27,7 +27,10 @@ const transactionInclude = {
 /** Pass the injected FX fetch (tests only) so createExpense/recordTransfer can auto-fetch a missing rate. */
 function fxArgs(ctx: Context) {
   return ctx.fxFetch
-    ? { fetchImpl: ctx.fxFetch, providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app' }
+    ? {
+        fetchImpl: ctx.fxFetch,
+        providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
+      }
     : undefined;
 }
 

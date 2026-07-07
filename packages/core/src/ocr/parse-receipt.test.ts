@@ -70,7 +70,9 @@ describe('parseReceiptText', () => {
   });
 
   it('uses the fallback currency when none is detected', () => {
-    const r = parseReceiptText(lines('Bar', 'Beer 5.00', 'Total 5.00'), { fallbackCurrency: 'GBP' });
+    const r = parseReceiptText(lines('Bar', 'Beer 5.00', 'Total 5.00'), {
+      fallbackCurrency: 'GBP',
+    });
     expect(r.currency).toBe('GBP');
   });
 

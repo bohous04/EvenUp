@@ -22,7 +22,8 @@ const config: ExpoConfig = {
     usesAppleSignIn: true,
     infoPlist: {
       NSCameraUsageDescription: 'EvenUp uses the camera to scan receipts.',
-      NSPhotoLibraryUsageDescription: 'EvenUp uses your photo library to pick receipt images to scan.',
+      NSPhotoLibraryUsageDescription:
+        'EvenUp uses your photo library to pick receipt images to scan.',
     },
   },
   android: {

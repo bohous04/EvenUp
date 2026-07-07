@@ -451,7 +451,11 @@ describe('FX resolution (FR-8.2, FR-8.5)', () => {
     const user = await createTestUser();
     const caller = makeCaller(user, {
       fxFetch: async () =>
-        ({ ok: true, json: async () => ({ rates: { CZK: 25 } }), text: async () => '' }) as Response,
+        ({
+          ok: true,
+          json: async () => ({ rates: { CZK: 25 } }),
+          text: async () => '',
+        }) as Response,
     });
     const group = await caller.group.create({ name: 'Trip', baseCurrency: 'CZK' });
     const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
@@ -512,9 +516,15 @@ describe('GDPR account deletion (FR-1.6)', () => {
       where: { groupId: shared.id, userId: olivia.id },
     });
     await oliviaCaller.transaction.createExpense({
-      groupId: shared.id, title: 'Dinner', currency: 'CZK', date: new Date(),
+      groupId: shared.id,
+      title: 'Dinner',
+      currency: 'CZK',
+      date: new Date(),
       payers: [{ memberId: oliviaMember.id, amountMinorUnits: 20000 }],
-      split: { type: 'EQUAL', members: [{ memberId: oliviaMember.id }, { memberId: petrMember.id }] },
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: oliviaMember.id }, { memberId: petrMember.id }],
+      },
     });
 
     // Olivia's member in the shared group has an IBAN on file -- PII that must
@@ -539,13 +549,17 @@ describe('GDPR account deletion (FR-1.6)', () => {
     expect(await testPrisma.group.findUnique({ where: { id: solo.id } })).toBeNull();
     const keptGroup = await testPrisma.group.findUnique({ where: { id: shared.id } });
     expect(keptGroup).not.toBeNull(); // shared group survives for Petr
-    const oliviaMemberAfter = await testPrisma.member.findUnique({ where: { id: oliviaMember.id } });
+    const oliviaMemberAfter = await testPrisma.member.findUnique({
+      where: { id: oliviaMember.id },
+    });
     expect(oliviaMemberAfter?.isActive).toBe(false); // deactivated (had a transaction)
     expect(oliviaMemberAfter?.userId).toBeNull(); // unlinked
     expect(await testPrisma.user.findUnique({ where: { id: olivia.id } })).toBeNull(); // user gone
 
     // BankDetail PII is gone even though the member row itself survives.
-    expect(await testPrisma.bankDetail.findUnique({ where: { memberId: oliviaMember.id } })).toBeNull();
+    expect(
+      await testPrisma.bankDetail.findUnique({ where: { memberId: oliviaMember.id } }),
+    ).toBeNull();
 
     // Second shared group: unused member is hard-deleted; group + Petr survive.
     expect(await testPrisma.member.findUnique({ where: { id: oliviaMember2.id } })).toBeNull();
@@ -562,7 +576,10 @@ describe('activity log (FR-9.1, FR-9.2)', () => {
     const group = await caller.group.create({ name: 'Log', baseCurrency: 'CZK' });
     const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
     await caller.transaction.createExpense({
-      groupId: group.id, title: 'Chata', currency: 'CZK', date: new Date(),
+      groupId: group.id,
+      title: 'Chata',
+      currency: 'CZK',
+      date: new Date(),
       payers: [{ memberId: m.id, amountMinorUnits: 30000 }],
       split: { type: 'EQUAL', members: [{ memberId: m.id }] },
     });
@@ -585,7 +602,10 @@ describe('activity log (FR-9.1, FR-9.2)', () => {
     const creatorMember = group.members[0]!;
     const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
     await caller.transaction.createExpense({
-      groupId: group.id, title: 'Chata', currency: 'CZK', date: new Date(),
+      groupId: group.id,
+      title: 'Chata',
+      currency: 'CZK',
+      date: new Date(),
       payers: [{ memberId: m.id, amountMinorUnits: 30000 }],
       split: { type: 'EQUAL', members: [{ memberId: m.id }] },
     });

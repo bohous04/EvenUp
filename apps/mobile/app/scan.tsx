@@ -125,9 +125,7 @@ export default function ScanScreen() {
         </Pressable>
         <Pressable style={styles.galleryButton} onPress={pickFromGallery} disabled={busy}>
           <Ionicons name="images-outline" size={18} color="#fff" />
-          <Text style={styles.buttonText}>
-            {busy ? t('ocr.processing') : t('ocr.fromGallery')}
-          </Text>
+          <Text style={styles.buttonText}>{busy ? t('ocr.processing') : t('ocr.fromGallery')}</Text>
         </Pressable>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>

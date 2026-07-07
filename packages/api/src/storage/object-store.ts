@@ -29,7 +29,12 @@ export function createS3ObjectStore(cfg: S3Config): ObjectStore {
   return {
     async putReceipt(key, bytes, contentType) {
       await client.send(
-        new PutObjectCommand({ Bucket: cfg.bucket, Key: key, Body: bytes, ContentType: contentType }),
+        new PutObjectCommand({
+          Bucket: cfg.bucket,
+          Key: key,
+          Body: bytes,
+          ContentType: contentType,
+        }),
       );
     },
     async deleteObject(key) {

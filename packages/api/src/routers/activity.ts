@@ -34,7 +34,9 @@ export const activityRouter = router({
         ...(input.cursor ? { cursor: { id: input.cursor } } : {}),
         include: {
           actor: {
-            select: { members: { where: { groupId: input.groupId }, select: { displayName: true } } },
+            select: {
+              members: { where: { groupId: input.groupId }, select: { displayName: true } },
+            },
           },
         },
       });

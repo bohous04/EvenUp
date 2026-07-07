@@ -21,7 +21,10 @@ export function describeActivity(
     case 'expense.created':
       return t('activity.created', { actor, item: str(p.title) });
     case 'expenses.imported':
-      return t('activity.created', { actor, item: `${Number(p.created ?? 0)}× ${t('expense.add')}` });
+      return t('activity.created', {
+        actor,
+        item: `${Number(p.created ?? 0)}× ${t('expense.add')}`,
+      });
     case 'settlement.recorded':
       return t('activity.settled', { actor, amount: formatCurrency(Number(p.amount ?? 0)) });
     case 'transaction.deleted':
