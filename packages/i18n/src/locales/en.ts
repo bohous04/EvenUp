@@ -136,4 +136,9 @@ export const en: Messages = {
   'error.generic': 'Something went wrong. Please try again.',
   'error.notFound': 'Not found',
   'error.unauthorized': 'You are not authorized',
+
+  'settings.data.title': 'Your data (GDPR)',
+  'settings.data.export': 'Export my data',
+  'settings.data.delete': 'Delete account',
+  'settings.data.deleteConfirm': 'Really delete your account? This cannot be undone.',
 };

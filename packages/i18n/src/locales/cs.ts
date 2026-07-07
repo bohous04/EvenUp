@@ -136,6 +136,11 @@ export const cs = {
   'error.generic': 'Něco se pokazilo. Zkuste to prosím znovu.',
   'error.notFound': 'Nenalezeno',
   'error.unauthorized': 'Nemáte oprávnění',
+
+  'settings.data.title': 'Vaše data (GDPR)',
+  'settings.data.export': 'Exportovat moje data',
+  'settings.data.delete': 'Smazat účet',
+  'settings.data.deleteConfirm': 'Opravdu smazat účet? Tuto akci nelze vzít zpět.',
 } as const;
 
 export type MessageKey = keyof typeof cs;
