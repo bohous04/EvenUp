@@ -20,8 +20,8 @@ export const activityRouter = router({
       // The actor is a User; map a member filter to that member's linked userId.
       let actorId: string | undefined;
       if (input.memberId) {
-        const member = await ctx.prisma.member.findUnique({
-          where: { id: input.memberId },
+        const member = await ctx.prisma.member.findFirst({
+          where: { id: input.memberId, groupId: input.groupId },
           select: { userId: true },
         });
         actorId = member?.userId ?? '__none__'; // virtual members are never actors

@@ -568,6 +568,91 @@ describe('activity log (FR-9.1, FR-9.2)', () => {
     expect(filtered.items.every((i) => i.action === 'expense.created')).toBe(true);
     expect(filtered.items.length).toBe(1);
   });
+
+  it('filters by memberId and returns the actor displayName for that member (FR-9.1)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user);
+    const group = await caller.group.create({ name: 'Log2', baseCurrency: 'CZK' });
+    const creatorMember = group.members[0]!;
+    const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+    await caller.transaction.createExpense({
+      groupId: group.id, title: 'Chata', currency: 'CZK', date: new Date(),
+      payers: [{ memberId: m.id, amountMinorUnits: 30000 }],
+      split: { type: 'EQUAL', members: [{ memberId: m.id }] },
+    });
+
+    // Creator is the actor for group.created, member.added (Petr) and expense.created.
+    const filtered = await caller.activity.list({ groupId: group.id, memberId: creatorMember.id });
+    expect(filtered.items.length).toBeGreaterThan(0);
+    for (const item of filtered.items) {
+      expect(item.actorName).toBe(creatorMember.displayName);
+    }
+  });
+
+  it('memberId filter for a virtual member (no linked user) returns no rows, not all rows (FR-9.1)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user);
+    const group = await caller.group.create({ name: 'Log3', baseCurrency: 'CZK' });
+    // A plain member.add creates a virtual member with userId null (not linked to a user).
+    const virtualMember = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+    expect(virtualMember.userId).toBeNull();
+
+    // Sanity: there is activity in the group (group.created + member.added), but
+    // none of it is attributable to the virtual member.
+    const all = await caller.activity.list({ groupId: group.id });
+    expect(all.items.length).toBeGreaterThan(0);
+
+    const filtered = await caller.activity.list({ groupId: group.id, memberId: virtualMember.id });
+    expect(filtered.items).toEqual([]);
+  });
+
+  it('logs edit events for member/group updates and group archive (FR-9.2)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user);
+    const group = await caller.group.create({ name: 'Log4', baseCurrency: 'CZK' });
+    const creatorMember = group.members[0]!;
+
+    await caller.member.update({ memberId: creatorMember.id, displayName: 'Renamed' });
+    await caller.group.update({ groupId: group.id, name: 'Renamed Group' });
+    await caller.group.archive({ groupId: group.id, archived: true });
+
+    const { items } = await caller.activity.list({ groupId: group.id });
+    const actions = items.map((i) => i.action);
+    expect(actions).toContain('member.updated');
+    expect(actions).toContain('group.updated');
+    expect(actions).toContain('group.archived');
+  });
+
+  it('paginates newest-first with a cursor that yields no overlap (FR-9.1)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user);
+    const group = await caller.group.create({ name: 'Log5', baseCurrency: 'CZK' });
+    // group.created, then three member.added rows -> at least 4 activity rows.
+    await caller.member.add({ groupId: group.id, displayName: 'A' });
+    await caller.member.add({ groupId: group.id, displayName: 'B' });
+    await caller.member.add({ groupId: group.id, displayName: 'C' });
+
+    const page1 = await caller.activity.list({ groupId: group.id, limit: 1 });
+    expect(page1.items).toHaveLength(1);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await caller.activity.list({
+      groupId: group.id,
+      limit: 1,
+      cursor: page1.nextCursor!,
+    });
+    expect(page2.items).toHaveLength(1);
+
+    // No overlap between pages.
+    expect(page2.items[0]!.id).not.toBe(page1.items[0]!.id);
+    // Newest-first: page 1's row was created no earlier than page 2's.
+    expect(new Date(page1.items[0]!.createdAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(page2.items[0]!.createdAt).getTime(),
+    );
+    // Concretely: the most-recent action (adding "C" last) leads.
+    expect(page1.items[0]!.action).toBe('member.added');
+    expect((page1.items[0]!.payload as { name: string }).name).toBe('C');
+  });
 });
 
 describe('access control', () => {
