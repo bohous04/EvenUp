@@ -19,6 +19,7 @@ export {
   type S3Config,
 } from './storage/object-store.js';
 export { createCallerFactory } from './trpc.js';
+export { createRateLimiter } from './rate-limit.js';
 export {
   generateEncryptionKey,
   createSecretBox,

@@ -435,6 +435,15 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
     }
   });
+
+  it('rate-limits OCR scans per user (§9.2)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user, { ocrRateLimit: { check: () => false } }); // always over the limit
+    const group = await caller.group.create({ name: 'RL', baseCurrency: 'CZK' });
+    await expect(
+      caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/png;base64,AAAA' }),
+    ).rejects.toThrow(/TOO_MANY_REQUESTS|Too many/);
+  });
 });
 
 describe('FX resolution (FR-8.2, FR-8.5)', () => {

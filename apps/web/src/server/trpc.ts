@@ -11,6 +11,7 @@ import {
 import { createSecretBox } from '@evenup/api';
 import { auth } from './auth.js';
 import { env } from './env.js';
+import { ocrRateLimit } from './rate-limit.js';
 
 const secretBox = createSecretBox(env.encryptionKey);
 
@@ -33,5 +34,6 @@ export async function createTrpcContext(headers: Headers): Promise<Context> {
     user: session?.user ? { id: session.user.id, email: session.user.email } : null,
     objectStore,
     fxFetch: fetch, // global fetch enables on-demand FX; tests inject a fake
+    ocrRateLimit,
   });
 }

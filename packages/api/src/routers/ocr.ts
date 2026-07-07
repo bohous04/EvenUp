@@ -18,6 +18,13 @@ export const ocrRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
 
+      if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Too many receipt scans; please wait a moment and try again.',
+        });
+      }
+
       const group = await ctx.prisma.group.findUniqueOrThrow({
         where: { id: input.groupId },
         select: { baseCurrency: true },
