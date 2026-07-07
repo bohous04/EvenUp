@@ -1,0 +1,18 @@
+/** Build the tRPC context for a request from the Better Auth session. */
+import 'server-only';
+import { prisma } from '@evenup/db';
+import { createContext, type Context } from '@evenup/api';
+import { createSecretBox } from '@evenup/api';
+import { auth } from './auth.js';
+import { env } from './env.js';
+
+const secretBox = createSecretBox(env.encryptionKey);
+
+export async function createTrpcContext(headers: Headers): Promise<Context> {
+  const session = await auth.api.getSession({ headers });
+  return createContext({
+    prisma,
+    secretBox,
+    user: session?.user ? { id: session.user.id, email: session.user.email } : null,
+  });
+}

@@ -1,0 +1,225 @@
+/**
+ * OpenRouter OCR adapter (PRD §6.2, §6.4). Sends a receipt image to OpenRouter's
+ * chat completions endpoint with a strict `json_schema` response_format, using
+ * the user's BYO key. Validates the result with zod, retries once on malformed
+ * output, converts decimal prices to integer minor units, and reconciles the
+ * item sum against the total.
+ *
+ * `fetchImpl` is injectable so the adapter is tested against recorded fixtures
+ * with **no live API calls** in CI.
+ */
+import { currencyExponent, decimalStringToMinor, isSupportedCurrency } from '@evenup/core';
+import { receiptSchema, RECEIPT_JSON_SCHEMA, type RawReceipt } from './schema.js';
+
+/** Map currency symbols / local strings the model may return to ISO 4217 codes. */
+const CURRENCY_ALIASES: Record<string, string> = {
+  KČ: 'CZK',
+  KC: 'CZK',
+  CZK: 'CZK',
+  '€': 'EUR',
+  EUR: 'EUR',
+  $: 'USD',
+  US$: 'USD',
+  USD: 'USD',
+  '£': 'GBP',
+  GBP: 'GBP',
+  ZŁ: 'PLN',
+  ZL: 'PLN',
+  PLN: 'PLN',
+};
+
+/** Resolve a model-reported currency to an ISO code, defaulting to the fallback. */
+function normalizeCurrencyCode(raw: string, fallback: string): string {
+  const cleaned = raw.trim().toUpperCase();
+  if (isSupportedCurrency(cleaned)) return cleaned; // already a 3-letter code
+  if (CURRENCY_ALIASES[cleaned]) return CURRENCY_ALIASES[cleaned];
+  return isSupportedCurrency(fallback) ? fallback.toUpperCase() : 'USD';
+}
+
+export const DEFAULT_OCR_MODEL = 'google/gemini-2.5-flash';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const LOW_CONFIDENCE_THRESHOLD = 0.5;
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+export class OcrError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause });
+    this.name = 'OcrError';
+  }
+}
+
+export interface OcrItem {
+  readonly name: string;
+  readonly quantity: number;
+  readonly unitPriceMinorUnits: number | null;
+  readonly totalMinorUnits: number;
+  readonly taxRate: number | null;
+}
+
+export interface OcrUsage {
+  readonly prompt_tokens?: number;
+  readonly completion_tokens?: number;
+  readonly total_tokens?: number;
+}
+
+export interface OcrResult {
+  readonly merchant: string | null;
+  readonly date: string | null;
+  readonly currency: string;
+  readonly items: OcrItem[];
+  readonly subtotalMinorUnits: number | null;
+  readonly taxMinorUnits: number | null;
+  readonly tipMinorUnits: number | null;
+  readonly totalMinorUnits: number;
+  readonly confidence: number;
+  readonly lowConfidence: boolean;
+  readonly reconciliation: {
+    readonly itemsSumMinorUnits: number;
+    readonly matchesTotal: boolean;
+  };
+  readonly usage?: OcrUsage;
+}
+
+export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
+
+export interface ExtractReceiptArgs {
+  readonly imageDataUrl: string;
+  readonly apiKey: string;
+  readonly model?: string;
+  readonly baseUrl?: string;
+  readonly timeoutMs?: number;
+  readonly fetchImpl?: FetchLike;
+  /** Currency to use when the model returns an unrecognized/symbol currency. */
+  readonly fallbackCurrency?: string;
+}
+
+const PROMPT =
+  'Extract the receipt as structured JSON. Czech receipts use comma decimals and "Kč". ' +
+  'Return every line item with its name, quantity and total price. Amounts are major units (e.g. 24.90). ' +
+  'The "currency" MUST be a 3-letter ISO 4217 code (e.g. CZK for Kč, EUR for €), never a symbol.';
+
+function buildBody(imageDataUrl: string, model: string) {
+  return {
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          { type: 'image_url', image_url: { url: imageDataUrl } },
+        ],
+      },
+    ],
+    response_format: { type: 'json_schema', json_schema: RECEIPT_JSON_SCHEMA },
+  };
+}
+
+/** Convert a decimal major-unit number to integer minor units for the currency. */
+function toMinor(value: number, currency: string): number {
+  const exp = currencyExponent(currency);
+  return decimalStringToMinor(value.toFixed(exp), currency);
+}
+
+function normalize(raw: RawReceipt, fallbackCurrency: string): OcrResult {
+  const currency = normalizeCurrencyCode(raw.currency, fallbackCurrency);
+  const items: OcrItem[] = raw.items.map((it) => ({
+    name: it.name,
+    quantity: it.quantity,
+    unitPriceMinorUnits:
+      it.unitPrice === null || it.unitPrice === undefined ? null : toMinor(it.unitPrice, currency),
+    totalMinorUnits: toMinor(it.totalPrice, currency),
+    taxRate: it.taxRate ?? null,
+  }));
+  const totalMinorUnits = toMinor(raw.total, currency);
+  const itemsSumMinorUnits = items.reduce((a, it) => a + it.totalMinorUnits, 0);
+
+  return {
+    merchant: raw.merchant ?? null,
+    date: raw.date ?? null,
+    currency,
+    items,
+    subtotalMinorUnits: raw.subtotal == null ? null : toMinor(raw.subtotal, currency),
+    taxMinorUnits: raw.tax == null ? null : toMinor(raw.tax, currency),
+    tipMinorUnits: raw.tip == null ? null : toMinor(raw.tip, currency),
+    totalMinorUnits,
+    confidence: raw.confidence,
+    lowConfidence: raw.confidence < LOW_CONFIDENCE_THRESHOLD,
+    reconciliation: {
+      itemsSumMinorUnits,
+      matchesTotal: itemsSumMinorUnits === totalMinorUnits,
+    },
+  };
+}
+
+async function callOnce(
+  args: Required<
+    Pick<ExtractReceiptArgs, 'imageDataUrl' | 'apiKey' | 'model' | 'baseUrl' | 'timeoutMs'>
+  >,
+  fetchImpl: FetchLike,
+): Promise<{ content: string; usage?: OcrUsage }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), args.timeoutMs);
+  let response: Response;
+  try {
+    response = await fetchImpl(args.baseUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${args.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(buildBody(args.imageDataUrl, args.model)),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    throw new OcrError('OCR request failed or timed out', err);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new OcrError(`OpenRouter returned HTTP ${response.status}: ${detail.slice(0, 300)}`);
+  }
+  const json = (await response.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: OcrUsage;
+  };
+  const content = json.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') {
+    throw new OcrError('OpenRouter response had no message content');
+  }
+  return { content, usage: json.usage };
+}
+
+function parseAndValidate(content: string): RawReceipt {
+  const parsed: unknown = JSON.parse(content);
+  return receiptSchema.parse(parsed);
+}
+
+/** Extract a structured receipt from an image. Retries once on malformed output. */
+export async function extractReceipt(args: ExtractReceiptArgs): Promise<OcrResult> {
+  const fetchImpl = args.fetchImpl ?? (globalThis.fetch as FetchLike | undefined);
+  if (!fetchImpl) {
+    throw new OcrError('No fetch implementation available');
+  }
+  const resolved = {
+    imageDataUrl: args.imageDataUrl,
+    apiKey: args.apiKey,
+    model: args.model ?? DEFAULT_OCR_MODEL,
+    baseUrl: args.baseUrl ?? OPENROUTER_URL,
+    timeoutMs: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  };
+
+  const fallbackCurrency = args.fallbackCurrency ?? 'USD';
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { content, usage } = await callOnce(resolved, fetchImpl);
+    try {
+      const raw = parseAndValidate(content);
+      return { ...normalize(raw, fallbackCurrency), usage };
+    } catch (err) {
+      lastError = err; // malformed JSON or failed validation — retry once (§6.4)
+    }
+  }
+  throw new OcrError('OCR output could not be parsed after a retry', lastError);
+}

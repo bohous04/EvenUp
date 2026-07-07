@@ -1,0 +1,360 @@
+// EvenUp database schema (PRD §7). PostgreSQL + Prisma.
+//
+// Money is stored as integer minor units in BigInt columns; the API layer
+// converts to/from JS safe integers when calling @evenup/core. Exchange rates
+// are stored as Decimal to preserve exactness.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" covers local dev; the Debian target is the Docker runtime engine.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (Better Auth compatible) — see PRD §8.2. Users are OPTIONAL; members
+// can exist without an account (FR-1.1).
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // EvenUp settings (PRD §7.2)
+  locale                 String  @default("cs")
+  defaultCurrency        String  @default("CZK")
+  openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
+  ocrModel               String?
+
+  sessions     Session[]
+  accounts     Account[]
+  members      Member[]
+  createdGroups Group[]       @relation("GroupCreatedBy")
+  activityLogs ActivityLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// ---------------------------------------------------------------------------
+// Groups & members (PRD §4.2)
+// ---------------------------------------------------------------------------
+
+enum GroupTemplate {
+  TRIP
+  HOUSEHOLD
+  COUPLE
+  EVENT
+  OTHER
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+model Group {
+  id            String         @id @default(cuid())
+  name          String
+  template      GroupTemplate  @default(OTHER)
+  baseCurrency  String         @default("CZK")
+  simplifyDebts Boolean        @default(true)
+  fxLockedRate  Decimal?       @db.Decimal(20, 8) // per-trip locked rate (FR-8.3)
+  createdById   String?
+  createdBy     User?          @relation("GroupCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  archivedAt    DateTime?
+
+  members      Member[]
+  transactions Transaction[]
+  invites      Invite[]
+  receipts     Receipt[]
+  activityLogs ActivityLog[]
+
+  @@index([createdById])
+}
+
+model Member {
+  id           String      @id @default(cuid())
+  groupId      String
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  displayName  String
+  initials     String
+  color        String // hex color used for chips everywhere (FR-2.2)
+  defaultShare Int         @default(1)
+  role         MemberRole  @default(MEMBER)
+  isActive     Boolean     @default(true)
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+
+  bankDetail      BankDetail?
+  payerEntries    TransactionPayer[]
+  splitEntries    TransactionSplit[]
+  itemAssignments ItemAssignment[]
+  transfersFrom   Transaction[]      @relation("TransferFrom")
+  transfersTo     Transaction[]      @relation("TransferTo")
+
+  @@index([groupId])
+  @@index([userId])
+}
+
+model BankDetail {
+  id             String  @id @default(cuid())
+  memberId       String  @unique
+  member         Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  ibanEncrypted  String // IBAN encrypted at rest (AES-GCM), FR-7.2 / §9.2
+  recipientName  String?
+  variableSymbol String?
+}
+
+model Invite {
+  id        String    @id @default(cuid())
+  groupId   String
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  createdById String?
+  expiresAt DateTime?
+  maxUses   Int?
+  usedCount Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([groupId])
+}
+
+// ---------------------------------------------------------------------------
+// Transactions, payers, splits (PRD §4.3, §4.4)
+// ---------------------------------------------------------------------------
+
+enum TransactionType {
+  EXPENSE
+  INCOME
+  TRANSFER
+}
+
+enum SplitType {
+  EQUAL
+  EXACT
+  SHARES
+  PERCENTAGE
+  ITEMIZED
+}
+
+enum SettlementMethod {
+  CASH
+  BANK
+  QR
+}
+
+model Transaction {
+  id                 String          @id @default(cuid())
+  groupId            String
+  group              Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  type               TransactionType
+  title              String
+  note               String?
+  currency           String
+  totalMinorUnits    BigInt
+  // base-currency total after FX conversion; equals total when currency == base
+  baseMinorUnits     BigInt
+  exchangeRateToBase Decimal         @default(1) @db.Decimal(20, 8)
+  fxRateOverridden   Boolean         @default(false)
+  date               DateTime
+  category           String?
+  splitType          SplitType       @default(EQUAL)
+  createdById        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // transfer-only fields (FR-3.3, FR-7.3)
+  fromMemberId String?
+  fromMember   Member?           @relation("TransferFrom", fields: [fromMemberId], references: [id], onDelete: SetNull)
+  toMemberId   String?
+  toMember     Member?           @relation("TransferTo", fields: [toMemberId], references: [id], onDelete: SetNull)
+  method       SettlementMethod?
+  settledAt    DateTime?
+
+  receiptId String?  @unique
+  receipt   Receipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+
+  // Recurring template fields (FR-12.1). When recurrenceInterval is set, this
+  // transaction is a template from which due occurrences are materialized.
+  recurrenceInterval String? // daily | weekly | monthly | yearly
+  recurrenceLastRun  DateTime?
+  recurringFromId    String? // set on generated copies, pointing at the template
+
+  payers       TransactionPayer[]
+  splits       TransactionSplit[]
+  receiptItems ReceiptItem[]
+
+  @@index([groupId])
+  @@index([date])
+}
+
+model TransactionPayer {
+  id              String      @id @default(cuid())
+  transactionId   String
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  amountMinorUnits BigInt
+
+  @@unique([transactionId, memberId])
+  @@index([transactionId])
+}
+
+model TransactionSplit {
+  id                 String      @id @default(cuid())
+  transactionId      String
+  transaction        Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  memberId           String
+  member             Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  shareWeight        Int?
+  exactMinorUnits    BigInt?
+  percentage         Decimal?    @db.Decimal(7, 4)
+  computedMinorUnits BigInt
+
+  @@unique([transactionId, memberId])
+  @@index([transactionId])
+}
+
+// ---------------------------------------------------------------------------
+// Receipts & OCR (PRD §4.5, §6)
+// ---------------------------------------------------------------------------
+
+enum ReceiptStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Receipt {
+  id                      String        @id @default(cuid())
+  groupId                 String
+  group                   Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  storageKey              String
+  ocrModel                String?
+  status                  ReceiptStatus @default(PENDING)
+  rawJson                 Json?
+  merchant                String?
+  detectedCurrency        String?
+  detectedTotalMinorUnits BigInt?
+  confidence              Float?
+  createdAt               DateTime      @default(now())
+
+  transaction Transaction?
+
+  @@index([groupId])
+}
+
+model ReceiptItem {
+  id                  String      @id @default(cuid())
+  transactionId       String
+  transaction         Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  name                String
+  quantity            Decimal     @default(1) @db.Decimal(12, 3)
+  unitPriceMinorUnits BigInt?
+  totalMinorUnits     BigInt
+  taxRate             Decimal?    @db.Decimal(7, 4)
+
+  assignments ItemAssignment[]
+
+  @@index([transactionId])
+}
+
+model ItemAssignment {
+  receiptItemId String
+  receiptItem   ReceiptItem @relation(fields: [receiptItemId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([receiptItemId, memberId])
+  @@index([memberId])
+}
+
+// ---------------------------------------------------------------------------
+// FX rates (PRD §4.8)
+// ---------------------------------------------------------------------------
+
+model FxRate {
+  id     String   @id @default(cuid())
+  base   String
+  quote  String
+  rate   Decimal  @db.Decimal(20, 8)
+  date   DateTime @db.Date
+  source String
+
+  @@unique([base, quote, date])
+  @@index([date])
+}
+
+// ---------------------------------------------------------------------------
+// Activity log (PRD §4.9)
+// ---------------------------------------------------------------------------
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([groupId])
+  @@index([createdAt])
+}

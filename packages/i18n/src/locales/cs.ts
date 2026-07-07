@@ -1,0 +1,142 @@
+/**
+ * Czech message catalog — the **default** language and the source-of-truth shape.
+ * Every other locale must provide exactly these keys. (FR-10.1)
+ *
+ * Placeholders use `{name}` syntax and are filled by the `t()` interpolator.
+ */
+export const cs = {
+  'app.name': 'dlužníček',
+  'app.tagline': 'Spravedlivé dělení nákladů ve skupině',
+
+  'common.save': 'Uložit',
+  'common.cancel': 'Zrušit',
+  'common.delete': 'Smazat',
+  'common.edit': 'Upravit',
+  'common.add': 'Přidat',
+  'common.back': 'Zpět',
+  'common.confirm': 'Potvrdit',
+  'common.loading': 'Načítání…',
+  'common.search': 'Hledat',
+  'common.required': 'Povinné',
+  'common.optional': 'Nepovinné',
+  'common.total': 'Celkem',
+
+  'nav.groups': 'Skupiny',
+  'nav.activity': 'Historie',
+  'nav.settings': 'Nastavení',
+  'nav.signOut': 'Odhlásit se',
+
+  'locale.czech': 'Čeština',
+  'locale.english': 'Angličtina',
+
+  'group.create': 'Vytvořit skupinu',
+  'group.name': 'Název skupiny',
+  'group.baseCurrency': 'Základní měna',
+  'group.template': 'Šablona',
+  'group.template.trip': 'Výlet',
+  'group.template.household': 'Domácnost',
+  'group.template.couple': 'Pár',
+  'group.template.event': 'Událost',
+  'group.template.other': 'Jiné',
+  'group.members': 'Členové',
+  'group.simplifyDebts': 'Zjednodušit dluhy',
+  'group.archive': 'Archivovat skupinu',
+  'group.archived': 'Archivováno',
+  'group.empty': 'Zatím žádné skupiny. Vytvořte první!',
+
+  'member.add': 'Přidat člena',
+  'member.name': 'Jméno',
+  'member.defaultShare': 'Výchozí podíl',
+  'member.role.admin': 'Správce',
+  'member.role.member': 'Člen',
+  'member.deactivate': 'Deaktivovat',
+  'member.iban': 'IBAN (pro QR platbu)',
+
+  'invite.create': 'Vytvořit pozvánku',
+  'invite.link': 'Odkaz na pozvánku',
+  'invite.claim': 'Převzít profil člena',
+  'invite.expired': 'Pozvánka vypršela',
+
+  'expense.add': 'Přidat výdaj',
+  'expense.title': 'Název',
+  'expense.amount': 'Částka',
+  'expense.currency': 'Měna',
+  'expense.date': 'Datum',
+  'expense.category': 'Kategorie',
+  'expense.note': 'Poznámka',
+  'expense.paidBy': 'Zaplatil(a)',
+  'expense.splitBetween': 'Rozdělit mezi',
+  'expense.income': 'Příjem',
+  'expense.transfer': 'Převod',
+
+  'expense.recurring': 'Opakovat',
+  'recurrence.none': 'Ne',
+  'recurrence.daily': 'Denně',
+  'recurrence.weekly': 'Týdně',
+  'recurrence.monthly': 'Měsíčně',
+  'recurrence.yearly': 'Ročně',
+
+  'stats.spendByCategory': 'Výdaje podle kategorií',
+  'category.groceries': 'Potraviny',
+  'category.restaurant': 'Restaurace',
+  'category.transport': 'Doprava',
+  'category.accommodation': 'Ubytování',
+  'category.entertainment': 'Zábava',
+  'category.shopping': 'Nákupy',
+  'category.utilities': 'Energie',
+  'category.health': 'Zdraví',
+  'category.travel': 'Cestování',
+  'category.other': 'Ostatní',
+
+  'split.equal': 'Rovným dílem',
+  'split.exact': 'Přesné částky',
+  'split.shares': 'Podíly',
+  'split.percentage': 'Procenta',
+  'split.itemized': 'Po položkách',
+  'split.sumMismatch': 'Součet musí odpovídat celkové částce',
+  'split.percentMismatch': 'Procenta musí dát dohromady 100 %',
+
+  'balance.title': 'Zůstatky',
+  'balance.owes': '{debtor} dluží {creditor} {amount}',
+  'balance.isOwed': '{member} má dostat {amount}',
+  'balance.settledUp': 'Všechno je vyrovnáno',
+  'balance.suggestedPayments': 'Navrhované platby',
+
+  'settle.title': 'Vyrovnat',
+  'settle.markPaid': 'Označit jako zaplaceno',
+  'settle.method.cash': 'Hotově',
+  'settle.method.bank': 'Bankovním převodem',
+  'settle.method.qr': 'QR platbou',
+  'settle.qrCode': 'QR platba',
+  'settle.noIban': 'Příjemce nemá uložený IBAN — zaplaťte hotově nebo ručně',
+
+  'ocr.scan': 'Naskenovat účtenku',
+  'ocr.fromGallery': 'Vybrat z galerie',
+  'ocr.uploading': 'Nahrávání…',
+  'ocr.processing': 'Zpracování účtenky…',
+  'ocr.assignItems': 'Přiřaďte položky členům',
+  'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
+  'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
+  'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',
+  'ocr.addItem': 'Přidat položku',
+  'ocr.itemName': 'Název položky',
+  'ocr.perPerson': 'Na osobu',
+
+  'fx.rate': 'Směnný kurz',
+  'fx.override': 'Vlastní kurz',
+  'fx.locked': 'Uzamčený kurz',
+  'fx.cached': 'Použit uložený kurz z {date}',
+
+  'activity.created': '{actor} vytvořil(a) {item}',
+  'activity.edited': '{actor} upravil(a) {item}',
+  'activity.deleted': '{actor} smazal(a) {item}',
+  'activity.settled': '{actor} vyrovnal(a) platbu {amount}',
+
+  'error.generic': 'Něco se pokazilo. Zkuste to prosím znovu.',
+  'error.notFound': 'Nenalezeno',
+  'error.unauthorized': 'Nemáte oprávnění',
+} as const;
+
+export type MessageKey = keyof typeof cs;
+/** Every locale must provide exactly these keys, each mapping to a string. */
+export type Messages = Record<MessageKey, string>;

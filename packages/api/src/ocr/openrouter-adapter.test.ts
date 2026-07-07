@@ -1,0 +1,202 @@
+import { describe, expect, test, vi } from 'vitest';
+import { extractReceipt, OcrError, type FetchLike } from './openrouter-adapter.js';
+
+/** Build a fake `fetch` returning an OpenRouter-shaped chat completion. */
+function fakeFetch(content: string, opts: { status?: number; usage?: unknown } = {}) {
+  return vi.fn<FetchLike>(
+    async () =>
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content } }],
+          usage: opts.usage ?? { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+        }),
+        { status: opts.status ?? 200, headers: { 'content-type': 'application/json' } },
+      ),
+  );
+}
+
+const HAPPY = JSON.stringify({
+  merchant: 'Albert',
+  date: '2026-06-22',
+  currency: 'CZK',
+  items: [
+    { name: 'Mléko', quantity: 1, unitPrice: 24.9, totalPrice: 24.9 },
+    { name: 'Chléb', quantity: 2, unitPrice: 19.5, totalPrice: 39.0 },
+  ],
+  subtotal: 63.9,
+  tax: null,
+  tip: null,
+  total: 63.9,
+  confidence: 0.96,
+});
+
+const baseArgs = {
+  imageDataUrl: 'data:image/jpeg;base64,AAAA',
+  apiKey: 'sk-or-test',
+  model: 'google/gemini-2.5-flash',
+};
+
+describe('extractReceipt — happy path', () => {
+  test('parses items into integer minor units in the detected currency', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    const result = await extractReceipt({ ...baseArgs, fetchImpl });
+
+    expect(result.currency).toBe('CZK');
+    expect(result.merchant).toBe('Albert');
+    expect(result.totalMinorUnits).toBe(6390);
+    expect(result.items).toEqual([
+      {
+        name: 'Mléko',
+        quantity: 1,
+        unitPriceMinorUnits: 2490,
+        totalMinorUnits: 2490,
+        taxRate: null,
+      },
+      {
+        name: 'Chléb',
+        quantity: 2,
+        unitPriceMinorUnits: 1950,
+        totalMinorUnits: 3900,
+        taxRate: null,
+      },
+    ]);
+    expect(result.confidence).toBeCloseTo(0.96);
+    expect(result.reconciliation.itemsSumMinorUnits).toBe(6390);
+    expect(result.reconciliation.matchesTotal).toBe(true);
+  });
+
+  test('sends a strict json_schema response_format and the BYO key', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({ ...baseArgs, fetchImpl });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.strict).toBe(true);
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer sk-or-test' });
+  });
+
+  test('flags a mismatch when items do not sum to the total', async () => {
+    const mismatch = JSON.stringify({
+      currency: 'CZK',
+      items: [{ name: 'A', quantity: 1, totalPrice: 10 }],
+      total: 25,
+      confidence: 0.9,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(mismatch) });
+    expect(result.reconciliation.matchesTotal).toBe(false);
+    expect(result.reconciliation.itemsSumMinorUnits).toBe(1000);
+    expect(result.totalMinorUnits).toBe(2500);
+  });
+
+  test('reports low confidence', async () => {
+    const lowConf = JSON.stringify({
+      currency: 'CZK',
+      items: [{ name: 'A', quantity: 1, totalPrice: 10 }],
+      total: 10,
+      confidence: 0.2,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(lowConf) });
+    expect(result.lowConfidence).toBe(true);
+  });
+
+  test('surfaces token usage from the response', async () => {
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(HAPPY) });
+    expect(result.usage?.total_tokens).toBe(150);
+  });
+});
+
+describe('extractReceipt — robustness (§6.4)', () => {
+  test('retries once on malformed JSON, then succeeds', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ choices: [{ message: { content: 'not json{' } }] }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ choices: [{ message: { content: HAPPY } }] }), {
+          status: 200,
+        }),
+      );
+    const result = await extractReceipt({ ...baseArgs, fetchImpl });
+    expect(result.totalMinorUnits).toBe(6390);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  test('throws OcrError after a second malformed response', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ choices: [{ message: { content: 'bad' } }] }), {
+          status: 200,
+        }),
+    );
+    await expect(extractReceipt({ ...baseArgs, fetchImpl })).rejects.toBeInstanceOf(OcrError);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  test('throws OcrError on an HTTP error status', async () => {
+    const fetchImpl = vi.fn(async () => new Response('rate limited', { status: 429 }));
+    await expect(extractReceipt({ ...baseArgs, fetchImpl })).rejects.toBeInstanceOf(OcrError);
+  });
+
+  test('throws OcrError when the schema does not validate', async () => {
+    const invalid = JSON.stringify({ currency: 'CZK' }); // missing items/total/confidence
+    const fetchImpl = fakeFetch(invalid);
+    await expect(extractReceipt({ ...baseArgs, fetchImpl })).rejects.toBeInstanceOf(OcrError);
+  });
+
+  test('includes the response body in an HTTP error (for diagnosis)', async () => {
+    const fetchImpl = vi.fn<FetchLike>(
+      async () => new Response('upstream model error', { status: 502 }),
+    );
+    await expect(extractReceipt({ ...baseArgs, fetchImpl })).rejects.toThrow(
+      /502.*upstream model error/,
+    );
+  });
+});
+
+describe('extractReceipt — currency normalization (real models return symbols)', () => {
+  const fixture = (currency: string) =>
+    JSON.stringify({
+      currency,
+      items: [{ name: 'Rohlík', quantity: 1, totalPrice: 24.9 }],
+      total: 24.9,
+      confidence: 0.95,
+    });
+
+  test('maps "Kč" to CZK and parses minor units', async () => {
+    const result = await extractReceipt({
+      ...baseArgs,
+      fetchImpl: fakeFetch(fixture('Kč')),
+      fallbackCurrency: 'CZK',
+    });
+    expect(result.currency).toBe('CZK');
+    expect(result.totalMinorUnits).toBe(2490);
+  });
+
+  test('maps common symbols (€, $, zł)', async () => {
+    for (const [sym, iso] of [
+      ['€', 'EUR'],
+      ['$', 'USD'],
+      ['zł', 'PLN'],
+    ] as const) {
+      const r = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(fixture(sym)) });
+      expect(r.currency).toBe(iso);
+    }
+  });
+
+  test('keeps a valid ISO code as-is', async () => {
+    const r = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(fixture('usd')) });
+    expect(r.currency).toBe('USD');
+  });
+
+  test('falls back to the provided currency for an unrecognized one', async () => {
+    const r = await extractReceipt({
+      ...baseArgs,
+      fetchImpl: fakeFetch(fixture('???')),
+      fallbackCurrency: 'EUR',
+    });
+    expect(r.currency).toBe('EUR');
+  });
+});

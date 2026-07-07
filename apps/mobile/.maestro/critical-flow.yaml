@@ -1,0 +1,34 @@
+# Maestro E2E for EvenUp mobile (PRD §10.1). Runs on iOS Simulator + Android
+# Emulator in CI. Assumes a test build with AUTH_DEV_ECHO so the magic link can
+# be opened via the `evenup://` deep link injected by the harness.
+appId: company.lnrt.evenup
+---
+- launchApp:
+    clearState: true
+
+# Sign in
+- assertVisible: 'EvenUp'
+- tapOn:
+    id: 'Email'
+- inputText: 'olivia@example.com'
+- tapOn: 'Sign in with email'
+- assertVisible: 'Check your inbox to finish signing in.'
+
+# The CI harness opens the captured magic link:
+- openLink: '${MAGIC_LINK}'
+- assertVisible: 'EvenUp'
+
+# Open the first group and add an expense
+- tapOn:
+    index: 0
+    text: '.*'
+- assertVisible: 'Members'
+- tapOn:
+    id: 'expense title'
+- inputText: 'Chata'
+- tapOn:
+    id: 'amount'
+- inputText: '900'
+- tapOn: 'Save'
+- assertVisible: 'Balances'
+- assertVisible: 'Suggested payments'

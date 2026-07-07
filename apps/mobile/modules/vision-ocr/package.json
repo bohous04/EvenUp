@@ -1,0 +1,9 @@
+{
+  "name": "vision-ocr",
+  "version": "1.0.0",
+  "description": "On-device receipt OCR via Apple Vision (VNRecognizeTextRequest).",
+  "main": "index.ts",
+  "license": "MIT",
+  "author": "EvenUp",
+  "homepage": "https://github.com/evenup"
+}

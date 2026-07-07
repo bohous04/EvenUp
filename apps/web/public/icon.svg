@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EvenUp">
+  <rect width="512" height="512" rx="96" fill="#2563eb" />
+  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 110v300" />
+    <path d="M150 150h212" />
+    <path d="M150 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
+    <path d="M362 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
+    <path d="M196 410h120" />
+  </g>
+</svg>
