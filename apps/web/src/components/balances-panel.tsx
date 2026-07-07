@@ -119,6 +119,7 @@ function SettleRow({
       setOpen(false);
       void utils.balance.get.invalidate({ groupId });
       void utils.transaction.list.invalidate({ groupId });
+      void utils.activity.list.invalidate({ groupId });
     },
   });
 

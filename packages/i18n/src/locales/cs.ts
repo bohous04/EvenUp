@@ -23,6 +23,7 @@ export const cs = {
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',
+  'nav.transactions': 'Transakce',
   'nav.settings': 'Nastavení',
   'nav.signOut': 'Odhlásit se',
 

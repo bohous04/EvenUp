@@ -38,6 +38,13 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('expense-category-select').selectOption('accommodation');
     await page.getByTestId('add-expense-submit').click();
 
+    // Activity feed shows the create events (FR-9.1).
+    await expect(page.getByTestId('activity-list')).toBeVisible();
+    await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
+    // Filtering by type narrows the list.
+    await page.getByTestId('activity-action-filter').selectOption('expense.created');
+    await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
+
     // Balances: the payer is +600.00, suggested payments exist (debt minimization).
     await expect(page.getByTestId('payments-list')).toBeVisible();
     await expect(page.getByText(/600[.,]00/)).toBeVisible();
@@ -151,7 +158,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
 
     // The itemized expense was created with the edited total (75.10 CZK).
     await expect(page.getByTestId('ocr-items')).toBeHidden();
-    await expect(page.getByText('Receipt')).toBeVisible();
+    // Scoped to the transactions list: the activity feed also mentions "Receipt".
+    await expect(page.getByTestId('transactions-list').getByText('Receipt')).toBeVisible();
     await expect(page.getByText(/75[.,]10/).first()).toBeVisible();
   });
 

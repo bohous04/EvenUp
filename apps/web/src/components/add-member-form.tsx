@@ -13,6 +13,7 @@ export function AddMemberForm({ groupId }: { groupId: string }) {
       setName('');
       void utils.group.get.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
+      void utils.activity.list.invalidate({ groupId });
     },
   });
 

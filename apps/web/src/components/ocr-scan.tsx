@@ -104,6 +104,7 @@ export function OcrScan({
       void utils.transaction.list.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
       void utils.stats.byCategory.invalidate({ groupId });
+      void utils.activity.list.invalidate({ groupId });
     },
     onError: (e) => setError(e.message),
   });

@@ -23,6 +23,7 @@ export const en: Messages = {
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',
+  'nav.transactions': 'Transactions',
   'nav.settings': 'Settings',
   'nav.signOut': 'Sign out',
 

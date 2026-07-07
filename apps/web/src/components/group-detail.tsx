@@ -12,6 +12,7 @@ import { BankDetailsForm } from '@/components/bank-details-form';
 import { OcrScan } from '@/components/ocr-scan';
 import { SpendStats } from '@/components/spend-stats';
 import { CsvImport } from '@/components/csv-import';
+import { ActivityFeed } from '@/components/activity-feed';
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
@@ -132,7 +133,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       ) : null}
 
       <Card>
-        <h3 className="mb-3 font-semibold">{t('nav.activity')}</h3>
+        <h3 className="mb-3 font-semibold">{t('nav.transactions')}</h3>
         {transactions.data && transactions.data.length > 0 ? (
           <ul
             className="divide-y divide-neutral-100 dark:divide-neutral-800"
@@ -161,6 +162,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           <p className="text-center text-sm text-neutral-500">—</p>
         )}
       </Card>
+
+      <ActivityFeed
+        groupId={groupId}
+        members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}
+        baseCurrency={group.data.baseCurrency}
+      />
     </div>
   );
 }
