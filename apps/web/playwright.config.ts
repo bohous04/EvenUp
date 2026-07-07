@@ -36,6 +36,11 @@ export default defineConfig({
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? 'e2e-secret-000000000000000000000000',
       BETTER_AUTH_URL: baseURL,
       AUTH_DEV_ECHO: 'true',
+      // Force the console/dev-echo mail path regardless of a developer's
+      // .env.local (which next start auto-loads) so local E2E signs in without
+      // a real mail transport.
+      RESEND_API_KEY: '',
+      SMTP_HOST: '',
       // Point the OCR adapter at the dev mock so no live OpenRouter call is made.
       OPENROUTER_BASE_URL: `${baseURL}/api/dev/ocr-mock`,
     },
