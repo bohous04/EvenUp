@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import type { MessageKey } from '@evenup/i18n';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Card, Select } from '@/components/ui';
@@ -20,6 +21,7 @@ const ACTION_OPTIONS = [
   'transaction.deleted',
   'group.updated',
   'group.archived',
+  'group.restored',
 ] as const;
 
 export function ActivityFeed({
@@ -58,7 +60,7 @@ export function ActivityFeed({
           ))}
         </Select>
         <Select
-          aria-label={t('nav.activity')}
+          aria-label={t('activity.filterByType')}
           value={action}
           onChange={(e) => setAction(e.target.value)}
           data-testid="activity-action-filter"
@@ -66,7 +68,7 @@ export function ActivityFeed({
           <option value="">{t('common.total')}</option>
           {ACTION_OPTIONS.map((a) => (
             <option key={a} value={a}>
-              {a}
+              {t(`activityType.${a}` as MessageKey)}
             </option>
           ))}
         </Select>

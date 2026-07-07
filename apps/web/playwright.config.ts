@@ -43,6 +43,8 @@ export default defineConfig({
       SMTP_HOST: '',
       // Point the OCR adapter at the dev mock so no live OpenRouter call is made.
       OPENROUTER_BASE_URL: `${baseURL}/api/dev/ocr-mock`,
+      // Point the FX provider at the dev mock so no live Frankfurter call is made.
+      FX_PROVIDER_URL: `${baseURL}/api/dev/fx-mock`,
     },
   },
 });

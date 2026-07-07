@@ -13,12 +13,6 @@ import { Prisma, type PrismaClient } from '@evenup/db';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
 import { fetchRate } from './fx-provider.js';
 
-export interface ResolvedRate {
-  readonly rateDecimal: string;
-  readonly baseMinorUnits: number;
-  readonly overridden: boolean;
-}
-
 export interface ResolveRateFetch {
   readonly fetchImpl: FetchLike;
   readonly providerUrl: string;
@@ -38,7 +32,7 @@ export async function resolveRateDecimal(
   date: Date,
   override?: string,
   lockedRate?: Prisma.Decimal | null,
-  fetch?: ResolveRateFetch,
+  fetchArgs?: ResolveRateFetch,
 ): Promise<ResolvedRateInfo> {
   if (fromCurrency === baseCurrency) {
     return { rateDecimal: '1', overridden: false, source: 'identity', stale: false };
@@ -56,13 +50,13 @@ export async function resolveRateDecimal(
   if (row) {
     return { rateDecimal: row.rate.toString(), overridden: false, source: row.source, stale: false };
   }
-  if (fetch?.fetchImpl) {
+  if (fetchArgs?.fetchImpl) {
     const fetched = await fetchRate({
       baseCurrency,
       quoteCurrency: fromCurrency,
       date: day,
-      providerUrl: fetch.providerUrl,
-      fetchImpl: fetch.fetchImpl,
+      providerUrl: fetchArgs.providerUrl,
+      fetchImpl: fetchArgs.fetchImpl,
     });
     if (fetched) {
       await prisma.fxRate.upsert({
