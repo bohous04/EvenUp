@@ -118,6 +118,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('save-key-btn').click();
     await expect(page.getByTestId('key-status')).toBeVisible();
 
+    // A11y check on the settings page (§9.4).
+    const settingsA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
+
     // New group + a second member.
     await page.goto('/');
     await page.getByTestId('new-group-btn').click();
@@ -225,5 +229,19 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Switch to English.
     await page.getByRole('button', { name: 'EN' }).click();
     await expect(page.getByRole('button', { name: 'Create group' })).toBeVisible();
+  });
+
+  test('invite page is accessible (§9.4)', async ({ page }, testInfo) => {
+    const email = uniqueEmail('inv', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Invite');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Invite').click();
+    await page.getByTestId('invite-btn').click();
+    const url = await page.getByTestId('invite-url').textContent();
+    await page.goto(new URL(url!).pathname);
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
   });
 });
