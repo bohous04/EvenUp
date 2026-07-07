@@ -41,6 +41,8 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
 - **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model. OCR API keys are
   **per-user (BYO)**, not a global secret.
 - **`STORAGE_*`** — S3/MinIO endpoint and credentials for receipt images.
+- **`RECEIPT_AUTO_DELETE`** — deletes the stored receipt image after successful
+  OCR extraction (privacy). Default `true`.
 
 ## Deploying to Coolify (LNRT)
 

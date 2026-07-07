@@ -9,7 +9,15 @@ export {
   type Context,
   type CreateContextOptions,
   type AuthUser,
+  type RateLimiter,
 } from './context.js';
+export {
+  createS3ObjectStore,
+  createNoopObjectStore,
+  parseImageDataUrl,
+  type ObjectStore,
+  type S3Config,
+} from './storage/object-store.js';
 export { createCallerFactory } from './trpc.js';
 export {
   generateEncryptionKey,

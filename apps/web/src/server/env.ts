@@ -35,4 +35,14 @@ export const env = {
       pass: process.env.SMTP_PASS,
     },
   },
+  storage: {
+    endpoint: process.env.STORAGE_ENDPOINT,
+    region: process.env.STORAGE_REGION ?? 'us-east-1',
+    accessKey: process.env.STORAGE_ACCESS_KEY,
+    secretKey: process.env.STORAGE_SECRET_KEY,
+    bucket: process.env.STORAGE_BUCKET ?? 'evenup-receipts',
+  },
+  // Delete the receipt image after a successful OCR extraction (privacy). Default on.
+  receiptAutoDelete: process.env.RECEIPT_AUTO_DELETE !== 'false',
+  fxProviderUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
 };

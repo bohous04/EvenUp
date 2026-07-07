@@ -53,7 +53,7 @@ export function parseImageDataUrl(dataUrl: string): {
 } {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(dataUrl);
   if (!m) throw new Error('Unsupported or malformed image data URL');
-  const contentType = m[1];
+  const contentType = m[1]!;
   const ext = contentType.split('/')[1]?.split('+')[0] ?? 'bin';
-  return { bytes: Buffer.from(m[2], 'base64'), contentType, ext };
+  return { bytes: Buffer.from(m[2]!, 'base64'), contentType, ext };
 }
