@@ -126,6 +126,7 @@ export const cs = {
   'fx.override': 'Vlastní kurz',
   'fx.locked': 'Uzamčený kurz',
   'fx.cached': 'Použit uložený kurz z {date}',
+  'fx.stale': 'Kurz z mezipaměti (může být neaktuální)',
 
   'activity.created': '{actor} vytvořil(a) {item}',
   'activity.edited': '{actor} upravil(a) {item}',

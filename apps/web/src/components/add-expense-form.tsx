@@ -211,7 +211,10 @@ export function AddExpenseForm({
             <Select
               id="e-currency"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                setFxRate('');
+              }}
               data-testid="expense-currency-select"
             >
               {[baseCurrency, 'CZK', 'EUR', 'USD', 'GBP', 'PLN']
@@ -239,7 +242,7 @@ export function AddExpenseForm({
               {fxResolve.data ? (
                 <p className="mt-1 text-xs text-neutral-500" data-testid="fx-source">
                   {fxResolve.data.stale
-                    ? t('fx.cached', { date: '' })
+                    ? t('fx.stale')
                     : fxResolve.data.source === 'frankfurter'
                       ? `${t('fx.rate')} · Frankfurter`
                       : t('fx.override')}

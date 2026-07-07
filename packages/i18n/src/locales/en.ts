@@ -126,6 +126,7 @@ export const en: Messages = {
   'fx.override': 'Custom rate',
   'fx.locked': 'Locked rate',
   'fx.cached': 'Using cached rate from {date}',
+  'fx.stale': 'Cached rate (may be out of date)',
 
   'activity.created': '{actor} created {item}',
   'activity.edited': '{actor} edited {item}',
