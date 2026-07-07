@@ -61,7 +61,7 @@ export const memberRouter = router({
     .mutation(async ({ ctx, input }) => {
       const groupId = await groupIdForMember(ctx, input.memberId);
       await assertGroupAccess(ctx.prisma, ctx.user, groupId);
-      return ctx.prisma.member.update({
+      const updated = await ctx.prisma.member.update({
         where: { id: input.memberId },
         data: {
           displayName: input.displayName,
@@ -71,6 +71,10 @@ export const memberRouter = router({
           isActive: input.isActive,
         },
       });
+      await logActivity(ctx.prisma, groupId, ctx.user.id, 'member.updated', {
+        name: updated.displayName,
+      });
+      return updated;
     }),
 
   remove: protectedProcedure

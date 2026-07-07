@@ -52,19 +52,31 @@ export const groupRouter = router({
 
   update: protectedProcedure.input(updateGroupInput).mutation(async ({ ctx, input }) => {
     await assertGroupAdmin(ctx.prisma, ctx.user, input.groupId);
-    return ctx.prisma.group.update({
+    const updated = await ctx.prisma.group.update({
       where: { id: input.groupId },
       data: { name: input.name, simplifyDebts: input.simplifyDebts },
     });
+    await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'group.updated', {
+      name: updated.name,
+    });
+    return updated;
   }),
 
   archive: protectedProcedure
     .input(z.object({ groupId: z.string(), archived: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
       await assertGroupAdmin(ctx.prisma, ctx.user, input.groupId);
-      return ctx.prisma.group.update({
+      const updated = await ctx.prisma.group.update({
         where: { id: input.groupId },
         data: { archivedAt: input.archived ? new Date() : null },
       });
+      await logActivity(
+        ctx.prisma,
+        input.groupId,
+        ctx.user.id,
+        input.archived ? 'group.archived' : 'group.restored',
+        { name: updated.name },
+      );
+      return updated;
     }),
 });

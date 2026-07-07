@@ -10,6 +10,7 @@ import { userRouter } from './routers/user.js';
 import { ocrRouter } from './routers/ocr.js';
 import { fxRouter } from './routers/fx.js';
 import { statsRouter } from './routers/stats.js';
+import { activityRouter } from './routers/activity.js';
 
 export const appRouter = router({
   group: groupRouter,
@@ -22,6 +23,7 @@ export const appRouter = router({
   ocr: ocrRouter,
   fx: fxRouter,
   stats: statsRouter,
+  activity: activityRouter,
 });
 
 export type AppRouter = typeof appRouter;

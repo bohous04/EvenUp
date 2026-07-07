@@ -546,6 +546,30 @@ describe('GDPR account deletion (FR-1.6)', () => {
   });
 });
 
+describe('activity log (FR-9.1, FR-9.2)', () => {
+  it('lists activity and filters by action type (FR-9.1, FR-9.2)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user);
+    const group = await caller.group.create({ name: 'Log', baseCurrency: 'CZK' });
+    const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+    await caller.transaction.createExpense({
+      groupId: group.id, title: 'Chata', currency: 'CZK', date: new Date(),
+      payers: [{ memberId: m.id, amountMinorUnits: 30000 }],
+      split: { type: 'EQUAL', members: [{ memberId: m.id }] },
+    });
+
+    const all = await caller.activity.list({ groupId: group.id });
+    const actions = all.items.map((i) => i.action);
+    expect(actions).toContain('group.created');
+    expect(actions).toContain('member.added');
+    expect(actions).toContain('expense.created');
+
+    const filtered = await caller.activity.list({ groupId: group.id, action: 'expense.created' });
+    expect(filtered.items.every((i) => i.action === 'expense.created')).toBe(true);
+    expect(filtered.items.length).toBe(1);
+  });
+});
+
 describe('access control', () => {
   test('a non-member cannot read another group', async () => {
     const { group } = await seedGroupWithMembers();
