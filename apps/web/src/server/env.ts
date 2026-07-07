@@ -9,14 +9,37 @@ function required(name: string, fallback?: string): string {
   return value;
 }
 
+/**
+ * Security-sensitive secrets. In production the value MUST be supplied by the
+ * environment: the `devFallback` is a convenience for `pnpm dev`/tests only.
+ * Falling back to a publicly-known default in production would encrypt data
+ * at rest / sign sessions with a value anyone can read from the source, so we
+ * fail fast instead of degrading silently.
+ */
+function requiredSecret(name: string, devFallback: string): string {
+  const value = process.env[name];
+  if (value !== undefined && value !== '') {
+    return value;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      `Missing required secret ${name}. Set it in the production environment; the dev default must never be used in production.`,
+    );
+  }
+  return devFallback;
+}
+
 export const env = {
   databaseUrl: required('DATABASE_URL', 'postgresql://evenup:evenup@localhost:5432/evenup'),
-  encryptionKey: required(
+  encryptionKey: requiredSecret(
     'ENCRYPTION_KEY',
-    // Dev-only fallback so `pnpm dev` works out of the box; override in production.
+    // Dev-only fallback so `pnpm dev` works out of the box; rejected in production.
     '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0',
   ),
-  authSecret: required('BETTER_AUTH_SECRET', 'dev-insecure-secret-change-me-please-0000000000'),
+  authSecret: requiredSecret(
+    'BETTER_AUTH_SECRET',
+    'dev-insecure-secret-change-me-please-0000000000',
+  ),
   authUrl: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
   /** When set, magic links are echoed to a dev endpoint for local/E2E sign-in. */
   authDevEcho: process.env.AUTH_DEV_ECHO === 'true',
