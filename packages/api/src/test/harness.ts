@@ -6,10 +6,11 @@
  */
 import { createPrismaClient } from '@evenup/db';
 import { appRouter } from '../root.js';
-import { createContext, type AuthUser } from '../context.js';
+import { createContext, type AuthUser, type RateLimiter } from '../context.js';
 import { createCallerFactory } from '../trpc.js';
 import { createSecretBox } from '../crypto/secret-box.js';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
+import type { ObjectStore } from '../storage/object-store.js';
 
 // Deterministic 32-byte (64 hex) key — test-only.
 const TEST_KEY = '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0';
@@ -20,9 +21,25 @@ export const testPrisma = createPrismaClient(process.env.DATABASE_URL);
 const callerFactory = createCallerFactory(appRouter);
 type Caller = ReturnType<typeof callerFactory>;
 
-export function makeCaller(user: AuthUser | null, opts: { ocrFetch?: FetchLike } = {}): Caller {
+export function makeCaller(
+  user: AuthUser | null,
+  opts: {
+    ocrFetch?: FetchLike;
+    objectStore?: ObjectStore;
+    fxFetch?: FetchLike;
+    ocrRateLimit?: RateLimiter;
+  } = {},
+): Caller {
   return callerFactory(
-    createContext({ prisma: testPrisma, user, secretBox: testSecretBox, ocrFetch: opts.ocrFetch }),
+    createContext({
+      prisma: testPrisma,
+      user,
+      secretBox: testSecretBox,
+      ocrFetch: opts.ocrFetch,
+      objectStore: opts.objectStore,
+      fxFetch: opts.fxFetch,
+      ocrRateLimit: opts.ocrRateLimit,
+    }),
   );
 }
 

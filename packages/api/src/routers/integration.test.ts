@@ -288,15 +288,19 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     confidence: 0.95,
   });
 
-  test('scan extracts items using the user BYO key and stores the receipt', async () => {
-    const olivia = await createTestUser('olivia@example.com');
-    const ocrFetch: FetchLike = vi.fn(
+  /** Fake OpenRouter chat-completions response, extracted so storage tests can reuse it. */
+  function makeOcrFetch(): FetchLike {
+    return vi.fn(
       async () =>
         new Response(JSON.stringify({ choices: [{ message: { content: RECEIPT } }] }), {
           status: 200,
         }),
     );
-    const caller = makeCaller(olivia, { ocrFetch });
+  }
+
+  test('scan extracts items using the user BYO key and stores the receipt', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
     const group = await caller.group.create({ name: 'G', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
@@ -316,6 +320,65 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     await expect(
       caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/jpeg;base64,AAAA' }),
     ).rejects.toThrow();
+  });
+
+  test('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', async () => {
+    const puts: { key: string; bytes: Uint8Array }[] = [];
+    const deletes: string[] = [];
+    const store = {
+      async putReceipt(key: string, bytes: Uint8Array) {
+        puts.push({ key, bytes });
+      },
+      async deleteObject(key: string) {
+        deletes.push(key);
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'R', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+
+    process.env.RECEIPT_AUTO_DELETE = 'true';
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+    });
+
+    expect(puts).toHaveLength(1);
+    expect(puts[0]!.key).toContain(`receipts/${group.id}/`);
+    expect(deletes).toEqual([puts[0]!.key]); // auto-deleted
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKey).toBe(''); // cleared after auto-delete
+  });
+
+  test('retains the receipt image when auto-delete is off (FR-5.8)', async () => {
+    const puts: { key: string; bytes: Uint8Array }[] = [];
+    const deletes: string[] = [];
+    const store = {
+      async putReceipt(key: string, bytes: Uint8Array) {
+        puts.push({ key, bytes });
+      },
+      async deleteObject(key: string) {
+        deletes.push(key);
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'R2', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+
+    process.env.RECEIPT_AUTO_DELETE = 'false';
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+    });
+
+    expect(puts).toHaveLength(1);
+    expect(deletes).toEqual([]); // retained
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
   });
 });
 

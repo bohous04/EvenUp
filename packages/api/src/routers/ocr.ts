@@ -5,6 +5,7 @@ import { fromMinor } from '@evenup/db';
 import { router, protectedProcedure } from '../trpc.js';
 import { assertGroupAccess } from '../access.js';
 import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-adapter.js';
+import { parseImageDataUrl } from '../storage/object-store.js';
 
 export const ocrRouter = router({
   scan: protectedProcedure
@@ -43,10 +44,29 @@ export const ocrRouter = router({
           fallbackCurrency: group.baseCurrency,
           fetchImpl: ctx.ocrFetch,
         });
+
+        // Best-effort image storage (FR-5.8): a storage failure must never block OCR.
+        let storageKey = '';
+        const autoDelete = process.env.RECEIPT_AUTO_DELETE !== 'false';
+        if (ctx.objectStore) {
+          try {
+            const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
+            const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
+            await ctx.objectStore.putReceipt(key, bytes, contentType);
+            storageKey = key;
+            if (autoDelete) {
+              await ctx.objectStore.deleteObject(key);
+              storageKey = '';
+            }
+          } catch {
+            storageKey = ''; // storage is best-effort
+          }
+        }
+
         const receipt = await ctx.prisma.receipt.create({
           data: {
             groupId: input.groupId,
-            storageKey: '', // image storage wired in by the upload layer (§4.5 FR-5.8)
+            storageKey,
             ocrModel: model,
             status: 'COMPLETED',
             rawJson: result as unknown as object,
