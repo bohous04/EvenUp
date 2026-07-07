@@ -4,9 +4,10 @@
  * each split type -> balances + debt minimization -> SPAYD QR -> mark settled,
  * plus invite-claim, OCR (mocked OpenRouter), and access control.
  */
-import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, test, vi } from 'vitest';
 import { makeCaller, createTestUser, resetDb, testPrisma } from '../test/harness.js';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
+import { Prisma } from '@evenup/db';
 
 beforeAll(async () => {
   // Fail fast with a clear message if the DB is not reachable/migrated.
@@ -433,6 +434,55 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
       else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
     }
+  });
+});
+
+describe('FX resolution (FR-8.2, FR-8.5)', () => {
+  it('auto-fetches + caches an FX rate for a foreign-currency expense (FR-8.2)', async () => {
+    const user = await createTestUser();
+    const caller = makeCaller(user, {
+      fxFetch: async () =>
+        ({ ok: true, json: async () => ({ rates: { CZK: 25 } }), text: async () => '' }) as Response,
+    });
+    const group = await caller.group.create({ name: 'Trip', baseCurrency: 'CZK' });
+    const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+
+    const created = await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Lanovka',
+      currency: 'EUR',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: m.id, amountMinorUnits: 10000 }], // 100.00 EUR
+      split: { type: 'EQUAL', members: [{ memberId: m.id }] },
+    });
+    expect(Number(created.baseMinorUnits)).toBe(250000); // 100 EUR * 25 = 2500 CZK
+    const cached = await testPrisma.fxRate.findFirst({ where: { base: 'CZK', quote: 'EUR' } });
+    expect(cached?.source).toBe('frankfurter');
+  });
+
+  it('falls back to the newest cached rate when the provider is down (FR-8.5)', async () => {
+    const user = await createTestUser();
+    await testPrisma.fxRate.create({
+      data: {
+        base: 'CZK',
+        quote: 'EUR',
+        rate: new Prisma.Decimal('24'),
+        date: new Date('2026-06-01'),
+        source: 'frankfurter',
+      },
+    });
+    const caller = makeCaller(user, { fxFetch: async () => ({ ok: false }) as Response }); // provider down
+    const group = await caller.group.create({ name: 'Trip2', baseCurrency: 'CZK' });
+    const m = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+    const created = await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'x',
+      currency: 'EUR',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: m.id, amountMinorUnits: 10000 }],
+      split: { type: 'EQUAL', members: [{ memberId: m.id }] },
+    });
+    expect(Number(created.baseMinorUnits)).toBe(240000); // uses the stale 24 rate
   });
 });
 

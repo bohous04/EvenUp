@@ -17,11 +17,19 @@ import { assertGroupAccess } from '../access.js';
 import { planExpense } from '../services/transaction-service.js';
 import { resolveRateDecimal, convertToBase } from '../services/fx-service.js';
 import { logActivity } from '../services/activity.js';
+import type { Context } from '../context.js';
 
 const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
 } satisfies Prisma.TransactionInclude;
+
+/** Pass the injected FX fetch (tests only) so createExpense/recordTransfer can auto-fetch a missing rate. */
+function fxArgs(ctx: Context) {
+  return ctx.fxFetch
+    ? { fetchImpl: ctx.fxFetch, providerUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app' }
+    : undefined;
+}
 
 export const transactionRouter = router({
   createExpense: protectedProcedure.input(createExpenseInput).mutation(async ({ ctx, input }) => {
@@ -36,6 +44,7 @@ export const transactionRouter = router({
       input.date,
       input.exchangeRateToBase,
       group.fxLockedRate,
+      fxArgs(ctx),
     );
     const sign = input.type === 'INCOME' ? -1 : 1;
     const baseTotal =
@@ -87,6 +96,9 @@ export const transactionRouter = router({
       input.currency,
       group.baseCurrency,
       date,
+      undefined,
+      undefined,
+      fxArgs(ctx),
     );
     const baseAmount = convertToBase(
       input.amountMinorUnits,
