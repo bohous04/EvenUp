@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { decimalStringToMinor, EXPENSE_CATEGORIES, RECURRENCE_INTERVALS } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
@@ -71,6 +71,17 @@ export function AddExpenseForm({
     },
     onError: (e) => setError(e.message),
   });
+
+  const fxResolve = trpc.fx.resolve.useQuery(
+    { base: baseCurrency, quote: currency },
+    { enabled: currency !== baseCurrency },
+  );
+  useEffect(() => {
+    // Prefill (do not clobber a value the user is editing).
+    if (currency !== baseCurrency && fxResolve.data && fxRate === '') {
+      setFxRate(fxResolve.data.rateDecimal);
+    }
+  }, [currency, baseCurrency, fxResolve.data, fxRate]);
 
   function toggle(id: string) {
     setDeselected((prev) => {
@@ -225,6 +236,15 @@ export function AddExpenseForm({
                 required
                 data-testid="expense-fx-input"
               />
+              {fxResolve.data ? (
+                <p className="mt-1 text-xs text-neutral-500" data-testid="fx-source">
+                  {fxResolve.data.stale
+                    ? t('fx.cached', { date: '' })
+                    : fxResolve.data.source === 'frankfurter'
+                      ? `${t('fx.rate')} · Frankfurter`
+                      : t('fx.override')}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
