@@ -41,9 +41,12 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Activity feed shows the create events (FR-9.1).
     await expect(page.getByTestId('activity-list')).toBeVisible();
     await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
-    // Filtering by type narrows the list.
+    // Before filtering: the feed shows member-added entries too.
+    await expect(page.getByTestId('activity-list')).toContainText('Petr');
+    // Filtering by type narrows the list to only expense.created — member entries disappear.
     await page.getByTestId('activity-action-filter').selectOption('expense.created');
     await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
+    await expect(page.getByTestId('activity-list')).not.toContainText('Petr');
 
     // Balances: the payer is +600.00, suggested payments exist (debt minimization).
     await expect(page.getByTestId('payments-list')).toBeVisible();
