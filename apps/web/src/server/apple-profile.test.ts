@@ -34,4 +34,15 @@ describe('appleDisplayName', () => {
   it('never returns an empty string for a malformed email', () => {
     expect(appleDisplayName({ name: '', email: '@example.com' })).toBe('EvenUp user');
   });
+
+  it('caps a 300-char name at exactly 128 characters', () => {
+    const longName = 'A'.repeat(300);
+    const result = appleDisplayName({ name: longName, email: 'alice@example.com' });
+    expect(result).toHaveLength(128);
+    expect(result).toBe('A'.repeat(128));
+  });
+
+  it('leaves a normal-length name untouched', () => {
+    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe('Alice Smith');
+  });
 });
