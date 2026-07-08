@@ -45,4 +45,12 @@ describe('appleDisplayName', () => {
   it('leaves a normal-length name untouched', () => {
     expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe('Alice Smith');
   });
+
+  it('caps the email local-part too, not just the name', () => {
+    // The local-part is as caller-controlled as the name: on the web Apple's
+    // `user` param is a form_post field, on native it is the request body.
+    const result = appleDisplayName({ name: '', email: `${'b'.repeat(300)}@example.com` });
+    expect(result).toHaveLength(128);
+    expect(result).toBe('b'.repeat(128));
+  });
 });
