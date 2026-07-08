@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { signIn } from '@/lib/auth-client';
 import { Button, Card, Input, Label } from '@/components/ui';
-import { AppleLogo } from '@/components/icons';
+import { AppleLogo, GoogleLogo } from '@/components/icons';
 
 // Only offer Google/Apple sign-in when the instance has configured them
 // (self-hosters without credentials shouldn't see a dead button). Inlined at build.
@@ -35,8 +35,10 @@ export function SignIn() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('app.name')}</h1>
-        <p className="mt-1 text-zinc-600 dark:text-zinc-400">{t('app.tagline')}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight" aria-label={t('app.name')}>
+          Even<span className="text-brand-600">Up</span>
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('app.tagline')}</p>
       </div>
       <Card>
         <div className="space-y-4">
@@ -92,7 +94,7 @@ export function SignIn() {
           </div>
           {googleEnabled || appleEnabled ? (
             <>
-              <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
                 <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
                 {t('common.or')}
                 <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
@@ -100,18 +102,19 @@ export function SignIn() {
               {googleEnabled ? (
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="w-full"
+                  variant="secondary"
+                  className="flex w-full items-center justify-center gap-2"
                   onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
                   data-testid="google-signin"
                 >
+                  <GoogleLogo size={16} />
                   {t('auth.continueGoogle')}
                 </Button>
               ) : null}
               {appleEnabled ? (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   className="flex w-full items-center justify-center gap-2"
                   onClick={() => signIn.social({ provider: 'apple', callbackURL: '/' })}
                   data-testid="apple-signin"

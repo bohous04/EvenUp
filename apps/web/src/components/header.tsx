@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui';
-import { Scale } from '@/components/icons';
+import { iconButtonClass } from '@/components/ui';
+import { Settings, LogOut } from '@/components/icons';
 
 export function Header() {
   const { t, locale, setLocale } = useI18n();
@@ -16,14 +16,14 @@ export function Header() {
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
         <Link
           href="/"
-          className="flex items-center gap-2 font-bold text-brand-700 dark:text-brand-100"
+          aria-label={t('app.name')}
+          className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100"
         >
-          <Scale size={20} aria-hidden />
-          {t('app.name')}
+          Even<span className="text-brand-600">Up</span>
         </Link>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-1.5">
           <div
-            className="flex overflow-hidden rounded-lg border border-zinc-300 text-xs dark:border-zinc-700"
+            className="flex overflow-hidden rounded-lg border border-zinc-200 text-xs dark:border-zinc-700"
             role="group"
             aria-label="Language"
           >
@@ -47,7 +47,7 @@ export function Header() {
               {me.data?.isAdmin ? (
                 <Link
                   href="/admin"
-                  className="text-sm font-medium text-brand-700 dark:text-brand-100"
+                  className="text-sm font-medium text-brand-600 dark:text-brand-100"
                   data-testid="nav-admin"
                 >
                   {t('nav.admin')}
@@ -55,13 +55,21 @@ export function Header() {
               ) : null}
               <Link
                 href="/settings"
-                className="text-sm font-medium text-brand-700 dark:text-brand-100"
+                aria-label={t('nav.settings')}
+                title={t('nav.settings')}
+                className={iconButtonClass}
               >
-                {t('nav.settings')}
+                <Settings size={18} aria-hidden />
               </Link>
-              <Button variant="ghost" onClick={() => signOut()}>
-                {t('nav.signOut')}
-              </Button>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                aria-label={t('nav.signOut')}
+                title={t('nav.signOut')}
+                className={iconButtonClass}
+              >
+                <LogOut size={18} aria-hidden />
+              </button>
             </>
           ) : null}
         </nav>

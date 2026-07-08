@@ -43,7 +43,7 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (isPending) return <p className="text-zinc-500">…</p>;
+  if (isPending) return <p className="text-zinc-500 dark:text-zinc-400">…</p>;
   if (!session?.user) {
     return (
       <Card>
@@ -57,7 +57,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">{t('nav.settings')}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t('nav.settings')}</h1>
         {me.data?.isVip ? (
           <span
             className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
@@ -69,7 +69,7 @@ export default function SettingsPage() {
       </div>
       <Card>
         <h3 className="mb-1 font-semibold">OpenRouter API key</h3>
-        <p className="mb-3 text-sm text-zinc-500">{t('ocr.apiKeyRequired')}</p>
+        <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.apiKeyRequired')}</p>
         {me.data?.hasOpenRouterKey ? (
           <div className="flex items-center justify-between">
             <span

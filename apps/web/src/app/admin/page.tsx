@@ -61,7 +61,7 @@ function InstanceKeySection() {
   return (
     <Card>
       <h3 className="mb-1 font-semibold">{t('admin.instanceKey')}</h3>
-      <p className="mb-3 text-sm text-zinc-500">{t('admin.instanceKey.desc')}</p>
+      <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('admin.instanceKey.desc')}</p>
       {cfg.data?.hasKey ? (
         <div className="flex items-center justify-between">
           <span
@@ -130,7 +130,7 @@ function InstanceKeySection() {
 }
 
 const dangerIconButton =
-  'inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-500/10';
+  'inline-flex h-9 w-9 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-500/10';
 
 function UsersSection({ meId }: { meId: string }) {
   const { t, formatDate } = useI18n();
@@ -153,7 +153,7 @@ function UsersSection({ meId }: { meId: string }) {
       <h3 className="mb-3 font-semibold">{t('admin.users')}</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" data-testid="admin-users-table">
-          <thead className="text-xs text-zinc-500">
+          <thead className="text-xs text-zinc-500 dark:text-zinc-400">
             <tr>
               <th className="py-2 pr-3 font-medium">E-mail</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.vip')}</th>
@@ -172,10 +172,14 @@ function UsersSection({ meId }: { meId: string }) {
                   <td className="py-2 pr-3">
                     <span className="font-medium">{u.email}</span>
                     {isSelf ? (
-                      <span className="ml-1 text-xs text-zinc-500">{t('admin.you')}</span>
+                      <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        {t('admin.you')}
+                      </span>
                     ) : null}
                     {u.name ? (
-                      <span className="block text-xs text-zinc-500">{u.name}</span>
+                      <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                        {u.name}
+                      </span>
                     ) : null}
                   </td>
                   <td className="px-3 py-2">
@@ -204,10 +208,12 @@ function UsersSection({ meId }: { meId: string }) {
                       testId={`disabled-toggle-${u.email}`}
                     />
                   </td>
-                  <td className="px-3 py-2 text-zinc-500">
+                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
                     {u.hasOwnKey ? <Check size={16} aria-hidden /> : '–'}
                   </td>
-                  <td className="px-3 py-2 text-zinc-500">{formatDate(u.createdAt)}</td>
+                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
+                    {formatDate(u.createdAt)}
+                  </td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
@@ -273,17 +279,25 @@ function ErrorsSection() {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">
                   {e.path ?? e.source}
-                  {e.code ? <span className="ml-1 text-zinc-500">· {e.code}</span> : null}
+                  {e.code ? (
+                    <span className="ml-1 text-zinc-500 dark:text-zinc-400">· {e.code}</span>
+                  ) : null}
                 </span>
-                <span className="shrink-0 text-xs text-zinc-500">{formatDate(e.createdAt)}</span>
+                <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+                  {formatDate(e.createdAt)}
+                </span>
               </div>
               <p className="text-zinc-600 dark:text-zinc-300">{e.message}</p>
-              {e.userEmail ? <p className="text-xs text-zinc-500">{e.userEmail}</p> : null}
+              {e.userEmail ? (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{e.userEmail}</p>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-center text-sm text-zinc-500">{t('admin.errors.empty')}</p>
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+          {t('admin.errors.empty')}
+        </p>
       )}
     </Card>
   );
@@ -295,7 +309,7 @@ export default function AdminPage() {
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
 
   if (isPending || (!!session?.user && me.isLoading)) {
-    return <p className="text-zinc-500">…</p>;
+    return <p className="text-zinc-500 dark:text-zinc-400">…</p>;
   }
 
   // Non-admins (and signed-out visitors) never see the dashboard.
@@ -312,7 +326,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold" data-testid="admin-title">
+      <h1 className="text-2xl font-extrabold tracking-tight" data-testid="admin-title">
         {t('nav.admin')}
       </h1>
       <InstanceKeySection />

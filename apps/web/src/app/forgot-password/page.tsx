@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('auth.forgotTitle')}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t('auth.forgotTitle')}</h1>
       </div>
       <Card>
         {sent ? (

@@ -19,7 +19,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   });
   const [error, setError] = useState<string | null>(null);
 
-  if (isPending) return <p className="py-10 text-center text-zinc-500">…</p>;
+  if (isPending) return <p className="py-10 text-center text-zinc-500 dark:text-zinc-400">…</p>;
   if (!session?.user) {
     return (
       <div>
@@ -28,7 +28,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       </div>
     );
   }
-  if (preview.isLoading) return <p className="text-zinc-500">{t('common.loading')}</p>;
+  if (preview.isLoading)
+    return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
   if (preview.isError || !preview.data) {
     return (
       <Card>
@@ -39,7 +40,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
   return (
     <Card>
-      <h1 className="mb-1 text-xl font-bold">{preview.data.groupName}</h1>
+      <h1 className="mb-1 text-xl font-extrabold tracking-tight">{preview.data.groupName}</h1>
       <p className="mb-4 text-sm text-zinc-600">{t('invite.claim')}</p>
       {error ? (
         <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">

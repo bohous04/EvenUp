@@ -21,7 +21,7 @@ function VerifyEmailPending() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('auth.verifyTitle')}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t('auth.verifyTitle')}</h1>
       </div>
       <Card>
         <div className="space-y-4 text-center">
@@ -39,10 +39,7 @@ function VerifyEmailPending() {
             {loading ? t('common.loading') : t('auth.resend')}
           </Button>
           {resent ? (
-            <p
-              data-testid="verify-resent"
-              className="text-sm text-zinc-700 dark:text-zinc-300"
-            >
+            <p data-testid="verify-resent" className="text-sm text-zinc-700 dark:text-zinc-300">
               {t('auth.resent')}
             </p>
           ) : null}

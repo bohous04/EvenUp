@@ -36,7 +36,7 @@ function ResetPasswordForm() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('auth.resetTitle')}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t('auth.resetTitle')}</h1>
       </div>
       <Card>
         {done ? (
