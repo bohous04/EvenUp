@@ -23,8 +23,11 @@ async function backfillName(fullName: AppleAuthentication.AppleAuthenticationFul
   if (!name) return;
   try {
     await authClient.updateUser({ name });
-  } catch {
-    // A missing display name is not worth failing an otherwise good sign-in.
+  } catch (error) {
+    // A missing display name is not worth failing an otherwise good sign-in —
+    // but log it: Apple hands us the name exactly once, so a silent failure
+    // here strands the user as `EvenUp user` with nothing to explain why.
+    console.warn('Failed to backfill the display name from Apple.', error);
   }
 }
 

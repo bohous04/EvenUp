@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -25,6 +25,7 @@ export default function SignInScreen() {
 
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [appleError, setAppleError] = useState<string | null>(null);
+  const appleBusy = useRef(false);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -32,6 +33,10 @@ export default function SignInScreen() {
   }, []);
 
   async function onApple() {
+    // A ref, not state: a double-tap lands before React re-renders, and
+    // AppleAuthenticationButton has no `disabled` prop to lean on.
+    if (appleBusy.current) return;
+    appleBusy.current = true;
     setAppleError(null);
     try {
       const { ok, canceled } = await signInWithApple();
@@ -39,6 +44,8 @@ export default function SignInScreen() {
       else if (!canceled) setAppleError(t('error.generic'));
     } catch {
       setAppleError(t('error.generic'));
+    } finally {
+      appleBusy.current = false;
     }
   }
 
