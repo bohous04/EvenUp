@@ -27,9 +27,7 @@ export function SignIn() {
     if (res.error) {
       const code = res.error.code;
       setError(
-        code === 'EMAIL_NOT_VERIFIED'
-          ? t('auth.err.unverified')
-          : t('auth.err.invalidCredentials'),
+        code === 'EMAIL_NOT_VERIFIED' ? t('auth.err.unverified') : t('auth.err.invalidCredentials'),
       );
     }
   }
@@ -72,20 +70,23 @@ export function SignIn() {
                 {error}
               </p>
             ) : null}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              data-testid="signin-submit"
-            >
+            <Button type="submit" disabled={loading} className="w-full" data-testid="signin-submit">
               {loading ? t('common.loading') : t('auth.signInBtn')}
             </Button>
           </form>
           <div className="flex items-center justify-between text-sm">
-            <Link href="/forgot-password" data-testid="forgot-link" className="text-blue-600 dark:text-blue-400">
+            <Link
+              href="/forgot-password"
+              data-testid="forgot-link"
+              className="text-blue-600 dark:text-blue-400"
+            >
               {t('auth.forgotLink')}
             </Link>
-            <Link href="/sign-up" data-testid="signup-link" className="text-blue-600 dark:text-blue-400">
+            <Link
+              href="/sign-up"
+              data-testid="signup-link"
+              className="text-blue-600 dark:text-blue-400"
+            >
               {t('auth.signUpLink')}
             </Link>
           </div>

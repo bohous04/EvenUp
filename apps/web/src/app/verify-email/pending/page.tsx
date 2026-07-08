@@ -39,7 +39,10 @@ function VerifyEmailPending() {
             {loading ? t('common.loading') : t('auth.resend')}
           </Button>
           {resent ? (
-            <p data-testid="verify-resent" className="text-sm text-neutral-700 dark:text-neutral-300">
+            <p
+              data-testid="verify-resent"
+              className="text-sm text-neutral-700 dark:text-neutral-300"
+            >
               {t('auth.resent')}
             </p>
           ) : null}

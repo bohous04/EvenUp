@@ -90,13 +90,21 @@ function brandedButton(url: string, intro: string, cta: string): string {
 /** Branded bilingual (CZ/EN) password-reset email. */
 export function resetPasswordEmail(to: string, url: string): EmailMessage {
   const text = `Obnovení hesla EvenUp / Reset your EvenUp password\n\n${url}\n\nPokud jste o obnovení nežádali, tento e-mail ignorujte.\nIf you didn't request this, ignore this email.`;
-  const html = brandedButton(url, 'Obnovte heslo klepnutím na tlačítko · Reset your password', 'Obnovit heslo / Reset password');
+  const html = brandedButton(
+    url,
+    'Obnovte heslo klepnutím na tlačítko · Reset your password',
+    'Obnovit heslo / Reset password',
+  );
   return { to, subject: 'Obnovení hesla EvenUp / Reset your EvenUp password', html, text };
 }
 
 /** Branded bilingual (CZ/EN) email-verification email. */
 export function verifyEmail(to: string, url: string): EmailMessage {
   const text = `Ověření e-mailu EvenUp / Verify your EvenUp email\n\n${url}\n\nPokud jste si účet nezakládali, tento e-mail ignorujte.\nIf you didn't create an account, ignore this email.`;
-  const html = brandedButton(url, 'Ověřte e-mail klepnutím na tlačítko · Verify your email', 'Ověřit e-mail / Verify email');
+  const html = brandedButton(
+    url,
+    'Ověřte e-mail klepnutím na tlačítko · Verify your email',
+    'Ověřit e-mail / Verify email',
+  );
   return { to, subject: 'Ověření e-mailu EvenUp / Verify your EvenUp email', html, text };
 }

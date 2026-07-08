@@ -41,10 +41,7 @@ function ResetPasswordForm() {
       <Card>
         {done ? (
           <div className="space-y-4 text-center">
-            <p
-              data-testid="reset-done"
-              className="text-sm text-neutral-700 dark:text-neutral-300"
-            >
+            <p data-testid="reset-done" className="text-sm text-neutral-700 dark:text-neutral-300">
               {t('auth.resetDone')}
             </p>
             <Link href="/" className="text-sm text-blue-600 dark:text-blue-400">
@@ -75,12 +72,7 @@ function ResetPasswordForm() {
                 {error}
               </p>
             ) : null}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              data-testid="reset-submit"
-            >
+            <Button type="submit" disabled={loading} className="w-full" data-testid="reset-submit">
               {loading ? t('common.loading') : t('auth.resetBtn')}
             </Button>
           </form>

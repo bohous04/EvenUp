@@ -48,12 +48,7 @@ export default function ForgotPasswordPage() {
                 data-testid="forgot-email"
               />
             </div>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              data-testid="forgot-submit"
-            >
+            <Button type="submit" disabled={loading} className="w-full" data-testid="forgot-submit">
               {loading ? t('common.loading') : t('auth.forgotBtn')}
             </Button>
           </form>

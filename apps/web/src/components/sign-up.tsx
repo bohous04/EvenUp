@@ -40,7 +40,10 @@ export function SignUp() {
       <Card>
         {sent ? (
           <div className="space-y-4 text-center">
-            <p data-testid="signup-verify-sent" className="text-sm text-neutral-700 dark:text-neutral-300">
+            <p
+              data-testid="signup-verify-sent"
+              className="text-sm text-neutral-700 dark:text-neutral-300"
+            >
               {t('auth.verifySent')}
             </p>
             <Link

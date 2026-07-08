@@ -31,27 +31,27 @@
 
 ## File Structure
 
-| File | Change | Responsibility |
-| --- | --- | --- |
-| `apps/web/src/server/auth.ts` | modify | enable `emailAndPassword` + `emailVerification`, remove `magicLink` plugin |
-| `apps/web/src/server/email.ts` | modify | add `resetPasswordEmail`, `verifyEmail`; remove `magicLinkEmail` |
-| `apps/web/src/server/magic-link-store.ts` | **delete** | dev-echo store, no longer used |
-| `apps/web/src/app/api/dev/magic-link/route.ts` | **delete** | dev-echo endpoint, no longer used |
-| `apps/web/src/lib/auth-client.ts` | modify | remove `magicLinkClient()` |
-| `apps/web/src/components/sign-in.tsx` | modify | email+password form + links to sign-up / forgot |
-| `apps/web/src/components/sign-up.tsx` | **create** | name+email+password registration |
-| `apps/web/src/app/sign-up/page.tsx` | **create** | route for sign-up |
-| `apps/web/src/app/forgot-password/page.tsx` | **create** | request-reset form |
-| `apps/web/src/app/reset-password/page.tsx` | **create** | set-new-password (token from URL) |
-| `apps/web/src/app/verify-email/pending/page.tsx` | **create** | "check your inbox" + resend |
-| `apps/web/e2e/helpers.ts` | modify | `signIn` via password (API sign-up + UI login) |
-| `apps/mobile/src/lib/auth.ts` | modify | remove `magicLinkClient()` |
-| `apps/mobile/app/sign-in.tsx` | modify | email+password + links |
-| `apps/mobile/app/sign-up.tsx` | **create** | registration |
-| `apps/mobile/app/forgot-password.tsx` | **create** | request-reset ("we sent an email") |
-| `apps/mobile/src/lib/magic-link-session.tsx` | **delete** | magic-link deep-link capture, unused after switch |
-| `apps/mobile/app/_layout.tsx` or caller | modify | drop the `<MagicLinkSession/>` mount if present |
-| `packages/i18n/src/locales/{cs,en}.ts` | modify | new `auth.*` keys, remove dead magic-link strings |
+| File                                             | Change     | Responsibility                                                             |
+| ------------------------------------------------ | ---------- | -------------------------------------------------------------------------- |
+| `apps/web/src/server/auth.ts`                    | modify     | enable `emailAndPassword` + `emailVerification`, remove `magicLink` plugin |
+| `apps/web/src/server/email.ts`                   | modify     | add `resetPasswordEmail`, `verifyEmail`; remove `magicLinkEmail`           |
+| `apps/web/src/server/magic-link-store.ts`        | **delete** | dev-echo store, no longer used                                             |
+| `apps/web/src/app/api/dev/magic-link/route.ts`   | **delete** | dev-echo endpoint, no longer used                                          |
+| `apps/web/src/lib/auth-client.ts`                | modify     | remove `magicLinkClient()`                                                 |
+| `apps/web/src/components/sign-in.tsx`            | modify     | email+password form + links to sign-up / forgot                            |
+| `apps/web/src/components/sign-up.tsx`            | **create** | name+email+password registration                                           |
+| `apps/web/src/app/sign-up/page.tsx`              | **create** | route for sign-up                                                          |
+| `apps/web/src/app/forgot-password/page.tsx`      | **create** | request-reset form                                                         |
+| `apps/web/src/app/reset-password/page.tsx`       | **create** | set-new-password (token from URL)                                          |
+| `apps/web/src/app/verify-email/pending/page.tsx` | **create** | "check your inbox" + resend                                                |
+| `apps/web/e2e/helpers.ts`                        | modify     | `signIn` via password (API sign-up + UI login)                             |
+| `apps/mobile/src/lib/auth.ts`                    | modify     | remove `magicLinkClient()`                                                 |
+| `apps/mobile/app/sign-in.tsx`                    | modify     | email+password + links                                                     |
+| `apps/mobile/app/sign-up.tsx`                    | **create** | registration                                                               |
+| `apps/mobile/app/forgot-password.tsx`            | **create** | request-reset ("we sent an email")                                         |
+| `apps/mobile/src/lib/magic-link-session.tsx`     | **delete** | magic-link deep-link capture, unused after switch                          |
+| `apps/mobile/app/_layout.tsx` or caller          | modify     | drop the `<MagicLinkSession/>` mount if present                            |
+| `packages/i18n/src/locales/{cs,en}.ts`           | modify     | new `auth.*` keys, remove dead magic-link strings                          |
 
 ---
 
@@ -60,6 +60,7 @@
 The load-bearing change. Removing the `magicLink` plugin, the web sign-in UI, the dev-echo endpoint, and the E2E helper are **coupled** — they must change together or the E2E suite can't drive sign-in. Deliverable: dev/E2E sign in with email + password; Playwright green.
 
 **Files:**
+
 - Modify: `apps/web/src/server/auth.ts`
 - Modify: `apps/web/src/server/email.ts`
 - Delete: `apps/web/src/server/magic-link-store.ts`, `apps/web/src/app/api/dev/magic-link/route.ts`
@@ -69,6 +70,7 @@ The load-bearing change. Removing the `magicLink` plugin, the web sign-in UI, th
 - Modify: `packages/i18n/src/locales/{cs,en}.ts`
 
 **Interfaces produced (later tasks rely on these):**
+
 - Web client: `signIn.email({ email, password, callbackURL })`, `signUp.email({ name, email, password })`, `authClient.requestPasswordReset({ email, redirectTo })`, `authClient.resetPassword({ newPassword, token })`, `authClient.sendVerificationEmail({ email, callbackURL })` — all core, exported from `@/lib/auth-client`.
 - i18n keys added: `auth.signInTitle`, `auth.email`, `auth.password`, `auth.signInBtn`, `auth.signUpLink`, `auth.forgotLink`, `auth.err.invalidCredentials`, `auth.err.unverified`.
 - Sign-in page testids: keep the human-facing form; the "check inbox" magic state (`data-testid="magic-sent"`) is removed.
@@ -81,14 +83,22 @@ In `apps/web/src/server/email.ts`, delete `magicLinkEmail` and add (reuse the sa
 /** Branded bilingual (CZ/EN) password-reset email. */
 export function resetPasswordEmail(to: string, url: string): EmailMessage {
   const text = `Obnovení hesla EvenUp / Reset your EvenUp password\n\n${url}\n\nPokud jste o obnovení nežádali, tento e-mail ignorujte.\nIf you didn't request this, ignore this email.`;
-  const html = brandedButton(url, 'Obnovte heslo klepnutím na tlačítko · Reset your password', 'Obnovit heslo / Reset password');
+  const html = brandedButton(
+    url,
+    'Obnovte heslo klepnutím na tlačítko · Reset your password',
+    'Obnovit heslo / Reset password',
+  );
   return { to, subject: 'Obnovení hesla EvenUp / Reset your EvenUp password', html, text };
 }
 
 /** Branded bilingual (CZ/EN) email-verification email. */
 export function verifyEmail(to: string, url: string): EmailMessage {
   const text = `Ověření e-mailu EvenUp / Verify your EvenUp email\n\n${url}\n\nPokud jste si účet nezakládali, tento e-mail ignorujte.\nIf you didn't create an account, ignore this email.`;
-  const html = brandedButton(url, 'Ověřte e-mail klepnutím na tlačítko · Verify your email', 'Ověřit e-mail / Verify email');
+  const html = brandedButton(
+    url,
+    'Ověřte e-mail klepnutím na tlačítko · Verify your email',
+    'Ověřit e-mail / Verify email',
+  );
   return { to, subject: 'Ověření e-mailu EvenUp / Verify your EvenUp email', html, text };
 }
 ```
@@ -174,9 +184,7 @@ async function submit(e: React.FormEvent) {
   if (res.error) {
     const code = res.error.code;
     setError(
-      code === 'EMAIL_NOT_VERIFIED'
-        ? t('auth.err.unverified')
-        : t('auth.err.invalidCredentials'),
+      code === 'EMAIL_NOT_VERIFIED' ? t('auth.err.unverified') : t('auth.err.invalidCredentials'),
     );
   }
 }
@@ -327,7 +335,12 @@ Point the Task-2 sign-up success panel's "resend" affordance here (or inline the
 
 ```tsx
 const res = await signIn.email({ email, password });
-if (res.error) setError(res.error.code === 'EMAIL_NOT_VERIFIED' ? t('auth.err.unverified') : t('auth.err.invalidCredentials'));
+if (res.error)
+  setError(
+    res.error.code === 'EMAIL_NOT_VERIFIED'
+      ? t('auth.err.unverified')
+      : t('auth.err.invalidCredentials'),
+  );
 else router.replace('/');
 ```
 
