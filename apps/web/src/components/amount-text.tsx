@@ -19,7 +19,7 @@ export function AmountText({
   testId?: string;
 }) {
   const { formatCurrency } = useI18n();
-  const text = formatCurrency(minorUnits, currency).replace(/ /g, ' ');
+  const text = formatCurrency(minorUnits, currency).replace(/ /g, ' ');
   const color = !colored
     ? ''
     : minorUnits === 0
