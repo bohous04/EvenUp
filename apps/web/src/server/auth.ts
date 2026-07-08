@@ -9,13 +9,13 @@ import { prisma } from '@evenup/db';
 import { env } from './env.js';
 import { rememberMagicLink } from './magic-link-store.js';
 import { sendEmail, magicLinkEmail } from './email.js';
-import { appleClientSecret, initAppleClientSecret } from './apple-secret.js';
-import { appleDisplayName } from './apple-profile.js';
+import { initAppleClientSecret } from './apple-secret.js';
+import { buildSocialProviders } from './social-providers.js';
 
-const googleProvider =
+const googleConfig =
   env.google.clientId && env.google.clientSecret
-    ? { google: { clientId: env.google.clientId, clientSecret: env.google.clientSecret } }
-    : undefined;
+    ? { clientId: env.google.clientId, clientSecret: env.google.clientSecret }
+    : null;
 
 const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
 // Build the config in one narrowing step, so `servicesId` et al. are `string`
@@ -45,27 +45,9 @@ if (appleSecret) {
   }
 }
 
-const appleProvider = appleSecret
-  ? {
-      apple: {
-        clientId: appleSecret.servicesId,
-        // A getter, not a value: Better Auth reads `options.clientSecret` on
-        // every token exchange, which is what lets the JWT refresh in place.
-        get clientSecret() {
-          return appleClientSecret();
-        },
-        // Audience for validating *native* id_tokens only; the web callback
-        // decodes its id_token without an audience check.
-        appBundleIdentifier: bundleId,
-        mapProfileToUser: (profile: { name?: string | null; email?: string | null }) => ({
-          name: appleDisplayName(profile),
-        }),
-      },
-    }
-  : undefined;
+const appleConfig = appleSecret ? { ...appleSecret, bundleId } : null;
 
-const socialProviders =
-  googleProvider || appleProvider ? { ...googleProvider, ...appleProvider } : undefined;
+const socialProviders = buildSocialProviders(googleConfig, appleConfig);
 
 export const auth = betterAuth({
   baseURL: env.authUrl,
