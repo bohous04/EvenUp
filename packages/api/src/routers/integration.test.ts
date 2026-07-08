@@ -336,6 +336,9 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       async deleteObject(key: string) {
         deletes.push(key);
       },
+      async getObject() {
+        return null;
+      },
     };
     const olivia = await createTestUser('olivia@example.com');
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
@@ -376,6 +379,9 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       async deleteObject(key: string) {
         deletes.push(key);
       },
+      async getObject() {
+        return null;
+      },
     };
     const olivia = await createTestUser('olivia@example.com');
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
@@ -411,6 +417,9 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
         throw new Error('s3 down');
       },
       async deleteObject(): Promise<void> {},
+      async getObject() {
+        return null;
+      },
     };
     const olivia = await createTestUser('olivia@example.com');
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });

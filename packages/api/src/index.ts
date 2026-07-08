@@ -14,6 +14,7 @@ export {
 export {
   createS3ObjectStore,
   createNoopObjectStore,
+  createInMemoryObjectStore,
   parseImageDataUrl,
   type ObjectStore,
   type S3Config,

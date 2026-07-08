@@ -4,11 +4,13 @@
  * OCR work on a self-host with no storage configured. Tests use an in-memory
  * fake, so CI makes no live S3 calls.
  */
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { NoSuchKey } from '@aws-sdk/client-s3';
 
 export interface ObjectStore {
   putReceipt(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
   deleteObject(key: string): Promise<void>;
+  getObject(key: string): Promise<{ bytes: Uint8Array; contentType: string } | null>;
 }
 
 export interface S3Config {
@@ -40,6 +42,27 @@ export function createS3ObjectStore(cfg: S3Config): ObjectStore {
     async deleteObject(key) {
       await client.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
     },
+    async getObject(key) {
+      try {
+        const response = await client.send(
+          new GetObjectCommand({
+            Bucket: cfg.bucket,
+            Key: key,
+          }),
+        );
+        const bytes = await response.Body?.transformToByteArray();
+        if (!bytes) return null;
+        return {
+          bytes,
+          contentType: response.ContentType ?? 'application/octet-stream',
+        };
+      } catch (error) {
+        if (error instanceof NoSuchKey || (error as { name?: string }).name === 'NoSuchKey') {
+          return null;
+        }
+        throw error;
+      }
+    },
   };
 }
 
@@ -47,6 +70,9 @@ export function createNoopObjectStore(): ObjectStore {
   return {
     async putReceipt() {},
     async deleteObject() {},
+    async getObject() {
+      return null;
+    },
   };
 }
 
@@ -61,4 +87,19 @@ export function parseImageDataUrl(dataUrl: string): {
   const contentType = m[1]!;
   const ext = contentType.split('/')[1]?.split('+')[0] ?? 'bin';
   return { bytes: Buffer.from(m[2]!, 'base64'), contentType, ext };
+}
+
+export function createInMemoryObjectStore(): ObjectStore {
+  const store = new Map<string, { bytes: Uint8Array; contentType: string }>();
+  return {
+    async putReceipt(key, bytes, contentType) {
+      store.set(key, { bytes, contentType });
+    },
+    async deleteObject(key) {
+      store.delete(key);
+    },
+    async getObject(key) {
+      return store.get(key) ?? null;
+    },
+  };
 }
