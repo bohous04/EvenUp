@@ -37,7 +37,7 @@ export function SettleCard({
     <Card>
       <SectionLabel>{t('balance.suggestedPayments')}</SectionLabel>
       {payments.length === 0 ? (
-        <p className="py-2 text-center text-sm text-zinc-400" data-testid="settled-up">
+        <p className="py-2 text-center text-sm text-zinc-500 dark:text-zinc-400" data-testid="settled-up">
           {t('balance.settledUp')}
         </p>
       ) : (
@@ -139,14 +139,14 @@ function SettleRow({
           {spayd.data ? (
             <>
               <QrCode value={spayd.data.spayd} />
-              <code className="max-w-full break-all text-center text-[10px] text-zinc-400">
+              <code className="max-w-full break-all text-center text-[10px] text-zinc-500 dark:text-zinc-400">
                 {spayd.data.spayd}
               </code>
             </>
           ) : spayd.isError ? (
-            <p className="text-xs text-zinc-400">{t('settle.noIban')}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('settle.noIban')}</p>
           ) : (
-            <p className="text-xs text-zinc-400">{t('common.loading')}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>
           )}
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => record('CASH')} data-testid="mark-cash">
