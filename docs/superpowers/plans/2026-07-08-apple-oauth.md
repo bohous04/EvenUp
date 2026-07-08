@@ -590,7 +590,7 @@ Expected: build succeeds. The top-level `await` in `auth.ts` requires an ESM out
 pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: PASS — 6 critical flows, unchanged (Apple button is not rendered; `NEXT_PUBLIC_APPLE_ENABLED` is unset).
+Expected: PASS — 28 tests (7 specs × 4 browser projects), unchanged (Apple button is not rendered; `NEXT_PUBLIC_APPLE_ENABLED` is unset).
 
 Note: `accountLinking.enabled` was previously `false` (default). Confirm the magic-link flows in the suite still pass — this change also affects Google.
 
@@ -730,7 +730,7 @@ pnpm --filter @evenup/web typecheck && pnpm --filter @evenup/web lint
 pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck/lint clean; E2E still 6/6 (neither flag is set in the E2E env, so no divider and no social buttons).
+Expected: typecheck/lint clean; E2E still 28/28 (neither flag is set in the E2E env, so no divider and no social buttons).
 
 - [ ] **Step 7: Commit**
 
@@ -1095,12 +1095,22 @@ from credential.fullName, which Apple supplies only on first consent."
 
 - [ ] **Step 1: Run every automated gate**
 
+The `api` suite needs a database. A dev Postgres is already running as the
+`evenup-dev-db` container on port 55432:
+
 ```bash
+export DATABASE_URL='postgresql://evenup:pass@localhost:55432/evenup'
 pnpm typecheck && pnpm lint && pnpm test
 pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck clean across 6 packages; lint clean (2 pre-existing mobile warnings); `core` 195 + `i18n` 19 + `api` 39 + **`web` 16 (new)** pass; Playwright 6/6.
+Expected (baseline measured 2026-07-08 on this branch, before any Apple work):
+typecheck clean across 6 packages; lint clean apart from **2 pre-existing
+`no-console` warnings in `apps/mobile`**; `core` 195 + `i18n` 19 + `api` 65 +
+**`web` 16 (new)** = 295 unit tests; Playwright **28/28** (7 specs × 4 projects).
+
+Without `DATABASE_URL`, the `api` suite reports `Environment variable not found:
+DATABASE_URL` and skips 31 tests. That is a missing env var, not a regression.
 
 If any gate fails, fix it before proceeding. Do not report success on a red gate.
 
