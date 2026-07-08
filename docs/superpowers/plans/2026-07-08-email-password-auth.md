@@ -69,7 +69,7 @@ The load-bearing change. Removing the `magicLink` plugin, the web sign-in UI, th
 - Modify: `packages/i18n/src/locales/{cs,en}.ts`
 
 **Interfaces produced (later tasks rely on these):**
-- Web client: `signIn.email({ email, password, callbackURL })`, `signUp.email({ name, email, password })`, `authClient.forgetPassword({ email, redirectTo })`, `authClient.resetPassword({ newPassword, token })`, `authClient.sendVerificationEmail({ email, callbackURL })` — all core, exported from `@/lib/auth-client`.
+- Web client: `signIn.email({ email, password, callbackURL })`, `signUp.email({ name, email, password })`, `authClient.requestPasswordReset({ email, redirectTo })`, `authClient.resetPassword({ newPassword, token })`, `authClient.sendVerificationEmail({ email, callbackURL })` — all core, exported from `@/lib/auth-client`.
 - i18n keys added: `auth.signInTitle`, `auth.email`, `auth.password`, `auth.signInBtn`, `auth.signUpLink`, `auth.forgotLink`, `auth.err.invalidCredentials`, `auth.err.unverified`.
 - Sign-in page testids: keep the human-facing form; the "check inbox" magic state (`data-testid="magic-sent"`) is removed.
 
@@ -265,14 +265,14 @@ Password `<Input type="password" autoComplete="new-password" minLength={8}>`. On
 
 **Files:** Create `apps/web/src/app/forgot-password/page.tsx`, `apps/web/src/app/reset-password/page.tsx`; modify i18n.
 
-**Interfaces consumed:** `authClient.forgetPassword`, `authClient.resetPassword` (Task 1). **Produced:** routes `/forgot-password`, `/reset-password`; testids `forgot-email`, `forgot-submit`, `forgot-sent`, `reset-password-input`, `reset-submit`, `reset-done`.
+**Interfaces consumed:** `authClient.requestPasswordReset`, `authClient.resetPassword` (Task 1). **Produced:** routes `/forgot-password`, `/reset-password`; testids `forgot-email`, `forgot-submit`, `forgot-sent`, `reset-password-input`, `reset-submit`, `reset-done`.
 
 - [ ] **Step 1: i18n (both)** — `auth.forgotTitle`, `auth.forgotBtn` ("Send reset link"/"Poslat odkaz"), `auth.forgotSent` ("If that address exists, we sent a reset link."/"Pokud e-mail existuje, poslali jsme odkaz."), `auth.resetTitle`, `auth.newPassword` ("New password"/"Nové heslo"), `auth.resetBtn` ("Set new password"/"Nastavit heslo"), `auth.resetDone` ("Password changed — you can sign in."/"Heslo změněno — můžete se přihlásit."), `auth.err.resetToken` ("This reset link is invalid or expired."/"Odkaz je neplatný nebo vypršel.").
 
 - [ ] **Step 2: `/forgot-password`** — email form:
 
 ```tsx
-await authClient.forgetPassword({ email, redirectTo: '/reset-password' });
+await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' });
 setSent(true); // always show the same message (don't reveal whether the email exists)
 ```
 
@@ -301,7 +301,7 @@ If `token` is absent, show the invalid-link message.
 
 - [ ] **Step 1: i18n (both)** — `auth.verifyTitle` ("Verify your email"/"Ověřte e-mail"), `auth.verifyBody` ("We sent a link to {email}. Click it to finish."/"Poslali jsme odkaz na {email}. Klepnutím dokončíte."), `auth.resend` ("Resend"/"Poslat znovu"), `auth.resent` ("Sent."/"Odesláno.").
 
-- [ ] **Step 2: Page** — reads `email` from `useSearchParams()`, shows the body, and a Resend button:
+- [ ] **Step 2: Page** — reads `email` from `useSearchParams()`, shows the body, and a Resend button: (wrap the `useSearchParams()` consumer in a `<Suspense fallback={null}>` — Next 15 fails `next build` otherwise, same as reset-password)
 
 ```tsx
 await authClient.sendVerificationEmail({ email, callbackURL: '/' });
@@ -341,11 +341,11 @@ Add a `TextInput` with `secureTextEntry` for the password, a "Forgot password?" 
 
 **Files:** Create `apps/mobile/app/sign-up.tsx`, `apps/mobile/app/forgot-password.tsx`; modify i18n.
 
-**Interfaces consumed:** `signUp.email`, `authClient.forgetPassword`.
+**Interfaces consumed:** `signUp.email`, `authClient.requestPasswordReset`.
 
 - [ ] **Step 1: `app/sign-up.tsx`** — name + email + password RN screen (mirror `sign-in.tsx` styling) → `signUp.email({ name, email, password })` → on success show a "verify your email" message (RN `Text`), link back to sign-in. Reuse the `auth.*` i18n keys from Tasks 1-2.
 
-- [ ] **Step 2: `app/forgot-password.tsx`** — email screen → `authClient.forgetPassword({ email, redirectTo: <WEB_URL>/reset-password })` → always show `t('auth.forgotSent')`. **The reset itself completes in the browser** (the emailed link opens the web page); the app implements no reset-token screen.
+- [ ] **Step 2: `app/forgot-password.tsx`** — email screen → `authClient.requestPasswordReset({ email, redirectTo: <WEB_URL>/reset-password })` → always show `t('auth.forgotSent')`. **The reset itself completes in the browser** (the emailed link opens the web page); the app implements no reset-token screen.
 
 - [ ] **Step 3: Gates + commit** — mobile `typecheck` + `lint` (2 warnings). `git commit -m "feat(mobile): sign-up and forgot-password screens"`.
 
