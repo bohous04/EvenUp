@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { signIn } from '@/lib/auth-client';
 import { Button, Card, Input, Label } from '@/components/ui';
-import { Mail } from '@/components/icons';
+import { Mail, AppleLogo } from '@/components/icons';
 
-// Only offer Google sign-in when the instance has configured it (self-hosters
-// without Google credentials shouldn't see a dead button). Inlined at build.
+// Only offer Google/Apple sign-in when the instance has configured them
+// (self-hosters without credentials shouldn't see a dead button). Inlined at build.
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
+const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 
 export function SignIn() {
   const { t } = useI18n();
@@ -68,22 +69,36 @@ export function SignIn() {
                 {loading ? t('common.loading') : 'Sign in with email'}
               </Button>
             </form>
-            {googleEnabled ? (
+            {googleEnabled || appleEnabled ? (
               <>
                 <div className="flex items-center gap-3 text-xs text-neutral-400">
                   <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
                   {t('common.or')}
                   <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
-                  data-testid="google-signin"
-                >
-                  {t('auth.continueGoogle')}
-                </Button>
+                {googleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
+                    data-testid="google-signin"
+                  >
+                    {t('auth.continueGoogle')}
+                  </Button>
+                ) : null}
+                {appleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex w-full items-center justify-center gap-2"
+                    onClick={() => signIn.social({ provider: 'apple', callbackURL: '/' })}
+                    data-testid="apple-signin"
+                  >
+                    <AppleLogo size={16} />
+                    {t('auth.continueApple')}
+                  </Button>
+                ) : null}
               </>
             ) : null}
           </div>

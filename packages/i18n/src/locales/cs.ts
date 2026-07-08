@@ -23,6 +23,7 @@ export const cs = {
   'common.or': 'nebo',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
+  'auth.continueApple': 'Pokračovat přes Apple',
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',

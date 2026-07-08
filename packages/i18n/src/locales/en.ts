@@ -23,6 +23,7 @@ export const en: Messages = {
   'common.or': 'or',
 
   'auth.continueGoogle': 'Continue with Google',
+  'auth.continueApple': 'Continue with Apple',
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',
