@@ -27,8 +27,30 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const obj = await getObjectStore().getObject(receipt.storageKey);
   if (!obj) return new Response('Not found', { status: 404 });
+
+  // Only ever serve a known-safe raster content type. This blocks stored XSS
+  // via SVG (or any other script-capable type) that may have slipped past
+  // upload-time validation — the browser can't render/execute a mismatched
+  // or octet-stream response.
+  const SAFE_IMAGE_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/gif',
+    'image/heic',
+    'image/heif',
+    'image/avif',
+  ]);
+  const contentType = SAFE_IMAGE_TYPES.has(obj.contentType) ? obj.contentType : 'application/octet-stream';
+
   return new Response(Buffer.from(obj.bytes), {
     status: 200,
-    headers: { 'Content-Type': obj.contentType, 'Cache-Control': 'private, max-age=300' },
+    headers: {
+      'Content-Type': contentType,
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox;",
+      'Cache-Control': 'private, max-age=300',
+    },
   });
 }
