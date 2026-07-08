@@ -622,17 +622,20 @@ pnpm --filter @evenup/web test:e2e
 
 Expected: PASS — 28 tests (7 specs × 4 browser projects), unchanged (Apple button is not rendered; `NEXT_PUBLIC_APPLE_ENABLED` is unset).
 
-Note: `accountLinking.enabled` was previously `false` (default). Confirm the magic-link flows in the suite still pass — this change also affects Google.
+Note (corrected 2026-07-08): `accountLinking.enabled` **already defaults to `true`** in better-auth 1.6.20 — `oauth2/link-account.mjs:22` blocks only on an explicit `=== false`. So `account: { accountLinking: { enabled: true } }` is a **no-op** that documents intent; it changes nothing for existing Google or magic-link users. The property that actually gates linking is `requireLocalEmailVerified ?? true`, which additionally requires the *existing local row* to be `emailVerified: true`. Magic-link users always are. Run the E2E suite anyway.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/server/env.ts apps/web/src/server/auth.ts
-git commit -m "feat(web): Apple social provider + verified-email account linking
-
-Enabling accountLinking also fixes the pre-existing ACCOUNT_NOT_LINKED
-dead-end that a magic-link user hit when clicking Continue with Google."
+git commit -m "feat(web): Apple social provider + verified-email account linking"
 ```
+
+> The commit actually made on this branch (`4bdd33e`) carries a second paragraph
+> claiming this "fixes the pre-existing ACCOUNT_NOT_LINKED dead-end that a
+> magic-link user hit when clicking Continue with Google." **That claim is false**
+> — see the corrected note in Step 2. It is already in history and cannot be
+> amended without a rewrite; this line records the correction instead.
 
 ---
 
@@ -1144,8 +1147,10 @@ test list left entirely unexercised.)
 
 **Actual, run 2026-07-08 on this branch:** typecheck 6/6 ✓ · lint 6/6, exactly the
 2 pre-existing mobile warnings ✓ · unit 299 ✓ (core 195, i18n 19, api 65, web 20)
-· Playwright 28/28 ✓ (with `accountLinking` newly enabled — no regression to the
-existing magic-link flows).
+· Playwright 28/28 ✓. (An earlier draft framed this as "with `accountLinking` newly
+enabled — no regression." That framing was wrong: `enabled` already defaulted to
+`true`, so nothing about linking changed. The suite passing confirms no regression
+from the *other* changes, which is still worth having.)
 
 Without `DATABASE_URL`, the `api` suite reports `Environment variable not found:
 DATABASE_URL` and skips 31 tests. That is a missing env var, not a regression.

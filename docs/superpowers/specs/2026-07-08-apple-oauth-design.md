@@ -169,10 +169,42 @@ Three details, each verified against installed source:
 
 ### Account-linking consequences
 
-`accountLinking.enabled` currently defaults to `false` and `auth.ts` has no
-`account` block. So today a magic-link user at `alice@gmail.com` who clicks
-"Continue with Google" already hits `ACCOUNT_NOT_LINKED` and is stuck. Enabling
-linking fixes that latent Google bug in the same stroke.
+> **Corrected 2026-07-08, after the final review read the installed source.** An
+> earlier draft of this section claimed `accountLinking.enabled` defaults to
+> `false`, that a magic-link user clicking "Continue with Google" therefore hits
+> `ACCOUNT_NOT_LINKED`, and that enabling it fixes a latent bug. **All three were
+> wrong.** In `better-auth@1.6.20` the runtime gate (`oauth2/link-account.mjs:22`)
+> reads:
+>
+> ```js
+> if (!isTrustedProvider && !userInfo.emailVerified
+>     || requireLocalEmailVerified && !dbUser.user.emailVerified
+>     || accountLinking?.enabled === false            // ← only an explicit false blocks
+>     || accountLinking?.disableImplicitLinking === true) { /* "account not linked" */ }
+> ```
+>
+> `enabled` blocks only when explicitly `false`, so it **defaults to true**. There
+> was no dead-end, and `account: { accountLinking: { enabled: true } }` in
+> `auth.ts` is a **no-op**. It is kept because it states intent at the call site —
+> not because it changes behavior. Nothing about existing Google or magic-link
+> users changes on this branch.
+
+**The property that actually protects us** — and which the earlier draft never
+mentioned — is `requireLocalEmailVerified`, defaulting to `true`. Implicit linking
+requires **both**:
+
+1. the identity provider asserts `email_verified` (Apple and Google both do), **and**
+2. the *existing local user row* already has `emailVerified: true`.
+
+Clause 2 is what closes the classic takeover: an attacker pre-registers an
+unverified account at the victim's email, then waits for the victim to sign in with
+the IdP and inherit it. EvenUp satisfies clause 2 for free because
+`plugins/magic-link/index.mjs` sets `emailVerified: true` on signup and on every
+verify — magic-link users are verified by construction.
+
+Do not set `trustedProviders`: it flips clause 1 off. Do not set
+`requireLocalEmailVerified: false`: it flips clause 2 off. Either one reopens the
+takeover path.
 
 | Existing user                  | Apple choice                                      | Result                      |
 | ------------------------------ | ------------------------------------------------- | --------------------------- |
