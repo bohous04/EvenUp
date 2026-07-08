@@ -57,7 +57,11 @@ let refreshing = false;
 /**
  * Mint the first token. Called once, with top-level `await`, before the Better
  * Auth provider is constructed — so `appleClientSecret()` is never cold.
- * Throws on an unparseable key, failing the boot rather than the first sign-in.
+ *
+ * Throws on an unparseable key. The caller (`auth.ts`) catches this and disables
+ * the Apple provider rather than letting it propagate: `auth.ts` is an async
+ * module, so an uncaught rejection here stops every importer from evaluating and
+ * takes all of `/api/auth/*` down with it — magic link and Google included.
  */
 export async function initAppleClientSecret(cfg: AppleSecretConfig): Promise<void> {
   config = cfg;
