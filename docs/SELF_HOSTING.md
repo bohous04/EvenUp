@@ -37,7 +37,34 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
   invalidates stored secrets.**
 - **`BETTER_AUTH_SECRET`** / **`BETTER_AUTH_URL`** — auth signing secret and the
   app's public URL.
-- **`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`** — optional Google sign-in.
+- **`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`** — optional Google sign-in. Also
+  set **`NEXT_PUBLIC_GOOGLE_ENABLED=true`** to render the button — it is inlined
+  at **build** time, so it must be set before `next build` (Docker: a build arg).
+- **`APPLE_*`** — optional Sign In with Apple; **required if you ship the iOS app**
+  (PRD FR-1.2). Needs a paid Apple Developer Program membership. In the portal:
+  1. Enable **Sign In with Apple** on the App ID `company.lnrt.evenup`.
+  2. Create a **Services ID** (e.g. `company.lnrt.evenup.web`) → `APPLE_SERVICES_ID`.
+     Register your domain and the return URL `https://<your-host>/api/auth/callback/apple`.
+     Apple rejects `localhost` and plain `http`, so local testing needs an HTTPS tunnel.
+  3. Create a **Key** with Sign In with Apple enabled. The Key ID becomes
+     `APPLE_KEY_ID`; the downloaded `AuthKey_*.p8` becomes `APPLE_PRIVATE_KEY`
+     (literal `\n` for newlines is fine). **The `.p8` downloads exactly once.**
+  4. `APPLE_TEAM_ID` is on the membership page. `APPLE_BUNDLE_ID` defaults to
+     `company.lnrt.evenup`.
+  5. Set **`NEXT_PUBLIC_APPLE_ENABLED=true`** (build time) to render the button.
+
+  EvenUp derives Apple's `client_secret` (an ES256 JWT, max ~182 days) from the
+  `.p8` at runtime and re-mints it automatically. You never paste a JWT.
+
+  > **`APPLE_PRIVATE_KEY` is a runtime secret, never a build arg.** Only the
+  > `NEXT_PUBLIC_*` flags are needed at build time. Docker build args are visible
+  > in the image's layer history, so passing the `.p8` as one bakes a private key
+  > into every copy of your image.
+
+  > **Private-relay email.** Users who pick "Hide My Email" get an
+  > `@privaterelay.appleid.com` address. Magic links and group invites sent to it
+  > **bounce** unless you register your sending domain under Apple's
+  > *Certificates, Identifiers & Profiles → More → Configure Email Sources*.
 - **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model. OCR API keys are
   **per-user (BYO)**, not a global secret.
 - **`STORAGE_*`** — S3/MinIO endpoint and credentials for receipt images.

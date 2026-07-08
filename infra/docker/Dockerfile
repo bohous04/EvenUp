@@ -26,6 +26,12 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# NEXT_PUBLIC_* are inlined into the client bundle by `next build`, so they must
+# be present at build time — not merely in the runtime environment.
+ARG NEXT_PUBLIC_GOOGLE_ENABLED=""
+ARG NEXT_PUBLIC_APPLE_ENABLED=""
+ENV NEXT_PUBLIC_GOOGLE_ENABLED=$NEXT_PUBLIC_GOOGLE_ENABLED
+ENV NEXT_PUBLIC_APPLE_ENABLED=$NEXT_PUBLIC_APPLE_ENABLED
 # Generate the Prisma client, then build the Next standalone bundle.
 RUN pnpm --filter @evenup/db exec prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1

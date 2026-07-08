@@ -39,6 +39,9 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_ENABLED: ${NEXT_PUBLIC_GOOGLE_ENABLED:-}
+        NEXT_PUBLIC_APPLE_ENABLED: ${NEXT_PUBLIC_APPLE_ENABLED:-}
     restart: unless-stopped
     depends_on:
       db:
@@ -55,6 +58,11 @@ services:
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-evenup-secret}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+      APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-company.lnrt.evenup}
     ports:
       - '3000:3000'
 
