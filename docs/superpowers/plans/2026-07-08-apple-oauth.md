@@ -754,7 +754,20 @@ git commit -m "feat(web): Continue with Apple button + CZ/EN strings"
 - Consumes: the env names from Task 3 (`APPLE_SERVICES_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_BUNDLE_ID`) and `NEXT_PUBLIC_APPLE_ENABLED` from Task 4.
 - Produces: nothing consumed by later tasks.
 
-**Two pre-existing problems this task fixes.** `.env.example` already ships `APPLE_CLIENT_ID=` / `APPLE_CLIENT_SECRET=` placeholders that nothing reads and that are the wrong shape — they must be replaced, not appended to. And `infra/docker/Dockerfile` declares no `ARG NEXT_PUBLIC_*`, so `NEXT_PUBLIC_GOOGLE_ENABLED` is never present at build time: **the Google button has never rendered in any Docker-built deployment, including Coolify production.** `NEXT_PUBLIC_*` is inlined by `next build`, not read at runtime. Apple would inherit the bug verbatim, so plumb both.
+**Two pre-existing problems this task fixes.**
+
+1. `.env.example` already ships `APPLE_CLIENT_ID=` / `APPLE_CLIENT_SECRET=` placeholders that nothing reads and that are the wrong shape for this design. **Replace them; do not append.**
+2. `NEXT_PUBLIC_*` is inlined by `next build`, not read at runtime — but `docker-compose.yml` passes no `build.args` and does not even list `NEXT_PUBLIC_GOOGLE_ENABLED` under `environment:`, and `infra/docker/Dockerfile` declares no `ARG`. **So a self-hoster following `docker compose build` never gets a Google button**, and Apple would inherit that exactly.
+
+> **Verified 2026-07-08, do not "fix" what isn't broken:** Coolify production
+> *does* render the Google button. Its `NEXT_PUBLIC_GOOGLE_ENABLED` is marked
+> `is_buildtime: true`, and Coolify injects build-time vars into Dockerfile
+> builds on its own (the prod bundle has the ternary folded away and the button
+> rendered unconditionally — checked against
+> `https://evenup.lnrtdev.cz/_next/static/chunks/app/page-*.js`). Adding the
+> explicit `ARG` is still correct: it makes plain `docker compose build` behave
+> the same as Coolify, and it documents the build-time contract. But it is **not**
+> repairing a broken production deploy.
 
 - [ ] **Step 1: Replace the Apple stubs in `.env.example`**
 
@@ -847,6 +860,11 @@ In `docs/SELF_HOSTING.md`, replace the single `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_
   EvenUp derives Apple's `client_secret` (an ES256 JWT, max ~182 days) from the
   `.p8` at runtime and re-mints it automatically. You never paste a JWT.
 
+  > **`APPLE_PRIVATE_KEY` is a runtime secret, never a build arg.** Only the
+  > `NEXT_PUBLIC_*` flags are needed at build time. Docker build args are visible
+  > in the image's layer history, so passing the `.p8` as one bakes a private key
+  > into every copy of your image.
+
   > **Private-relay email.** Users who pick "Hide My Email" get an
   > `@privaterelay.appleid.com` address. Magic links and group invites sent to it
   > **bounce** unless you register your sending domain under Apple's
@@ -868,9 +886,10 @@ Expected: `compose OK`, then a successful image build. If Docker is unavailable,
 git add .env.example infra/docker/Dockerfile docker-compose.yml docs/SELF_HOSTING.md
 git commit -m "feat(infra): Apple env vars + plumb NEXT_PUBLIC_* build args
 
-NEXT_PUBLIC_* is inlined by next build, but the Dockerfile declared no ARG for
-it, so NEXT_PUBLIC_GOOGLE_ENABLED never reached the client bundle in any
-Docker-built deploy. Apple would have inherited the same bug."
+NEXT_PUBLIC_* is inlined by next build, but docker-compose passed no build args
+and the Dockerfile declared no ARG, so a plain 'docker compose build' never got
+a Google button. (Coolify injects build-time vars itself, so production was
+unaffected.) Declare the ARGs so self-hosted builds match."
 ```
 
 ---
@@ -1091,7 +1110,11 @@ If any gate fails, fix it before proceeding. Do not report success on a red gate
 grep -rn "NEXT_PUBLIC_APPLE_ENABLED" apps/web/src infra/docker/Dockerfile docker-compose.yml
 ```
 
-Expected: three hits — the component, the Dockerfile `ARG`/`ENV`, and the compose build arg. A hit missing from the Dockerfile means the button will never render in production.
+Expected: three hits — the component, the Dockerfile `ARG`/`ENV`, and the compose build arg. Missing the Dockerfile hit means `docker compose build` produces a bundle with the button dead-code-eliminated.
+
+Separately, when deploying to Coolify, add `NEXT_PUBLIC_APPLE_ENABLED=true` with **`is_buildtime: true`** — Coolify inlines it at build the same way it already does for `NEXT_PUBLIC_GOOGLE_ENABLED`.
+
+> **`APPLE_PRIVATE_KEY` must be runtime-only in Coolify** (`is_buildtime: false`, `is_runtime: true`). It is a multiline PEM; passing it as a Docker build arg both mangles it and bakes a private key into an image layer. It is read by the server at boot, never by `next build`.
 
 - [ ] **Step 3: Record what is NOT covered**
 
@@ -1119,6 +1142,9 @@ git commit -m "chore: verification fixes for Apple sign-in"
 
 ## Deviations from the spec
 
-1. **Task 5 also plumbs `NEXT_PUBLIC_*` build args through the Dockerfile and compose.** The spec (§9) said only "add the env vars". While planning, the Dockerfile turned out to declare no `ARG NEXT_PUBLIC_*`, meaning `NEXT_PUBLIC_GOOGLE_ENABLED` has never reached any Docker-built client bundle — the Google button cannot have been rendering in Coolify production. Apple would have shipped equally invisible. The fix is two lines per flag and is squarely in the blast radius of this change.
+1. **Task 5 also plumbs `NEXT_PUBLIC_*` build args through the Dockerfile and compose.** The spec (§9) said only "add the env vars". The Dockerfile declares no `ARG NEXT_PUBLIC_*` and compose passes no `build.args`, so `docker compose build` produces a bundle with the social buttons dead-code-eliminated. Two lines per flag, squarely in the blast radius of this change.
+
+   *An earlier draft of this plan claimed Coolify production was broken too. That was checked and is false* — Coolify injects `is_buildtime` vars into Dockerfile builds itself, and the deployed bundle renders the Google button. The fix is for self-hosters, not for prod.
 2. **`nonEmptyName` from spec §5(a) is named `appleDisplayName`** and lives in its own `apple-profile.ts` rather than inside `auth.ts`, so it can be unit-tested. Same behavior.
-3. **`.env.example` gains `NEXT_PUBLIC_GOOGLE_ENABLED`** alongside the Apple flag, since Task 5 makes it functional for the first time.
+3. **`.env.example` gains `NEXT_PUBLIC_GOOGLE_ENABLED`** alongside the Apple flag, since Task 5 makes it functional for `docker compose` for the first time.
+4. **Task 7 adds a Coolify-specific note** that `APPLE_PRIVATE_KEY` must be `is_buildtime: false`. The spec's §10 risk table anticipated newline mangling but not the image-layer exposure.
