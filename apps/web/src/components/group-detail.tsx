@@ -7,7 +7,8 @@ import { Button, Card } from '@/components/ui';
 import { MemberList } from '@/components/member-list';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
-import { BalancesPanel } from '@/components/balances-panel';
+import { SettleCard } from '@/components/settle-card';
+import { BalancesCard } from '@/components/balances-card';
 import { BankDetailsForm } from '@/components/bank-details-form';
 import { OcrScan } from '@/components/ocr-scan';
 import { SpendStats } from '@/components/spend-stats';
@@ -108,7 +109,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </>
       ) : null}
 
-      <BalancesPanel
+      <SettleCard
         groupId={groupId}
         members={activeMembers.map((m) => ({
           id: m.id,
@@ -118,6 +119,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         }))}
         baseCurrency={group.data.baseCurrency}
       />
+
+      <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 
       <SpendStats groupId={groupId} baseCurrency={group.data.baseCurrency} />
 

@@ -82,7 +82,9 @@ export function SectionLabel({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-400 ${className}`}
+      // zinc-400 on white is only 2.6:1 (fails WCAG AA for this 11px text);
+      // zinc-500 clears 4.8:1. Dark mode keeps zinc-400 (6.7:1 on zinc-900).
+      className={`mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ${className}`}
       {...props}
     />
   );
