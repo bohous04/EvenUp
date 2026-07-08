@@ -24,6 +24,13 @@ export const cs = {
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',
+  'auth.email': 'Email',
+  'auth.password': 'Heslo',
+  'auth.signInBtn': 'Přihlásit se',
+  'auth.signUpLink': 'Nemáte účet? Zaregistrujte se',
+  'auth.forgotLink': 'Zapomenuté heslo?',
+  'auth.err.invalidCredentials': 'Nesprávný e-mail nebo heslo.',
+  'auth.err.unverified': 'Nejdřív si ověřte e-mail — zkontrolujte schránku.',
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',

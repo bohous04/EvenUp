@@ -24,6 +24,13 @@ export const en: Messages = {
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.signInBtn': 'Sign in',
+  'auth.signUpLink': "Don't have an account? Sign up",
+  'auth.forgotLink': 'Forgot password?',
+  'auth.err.invalidCredentials': 'Wrong email or password.',
+  'auth.err.unverified': 'Verify your email first — check your inbox.',
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',
