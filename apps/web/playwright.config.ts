@@ -36,6 +36,8 @@ export default defineConfig({
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? 'e2e-secret-000000000000000000000000',
       BETTER_AUTH_URL: baseURL,
       AUTH_DEV_ECHO: 'true',
+      // The admin-gate E2E signs in as this address; the auth hook seeds it admin.
+      ADMIN_EMAILS: 'admin@example.com',
       // Force the console/dev-echo mail path regardless of a developer's
       // .env.local (which next start auto-loads) so local E2E signs in without
       // a real mail transport.

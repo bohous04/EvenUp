@@ -21,13 +21,13 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // EvenUp settings (PRD §7.2)
   locale                 String  @default("cs")
@@ -35,11 +35,48 @@ model User {
   openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
   ocrModel               String?
 
-  sessions     Session[]
-  accounts     Account[]
-  members      Member[]
+  // Operator/tier fields (hosted-instance management dashboard).
+  isAdmin    Boolean   @default(false) // may access /admin (seeded from ADMIN_EMAILS)
+  isVip      Boolean   @default(false) // may use the shared OCR key + store receipt photos
+  disabledAt DateTime? // soft-disabled: sign-in is blocked while set
+
+  sessions      Session[]
+  accounts      Account[]
+  members       Member[]
   createdGroups Group[]       @relation("GroupCreatedBy")
-  activityLogs ActivityLog[]
+  activityLogs  ActivityLog[]
+  errorLogs     ErrorLog[]
+}
+
+// ---------------------------------------------------------------------------
+// Instance-level operator config (hosted deployment). Single row (id fixed to
+// "singleton"); the shared OpenRouter key is encrypted at rest like BYO keys.
+// ---------------------------------------------------------------------------
+
+model InstanceConfig {
+  id                     String   @id @default("singleton")
+  openRouterKeyEncrypted String? // shared instance OCR key, AES-GCM encrypted at rest
+  ocrModel               String?
+  updatedAt              DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Server error log (admin dashboard "errors users got"). Captured best-effort
+// by a tRPC middleware; stores messages, never request inputs or secrets.
+// ---------------------------------------------------------------------------
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source    String // first tRPC path segment, e.g. "ocr", "transaction"
+  code      String? // TRPCError code / status
+  message   String
+  path      String? // full procedure path, e.g. "ocr.scan"
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model Session {
@@ -105,16 +142,16 @@ enum MemberRole {
 }
 
 model Group {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
-  template      GroupTemplate  @default(OTHER)
-  baseCurrency  String         @default("CZK")
-  simplifyDebts Boolean        @default(true)
-  fxLockedRate  Decimal?       @db.Decimal(20, 8) // per-trip locked rate (FR-8.3)
+  template      GroupTemplate @default(OTHER)
+  baseCurrency  String        @default("CZK")
+  simplifyDebts Boolean       @default(true)
+  fxLockedRate  Decimal?      @db.Decimal(20, 8) // per-trip locked rate (FR-8.3)
   createdById   String?
-  createdBy     User?          @relation("GroupCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdBy     User?         @relation("GroupCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   archivedAt    DateTime?
 
   members      Member[]
@@ -127,18 +164,18 @@ model Group {
 }
 
 model Member {
-  id           String      @id @default(cuid())
+  id           String     @id @default(cuid())
   groupId      String
-  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group        Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   displayName  String
   initials     String
   color        String // hex color used for chips everywhere (FR-2.2)
-  defaultShare Int         @default(1)
-  role         MemberRole  @default(MEMBER)
-  isActive     Boolean     @default(true)
+  defaultShare Int        @default(1)
+  role         MemberRole @default(MEMBER)
+  isActive     Boolean    @default(true)
   userId       String?
-  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt    DateTime    @default(now())
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
 
   bankDetail      BankDetail?
   payerEntries    TransactionPayer[]
@@ -161,15 +198,15 @@ model BankDetail {
 }
 
 model Invite {
-  id        String    @id @default(cuid())
-  groupId   String
-  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  token     String    @unique
+  id          String    @id @default(cuid())
+  groupId     String
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  token       String    @unique
   createdById String?
-  expiresAt DateTime?
-  maxUses   Int?
-  usedCount Int       @default(0)
-  createdAt DateTime  @default(now())
+  expiresAt   DateTime?
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
 
   @@index([groupId])
 }
@@ -244,11 +281,11 @@ model Transaction {
 }
 
 model TransactionPayer {
-  id              String      @id @default(cuid())
-  transactionId   String
-  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  memberId        String
-  member          Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id               String      @id @default(cuid())
+  transactionId    String
+  transaction      Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  memberId         String
+  member           Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   amountMinorUnits BigInt
 
   @@unique([transactionId, memberId])

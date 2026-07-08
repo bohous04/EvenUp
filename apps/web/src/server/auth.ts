@@ -1,6 +1,7 @@
 /** Better Auth server instance (PRD §8.2): email magic link + optional Google / Apple. */
 import 'server-only';
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { magicLink, bearer } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
@@ -88,6 +89,27 @@ export const auth = betterAuth({
   // `trustedProviders` — that would force-link *unverified* emails.
   account: { accountLinking: { enabled: true } },
   socialProviders,
+  databaseHooks: {
+    session: {
+      create: {
+        // Runs on every sign-in: block disabled accounts and seed instance
+        // admins from ADMIN_EMAILS (idempotent — an admin can't lock themselves
+        // out because it re-promotes on each sign-in).
+        before: async (session) => {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { email: true, isAdmin: true, disabledAt: true },
+          });
+          if (user?.disabledAt) {
+            throw new APIError('FORBIDDEN', { message: 'This account has been disabled.' });
+          }
+          if (user && !user.isAdmin && env.adminEmails.includes(user.email.toLowerCase())) {
+            await prisma.user.update({ where: { id: session.userId }, data: { isAdmin: true } });
+          }
+        },
+      },
+    },
+  },
   plugins: [
     // Native deep-link session handoff for the Expo app: appends the session
     // cookie to the evenup:// redirect after magic-link verify so the client

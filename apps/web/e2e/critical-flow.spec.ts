@@ -33,9 +33,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     }
 
     // Add an equal-split expense of 900 paid by the creator, categorized.
+    await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Chata');
     await page.getByTestId('expense-amount-input').fill('900');
-    await page.getByTestId('expense-category-select').selectOption('accommodation');
+    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('category-chip-accommodation').click();
     await page.getByTestId('add-expense-submit').click();
 
     // Activity feed shows the create events (FR-9.1).
@@ -93,8 +95,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('bank-save-btn').click();
 
     // Exact split: creator pays, Petr owes 100.
+    await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
-    await page.getByTestId('expense-split-type').selectOption('EXACT');
+    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('split-type-EXACT').click();
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0'); // creator owes nothing
     await inputs.nth(1).fill('100'); // Petr owes 100
@@ -111,6 +115,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
   }, testInfo) => {
     const email = uniqueEmail('ocr', testInfo.workerIndex + Date.now());
     await signIn(page, email);
+
+    // Receipt-photo storage is VIP-only (FR-5.8); grant VIP via the dev hook so
+    // the "View receipt" assertion below has an image to resolve.
+    const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
+    expect(vipRes.ok()).toBeTruthy();
 
     // Save a (mock) OpenRouter key in settings.
     await page.getByRole('link', { name: /settings|nastavení/i }).click();
@@ -193,8 +202,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-member-btn').click();
 
     // 100 EUR at rate 25 -> 2500 CZK in base.
+    await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Lanovka');
     await page.getByTestId('expense-amount-input').fill('100');
+    await page.getByTestId('expense-more-options').click();
     await page.getByTestId('expense-currency-select').selectOption('EUR');
     await page.getByTestId('expense-fx-input').fill('25');
     await page.getByTestId('add-expense-submit').click();
@@ -226,6 +237,159 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
 
     await expect(page.getByTestId('csv-result')).toContainText('2');
     await expect(page.getByTestId('spend-stats')).toBeVisible();
+  });
+
+  test('add-expense opens a focused modal and Escape closes it (§9.4)', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('modal', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Modal');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Modal').click();
+
+    // The dense form no longer sits open on the page — a single trigger reveals it.
+    await expect(page.getByTestId('expense-title-input')).toHaveCount(0);
+    await page.getByTestId('add-expense-open').click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId('expense-title-input')).toBeVisible();
+
+    // A11y on the OPEN dialog (§9.4).
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+
+    // Escape closes it and unmounts the form.
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByTestId('expense-title-input')).toHaveCount(0);
+  });
+
+  test('advanced options keep required split inputs reachable and reset between expenses', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('adv', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Adv');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Adv').click();
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+
+    // Choosing EXACT keeps the per-member inputs reachable: the "fewer options"
+    // toggle is disabled so the required inputs can't be collapsed out of reach.
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('split-type-EXACT').click();
+    await expect(page.getByTestId('per-member-inputs')).toBeVisible();
+    await expect(page.getByTestId('expense-more-options')).toBeDisabled();
+
+    const inputs = page.getByTestId('per-member-inputs').locator('input');
+    await inputs.nth(0).fill('0');
+    await inputs.nth(1).fill('100');
+    await page.getByTestId('add-expense-submit').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    // Reopening starts from clean defaults — advanced is collapsed and the
+    // previous split/currency settings did not carry over.
+    await page.getByTestId('add-expense-open').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByTestId('expense-currency-select')).toHaveCount(0);
+    await expect(page.getByTestId('split-type-EXACT')).toHaveCount(0);
+  });
+
+  test('admin (ADMIN_EMAILS) reaches the management dashboard (§9.4)', async ({ page }) => {
+    // playwright.config seeds ADMIN_EMAILS=admin@example.com; the auth hook flags it.
+    await signIn(page, 'admin@example.com');
+    await expect(page.getByTestId('nav-admin')).toBeVisible();
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId('admin-title')).toBeVisible();
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('non-admins have no admin link and /admin is not found for them', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('nonadmin', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+    await expect(page.getByTestId('nav-admin')).toHaveCount(0);
+    await page.goto('/admin');
+    await expect(page.getByTestId('admin-title')).toHaveCount(0);
+  });
+
+  test('admin can grant VIP to a user from the dashboard', async ({ page }, testInfo) => {
+    // Create the target user first (their account persists), then switch to admin.
+    const target = uniqueEmail('viptarget', testInfo.workerIndex + Date.now());
+    await signIn(page, target);
+    await page.context().clearCookies();
+    await signIn(page, 'admin@example.com');
+
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId('admin-users-table')).toBeVisible();
+
+    const toggle = page.getByTestId(`vip-toggle-${target}`);
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('admin can delete a user through the confirm modal', async ({ page }, testInfo) => {
+    const target = uniqueEmail('deltarget', testInfo.workerIndex + Date.now());
+    await signIn(page, target);
+    await page.context().clearCookies();
+    await signIn(page, 'admin@example.com');
+
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId(`admin-user-${target}`)).toBeVisible();
+
+    await page.getByTestId(`delete-user-${target}`).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByTestId('delete-user-confirm').click();
+
+    await expect(page.getByTestId(`admin-user-${target}`)).toHaveCount(0);
+  });
+
+  test('rename a member inline updates its name and chip initials', async ({ page }, testInfo) => {
+    const email = uniqueEmail('rename', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Rename');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Rename').click();
+
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+
+    // Open the inline editor for Petr (the pencil's accessible name carries the
+    // member name), clear it, and rename to "Pavel".
+    const memberList = page.getByTestId('member-list');
+    await memberList.getByRole('button', { name: /Petr/ }).click();
+    const editor = page.getByTestId('member-rename-input');
+    await editor.fill('Pavel');
+    await page.getByTestId('member-rename-save').click();
+
+    // The new name shows in the roster and the chip initials update (PA); Petr is gone.
+    await expect(memberList.getByText('Pavel')).toBeVisible();
+    await expect(memberList.getByRole('img', { name: 'Pavel' })).toBeVisible();
+    await expect(memberList.getByRole('img', { name: 'Petr' })).toHaveCount(0);
+
+    // Escape cancels an edit without changing the name.
+    await memberList.getByRole('button', { name: /Pavel/ }).click();
+    await page.getByTestId('member-rename-input').fill('Zmeneno');
+    await page.getByTestId('member-rename-input').press('Escape');
+    await expect(memberList.getByText('Pavel')).toBeVisible();
+    await expect(memberList.getByText('Zmeneno')).toHaveCount(0);
   });
 
   test('language switch CZ <-> EN updates the UI', async ({ page }, testInfo) => {

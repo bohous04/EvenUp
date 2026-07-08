@@ -43,6 +43,15 @@ export const env = {
   authUrl: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
   /** When set, magic links are echoed to a dev endpoint for local/E2E sign-in. */
   authDevEcho: process.env.AUTH_DEV_ECHO === 'true',
+  /**
+   * Comma-separated emails auto-promoted to instance admin on sign-in. Admins
+   * can then grant admin/VIP to others in the dashboard. Lower-cased for a
+   * case-insensitive match; empty when unset (no auto-admins).
+   */
+  adminEmails: (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,

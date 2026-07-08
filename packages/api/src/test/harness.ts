@@ -54,6 +54,8 @@ export async function createTestUser(email = 'olivia@example.com'): Promise<Auth
 
 /** Wipe all data between tests (children cascade from groups/users). */
 export async function resetDb(): Promise<void> {
+  await testPrisma.errorLog.deleteMany();
+  await testPrisma.instanceConfig.deleteMany();
   await testPrisma.activityLog.deleteMany();
   await testPrisma.transaction.deleteMany();
   await testPrisma.invite.deleteMany();

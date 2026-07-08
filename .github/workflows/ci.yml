@@ -115,6 +115,7 @@ jobs:
       BETTER_AUTH_SECRET: e2e-secret-000000000000000000000000
       BETTER_AUTH_URL: http://localhost:3100
       AUTH_DEV_ECHO: 'true'
+      ADMIN_EMAILS: admin@example.com
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
