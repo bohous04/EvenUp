@@ -61,6 +61,10 @@ export function Card({ className = '', ...props }: React.HTMLAttributes<HTMLDivE
   );
 }
 
+/** Shared style for compact square icon-only buttons (rename, modal close, …). */
+export const iconButtonClass =
+  'inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100';
+
 export function Label({ className = '', ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label

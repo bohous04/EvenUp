@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Input } from '@/components/ui';
+import { Input, iconButtonClass } from '@/components/ui';
 import { MemberChip } from '@/components/member-chip';
 import { Pencil, Check, X } from '@/components/icons';
 
@@ -13,8 +13,7 @@ interface MemberLite {
   color: string;
 }
 
-const iconButton =
-  'inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100';
+const iconButton = `${iconButtonClass} disabled:cursor-not-allowed disabled:opacity-40`;
 
 /**
  * Member roster with inline rename. Renders one row per member; the pencil

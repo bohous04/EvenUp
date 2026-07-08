@@ -70,6 +70,8 @@ export const cs = {
   'expense.note': 'Poznámka',
   'expense.paidBy': 'Zaplatil(a)',
   'expense.splitBetween': 'Rozdělit mezi',
+  'expense.moreOptions': 'Více možností',
+  'expense.fewerOptions': 'Méně možností',
   'expense.income': 'Příjem',
   'expense.transfer': 'Převod',
 
