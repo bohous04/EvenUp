@@ -126,6 +126,8 @@ export const en: Messages = {
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',
 
+  'receipt.view': 'View receipt',
+
   'fx.rate': 'Exchange rate',
   'fx.override': 'Custom rate',
   'fx.locked': 'Locked rate',

@@ -168,6 +168,14 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Scoped to the transactions list: the activity feed also mentions "Receipt".
     await expect(page.getByTestId('transactions-list').getByText('Receipt')).toBeVisible();
     await expect(page.getByText(/75[.,]10/).first()).toBeVisible();
+
+    // The receipt-backed expense surfaces a "View receipt" link (FR-5.8/5.9)
+    // that resolves to the stored (mocked) receipt image.
+    await expect(page.getByTestId('view-receipt')).toBeVisible();
+    const href = await page.getByTestId('view-receipt').getAttribute('href');
+    const res = await page.request.get(new URL(href!, page.url()).toString());
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toContain('image/');
   });
 
   test('foreign-currency expense converts to base via an FX rate (FR-8.x)', async ({

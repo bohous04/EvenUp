@@ -126,6 +126,8 @@ export const cs = {
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',
 
+  'receipt.view': 'Zobrazit účtenku',
+
   'fx.rate': 'Směnný kurz',
   'fx.override': 'Vlastní kurz',
   'fx.locked': 'Uzamčený kurz',

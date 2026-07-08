@@ -22,7 +22,19 @@ import type { Context } from '../context.js';
 const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
+  receipt: { select: { id: true, storageKey: true } },
 } satisfies Prisma.TransactionInclude;
+
+type TransactionWithReceipt = { receipt: { id: string; storageKey: string } | null };
+
+/**
+ * Surface whether a receipt image is available to view (FR-5.8/5.9) without
+ * leaking the internal storageKey (object-store path) to the client.
+ */
+function shapeTransaction<T extends TransactionWithReceipt>(tx: T) {
+  const { receipt, ...rest } = tx;
+  return { ...rest, receiptId: receipt?.id ?? null, hasReceiptImage: !!receipt?.storageKey };
+}
 
 /** Pass the injected FX fetch (tests only) so createExpense/recordTransfer can auto-fetch a missing rate. */
 function fxArgs(ctx: Context) {
@@ -87,7 +99,7 @@ export const transactionRouter = router({
     await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'expense.created', {
       title: input.title,
     });
-    return transaction;
+    return shapeTransaction(transaction);
   }),
 
   recordTransfer: protectedProcedure.input(recordTransferInput).mutation(async ({ ctx, input }) => {
@@ -143,19 +155,20 @@ export const transactionRouter = router({
       amount: input.amountMinorUnits,
       method: input.method,
     });
-    return transaction;
+    return shapeTransaction(transaction);
   }),
 
   list: protectedProcedure
     .input(z.object({ groupId: z.string(), limit: z.number().int().min(1).max(200).default(100) }))
     .query(async ({ ctx, input }) => {
       await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
-      return ctx.prisma.transaction.findMany({
+      const txns = await ctx.prisma.transaction.findMany({
         where: { groupId: input.groupId },
         orderBy: { date: 'desc' },
         take: input.limit,
         include: transactionInclude,
       });
+      return txns.map(shapeTransaction);
     }),
 
   /** Mark an expense as a recurring template, or clear recurrence (FR-12.1). */

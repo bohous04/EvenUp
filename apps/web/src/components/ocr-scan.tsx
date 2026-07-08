@@ -81,6 +81,7 @@ export function OcrScan({
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +94,7 @@ export function OcrScan({
           assigned: new Set<string>(),
         })),
       );
+      setReceiptId(res.receiptId);
       setError(null);
     },
     onError: () => setError(t('ocr.failed')),
@@ -101,6 +103,7 @@ export function OcrScan({
   const createExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: () => {
       setItems(null);
+      setReceiptId(null);
       void utils.transaction.list.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
       void utils.stats.byCategory.invalidate({ groupId });
@@ -198,6 +201,7 @@ export function OcrScan({
       currency: baseCurrency,
       date: new Date(),
       payers: [{ memberId: payerId, amountMinorUnits: total }],
+      receiptId: receiptId ?? undefined,
       split: {
         type: 'ITEMIZED',
         items: prepared.map((it) => ({
@@ -351,7 +355,13 @@ export function OcrScan({
             <Button onClick={save} disabled={createExpense.isPending} data-testid="ocr-save-btn">
               {t('common.save')}
             </Button>
-            <Button variant="ghost" onClick={() => setItems(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setItems(null);
+                setReceiptId(null);
+              }}
+            >
               {t('common.cancel')}
             </Button>
           </div>

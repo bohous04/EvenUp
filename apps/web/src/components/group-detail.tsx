@@ -146,6 +146,17 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                   <p className="text-xs text-neutral-500">
                     {tx.type === 'TRANSFER' ? t('expense.transfer') : ''} {formatDate(tx.date)}
                   </p>
+                  {tx.hasReceiptImage ? (
+                    <a
+                      href={`/api/receipts/${tx.receiptId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-brand-700 underline"
+                      data-testid="view-receipt"
+                    >
+                      {t('receipt.view')}
+                    </a>
+                  ) : null}
                 </div>
                 <span className="text-right text-sm">
                   {formatCurrency(Number(tx.baseMinorUnits), group.data.baseCurrency)}

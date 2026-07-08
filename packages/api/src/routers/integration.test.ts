@@ -447,6 +447,67 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/png;base64,AAAA' }),
     ).rejects.toThrow(/TOO_MANY_REQUESTS|Too many/);
   });
+
+  test('transaction.list surfaces hasReceiptImage + receiptId for receipt-backed expenses (FR-5.8, FR-5.9)', async () => {
+    const store = {
+      async putReceipt(): Promise<void> {},
+      async deleteObject(): Promise<void> {},
+      async getObject() {
+        return null;
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'RV', baseCurrency: 'CZK' });
+    const creatorMember = group.members[0]!;
+    const petr = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+
+    const scanRes = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+    });
+    // Sanity: default retention (30 days) keeps the image, so the receipt has a
+    // non-empty storageKey for the UI link to resolve against.
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({
+      where: { id: scanRes.receiptId },
+    });
+    expect(receipt.storageKey).toMatch(/^receipts\//);
+
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Receipt',
+      currency: 'CZK',
+      date: new Date(),
+      receiptId: scanRes.receiptId,
+      payers: [{ memberId: creatorMember.id, amountMinorUnits: 2490 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [{ name: 'Mléko', totalMinorUnits: 2490, memberIds: [petr.id] }],
+      },
+    });
+
+    // A plain expense with no receipt attached.
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Plain',
+      currency: 'CZK',
+      date: new Date(),
+      payers: [{ memberId: creatorMember.id, amountMinorUnits: 1000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: creatorMember.id }, { memberId: petr.id }],
+      },
+    });
+
+    const txns = await caller.transaction.list({ groupId: group.id });
+    const receiptTx = txns.find((t) => t.title === 'Receipt')!;
+    const plainTx = txns.find((t) => t.title === 'Plain')!;
+    expect(receiptTx.hasReceiptImage).toBe(true);
+    expect(receiptTx.receiptId).toBe(scanRes.receiptId);
+    expect(plainTx.hasReceiptImage).toBe(false);
+    expect(plainTx.receiptId).toBeNull();
+  });
 });
 
 describe('FX resolution (FR-8.2, FR-8.5)', () => {
