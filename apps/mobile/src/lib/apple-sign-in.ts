@@ -1,6 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { authClient, signIn } from './auth';
+import { signIn } from './auth';
 
 /**
  * Apple embeds the nonce we pass into the id_token. Convention (and Better
@@ -15,22 +15,13 @@ async function makeNonce(): Promise<{ raw: string; hashed: string }> {
 
 /**
  * Apple returns the user's real name exactly once — on their first-ever consent
- * — and never again, and it is absent from the id_token entirely. If we don't
- * capture it here, this user is `EvenUp user` forever.
+ * — and never again, and it is absent from the id_token entirely. We forward it
+ * as `idToken.user` on the `/sign-in/social` call so Better Auth's Apple
+ * provider can read it via `token.user.name`. Better Auth only applies that
+ * name when it *creates* a new user; if this sign-in instead links into an
+ * existing EvenUp account, the name is left untouched, so we never clobber a
+ * name the account's owner already chose.
  */
-async function backfillName(fullName: AppleAuthentication.AppleAuthenticationFullName | null) {
-  const name = [fullName?.givenName, fullName?.familyName].filter(Boolean).join(' ').trim();
-  if (!name) return;
-  try {
-    await authClient.updateUser({ name });
-  } catch (error) {
-    // A missing display name is not worth failing an otherwise good sign-in —
-    // but log it: Apple hands us the name exactly once, so a silent failure
-    // here strands the user as `EvenUp user` with nothing to explain why.
-    console.warn('Failed to backfill the display name from Apple.', error);
-  }
-}
-
 export async function signInWithApple(): Promise<{ ok: boolean; canceled: boolean }> {
   const { raw, hashed } = await makeNonce();
   try {
@@ -44,14 +35,25 @@ export async function signInWithApple(): Promise<{ ok: boolean; canceled: boolea
 
     if (!credential.identityToken) return { ok: false, canceled: false };
 
+    const fn = credential.fullName;
     const res = await signIn.social({
       provider: 'apple',
-      idToken: { token: credential.identityToken, nonce: raw },
+      idToken: {
+        token: credential.identityToken,
+        nonce: raw,
+        ...(fn?.givenName || fn?.familyName
+          ? {
+              user: {
+                name: {
+                  firstName: fn.givenName ?? undefined,
+                  lastName: fn.familyName ?? undefined,
+                },
+              },
+            }
+          : {}),
+      },
     });
     if (res.error) return { ok: false, canceled: false };
-
-    // Must run *after* the session exists — updateUser is an authenticated call.
-    await backfillName(credential.fullName);
     return { ok: true, canceled: false };
   } catch (e) {
     const code = (e as { code?: string }).code;
