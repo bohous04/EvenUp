@@ -18,6 +18,28 @@ const googleConfig =
     : null;
 
 const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
+
+// Warn when an operator has set some but not all four Apple variables: with
+// no warning, Apple silently isn't registered — no button, no log, no
+// explanation of why. Skip the all-set case (the normal configured case) and
+// the none-set case (the normal self-hoster-without-Apple case).
+const appleVars = {
+  APPLE_SERVICES_ID: servicesId,
+  APPLE_TEAM_ID: teamId,
+  APPLE_KEY_ID: keyId,
+  APPLE_PRIVATE_KEY: privateKey,
+};
+const appleVarsSet = Object.values(appleVars).filter(Boolean).length;
+if (appleVarsSet > 0 && appleVarsSet < 4) {
+  const missing = Object.entries(appleVars)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  console.warn(
+    `Sign In with Apple is disabled: missing ${missing.join(', ')}. ` +
+      'Set all four of APPLE_SERVICES_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY to enable it.',
+  );
+}
+
 // Build the config in one narrowing step, so `servicesId` et al. are `string`
 // below without non-null assertions. `let` because a failed mint below clears
 // it back to `null`.
