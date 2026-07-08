@@ -298,6 +298,7 @@ model Receipt {
   transaction Transaction?
 
   @@index([groupId])
+  @@index([createdAt])
 }
 
 model ReceiptItem {
