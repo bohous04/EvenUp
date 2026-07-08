@@ -39,9 +39,18 @@ export function SignUp() {
       </div>
       <Card>
         {sent ? (
-          <p data-testid="signup-verify-sent" className="text-center text-sm text-neutral-700 dark:text-neutral-300">
-            {t('auth.verifySent')}
-          </p>
+          <div className="space-y-4 text-center">
+            <p data-testid="signup-verify-sent" className="text-sm text-neutral-700 dark:text-neutral-300">
+              {t('auth.verifySent')}
+            </p>
+            <Link
+              href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
+              className="text-sm text-blue-600 dark:text-blue-400"
+              data-testid="verify-email-link"
+            >
+              {t('auth.resend')}
+            </Link>
+          </div>
         ) : (
           <div className="space-y-4">
             <form onSubmit={submit} className="space-y-4">
