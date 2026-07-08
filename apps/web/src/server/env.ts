@@ -65,7 +65,9 @@ export const env = {
     secretKey: process.env.STORAGE_SECRET_KEY,
     bucket: process.env.STORAGE_BUCKET ?? 'evenup-receipts',
   },
-  // Delete the receipt image after a successful OCR extraction (privacy). Default on.
-  receiptAutoDelete: process.env.RECEIPT_AUTO_DELETE !== 'false',
+  // Days to retain the stored receipt image before the cleanup cron deletes it (privacy).
+  receiptRetentionDays: Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10),
+  // Shared secret required by the receipt-cleanup scheduled task's HTTP endpoint.
+  cronSecret: process.env.CRON_SECRET,
   fxProviderUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
 };
