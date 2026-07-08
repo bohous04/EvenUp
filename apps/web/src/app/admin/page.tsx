@@ -5,7 +5,8 @@ import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, Input, Label } from '@/components/ui';
-import { Check } from '@/components/icons';
+import { Modal } from '@/components/modal';
+import { Check, Trash2 } from '@/components/icons';
 
 function Toggle({
   checked,
@@ -128,6 +129,9 @@ function InstanceKeySection() {
   );
 }
 
+const dangerIconButton =
+  'inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-500/10';
+
 function UsersSection({ meId }: { meId: string }) {
   const { t, formatDate } = useI18n();
   const utils = trpc.useUtils();
@@ -135,6 +139,14 @@ function UsersSection({ meId }: { meId: string }) {
   const invalidate = () => void utils.admin.listUsers.invalidate();
   const setVip = trpc.admin.setVip.useMutation({ onSuccess: invalidate });
   const setAdmin = trpc.admin.setAdmin.useMutation({ onSuccess: invalidate });
+  const setDisabled = trpc.admin.setDisabled.useMutation({ onSuccess: invalidate });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string } | null>(null);
+  const deleteUser = trpc.admin.deleteUser.useMutation({
+    onSuccess: () => {
+      setDeleteTarget(null);
+      invalidate();
+    },
+  });
 
   return (
     <Card>
@@ -146,46 +158,100 @@ function UsersSection({ meId }: { meId: string }) {
               <th className="py-2 pr-3 font-medium">E-mail</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.vip')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.admin')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.col.disabled')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.key')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.joined')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-            {users.data?.users.map((u) => (
-              <tr key={u.id} data-testid={`admin-user-${u.email}`}>
-                <td className="py-2 pr-3">
-                  <span className="font-medium">{u.email}</span>
-                  {u.id === meId ? (
-                    <span className="ml-1 text-xs text-neutral-500">{t('admin.you')}</span>
-                  ) : null}
-                  {u.name ? <span className="block text-xs text-neutral-500">{u.name}</span> : null}
-                </td>
-                <td className="px-3 py-2">
-                  <Toggle
-                    checked={u.isVip}
-                    onChange={(isVip) => setVip.mutate({ userId: u.id, isVip })}
-                    label={`${t('admin.col.vip')} — ${u.email}`}
-                    testId={`vip-toggle-${u.email}`}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <Toggle
-                    checked={u.isAdmin}
-                    disabled={u.id === meId}
-                    onChange={(isAdmin) => setAdmin.mutate({ userId: u.id, isAdmin })}
-                    label={`${t('admin.col.admin')} — ${u.email}`}
-                    testId={`admin-toggle-${u.email}`}
-                  />
-                </td>
-                <td className="px-3 py-2 text-neutral-500">
-                  {u.hasOwnKey ? <Check size={16} aria-hidden /> : '–'}
-                </td>
-                <td className="px-3 py-2 text-neutral-500">{formatDate(u.createdAt)}</td>
-              </tr>
-            ))}
+            {users.data?.users.map((u) => {
+              const isSelf = u.id === meId;
+              return (
+                <tr key={u.id} data-testid={`admin-user-${u.email}`}>
+                  <td className="py-2 pr-3">
+                    <span className="font-medium">{u.email}</span>
+                    {isSelf ? (
+                      <span className="ml-1 text-xs text-neutral-500">{t('admin.you')}</span>
+                    ) : null}
+                    {u.name ? (
+                      <span className="block text-xs text-neutral-500">{u.name}</span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Toggle
+                      checked={u.isVip}
+                      onChange={(isVip) => setVip.mutate({ userId: u.id, isVip })}
+                      label={`${t('admin.col.vip')} — ${u.email}`}
+                      testId={`vip-toggle-${u.email}`}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Toggle
+                      checked={u.isAdmin}
+                      disabled={isSelf}
+                      onChange={(isAdmin) => setAdmin.mutate({ userId: u.id, isAdmin })}
+                      label={`${t('admin.col.admin')} — ${u.email}`}
+                      testId={`admin-toggle-${u.email}`}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Toggle
+                      checked={u.disabledAt !== null}
+                      disabled={isSelf}
+                      onChange={(disabled) => setDisabled.mutate({ userId: u.id, disabled })}
+                      label={`${t('admin.col.disabled')} — ${u.email}`}
+                      testId={`disabled-toggle-${u.email}`}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-neutral-500">
+                    {u.hasOwnKey ? <Check size={16} aria-hidden /> : '–'}
+                  </td>
+                  <td className="px-3 py-2 text-neutral-500">{formatDate(u.createdAt)}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      disabled={isSelf}
+                      onClick={() => setDeleteTarget({ id: u.id, email: u.email })}
+                      aria-label={`${t('common.delete')} — ${u.email}`}
+                      title={t('common.delete')}
+                      className={dangerIconButton}
+                      data-testid={`delete-user-${u.email}`}
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={t('common.delete')}
+        testId="delete-user-modal"
+      >
+        <p className="mb-4 text-sm">
+          {deleteTarget ? t('admin.delete.confirm', { email: deleteTarget.email }) : ''}
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deleteUser.isPending}
+            onClick={() => deleteTarget && deleteUser.mutate({ userId: deleteTarget.id })}
+            data-testid="delete-user-confirm"
+          >
+            {t('common.delete')}
+          </Button>
+        </div>
+      </Modal>
     </Card>
   );
 }

@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '../trpc.js';
+import { deleteUserAccount } from '../services/account.js';
 
 const INSTANCE_ID = 'singleton';
 
@@ -69,6 +70,40 @@ export const adminRouter = router({
         where: { id: input.userId },
         data: { isAdmin: input.isAdmin },
       });
+      return { ok: true };
+    }),
+
+  setDisabled: adminProcedure
+    .input(z.object({ userId: z.string(), disabled: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'You cannot disable your own account.',
+        });
+      }
+      await ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { disabledAt: input.disabled ? new Date() : null },
+      });
+      // Force logout: drop existing sessions so a disabled user is booted now,
+      // not just blocked at next sign-in.
+      if (input.disabled) {
+        await ctx.prisma.session.deleteMany({ where: { userId: input.userId } });
+      }
+      return { ok: true };
+    }),
+
+  deleteUser: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'You cannot delete your own account here; use settings.',
+        });
+      }
+      await deleteUserAccount(ctx.prisma, input.userId);
       return { ok: true };
     }),
 

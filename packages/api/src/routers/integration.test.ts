@@ -344,6 +344,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
     const group = await caller.group.create({ name: 'R', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // Receipt-photo storage is a VIP-only privilege.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
 
     const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
     process.env.RECEIPT_RETENTION_DAYS = '0';
@@ -387,6 +389,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
     const group = await caller.group.create({ name: 'R2', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // Receipt-photo storage is a VIP-only privilege.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
 
     const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
     process.env.RECEIPT_RETENTION_DAYS = '30';
@@ -426,6 +430,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
     const group = await caller.group.create({ name: 'R3', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // VIP so the (throwing) storage path actually runs — proving best-effort.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
 
     const res = await caller.ocr.scan({
       groupId: group.id,
@@ -437,6 +443,91 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
     expect(receipt.storageKey).toBe('');
     expect(receipt.status).toBe('COMPLETED');
+  });
+
+  const collectingStore = () => {
+    const puts: { key: string; bytes: Uint8Array }[] = [];
+    return {
+      puts,
+      store: {
+        async putReceipt(key: string, bytes: Uint8Array) {
+          puts.push({ key, bytes });
+        },
+        async deleteObject(): Promise<void> {},
+        async getObject() {
+          return null;
+        },
+      },
+    };
+  };
+
+  test('a VIP with no BYO key uses the shared instance key and stores the photo', async () => {
+    // Configure the shared instance key as an admin.
+    const admin = await createTestUser('admin@example.com');
+    await testPrisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
+    await makeCaller(admin).admin.setInstanceOpenRouterKey({ apiKey: 'sk-or-shared-key' });
+
+    const vip = await createTestUser('vip@example.com');
+    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+    const { puts, store } = collectingStore();
+    const caller = makeCaller(vip, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'VIP', baseCurrency: 'CZK' });
+
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+    });
+    expect(res.result.items[0]!.totalMinorUnits).toBe(2490);
+    expect(puts).toHaveLength(1); // VIP -> receipt photo stored
+  });
+
+  test('a VIP with no BYO key and no shared key is rejected', async () => {
+    const vip = await createTestUser('vip@example.com');
+    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+    const caller = makeCaller(vip, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'VIP2', baseCurrency: 'CZK' });
+    await expect(
+      caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/png;base64,AAAA' }),
+    ).rejects.toThrow(/shared|admin/i);
+  });
+
+  test('a non-VIP BYO user scans but no receipt photo is stored', async () => {
+    const user = await createTestUser('byo@example.com'); // not VIP
+    const { puts, store } = collectingStore();
+    const caller = makeCaller(user, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'BYO', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-byo-key' });
+
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+    });
+    expect(res.result).toBeDefined();
+    expect(puts).toHaveLength(0); // non-VIP -> no receipt photo stored
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKey).toBe('');
+  });
+
+  test('a failed OCR scan is recorded in the error log', async () => {
+    const admin = await createTestUser('admin@example.com');
+    await testPrisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
+    await makeCaller(admin).admin.setInstanceOpenRouterKey({ apiKey: 'sk-or-shared-key' });
+    const vip = await createTestUser('vip@example.com');
+    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+
+    // A 5xx from OpenRouter makes extraction fail -> UNPROCESSABLE_CONTENT (logged).
+    const badFetch: FetchLike = async () => new Response('upstream error', { status: 500 });
+    const caller = makeCaller(vip, { ocrFetch: badFetch });
+    const group = await caller.group.create({ name: 'ERR', baseCurrency: 'CZK' });
+
+    await expect(
+      caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/png;base64,AAAA' }),
+    ).rejects.toThrow();
+
+    const logs = await testPrisma.errorLog.findMany({ where: { path: 'ocr.scan' } });
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    expect(logs[0]!.source).toBe('ocr');
+    expect(logs[0]!.userId).toBe(vip.id);
   });
 
   it('rate-limits OCR scans per user (§9.2)', async () => {
@@ -462,6 +553,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const creatorMember = group.members[0]!;
     const petr = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // Receipt-photo storage is a VIP-only privilege.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
 
     const scanRes = await caller.ocr.scan({
       groupId: group.id,

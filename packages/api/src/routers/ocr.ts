@@ -31,16 +31,33 @@ export const ocrRouter = router({
       });
       const user = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
-        select: { openRouterKeyEncrypted: true, ocrModel: true },
+        select: { openRouterKeyEncrypted: true, ocrModel: true, isVip: true },
       });
-      if (!user.openRouterKeyEncrypted) {
+
+      // Key resolution (FR-5.2 + hosted VIP tier): a user's own BYO key wins for
+      // everyone; otherwise a VIP may use the shared instance key; otherwise OCR
+      // is unavailable. Receipt-image storage is a separate VIP-only privilege.
+      let apiKey: string;
+      let model: string;
+      if (user.openRouterKeyEncrypted) {
+        apiKey = ctx.secretBox.decrypt(user.openRouterKeyEncrypted);
+        model = user.ocrModel ?? DEFAULT_OCR_MODEL;
+      } else if (user.isVip) {
+        const cfg = await ctx.prisma.instanceConfig.findUnique({ where: { id: 'singleton' } });
+        if (!cfg?.openRouterKeyEncrypted) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'No shared OpenRouter key is configured; ask an admin.',
+          });
+        }
+        apiKey = ctx.secretBox.decrypt(cfg.openRouterKeyEncrypted);
+        model = user.ocrModel ?? cfg.ocrModel ?? DEFAULT_OCR_MODEL;
+      } else {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Add your OpenRouter API key in settings to scan receipts (FR-5.2).',
+          message: 'Add your OpenRouter API key in settings, or ask an admin for VIP access.',
         });
       }
-      const apiKey = ctx.secretBox.decrypt(user.openRouterKeyEncrypted);
-      const model = user.ocrModel ?? DEFAULT_OCR_MODEL;
 
       try {
         const result = await extractReceipt({
@@ -52,11 +69,12 @@ export const ocrRouter = router({
           fetchImpl: ctx.ocrFetch,
         });
 
-        // Best-effort image storage (FR-5.8): a storage failure must never block OCR.
+        // Best-effort image storage (FR-5.8): a storage failure must never block
+        // OCR. Storing the receipt photo is a VIP-only privilege.
         let storageKey = '';
         const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
         const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
-        if (ctx.objectStore) {
+        if (ctx.objectStore && user.isVip) {
           try {
             const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
             const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;

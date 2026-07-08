@@ -69,6 +69,40 @@ describe('admin router', () => {
     expect((await caller.admin.getInstanceConfig()).hasKey).toBe(false);
   });
 
+  it('disables a user: sets disabledAt and drops their sessions', async () => {
+    const admin = await makeAdmin('admin@example.com');
+    const other = await createTestUser('carol@example.com');
+    await testPrisma.session.create({
+      data: {
+        userId: other.id,
+        token: 'tok-disable-1',
+        expiresAt: new Date(Date.now() + 1_000_000),
+      },
+    });
+
+    await makeCaller(admin).admin.setDisabled({ userId: other.id, disabled: true });
+    const updated = await testPrisma.user.findUniqueOrThrow({ where: { id: other.id } });
+    expect(updated.disabledAt).not.toBeNull();
+    expect(await testPrisma.session.count({ where: { userId: other.id } })).toBe(0);
+  });
+
+  it('refuses to disable or delete yourself', async () => {
+    const admin = await makeAdmin('admin@example.com');
+    await expect(
+      makeCaller(admin).admin.setDisabled({ userId: admin.id, disabled: true }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(makeCaller(admin).admin.deleteUser({ userId: admin.id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('deletes another user', async () => {
+    const admin = await makeAdmin('admin@example.com');
+    const other = await createTestUser('carol@example.com');
+    await makeCaller(admin).admin.deleteUser({ userId: other.id });
+    expect(await testPrisma.user.findUnique({ where: { id: other.id } })).toBeNull();
+  });
+
   it('lists recent error-log rows for admins', async () => {
     const admin = await makeAdmin('admin@example.com');
     await testPrisma.errorLog.create({

@@ -116,6 +116,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const email = uniqueEmail('ocr', testInfo.workerIndex + Date.now());
     await signIn(page, email);
 
+    // Receipt-photo storage is VIP-only (FR-5.8); grant VIP via the dev hook so
+    // the "View receipt" assertion below has an image to resolve.
+    const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
+    expect(vipRes.ok()).toBeTruthy();
+
     // Save a (mock) OpenRouter key in settings.
     await page.getByRole('link', { name: /settings|nastavení/i }).click();
     await page.getByTestId('api-key-input').fill('sk-or-test-key');
@@ -335,6 +340,22 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('admin can delete a user through the confirm modal', async ({ page }, testInfo) => {
+    const target = uniqueEmail('deltarget', testInfo.workerIndex + Date.now());
+    await signIn(page, target);
+    await page.context().clearCookies();
+    await signIn(page, 'admin@example.com');
+
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId(`admin-user-${target}`)).toBeVisible();
+
+    await page.getByTestId(`delete-user-${target}`).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByTestId('delete-user-confirm').click();
+
+    await expect(page.getByTestId(`admin-user-${target}`)).toHaveCount(0);
   });
 
   test('rename a member inline updates its name and chip initials', async ({ page }, testInfo) => {
