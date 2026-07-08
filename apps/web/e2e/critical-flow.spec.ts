@@ -321,6 +321,22 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('admin-title')).toHaveCount(0);
   });
 
+  test('admin can grant VIP to a user from the dashboard', async ({ page }, testInfo) => {
+    // Create the target user first (their account persists), then switch to admin.
+    const target = uniqueEmail('viptarget', testInfo.workerIndex + Date.now());
+    await signIn(page, target);
+    await page.context().clearCookies();
+    await signIn(page, 'admin@example.com');
+
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId('admin-users-table')).toBeVisible();
+
+    const toggle = page.getByTestId(`vip-toggle-${target}`);
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
   test('rename a member inline updates its name and chip initials', async ({ page }, testInfo) => {
     const email = uniqueEmail('rename', testInfo.workerIndex + Date.now());
     await signIn(page, email);
