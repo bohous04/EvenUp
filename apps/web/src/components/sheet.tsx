@@ -60,7 +60,10 @@ export function Sheet({
       onClick={(e) => {
         if (e.target === ref.current && pressedOnBackdrop.current) onClose();
       }}
-      className="bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-auto sm:top-auto sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      // sm+ restores the UA `inset: 0` (top/bottom 0) so `margin: auto` performs
+      // real dialog centering — `top/bottom: auto` would drop the dialog at its
+      // static (in-flow) position in Firefox, pushing it half off-screen.
+      className="bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >
       {open ? (
         <div

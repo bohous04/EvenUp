@@ -457,4 +457,33 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
   });
+
+  test('large amounts never wrap (design-spec hard rule)', async ({ page }, testInfo) => {
+    const email = uniqueEmail('wrap', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Wrap');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Wrap').click();
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('1234567.89');
+    await page.getByTestId('expense-title-input').fill('Mega');
+    await page.getByTestId('add-expense-submit').click();
+
+    // Every settle amount renders on a single line even at phone width.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const amount = page.getByTestId('payments-list').locator('span.tabular-nums').first();
+    const box = await amount.boundingBox();
+    expect(box).not.toBeNull();
+    const lineHeight = await amount.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+    expect(box!.height).toBeLessThan(lineHeight * 1.5);
+  });
 });
