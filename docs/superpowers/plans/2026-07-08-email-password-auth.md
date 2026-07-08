@@ -27,7 +27,7 @@
 
 - Dev Postgres: container `evenup-dev-db` on port 55432. Export before any api/E2E run: `export DATABASE_URL='postgresql://evenup:pass@localhost:55432/evenup'`. If missing, recreate: `docker run -d --name evenup-dev-db -e POSTGRES_USER=evenup -e POSTGRES_PASSWORD=pass -e POSTGRES_DB=evenup -p 55432:5432 postgres:16-alpine` then `DATABASE_URL=… pnpm --filter @evenup/db exec prisma migrate deploy`.
 - E2E `webServer` needs a production build: `export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0' BETTER_AUTH_SECRET='test-secret-for-build-verification-only-000' AUTH_DEV_ECHO=true` then `pnpm --filter @evenup/web build` before `pnpm --filter @evenup/web test:e2e`.
-- Baseline before this plan: typecheck 6/6, lint (2 pre-existing `apps/mobile` `no-console` warnings), unit 310, Playwright 28/28.
+- Baseline before this plan: typecheck 6/6, lint (2 pre-existing `apps/mobile` `no-console` warnings), unit 323, Playwright 56/56.
 
 ## File Structure
 
@@ -217,7 +217,7 @@ export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c
 pnpm --filter @evenup/web build && pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck/lint clean; i18n parity green; Playwright **28/28** (all critical flows now sign in via password). If a test other than sign-in fails, it's a real regression — fix it, don't skip.
+Expected: typecheck/lint clean; i18n parity green; Playwright **56/56** (all critical flows now sign in via password). If a test other than sign-in fails, it's a real regression — fix it, don't skip.
 
 - [ ] **Step 9: Commit**
 
@@ -364,7 +364,7 @@ export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c
 pnpm --filter @evenup/web build && pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck 6/6; lint clean apart from the 2 pre-existing mobile warnings; unit suites green; Playwright 28/28. No `magicLink` / `magic-link-store` / `consumeMagicLink` references remain: `grep -rn "magicLink\|magic-link-store\|consumeMagicLink\|signIn.magicLink" apps packages --include="*.ts" --include="*.tsx" | grep -v node_modules` → no hits.
+Expected: typecheck 6/6; lint clean apart from the 2 pre-existing mobile warnings; unit suites green; Playwright 56/56. No `magicLink` / `magic-link-store` / `consumeMagicLink` references remain: `grep -rn "magicLink\|magic-link-store\|consumeMagicLink\|signIn.magicLink" apps packages --include="*.ts" --include="*.tsx" | grep -v node_modules` → no hits.
 
 - [ ] **Step 2: Exercise the real password flow against a dev build** — with `AUTH_DEV_ECHO=true` (verification off), `pnpm --filter @evenup/web start` and curl:
   - `POST /api/auth/sign-up/email {name,email,password}` → 200, session set.
