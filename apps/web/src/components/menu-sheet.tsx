@@ -32,7 +32,7 @@ export function MenuSheet({
               data-testid={`menu-${it.key}`}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
             >
-              <it.icon size={18} aria-hidden className="text-zinc-400" />
+              <it.icon size={18} aria-hidden className="text-zinc-400 dark:text-zinc-500" />
               <span className="flex-1">{it.label}</span>
               <ChevronRight size={16} aria-hidden className="text-zinc-300 dark:text-zinc-600" />
             </button>
