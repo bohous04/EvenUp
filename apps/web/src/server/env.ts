@@ -66,7 +66,12 @@ export const env = {
     bucket: process.env.STORAGE_BUCKET ?? 'evenup-receipts',
   },
   // Days to retain the stored receipt image before the cleanup cron deletes it (privacy).
-  receiptRetentionDays: Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10),
+  // A malformed value (e.g. "" or "abc") parses to NaN, which would crash the
+  // cleanup query, so fall back to the default instead.
+  receiptRetentionDays: (() => {
+    const n = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+    return Number.isFinite(n) ? n : 30;
+  })(),
   // Shared secret required by the receipt-cleanup scheduled task's HTTP endpoint.
   cronSecret: process.env.CRON_SECRET,
   fxProviderUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',

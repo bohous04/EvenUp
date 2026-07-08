@@ -18,8 +18,12 @@ export async function cleanupExpiredReceipts(args: {
   for (const r of expired) {
     try {
       await args.objectStore.deleteObject(r.storageKey);
-    } catch {
-      // best-effort: still clear the key so we don't retry forever
+    } catch (err) {
+      // Delete failed: do NOT clear storageKey, so the next daily run retries.
+      // A genuinely-missing object won't throw (S3 delete is idempotent), so
+      // this only fires for real failures worth retrying.
+      console.warn(`[receipt-cleanup] delete failed for ${r.storageKey}, will retry`, err);
+      continue;
     }
     await args.prisma.receipt.update({ where: { id: r.id }, data: { storageKey: '' } });
     deleted++;

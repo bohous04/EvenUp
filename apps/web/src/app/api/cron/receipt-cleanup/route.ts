@@ -17,11 +17,16 @@ export async function POST(req: Request) {
   if (!secret || !timingSafeEqual(provided, secret)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
-  const { deleted } = await cleanupExpiredReceipts({
-    prisma,
-    objectStore: getObjectStore(),
-    retentionDays: env.receiptRetentionDays,
-    now: new Date(),
-  });
-  return Response.json({ deleted });
+  try {
+    const { deleted } = await cleanupExpiredReceipts({
+      prisma,
+      objectStore: getObjectStore(),
+      retentionDays: env.receiptRetentionDays,
+      now: new Date(),
+    });
+    return Response.json({ deleted });
+  } catch (err) {
+    console.error('[receipt-cleanup] failed', err);
+    return Response.json({ error: 'cleanup failed' }, { status: 500 });
+  }
 }

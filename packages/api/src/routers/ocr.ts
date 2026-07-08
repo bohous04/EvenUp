@@ -54,7 +54,8 @@ export const ocrRouter = router({
 
         // Best-effort image storage (FR-5.8): a storage failure must never block OCR.
         let storageKey = '';
-        const retentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
         if (ctx.objectStore) {
           try {
             const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
@@ -65,7 +66,8 @@ export const ocrRouter = router({
               await ctx.objectStore.deleteObject(key);
               storageKey = '';
             }
-          } catch {
+          } catch (err) {
+            console.warn('[ocr] receipt storage failed (best-effort)', err);
             storageKey = ''; // storage is best-effort
           }
         }

@@ -1,7 +1,9 @@
 /**
  * Integration tests for `cleanupExpiredReceipts` (PRD §4.5, FR-5.8): expired
  * receipt images get deleted from object storage and their `storageKey`
- * cleared, best-effort even if the store call throws.
+ * cleared only once the delete succeeds. A `deleteObject` failure leaves the
+ * row untouched (not counted as deleted) so the next daily run retries,
+ * rather than orphaning the object against the 50 GB no-eviction quota.
  */
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { makeCaller, createTestUser, resetDb, testPrisma } from '../test/harness.js';
@@ -96,7 +98,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     expect(recentAfter.storageKey).toBe('receipts/recent.png');
   });
 
-  it('still clears storageKey and counts the row when deleteObject throws (best-effort)', async () => {
+  it('leaves storageKey untouched and does not count the row when deleteObject throws, so the next run retries', async () => {
     const { group } = await seedGroup();
     const now = new Date();
     const fortyDaysAgo = new Date(now.getTime() - 40 * 86_400_000);
@@ -119,8 +121,55 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
       now,
     });
 
-    expect(result.deleted).toBe(1);
+    expect(result.deleted).toBe(0);
     const after = await testPrisma.receipt.findUniqueOrThrow({ where: { id: oldReceipt.id } });
-    expect(after.storageKey).toBe('');
+    expect(after.storageKey).toBe('receipts/flaky.png');
+  });
+
+  it('clears the key on a later run once the store recovers', async () => {
+    const { group } = await seedGroup();
+    const now = new Date();
+    const fortyDaysAgo = new Date(now.getTime() - 40 * 86_400_000);
+
+    const oldReceipt = await testPrisma.receipt.create({
+      data: {
+        groupId: group.id,
+        storageKey: 'receipts/recovering.png',
+        status: 'COMPLETED',
+        createdAt: fortyDaysAgo,
+      },
+    });
+
+    const failing = new Set(['receipts/recovering.png']);
+    const { store, deletedKeys } = makeCapturingStore(failing);
+    await store.putReceipt('receipts/recovering.png', new Uint8Array([1]), 'image/png');
+
+    const firstRun = await cleanupExpiredReceipts({
+      prisma: testPrisma,
+      objectStore: store,
+      retentionDays: 30,
+      now,
+    });
+    expect(firstRun.deleted).toBe(0);
+    const afterFirstRun = await testPrisma.receipt.findUniqueOrThrow({
+      where: { id: oldReceipt.id },
+    });
+    expect(afterFirstRun.storageKey).toBe('receipts/recovering.png');
+
+    // Store recovers (e.g. transient network issue resolved) before the next daily run.
+    failing.clear();
+
+    const secondRun = await cleanupExpiredReceipts({
+      prisma: testPrisma,
+      objectStore: store,
+      retentionDays: 30,
+      now,
+    });
+    expect(secondRun.deleted).toBe(1);
+    expect(deletedKeys).toEqual(['receipts/recovering.png']);
+    const afterSecondRun = await testPrisma.receipt.findUniqueOrThrow({
+      where: { id: oldReceipt.id },
+    });
+    expect(afterSecondRun.storageKey).toBe('');
   });
 });
