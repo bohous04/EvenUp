@@ -56,7 +56,17 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('nav.settings')}</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">{t('nav.settings')}</h1>
+        {me.data?.isVip ? (
+          <span
+            className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+            data-testid="vip-badge"
+          >
+            {t('vip.badge')}
+          </span>
+        ) : null}
+      </div>
       <Card>
         <h3 className="mb-1 font-semibold">OpenRouter API key</h3>
         <p className="mb-3 text-sm text-neutral-500">{t('ocr.apiKeyRequired')}</p>

@@ -15,6 +15,8 @@ export const userRouter = router({
         defaultCurrency: true,
         ocrModel: true,
         openRouterKeyEncrypted: true,
+        isAdmin: true,
+        isVip: true,
       },
     });
     // Never expose the key; just whether one is configured.

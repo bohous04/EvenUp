@@ -28,7 +28,9 @@ export const en: Messages = {
   'nav.activity': 'Activity',
   'nav.transactions': 'Transactions',
   'nav.settings': 'Settings',
+  'nav.admin': 'Admin',
   'nav.signOut': 'Sign out',
+  'vip.badge': 'VIP',
 
   'locale.czech': 'Czech',
   'locale.english': 'English',

@@ -300,6 +300,27 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('split-type-EXACT')).toHaveCount(0);
   });
 
+  test('admin (ADMIN_EMAILS) reaches the management dashboard (§9.4)', async ({ page }) => {
+    // playwright.config seeds ADMIN_EMAILS=admin@example.com; the auth hook flags it.
+    await signIn(page, 'admin@example.com');
+    await expect(page.getByTestId('nav-admin')).toBeVisible();
+    await page.getByTestId('nav-admin').click();
+    await expect(page.getByTestId('admin-title')).toBeVisible();
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('non-admins have no admin link and /admin is not found for them', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('nonadmin', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+    await expect(page.getByTestId('nav-admin')).toHaveCount(0);
+    await page.goto('/admin');
+    await expect(page.getByTestId('admin-title')).toHaveCount(0);
+  });
+
   test('rename a member inline updates its name and chip initials', async ({ page }, testInfo) => {
     const email = uniqueEmail('rename', testInfo.workerIndex + Date.now());
     await signIn(page, email);

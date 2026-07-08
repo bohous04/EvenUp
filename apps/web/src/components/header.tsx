@@ -2,12 +2,14 @@
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
+import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui';
 import { Scale } from '@/components/icons';
 
 export function Header() {
   const { t, locale, setLocale } = useI18n();
   const { data: session } = useSession();
+  const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
 
   return (
     <header className="border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
@@ -42,6 +44,15 @@ export function Header() {
           </div>
           {session?.user ? (
             <>
+              {me.data?.isAdmin ? (
+                <Link
+                  href="/admin"
+                  className="text-sm font-medium text-brand-700 dark:text-brand-100"
+                  data-testid="nav-admin"
+                >
+                  {t('nav.admin')}
+                </Link>
+              ) : null}
               <Link
                 href="/settings"
                 className="text-sm font-medium text-brand-700 dark:text-brand-100"

@@ -26,3 +26,15 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
+
+/** Requires the authenticated user to be an (enabled) instance admin. */
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const user = await ctx.prisma.user.findUnique({
+    where: { id: ctx.user.id },
+    select: { isAdmin: true, disabledAt: true },
+  });
+  if (!user?.isAdmin || user.disabledAt) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+  }
+  return next();
+});

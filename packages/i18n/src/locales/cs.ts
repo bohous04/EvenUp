@@ -28,7 +28,9 @@ export const cs = {
   'nav.activity': 'Historie',
   'nav.transactions': 'Transakce',
   'nav.settings': 'Nastavení',
+  'nav.admin': 'Správa',
   'nav.signOut': 'Odhlásit se',
+  'vip.badge': 'VIP',
 
   'locale.czech': 'Čeština',
   'locale.english': 'Angličtina',
