@@ -80,8 +80,12 @@ export function appleClientSecret(): string {
       .then((token) => {
         cache = { token, mintedAtSec: nowSeconds() };
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         // Keep serving the current token: it is still valid for ~30 more days.
+        console.error(
+          'Apple client secret re-mint failed; continuing to serve the cached token (still valid for ~30 more days) until the next refresh attempt.',
+          error,
+        );
       })
       .finally(() => {
         refreshing = false;

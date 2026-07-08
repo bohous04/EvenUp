@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { decodeJwt, decodeProtectedHeader, exportPKCS8, generateKeyPair } from 'jose';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SignJWT, decodeJwt, decodeProtectedHeader, exportPKCS8, generateKeyPair } from 'jose';
 import {
   APPLE_MAX_SECRET_LIFETIME_SEC,
   appleClientSecret,
@@ -40,6 +40,10 @@ describe('mintAppleClientSecret', () => {
     const cfg = await makeConfig();
     const claims = decodeJwt(await mintAppleClientSecret(cfg, 1_800_000_000));
     expect(claims.iat).toBe(1_800_000_000);
+    // Pin the exact mint lifetime (150 days) so a regression to any other
+    // in-range value (e.g. 10 days) can't pass silently.
+    expect(claims.exp! - claims.iat!).toBe(150 * 24 * 60 * 60);
+    // Still document the Apple constraint the exact value above must respect.
     expect(claims.exp! - claims.iat!).toBeLessThanOrEqual(APPLE_MAX_SECRET_LIFETIME_SEC);
     expect(claims.exp! - claims.iat!).toBeGreaterThan(0);
   });
@@ -74,5 +78,109 @@ describe('appleClientSecret', () => {
   it('serves the cached token on repeat reads', async () => {
     await initAppleClientSecret(await makeConfig());
     expect(appleClientSecret()).toBe(appleClientSecret());
+  });
+});
+
+describe('appleClientSecret refresh-on-read', () => {
+  // The module reads Date.now() internally; there is no clock seam, so these
+  // tests age the module's cache by moving vitest's fake system clock instead.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const START = new Date('2024-01-01T00:00:00Z');
+
+  beforeEach(() => {
+    __resetAppleSecretForTests();
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+  });
+
+  afterEach(() => {
+    // Must not leak fake timers into the other 8 tests in this file (or any
+    // other test file in the same worker).
+    vi.useRealTimers();
+  });
+
+  it('does not refresh before the 120-day threshold (negative control)', async () => {
+    const cfg = await makeConfig();
+    await initAppleClientSecret(cfg);
+    const original = appleClientSecret();
+
+    // `SignJWT.prototype` is a plain, mutable object (unlike jose's ES module
+    // namespace, which vitest cannot spy on — "Module namespace is not
+    // configurable in ESM"), and every mint calls `.sign()` exactly once, so
+    // this is a reliable, seam-free way to count mint attempts from the test.
+    const signSpy = vi.spyOn(SignJWT.prototype, 'sign');
+    vi.setSystemTime(new Date(START.getTime() + 119 * DAY_MS));
+
+    expect(appleClientSecret()).toBe(original);
+    expect(signSpy).not.toHaveBeenCalled();
+
+    signSpy.mockRestore();
+  });
+
+  it('fires a re-mint past the 120-day threshold and eventually serves the new token', async () => {
+    const cfg = await makeConfig();
+    await initAppleClientSecret(cfg);
+    const original = appleClientSecret();
+
+    vi.setSystemTime(new Date(START.getTime() + 121 * DAY_MS));
+    // Crosses the threshold and kicks off the fire-and-forget re-mint.
+    appleClientSecret();
+
+    // The re-mint is a real (fake-timer-independent) async jose operation, so
+    // let its microtask/promise chain settle. vi.waitFor polls on vitest's
+    // "safe" (real, unfaked) timers internally, so this does not deadlock
+    // even though fake timers are active in this test.
+    await vi.waitFor(() => {
+      expect(appleClientSecret()).not.toBe(original);
+    });
+  });
+
+  it('keeps serving the still-valid stale token and logs when the re-mint rejects', async () => {
+    const cfg = await makeConfig();
+    await initAppleClientSecret(cfg);
+    const original = appleClientSecret();
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // `cfg` is the exact object `initAppleClientSecret` stored as the module's
+    // config, so corrupting it here makes the next re-mint attempt reject
+    // without needing any new export or seam in the production module.
+    cfg.privateKey = 'not-a-key';
+
+    vi.setSystemTime(new Date(START.getTime() + 121 * DAY_MS));
+    expect(appleClientSecret()).toBe(original);
+
+    await vi.waitFor(() => {
+      expect(errorSpy).toHaveBeenCalled();
+    });
+    // The stale-but-still-valid token must still be served after the failed
+    // re-mint settles — this is the fail-open behavior the fix must preserve.
+    expect(appleClientSecret()).toBe(original);
+    expect(errorSpy.mock.calls[0]?.[0]).toMatch(/apple client secret re-mint failed/i);
+
+    errorSpy.mockRestore();
+  });
+
+  it('the refreshing guard prevents a pile-up: two reads past the threshold trigger exactly one re-mint', async () => {
+    const cfg = await makeConfig();
+    await initAppleClientSecret(cfg);
+
+    const signSpy = vi.spyOn(SignJWT.prototype, 'sign');
+    vi.setSystemTime(new Date(START.getTime() + 121 * DAY_MS));
+
+    appleClientSecret();
+    appleClientSecret();
+
+    // The mint's first `await` point (inside importPKCS8, before .sign() is
+    // ever reached) is entered synchronously inside each appleClientSecret()
+    // call, and the `refreshing` guard is set before that — so by the time
+    // the re-mint eventually calls .sign(), a second concurrent mint has
+    // already been suppressed. Wait for the in-flight mint to actually reach
+    // .sign() before asserting the count stays at one.
+    await vi.waitFor(() => {
+      expect(signSpy).toHaveBeenCalled();
+    });
+    expect(signSpy).toHaveBeenCalledTimes(1);
+
+    signSpy.mockRestore();
   });
 });
