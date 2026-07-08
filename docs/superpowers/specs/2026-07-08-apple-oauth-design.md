@@ -13,10 +13,10 @@ Phase 3 by the 2026-07-07 spec. This spec closes that gap.
 
 Current state, verified 2026-07-08:
 
-| Surface | Auth methods today |
-| --- | --- |
-| `apps/web` | magic link + Google (gated on `NEXT_PUBLIC_GOOGLE_ENABLED`) |
-| `apps/mobile` | magic link only — **no social buttons at all** |
+| Surface       | Auth methods today                                          |
+| ------------- | ----------------------------------------------------------- |
+| `apps/web`    | magic link + Google (gated on `NEXT_PUBLIC_GOOGLE_ENABLED`) |
+| `apps/mobile` | magic link only — **no social buttons at all**              |
 
 `apps/mobile/app.config.ts:22` already sets `usesAppleSignIn: true` citing
 FR-1.2, but `expo-apple-authentication` is not installed. The capability is
@@ -43,13 +43,13 @@ spec is read off the installed 1.6.20 source**, at
 
 Requires a paid Apple Developer Program membership ($99/yr).
 
-| Artifact | Value | Used as |
-| --- | --- | --- |
-| App ID | `company.lnrt.evenup`, Sign In with Apple capability enabled | native idToken audience |
-| Services ID | e.g. `company.lnrt.evenup.web` | **web `clientId`** |
-| Domain + Return URL | `evenup.lnrtdev.cz` → `https://evenup.lnrtdev.cz/api/auth/callback/apple` | web redirect |
-| Key (`.p8`) | Sign In with Apple enabled; yields Key ID | JWT signing key |
-| Team ID | from the membership page | JWT `iss` |
+| Artifact            | Value                                                                     | Used as                 |
+| ------------------- | ------------------------------------------------------------------------- | ----------------------- |
+| App ID              | `company.lnrt.evenup`, Sign In with Apple capability enabled              | native idToken audience |
+| Services ID         | e.g. `company.lnrt.evenup.web`                                            | **web `clientId`**      |
+| Domain + Return URL | `evenup.lnrtdev.cz` → `https://evenup.lnrtdev.cz/api/auth/callback/apple` | web redirect            |
+| Key (`.p8`)         | Sign In with Apple enabled; yields Key ID                                 | JWT signing key         |
+| Team ID             | from the membership page                                                  | JWT `iss`               |
 
 Two things bite here:
 
@@ -57,7 +57,7 @@ Two things bite here:
 - Web and native use **different client IDs** (Services ID vs. bundle ID). They
   are not interchangeable.
 
-## 3. Client-secret minter — `apps/web/src/server/apple-secret.ts` *(new)*
+## 3. Client-secret minter — `apps/web/src/server/apple-secret.ts` _(new)_
 
 Apple's `client_secret` is not a static string: it is an ES256 JWT signed with
 the `.p8` key, and Apple caps its lifetime at **15777000 s (~182.6 days)**.
@@ -68,14 +68,14 @@ declared to be importable).
 
 Claims:
 
-| Claim | Value |
-| --- | --- |
-| header `alg` | `ES256` |
-| header `kid` | `APPLE_KEY_ID` |
-| `iss` | `APPLE_TEAM_ID` |
-| `aud` | `https://appleid.apple.com` |
-| `sub` | `APPLE_SERVICES_ID` |
-| `exp` | `iat + 150d` (headroom under Apple's ~182.6d cap) |
+| Claim        | Value                                             |
+| ------------ | ------------------------------------------------- |
+| header `alg` | `ES256`                                           |
+| header `kid` | `APPLE_KEY_ID`                                    |
+| `iss`        | `APPLE_TEAM_ID`                                   |
+| `aud`        | `https://appleid.apple.com`                       |
+| `sub`        | `APPLE_SERVICES_ID`                               |
+| `exp`        | `iat + 150d` (headroom under Apple's ~182.6d cap) |
 
 Behavior:
 
@@ -93,14 +93,14 @@ Behavior:
 - `APPLE_PRIVATE_KEY` is `\n`-unescaped (`.replace(/\\n/g, '\n')`) before
   `importPKCS8`, since env transports flatten newlines.
 
-### Why a *sync getter* is load-bearing
+### Why a _sync getter_ is load-bearing
 
 `apple.ts` passes the whole `options` **object** into the token exchange and reads
 `options.clientSecret` **per request**, not once at construction:
 
 ```ts
 validateAuthorizationCode: async ({ code, codeVerifier, redirectURI }) =>
-  validateAuthorizationCode({ code, codeVerifier, redirectURI, options, tokenEndpoint })
+  validateAuthorizationCode({ code, codeVerifier, redirectURI, options, tokenEndpoint });
 ```
 
 Therefore `get clientSecret() { return appleClientSecret(); }` is evaluated on
@@ -110,7 +110,7 @@ after the last deploy, with an opaque `invalid_client` from Apple and nothing in
 our logs to explain it. This is the entire reason decision #2 was chosen over a
 pasted static secret.
 
-### Tests — `apps/web/src/server/apple-secret.test.ts` *(new)*
+### Tests — `apps/web/src/server/apple-secret.test.ts` _(new)_
 
 `apps/web` currently has Playwright only. Add `vitest` + a `vitest.config.ts`
 (this also unblocks the other untested modules in `src/server/`: `env.ts`,
@@ -164,7 +164,7 @@ Three details, each verified against installed source:
   break the web flow.
 - **No `trustedProviders`.** Apple and Google both return `email_verified` for
   real addresses, so plain `accountLinking.enabled` links them safely. Adding
-  `trustedProviders` would force-link *unverified* emails — Better Auth's own docs
+  `trustedProviders` would force-link _unverified_ emails — Better Auth's own docs
   flag it as an account-takeover risk, and it would buy us nothing.
 
 ### Account-linking consequences
@@ -174,10 +174,10 @@ Three details, each verified against installed source:
 "Continue with Google" already hits `ACCOUNT_NOT_LINKED` and is stuck. Enabling
 linking fixes that latent Google bug in the same stroke.
 
-| Existing user | Apple choice | Result |
-| --- | --- | --- |
-| `alice@gmail.com` (magic link) | "Share My Email" → `alice@gmail.com` | **linked** to existing user |
-| `alice@gmail.com` (magic link) | "Hide My Email" → `x7k2@privaterelay.appleid.com` | **separate account** |
+| Existing user                  | Apple choice                                      | Result                      |
+| ------------------------------ | ------------------------------------------------- | --------------------------- |
+| `alice@gmail.com` (magic link) | "Share My Email" → `alice@gmail.com`              | **linked** to existing user |
+| `alice@gmail.com` (magic link) | "Hide My Email" → `x7k2@privaterelay.appleid.com` | **separate account**        |
 
 The second row is unavoidable — Apple never reveals that the relay address maps
 to `alice@gmail.com`. Document it; do not try to defeat it.
@@ -192,18 +192,18 @@ let name: string;
 if (token.user?.name) {
   name = `${firstName} ${lastName}`.trim();
 } else {
-  name = profile.name || "";
+  name = profile.name || '';
 }
 ```
 
 Apple's **id_token carries no `name` claim**. The name arrives only in the
-form_post `user` parameter, and only on the user's *first* consent ever.
+form_post `user` parameter, and only on the user's _first_ consent ever.
 
-| Path | `token.user` | Resulting name |
-| --- | --- | --- |
-| Web, first consent | populated from form_post | correct ✓ |
-| Web, later sign-ins | absent | falls to `mapProfileToUser` |
-| **Native `idToken`** | **always absent** | **`""`** |
+| Path                 | `token.user`             | Resulting name              |
+| -------------------- | ------------------------ | --------------------------- |
+| Web, first consent   | populated from form_post | correct ✓                   |
+| Web, later sign-ins  | absent                   | falls to `mapProfileToUser` |
+| **Native `idToken`** | **always absent**        | **`""`**                    |
 
 EvenUp renders member names throughout group lists, balances, and settle-up. An
 empty name is loudly visible. Two layers:
@@ -282,13 +282,13 @@ Add `APPLE_SERVICES_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`,
 
 ## 10. Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| `.p8` newlines mangled by Coolify's env handling | `\n`-unescape, then validate `importPKCS8` **at startup** and fail fast with an explicit message — not at the first sign-in weeks later |
-| Apple client secret silently expires | Runtime derivation + per-request getter (§3); the whole point of decision #2 |
-| **Private-relay email bounces** | EvenUp sends magic links and group invites via Resend. Mail to `@privaterelay.appleid.com` **bounces** unless the Resend sending domain is registered under Apple's *Email Sources*. Silently breaks invites for exactly the users who chose "Hide My Email". Register the domain as part of §2. |
-| `better-auth` floats `^1.2.9` → 1.6.20 | Out of scope to fix here, but the range is misleading. Worth pinning in a follow-up; this spec targets 1.6.20 explicitly |
-| Hidden-email users get `EvenUp user` as a display name | Accepted. §5(b) backfills the real name whenever Apple supplies it; users can rename in profile settings |
+| Risk                                                   | Mitigation                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.p8` newlines mangled by Coolify's env handling       | `\n`-unescape, then validate `importPKCS8` **at startup** and fail fast with an explicit message — not at the first sign-in weeks later                                                                                                                                                          |
+| Apple client secret silently expires                   | Runtime derivation + per-request getter (§3); the whole point of decision #2                                                                                                                                                                                                                     |
+| **Private-relay email bounces**                        | EvenUp sends magic links and group invites via Resend. Mail to `@privaterelay.appleid.com` **bounces** unless the Resend sending domain is registered under Apple's _Email Sources_. Silently breaks invites for exactly the users who chose "Hide My Email". Register the domain as part of §2. |
+| `better-auth` floats `^1.2.9` → 1.6.20                 | Out of scope to fix here, but the range is misleading. Worth pinning in a follow-up; this spec targets 1.6.20 explicitly                                                                                                                                                                         |
+| Hidden-email users get `EvenUp user` as a display name | Accepted. §5(b) backfills the real name whenever Apple supplies it; users can rename in profile settings                                                                                                                                                                                         |
 
 ## 11. Definition of done
 
