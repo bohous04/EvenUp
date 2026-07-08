@@ -79,9 +79,9 @@ export function magicLinkEmail(to: string, url: string): EmailMessage {
   const html = `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#171717">
   <div style="max-width:480px;margin:0 auto;padding:32px 20px">
     <div style="background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:28px;text-align:center">
-      <div style="font-size:20px;font-weight:800;color:#2563eb">EvenUp</div>
+      <div style="font-size:20px;font-weight:800;color:#4f46e5">EvenUp</div>
       <p style="color:#525252;margin:8px 0 24px">Přihlaste se klepnutím na tlačítko · Sign in by tapping the button</p>
-      <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">Přihlásit se / Sign in</a>
+      <a href="${url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">Přihlásit se / Sign in</a>
       <p style="color:#737373;font-size:12px;margin-top:24px;word-break:break-all">${url}</p>
     </div>
     <p style="color:#a3a3a3;font-size:12px;text-align:center;margin-top:16px">Odkaz brzy vyprší. Pokud jste o přihlášení nežádali, e-mail ignorujte.<br/>This link expires shortly. If you didn't request it, ignore this email.</p>

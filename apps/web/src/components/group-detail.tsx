@@ -26,7 +26,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     },
   });
 
-  if (group.isLoading) return <p className="text-neutral-500">{t('common.loading')}</p>;
+  if (group.isLoading) return <p className="text-zinc-500">{t('common.loading')}</p>;
   if (group.isError || !group.data) {
     return (
       <Card>
@@ -44,7 +44,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/" className="text-xs text-neutral-500 hover:underline">
+          <Link href="/" className="text-xs text-zinc-500 hover:underline">
             ← {t('nav.groups')}
           </Link>
           <h1 className="text-2xl font-bold" data-testid="group-title">
@@ -137,14 +137,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         <h3 className="mb-3 font-semibold">{t('nav.transactions')}</h3>
         {transactions.data && transactions.data.length > 0 ? (
           <ul
-            className="divide-y divide-neutral-100 dark:divide-neutral-800"
+            className="divide-y divide-zinc-100 dark:divide-zinc-800"
             data-testid="transactions-list"
           >
             {transactions.data.map((tx) => (
               <li key={tx.id} className="flex items-center justify-between py-2">
                 <div>
                   <p className="text-sm font-medium">{tx.title}</p>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-zinc-500">
                     {tx.type === 'TRANSFER' ? t('expense.transfer') : ''} {formatDate(tx.date)}
                   </p>
                   {tx.hasReceiptImage ? (
@@ -162,7 +162,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 <span className="text-right text-sm">
                   {formatCurrency(Number(tx.baseMinorUnits), group.data.baseCurrency)}
                   {tx.currency !== group.data.baseCurrency ? (
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-zinc-500">
                       {formatCurrency(Number(tx.totalMinorUnits), tx.currency)}
                     </span>
                   ) : null}
@@ -171,7 +171,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             ))}
           </ul>
         ) : (
-          <p className="text-center text-sm text-neutral-500">—</p>
+          <p className="text-center text-sm text-zinc-500">—</p>
         )}
       </Card>
 

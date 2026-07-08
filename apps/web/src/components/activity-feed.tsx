@@ -75,7 +75,7 @@ export function ActivityFeed({
       </div>
       {query.data && query.data.items.length > 0 ? (
         <ul
-          className="divide-y divide-neutral-100 dark:divide-neutral-800"
+          className="divide-y divide-zinc-100 dark:divide-zinc-800"
           data-testid="activity-list"
         >
           {query.data.items.map((it) => (
@@ -89,12 +89,12 @@ export function ActivityFeed({
                   it.actorName,
                 )}
               </span>
-              <span className="text-xs text-neutral-500">{formatDate(it.createdAt)}</span>
+              <span className="text-xs text-zinc-500">{formatDate(it.createdAt)}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-center text-sm text-neutral-500">—</p>
+        <p className="text-center text-sm text-zinc-500">—</p>
       )}
     </Card>
   );

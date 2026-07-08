@@ -26,7 +26,7 @@ export function BalancesPanel({
   const balances = trpc.balance.get.useQuery({ groupId });
   const byId = new Map(members.map((m) => [m.id, m]));
 
-  if (balances.isLoading) return <p className="text-neutral-500">{t('common.loading')}</p>;
+  if (balances.isLoading) return <p className="text-zinc-500">{t('common.loading')}</p>;
   if (!balances.data) return null;
 
   const settled = balances.data.balances.every((b) => b.balanceMinorUnits === 0);
@@ -53,7 +53,7 @@ export function BalancesPanel({
                 <span
                   className={
                     zero
-                      ? 'text-neutral-500 dark:text-neutral-400'
+                      ? 'text-zinc-500 dark:text-zinc-400'
                       : positive
                         ? 'font-semibold text-green-700 dark:text-green-400'
                         : 'font-semibold text-red-700 dark:text-red-400'
@@ -71,7 +71,7 @@ export function BalancesPanel({
       <Card>
         <h3 className="mb-3 font-semibold">{t('balance.suggestedPayments')}</h3>
         {settled || balances.data.payments.length === 0 ? (
-          <p className="text-center text-neutral-500" data-testid="settled-up">
+          <p className="text-center text-zinc-500" data-testid="settled-up">
             {t('balance.settledUp')}
           </p>
         ) : (
@@ -126,7 +126,7 @@ function SettleRow({
   if (!from || !to) return null;
 
   return (
-    <li className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+    <li className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-sm">
           <MemberChip
@@ -145,18 +145,18 @@ function SettleRow({
       </div>
 
       {open ? (
-        <div className="mt-3 flex flex-col items-center gap-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+        <div className="mt-3 flex flex-col items-center gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
           {spayd.data ? (
             <>
               <QrCode value={spayd.data.spayd} />
-              <code className="max-w-full break-all text-center text-[10px] text-neutral-500">
+              <code className="max-w-full break-all text-center text-[10px] text-zinc-500">
                 {spayd.data.spayd}
               </code>
             </>
           ) : spayd.isError ? (
-            <p className="text-xs text-neutral-500">{t('settle.noIban')}</p>
+            <p className="text-xs text-zinc-500">{t('settle.noIban')}</p>
           ) : (
-            <p className="text-xs text-neutral-400">{t('common.loading')}</p>
+            <p className="text-xs text-zinc-400">{t('common.loading')}</p>
           )}
           <div className="flex gap-2">
             <Button

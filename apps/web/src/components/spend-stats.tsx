@@ -28,7 +28,7 @@ export function SpendStats({ groupId, baseCurrency }: { groupId: string; baseCur
               </span>
               <span className="font-medium">{formatCurrency(s.totalMinorUnits, baseCurrency)}</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+            <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
                 className="h-full rounded-full bg-brand-500"
                 style={{ width: `${Math.max(2, (Math.abs(s.totalMinorUnits) / max) * 100)}%` }}

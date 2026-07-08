@@ -43,7 +43,7 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (isPending) return <p className="text-neutral-500">…</p>;
+  if (isPending) return <p className="text-zinc-500">…</p>;
   if (!session?.user) {
     return (
       <Card>
@@ -69,7 +69,7 @@ export default function SettingsPage() {
       </div>
       <Card>
         <h3 className="mb-1 font-semibold">OpenRouter API key</h3>
-        <p className="mb-3 text-sm text-neutral-500">{t('ocr.apiKeyRequired')}</p>
+        <p className="mb-3 text-sm text-zinc-500">{t('ocr.apiKeyRequired')}</p>
         {me.data?.hasOpenRouterKey ? (
           <div className="flex items-center justify-between">
             <span

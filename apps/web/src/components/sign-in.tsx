@@ -34,7 +34,7 @@ export function SignIn() {
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold">{t('app.name')}</h1>
-        <p className="mt-1 text-neutral-600 dark:text-neutral-400">{t('app.tagline')}</p>
+        <p className="mt-1 text-zinc-600 dark:text-zinc-400">{t('app.tagline')}</p>
       </div>
       <Card>
         {sent ? (
@@ -71,10 +71,10 @@ export function SignIn() {
             </form>
             {googleEnabled || appleEnabled ? (
               <>
-                <div className="flex items-center gap-3 text-xs text-neutral-400">
-                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+                <div className="flex items-center gap-3 text-xs text-zinc-400">
+                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
                   {t('common.or')}
-                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
                 </div>
                 {googleEnabled ? (
                   <Button

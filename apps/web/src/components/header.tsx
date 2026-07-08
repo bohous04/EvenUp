@@ -12,7 +12,7 @@ export function Header() {
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
 
   return (
-    <header className="border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
+    <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
         <Link
           href="/"
@@ -23,7 +23,7 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-2">
           <div
-            className="flex overflow-hidden rounded-lg border border-neutral-300 text-xs dark:border-neutral-700"
+            className="flex overflow-hidden rounded-lg border border-zinc-300 text-xs dark:border-zinc-700"
             role="group"
             aria-label="Language"
           >
@@ -35,7 +35,7 @@ export function Header() {
                 className={`px-2 py-1 font-medium uppercase ${
                   locale === l
                     ? 'bg-brand-600 text-white'
-                    : 'bg-white text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300'
+                    : 'bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300'
                 }`}
               >
                 {l}

@@ -66,7 +66,7 @@ export function CsvImport({ groupId, members }: { groupId: string; members: Memb
             </Select>
           </div>
           <textarea
-            className="h-32 w-full rounded-lg border border-neutral-300 bg-white p-3 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+            className="h-32 w-full rounded-lg border border-zinc-300 bg-white p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-800"
             placeholder={
               'Date,Description,Category,Cost,Currency\n2026-06-22,Groceries,groceries,123.50,CZK'
             }

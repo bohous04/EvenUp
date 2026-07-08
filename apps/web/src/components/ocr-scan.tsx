@@ -241,12 +241,12 @@ export function OcrScan({
         </Button>
       ) : (
         <div className="space-y-3" data-testid="ocr-items">
-          <p className="text-sm text-neutral-500">{t('ocr.assignItems')}</p>
+          <p className="text-sm text-zinc-500">{t('ocr.assignItems')}</p>
 
           {items.map((it, i) => (
             <div
               key={i}
-              className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800"
+              className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
             >
               <div className="mb-2 flex items-center gap-2">
                 <div className="min-w-0 flex-1">
@@ -274,7 +274,7 @@ export function OcrScan({
                   onClick={() => removeItem(i)}
                   aria-label={t('common.delete')}
                   data-testid={`ocr-item-remove-${i}`}
-                  className="rounded-md p-2 text-neutral-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                  className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
                 >
                   <Trash2 size={16} aria-hidden />
                 </button>
@@ -299,7 +299,7 @@ export function OcrScan({
             {t('ocr.addItem')}
           </Button>
 
-          <div className="flex items-center justify-between border-t border-neutral-200 pt-3 dark:border-neutral-800">
+          <div className="flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
             <span className="text-sm font-medium">{t('common.total')}</span>
             <span className="text-base font-semibold" data-testid="ocr-total">
               {formatCurrency(runningTotal, baseCurrency)}
@@ -307,10 +307,10 @@ export function OcrScan({
           </div>
 
           <div
-            className="rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800/50"
+            className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50"
             data-testid="ocr-per-person"
           >
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
               {t('ocr.perPerson')}
             </p>
             <ul className="space-y-1.5">
@@ -326,7 +326,7 @@ export function OcrScan({
                     {m.displayName}
                   </span>
                   <span
-                    className={perMember.get(m.id) ? 'font-medium' : 'text-neutral-400'}
+                    className={perMember.get(m.id) ? 'font-medium' : 'text-zinc-400'}
                     data-testid={`ocr-person-${m.id}`}
                   >
                     {formatCurrency(perMember.get(m.id) ?? 0, baseCurrency)}

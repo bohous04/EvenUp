@@ -22,7 +22,7 @@ export function MemberChip({
   size?: 'sm' | 'md';
 }) {
   const dims = size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm';
-  const ring = selected ? 'ring-2 ring-offset-2 ring-neutral-900 dark:ring-white' : '';
+  const ring = selected ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white' : '';
   const base = `inline-flex ${dims} items-center justify-center rounded-full font-semibold ${ring}`;
   const style = { backgroundColor: color, color: readableTextColor(color) };
 

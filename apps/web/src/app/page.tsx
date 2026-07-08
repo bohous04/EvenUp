@@ -7,7 +7,7 @@ export default function HomePage() {
   const { data: session, isPending } = useSession();
 
   if (isPending) {
-    return <p className="py-10 text-center text-neutral-500">…</p>;
+    return <p className="py-10 text-center text-zinc-500">…</p>;
   }
   return session?.user ? <GroupsDashboard /> : <SignIn />;
 }

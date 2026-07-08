@@ -19,16 +19,16 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   });
   const [error, setError] = useState<string | null>(null);
 
-  if (isPending) return <p className="py-10 text-center text-neutral-500">…</p>;
+  if (isPending) return <p className="py-10 text-center text-zinc-500">…</p>;
   if (!session?.user) {
     return (
       <div>
-        <p className="mb-4 text-center text-sm text-neutral-600">{t('invite.claim')}</p>
+        <p className="mb-4 text-center text-sm text-zinc-600">{t('invite.claim')}</p>
         <SignIn />
       </div>
     );
   }
-  if (preview.isLoading) return <p className="text-neutral-500">{t('common.loading')}</p>;
+  if (preview.isLoading) return <p className="text-zinc-500">{t('common.loading')}</p>;
   if (preview.isError || !preview.data) {
     return (
       <Card>
@@ -40,7 +40,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   return (
     <Card>
       <h1 className="mb-1 text-xl font-bold">{preview.data.groupName}</h1>
-      <p className="mb-4 text-sm text-neutral-600">{t('invite.claim')}</p>
+      <p className="mb-4 text-sm text-zinc-600">{t('invite.claim')}</p>
       {error ? (
         <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">
           {error}
@@ -64,7 +64,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           </li>
         ))}
       </ul>
-      <div className="mt-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+      <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
         <Button onClick={() => claim.mutate({ token }, { onError: (e) => setError(e.message) })}>
           {t('common.add')} — {t('member.add')}
         </Button>

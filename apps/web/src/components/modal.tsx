@@ -68,7 +68,7 @@ export function Modal({
       onClick={(e) => {
         if (e.target === ref.current && pressedOnBackdrop.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-neutral-200 bg-white p-0 text-neutral-900 shadow-xl backdrop:bg-black/40 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/40 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >
       {open ? (
         <div className="max-h-[85vh] overflow-y-auto p-5" data-testid={testId}>

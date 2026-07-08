@@ -46,7 +46,7 @@ function Segmented({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex flex-wrap gap-1 rounded-lg border border-neutral-200 p-1 dark:border-neutral-700"
+      className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700"
     >
       {options.map((o) => {
         const selected = o.value === value;
@@ -61,7 +61,7 @@ function Segmented({
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
               selected
                 ? 'bg-brand-600 text-white'
-                : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
             }`}
           >
             {o.label}
@@ -310,7 +310,7 @@ export function AddExpenseForm({
                     className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
                       selected
                         ? 'border-brand-600 bg-brand-50 font-medium text-brand-800 dark:bg-brand-600/20 dark:text-brand-100'
-                        : 'border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800'
+                        : 'border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
                     }`}
                   >
                     <MemberChip
@@ -364,7 +364,7 @@ export function AddExpenseForm({
           </button>
 
           {advancedOpen ? (
-            <div className="space-y-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+            <div className="space-y-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="e-currency">{t('expense.currency')}</Label>
@@ -400,7 +400,7 @@ export function AddExpenseForm({
                       data-testid="expense-fx-input"
                     />
                     {fxResolve.data ? (
-                      <p className="mt-1 text-xs text-neutral-500" data-testid="fx-source">
+                      <p className="mt-1 text-xs text-zinc-500" data-testid="fx-source">
                         {fxResolve.data.stale
                           ? t('fx.stale')
                           : fxResolve.data.source === 'frankfurter'
@@ -434,7 +434,7 @@ export function AddExpenseForm({
                         className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
                           selected
                             ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-600/20 dark:text-brand-100'
-                            : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                            : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
                         }`}
                       >
                         <CategoryIcon name={c.iconName} size={20} />
@@ -507,7 +507,7 @@ export function AddExpenseForm({
             </p>
           ) : null}
 
-          <div className="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+          <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               {t('common.cancel')}
             </Button>

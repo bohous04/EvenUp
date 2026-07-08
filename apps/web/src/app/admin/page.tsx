@@ -31,7 +31,7 @@ function Toggle({
       onClick={() => onChange(!checked)}
       data-testid={testId}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${
-        checked ? 'bg-brand-600' : 'bg-neutral-300 dark:bg-neutral-700'
+        checked ? 'bg-brand-600' : 'bg-zinc-300 dark:bg-zinc-700'
       }`}
     >
       <span
@@ -61,7 +61,7 @@ function InstanceKeySection() {
   return (
     <Card>
       <h3 className="mb-1 font-semibold">{t('admin.instanceKey')}</h3>
-      <p className="mb-3 text-sm text-neutral-500">{t('admin.instanceKey.desc')}</p>
+      <p className="mb-3 text-sm text-zinc-500">{t('admin.instanceKey.desc')}</p>
       {cfg.data?.hasKey ? (
         <div className="flex items-center justify-between">
           <span
@@ -104,7 +104,7 @@ function InstanceKeySection() {
         </form>
       )}
       <form
-        className="mt-4 flex items-end gap-2 border-t border-neutral-100 pt-4 dark:border-neutral-800"
+        className="mt-4 flex items-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800"
         onSubmit={(e) => {
           e.preventDefault();
           const model = new FormData(e.currentTarget).get('ocrModel') as string;
@@ -153,7 +153,7 @@ function UsersSection({ meId }: { meId: string }) {
       <h3 className="mb-3 font-semibold">{t('admin.users')}</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" data-testid="admin-users-table">
-          <thead className="text-xs text-neutral-500">
+          <thead className="text-xs text-zinc-500">
             <tr>
               <th className="py-2 pr-3 font-medium">E-mail</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.vip')}</th>
@@ -164,7 +164,7 @@ function UsersSection({ meId }: { meId: string }) {
               <th className="px-3 py-2 font-medium">{t('admin.col.actions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {users.data?.users.map((u) => {
               const isSelf = u.id === meId;
               return (
@@ -172,10 +172,10 @@ function UsersSection({ meId }: { meId: string }) {
                   <td className="py-2 pr-3">
                     <span className="font-medium">{u.email}</span>
                     {isSelf ? (
-                      <span className="ml-1 text-xs text-neutral-500">{t('admin.you')}</span>
+                      <span className="ml-1 text-xs text-zinc-500">{t('admin.you')}</span>
                     ) : null}
                     {u.name ? (
-                      <span className="block text-xs text-neutral-500">{u.name}</span>
+                      <span className="block text-xs text-zinc-500">{u.name}</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-2">
@@ -204,10 +204,10 @@ function UsersSection({ meId }: { meId: string }) {
                       testId={`disabled-toggle-${u.email}`}
                     />
                   </td>
-                  <td className="px-3 py-2 text-neutral-500">
+                  <td className="px-3 py-2 text-zinc-500">
                     {u.hasOwnKey ? <Check size={16} aria-hidden /> : '–'}
                   </td>
-                  <td className="px-3 py-2 text-neutral-500">{formatDate(u.createdAt)}</td>
+                  <td className="px-3 py-2 text-zinc-500">{formatDate(u.createdAt)}</td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
@@ -265,7 +265,7 @@ function ErrorsSection() {
       <h3 className="mb-3 font-semibold">{t('admin.errors')}</h3>
       {errors.data && errors.data.errors.length > 0 ? (
         <ul
-          className="divide-y divide-neutral-100 text-sm dark:divide-neutral-800"
+          className="divide-y divide-zinc-100 text-sm dark:divide-zinc-800"
           data-testid="admin-errors-list"
         >
           {errors.data.errors.map((e) => (
@@ -273,17 +273,17 @@ function ErrorsSection() {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium">
                   {e.path ?? e.source}
-                  {e.code ? <span className="ml-1 text-neutral-500">· {e.code}</span> : null}
+                  {e.code ? <span className="ml-1 text-zinc-500">· {e.code}</span> : null}
                 </span>
-                <span className="shrink-0 text-xs text-neutral-500">{formatDate(e.createdAt)}</span>
+                <span className="shrink-0 text-xs text-zinc-500">{formatDate(e.createdAt)}</span>
               </div>
-              <p className="text-neutral-600 dark:text-neutral-300">{e.message}</p>
-              {e.userEmail ? <p className="text-xs text-neutral-500">{e.userEmail}</p> : null}
+              <p className="text-zinc-600 dark:text-zinc-300">{e.message}</p>
+              {e.userEmail ? <p className="text-xs text-zinc-500">{e.userEmail}</p> : null}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-center text-sm text-neutral-500">{t('admin.errors.empty')}</p>
+        <p className="text-center text-sm text-zinc-500">{t('admin.errors.empty')}</p>
       )}
     </Card>
   );
@@ -295,7 +295,7 @@ export default function AdminPage() {
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
 
   if (isPending || (!!session?.user && me.isLoading)) {
-    return <p className="text-neutral-500">…</p>;
+    return <p className="text-zinc-500">…</p>;
   }
 
   // Non-admins (and signed-out visitors) never see the dashboard.

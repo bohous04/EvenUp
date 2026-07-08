@@ -96,7 +96,7 @@ export function GroupsDashboard() {
       ) : null}
 
       {groups.isLoading ? (
-        <p className="text-neutral-500">{t('common.loading')}</p>
+        <p className="text-zinc-500">{t('common.loading')}</p>
       ) : groups.data && groups.data.length > 0 ? (
         <ul className="space-y-3">
           {groups.data.map((g) => (
@@ -106,7 +106,7 @@ export function GroupsDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold">{g.name}</p>
-                      <p className="text-xs text-neutral-500">
+                      <p className="text-xs text-zinc-500">
                         {g._count.transactions} · {g.baseCurrency}
                       </p>
                     </div>
@@ -129,7 +129,7 @@ export function GroupsDashboard() {
         </ul>
       ) : (
         <Card>
-          <p className="text-center text-neutral-500">{t('group.empty')}</p>
+          <p className="text-center text-zinc-500">{t('group.empty')}</p>
         </Card>
       )}
     </div>
