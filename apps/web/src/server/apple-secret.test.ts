@@ -165,21 +165,32 @@ describe('appleClientSecret refresh-on-read', () => {
   it('the refreshing guard prevents a pile-up: two reads past the threshold trigger exactly one re-mint', async () => {
     const cfg = await makeConfig();
     await initAppleClientSecret(cfg);
+    const original = appleClientSecret();
 
     const signSpy = vi.spyOn(SignJWT.prototype, 'sign');
     vi.setSystemTime(new Date(START.getTime() + 121 * DAY_MS));
 
-    appleClientSecret();
-    appleClientSecret();
+    // Both reads land while the re-mint is in flight, so both must still
+    // serve the old token — `cache` is only replaced once the mint resolves.
+    expect(appleClientSecret()).toBe(original);
+    expect(appleClientSecret()).toBe(original);
 
     // The mint's first `await` point (inside importPKCS8, before .sign() is
     // ever reached) is entered synchronously inside each appleClientSecret()
     // call, and the `refreshing` guard is set before that — so by the time
     // the re-mint eventually calls .sign(), a second concurrent mint has
-    // already been suppressed. Wait for the in-flight mint to actually reach
-    // .sign() before asserting the count stays at one.
+    // already been suppressed. A spy only records invocation, not
+    // resolution, and the sign is a real async WebCrypto op — so wait for
+    // the *effect* (a later read observing a new token), exactly like the
+    // sibling test above, rather than the call. That guarantees the whole
+    // `.then()`/`.catch()`/`.finally()` chain inside appleClientSecret() has
+    // drained — including the `cache` swap and the `refreshing = false`
+    // reset — before this test ends. Waiting only for the call would let
+    // that chain dangle past the test body and mutate the shared
+    // module-level `cache`/`refreshing` state on a later, indeterminate
+    // tick, potentially corrupting a following test.
     await vi.waitFor(() => {
-      expect(signSpy).toHaveBeenCalled();
+      expect(appleClientSecret()).not.toBe(original);
     });
     expect(signSpy).toHaveBeenCalledTimes(1);
   });
