@@ -1150,7 +1150,9 @@ If any gate fails, fix it before proceeding. Do not report success on a red gate
 grep -rn "NEXT_PUBLIC_APPLE_ENABLED" apps/web/src infra/docker/Dockerfile docker-compose.yml
 ```
 
-Expected: three hits — the component, the Dockerfile `ARG`/`ENV`, and the compose build arg. Missing the Dockerfile hit means `docker compose build` produces a bundle with the button dead-code-eliminated.
+Expected: three hits — the component, the Dockerfile `ARG`/`ENV`, and the compose build arg. Missing the Dockerfile hit means `docker compose build` produces a bundle where the button never renders.
+
+> **Do not test this gate by grepping the bundle for `apple-signin`** (verified 2026-07-08). When `NEXT_PUBLIC_APPLE_ENABLED` is *unset*, Next does not inline it and cannot fold the branch — the chunk keeps a runtime lookup, `"true"===d.env.NEXT_PUBLIC_APPLE_ENABLED`, and the `apple-signin` string stays in the bundle even though the button never renders. Only when the var **is** defined at build does the ternary get folded away. So the string's presence proves nothing; check the rendered DOM instead.
 
 Separately, when deploying to Coolify, add `NEXT_PUBLIC_APPLE_ENABLED=true` with **`is_buildtime: true`** — Coolify inlines it at build the same way it already does for `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
