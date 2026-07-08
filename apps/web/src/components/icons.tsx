@@ -7,6 +7,8 @@ import {
   ArrowRight,
   Trash2,
   Plus,
+  Pencil,
+  X,
   ShoppingCart,
   Utensils,
   Car,
@@ -39,4 +41,4 @@ export function CategoryIcon({ name, size = 16 }: { name: string; size?: number 
   return <Icon size={size} aria-hidden />;
 }
 
-export { Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus };
+export { Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X };

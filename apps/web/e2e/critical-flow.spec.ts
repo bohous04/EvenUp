@@ -228,6 +228,40 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('spend-stats')).toBeVisible();
   });
 
+  test('rename a member inline updates its name and chip initials', async ({ page }, testInfo) => {
+    const email = uniqueEmail('rename', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Rename');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Rename').click();
+
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+
+    // Open the inline editor for Petr (the pencil's accessible name carries the
+    // member name), clear it, and rename to "Pavel".
+    const memberList = page.getByTestId('member-list');
+    await memberList.getByRole('button', { name: /Petr/ }).click();
+    const editor = page.getByTestId('member-rename-input');
+    await editor.fill('Pavel');
+    await page.getByTestId('member-rename-save').click();
+
+    // The new name shows in the roster and the chip initials update (PA); Petr is gone.
+    await expect(memberList.getByText('Pavel')).toBeVisible();
+    await expect(memberList.getByRole('img', { name: 'Pavel' })).toBeVisible();
+    await expect(memberList.getByRole('img', { name: 'Petr' })).toHaveCount(0);
+
+    // Escape cancels an edit without changing the name.
+    await memberList.getByRole('button', { name: /Pavel/ }).click();
+    await page.getByTestId('member-rename-input').fill('Zmeneno');
+    await page.getByTestId('member-rename-input').press('Escape');
+    await expect(memberList.getByText('Pavel')).toBeVisible();
+    await expect(memberList.getByText('Zmeneno')).toHaveCount(0);
+  });
+
   test('language switch CZ <-> EN updates the UI', async ({ page }, testInfo) => {
     const email = uniqueEmail('lang', testInfo.workerIndex + Date.now());
     await signIn(page, email);

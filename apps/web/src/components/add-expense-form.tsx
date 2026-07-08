@@ -362,9 +362,11 @@ export function AddExpenseForm({
           </p>
         ) : null}
 
-        <Button type="submit" disabled={createExpense.isPending} data-testid="add-expense-submit">
-          {createExpense.isPending ? t('common.loading') : t('common.save')}
-        </Button>
+        <div className="border-t border-neutral-100 pt-4 dark:border-neutral-800">
+          <Button type="submit" disabled={createExpense.isPending} data-testid="add-expense-submit">
+            {createExpense.isPending ? t('common.loading') : t('common.save')}
+          </Button>
+        </div>
       </form>
     </Card>
   );

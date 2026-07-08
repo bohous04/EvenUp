@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Card } from '@/components/ui';
-import { MemberChip } from '@/components/member-chip';
+import { MemberList } from '@/components/member-list';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { BalancesPanel } from '@/components/balances-panel';
@@ -71,14 +71,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
       <Card>
         <h3 className="mb-3 font-semibold">{t('group.members')}</h3>
-        <div className="mb-3 flex flex-wrap gap-3">
-          {activeMembers.map((m) => (
-            <span key={m.id} className="flex items-center gap-1.5 text-sm">
-              <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
-              {m.displayName}
-            </span>
-          ))}
-        </div>
+        <MemberList
+          groupId={groupId}
+          members={activeMembers.map((m) => ({
+            id: m.id,
+            displayName: m.displayName,
+            initials: m.initials,
+            color: m.color,
+          }))}
+        />
         <AddMemberForm groupId={groupId} />
       </Card>
 
