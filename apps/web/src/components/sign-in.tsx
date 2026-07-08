@@ -5,6 +5,10 @@ import { signIn } from '@/lib/auth-client';
 import { Button, Card, Input, Label } from '@/components/ui';
 import { Mail } from '@/components/icons';
 
+// Only offer Google sign-in when the instance has configured it (self-hosters
+// without Google credentials shouldn't see a dead button). Inlined at build.
+const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
+
 export function SignIn() {
   const { t } = useI18n();
   const [email, setEmail] = useState('');
@@ -41,28 +45,48 @@ export function SignIn() {
             in.
           </p>
         ) : (
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-              />
-            </div>
-            {error ? (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-                {error}
-              </p>
+          <div className="space-y-4">
+            <form onSubmit={submit} className="space-y-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
+              </div>
+              {error ? (
+                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+                  {error}
+                </p>
+              ) : null}
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? t('common.loading') : 'Sign in with email'}
+              </Button>
+            </form>
+            {googleEnabled ? (
+              <>
+                <div className="flex items-center gap-3 text-xs text-neutral-400">
+                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+                  {t('common.or')}
+                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
+                  data-testid="google-signin"
+                >
+                  {t('auth.continueGoogle')}
+                </Button>
+              </>
             ) : null}
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? t('common.loading') : 'Sign in with email'}
-            </Button>
-          </form>
+          </div>
         )}
       </Card>
     </div>

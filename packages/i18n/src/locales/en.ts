@@ -20,6 +20,9 @@ export const en: Messages = {
   'common.required': 'Required',
   'common.optional': 'Optional',
   'common.total': 'Total',
+  'common.or': 'or',
+
+  'auth.continueGoogle': 'Continue with Google',
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',

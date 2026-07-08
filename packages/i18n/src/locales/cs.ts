@@ -20,6 +20,9 @@ export const cs = {
   'common.required': 'Povinné',
   'common.optional': 'Nepovinné',
   'common.total': 'Celkem',
+  'common.or': 'nebo',
+
+  'auth.continueGoogle': 'Pokračovat přes Google',
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',
