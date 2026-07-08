@@ -31,6 +31,12 @@ export const cs = {
   'auth.forgotLink': 'Zapomenuté heslo?',
   'auth.err.invalidCredentials': 'Nesprávný e-mail nebo heslo.',
   'auth.err.unverified': 'Nejdřív si ověřte e-mail — zkontrolujte schránku.',
+  'auth.signUpTitle': 'Vytvořte si účet',
+  'auth.name': 'Jméno',
+  'auth.signUpBtn': 'Zaregistrovat',
+  'auth.haveAccount': 'Už máte účet? Přihlaste se',
+  'auth.verifySent': 'Zkontrolujte schránku a ověřte e-mail.',
+  'auth.err.emailInUse': 'Tento e-mail už je registrovaný.',
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',

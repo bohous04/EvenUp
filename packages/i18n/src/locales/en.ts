@@ -31,6 +31,12 @@ export const en: Messages = {
   'auth.forgotLink': 'Forgot password?',
   'auth.err.invalidCredentials': 'Wrong email or password.',
   'auth.err.unverified': 'Verify your email first — check your inbox.',
+  'auth.signUpTitle': 'Create your account',
+  'auth.name': 'Name',
+  'auth.signUpBtn': 'Sign up',
+  'auth.haveAccount': 'Already have an account? Sign in',
+  'auth.verifySent': 'Check your inbox to verify your email.',
+  'auth.err.emailInUse': 'That email is already registered.',
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',
