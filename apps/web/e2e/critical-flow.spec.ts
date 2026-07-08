@@ -161,6 +161,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     );
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-receipt-row').click();
+
+    // A11y check on the stacked expense+OCR sheets (§9.4).
+    const stackedA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(stackedA11y.violations, JSON.stringify(stackedA11y.violations, null, 2)).toEqual([]);
+
     await page.getByTestId('ocr-file-input').setInputFiles({
       name: 'receipt.png',
       mimeType: 'image/png',
@@ -185,6 +190,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
 
     await page.getByTestId('ocr-save-btn').click();
+    // Both stacked sheets close on save. A bare `.toBeHidden()` here is a strict-mode
+    // violation while the two <dialog> elements are simultaneously open mid-save, so
+    // assert on the count going to zero instead — a stronger check (both must close).
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
     // The itemized expense was created with the edited total (75.10 CZK).
     await expect(page.getByTestId('ocr-items')).toBeHidden();

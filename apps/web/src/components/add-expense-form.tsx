@@ -36,6 +36,18 @@ const SPLIT_LABELS: Record<SplitType, MessageKey> = {
 type RecurrenceValue = 'none' | (typeof RECURRENCE_INTERVALS)[number];
 const RECURRENCE_VALUES: RecurrenceValue[] = ['none', ...RECURRENCE_INTERVALS];
 
+/** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
+function todayLocalIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Parse YYYY-MM-DD as LOCAL noon — stays on the picked day in every timezone. */
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12, 0, 0);
+}
+
 /** A radio-style segmented control (one selected value from a small set). */
 function Segmented({
   ariaLabel,
@@ -108,7 +120,7 @@ function DisclosureRow({
         aria-expanded={open}
         disabled={disabled}
         data-testid={testId}
-        className="flex w-full items-center justify-between py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed"
+        className="flex w-full items-center justify-between py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
         <span className="flex items-center gap-1 font-semibold text-brand-600 dark:text-brand-100">
@@ -134,7 +146,7 @@ export function AddExpenseForm({
   members: MemberLite[];
   baseCurrency: string;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -151,7 +163,7 @@ export function AddExpenseForm({
   const [error, setError] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<Row>(null);
   const [ocrOpen, setOcrOpen] = useState(false);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayLocalIso());
 
   const payerId = members.some((m) => m.id === payerIdRaw) ? payerIdRaw : (members[0]?.id ?? '');
   const isSelected = (id: string) => !deselected.has(id);
@@ -177,7 +189,7 @@ export function AddExpenseForm({
       setPayerId('');
       setDeselected(new Set());
       setOpenRow(null);
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(todayLocalIso());
       setError(null);
       setOpen(false);
       void utils.transaction.list.invalidate({ groupId });
@@ -223,7 +235,7 @@ export function AddExpenseForm({
       title,
       currency,
       category,
-      date: new Date(date),
+      date: parseLocalDate(date),
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
     };
 
@@ -550,7 +562,7 @@ export function AddExpenseForm({
 
             <DisclosureRow
               label={t('expense.date')}
-              value={date}
+              value={formatDate(parseLocalDate(date))}
               open={openRow === 'date'}
               onToggle={() => toggleRow('date')}
               testId="expense-date-row"
