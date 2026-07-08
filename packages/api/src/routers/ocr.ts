@@ -54,14 +54,14 @@ export const ocrRouter = router({
 
         // Best-effort image storage (FR-5.8): a storage failure must never block OCR.
         let storageKey = '';
-        const autoDelete = process.env.RECEIPT_AUTO_DELETE !== 'false';
+        const retentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
         if (ctx.objectStore) {
           try {
             const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
             const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
             await ctx.objectStore.putReceipt(key, bytes, contentType);
             storageKey = key;
-            if (autoDelete) {
+            if (retentionDays === 0) {
               await ctx.objectStore.deleteObject(key);
               storageKey = '';
             }

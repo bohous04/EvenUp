@@ -326,7 +326,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
   const RECEIPT_PNG_BASE64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
 
-  test('uploads the receipt image and auto-deletes it after extraction (FR-5.8)', async () => {
+  test('deletes the receipt image immediately when RECEIPT_RETENTION_DAYS=0 (FR-5.8)', async () => {
     const puts: { key: string; bytes: Uint8Array }[] = [];
     const deletes: string[] = [];
     const store = {
@@ -345,8 +345,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
-    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
-    process.env.RECEIPT_AUTO_DELETE = 'true';
+    const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
+    process.env.RECEIPT_RETENTION_DAYS = '0';
     try {
       const res = await caller.ocr.scan({
         groupId: group.id,
@@ -360,16 +360,16 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       expect(Buffer.from(puts[0]!.bytes).equals(Buffer.from(RECEIPT_PNG_BASE64, 'base64'))).toBe(
         true,
       );
-      expect(deletes).toEqual([puts[0]!.key]); // auto-deleted
+      expect(deletes).toEqual([puts[0]!.key]); // deleted immediately (retention=0)
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toBe(''); // cleared after auto-delete
+      expect(receipt.storageKey).toBe(''); // cleared after immediate delete
     } finally {
-      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
-      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
+      if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
+      else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
     }
   });
 
-  test('retains the receipt image when auto-delete is off (FR-5.8)', async () => {
+  test('retains the receipt image when RECEIPT_RETENTION_DAYS>0 (FR-5.8)', async () => {
     const puts: { key: string; bytes: Uint8Array }[] = [];
     const deletes: string[] = [];
     const store = {
@@ -388,8 +388,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R2', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
-    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
-    process.env.RECEIPT_AUTO_DELETE = 'false';
+    const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
+    process.env.RECEIPT_RETENTION_DAYS = '30';
     try {
       const res = await caller.ocr.scan({
         groupId: group.id,
@@ -404,10 +404,11 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       );
       expect(deletes).toEqual([]); // retained
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKey).toMatch(/^receipts\//);
       expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
     } finally {
-      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
-      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
+      if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
+      else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
     }
   });
 
@@ -426,23 +427,16 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R3', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
 
-    const prevAutoDelete = process.env.RECEIPT_AUTO_DELETE;
-    process.env.RECEIPT_AUTO_DELETE = 'true';
-    try {
-      const res = await caller.ocr.scan({
-        groupId: group.id,
-        imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
-      });
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+    });
 
-      expect(res.result).toBeDefined();
-      expect(res.receiptId).toBeDefined();
-      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toBe('');
-      expect(receipt.status).toBe('COMPLETED');
-    } finally {
-      if (prevAutoDelete === undefined) delete process.env.RECEIPT_AUTO_DELETE;
-      else process.env.RECEIPT_AUTO_DELETE = prevAutoDelete;
-    }
+    expect(res.result).toBeDefined();
+    expect(res.receiptId).toBeDefined();
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKey).toBe('');
+    expect(receipt.status).toBe('COMPLETED');
   });
 
   it('rate-limits OCR scans per user (§9.2)', async () => {
