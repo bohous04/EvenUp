@@ -23,21 +23,21 @@
 
 ## File Structure
 
-| File | Responsibility |
-| --- | --- |
-| `apps/web/vitest.config.ts` *(new)* | vitest project for `apps/web` (first unit tests in this workspace) |
-| `apps/web/src/test/server-only.stub.ts` *(new)* | Neutralizes `import 'server-only'` under vitest |
-| `apps/web/src/server/apple-secret.ts` *(new)* | Mint + cache + refresh the Apple `client_secret` JWT |
-| `apps/web/src/server/apple-profile.ts` *(new)* | Map an Apple profile to a never-empty display name |
-| `apps/web/src/server/env.ts` | Add the optional `apple` config block |
-| `apps/web/src/server/auth.ts` | Wire the provider, `trustedOrigins`, `accountLinking` |
-| `apps/web/src/components/icons.tsx` | `AppleLogo` SVG icon component |
-| `apps/web/src/components/sign-in.tsx` | Apple button, gated on `NEXT_PUBLIC_APPLE_ENABLED` |
-| `packages/i18n/src/locales/{cs,en}.ts` | `auth.continueApple` |
-| `infra/docker/Dockerfile`, `docker-compose.yml` | Plumb `NEXT_PUBLIC_*` build args (see Task 6 note) |
-| `.env.example`, `docs/SELF_HOSTING.md` | Operator-facing config + portal walkthrough |
-| `apps/mobile/src/lib/apple-sign-in.ts` *(new)* | Nonce + native credential → `signIn.social` + name backfill |
-| `apps/mobile/app/sign-in.tsx` | Render the native Apple button on iOS |
+| File                                            | Responsibility                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| `apps/web/vitest.config.ts` _(new)_             | vitest project for `apps/web` (first unit tests in this workspace) |
+| `apps/web/src/test/server-only.stub.ts` _(new)_ | Neutralizes `import 'server-only'` under vitest                    |
+| `apps/web/src/server/apple-secret.ts` _(new)_   | Mint + cache + refresh the Apple `client_secret` JWT               |
+| `apps/web/src/server/apple-profile.ts` _(new)_  | Map an Apple profile to a never-empty display name                 |
+| `apps/web/src/server/env.ts`                    | Add the optional `apple` config block                              |
+| `apps/web/src/server/auth.ts`                   | Wire the provider, `trustedOrigins`, `accountLinking`              |
+| `apps/web/src/components/icons.tsx`             | `AppleLogo` SVG icon component                                     |
+| `apps/web/src/components/sign-in.tsx`           | Apple button, gated on `NEXT_PUBLIC_APPLE_ENABLED`                 |
+| `packages/i18n/src/locales/{cs,en}.ts`          | `auth.continueApple`                                               |
+| `infra/docker/Dockerfile`, `docker-compose.yml` | Plumb `NEXT_PUBLIC_*` build args (see Task 6 note)                 |
+| `.env.example`, `docs/SELF_HOSTING.md`          | Operator-facing config + portal walkthrough                        |
+| `apps/mobile/src/lib/apple-sign-in.ts` _(new)_  | Nonce + native credential → `signIn.social` + name backfill        |
+| `apps/mobile/app/sign-in.tsx`                   | Render the native Apple button on iOS                              |
 
 Two files rather than one on the server side: `apple-secret.ts` is crypto with a cache and a clock; `apple-profile.ts` is a pure string function. They change for different reasons and test differently.
 
@@ -46,6 +46,7 @@ Two files rather than one on the server side: `apple-secret.ts` is crypto with a
 ## Task 1: Apple client-secret minter (+ vitest for `apps/web`)
 
 **Files:**
+
 - Create: `apps/web/vitest.config.ts`
 - Create: `apps/web/src/test/server-only.stub.ts`
 - Create: `apps/web/src/server/apple-secret.ts`
@@ -53,6 +54,7 @@ Two files rather than one on the server side: `apple-secret.ts` is crypto with a
 - Modify: `apps/web/package.json` (scripts + `jose` dep + vitest devDeps)
 
 **Interfaces:**
+
 - Consumes: nothing (first task).
 - Produces:
   - `APPLE_MAX_SECRET_LIFETIME_SEC: number` (= `15_777_000`)
@@ -160,7 +162,7 @@ describe('mintAppleClientSecret', () => {
     expect(claims.sub).toBe('company.lnrt.evenup.web');
   });
 
-  it('never exceeds Apple\'s maximum secret lifetime', async () => {
+  it("never exceeds Apple's maximum secret lifetime", async () => {
     const cfg = await makeConfig();
     const claims = decodeJwt(await mintAppleClientSecret(cfg, 1_800_000_000));
     expect(claims.iat).toBe(1_800_000_000);
@@ -340,10 +342,12 @@ git commit -m "feat(web): runtime-minted Apple client secret + vitest for apps/w
 ## Task 2: Never-empty Apple display name
 
 **Files:**
+
 - Create: `apps/web/src/server/apple-profile.ts`
 - Test: `apps/web/src/server/apple-profile.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `appleDisplayName(profile: { name?: string | null; email?: string | null }): string`
 
@@ -359,7 +363,9 @@ import { appleDisplayName } from './apple-profile.js';
 
 describe('appleDisplayName', () => {
   it('prefers the name Apple supplied', () => {
-    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe('Alice Smith');
+    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe(
+      'Alice Smith',
+    );
   });
 
   it('trims surrounding whitespace', () => {
@@ -379,7 +385,9 @@ describe('appleDisplayName', () => {
   });
 
   it('uses the relay local-part for a hidden-email user', () => {
-    expect(appleDisplayName({ name: '', email: 'x7k2m9p4qz@privaterelay.appleid.com' })).toBe('x7k2m9p4qz');
+    expect(appleDisplayName({ name: '', email: 'x7k2m9p4qz@privaterelay.appleid.com' })).toBe(
+      'x7k2m9p4qz',
+    );
   });
 
   it('never returns an empty string when both name and email are missing', () => {
@@ -447,10 +455,12 @@ git commit -m "feat(web): never store an empty display name for Apple sign-ups"
 ## Task 3: Wire the provider into Better Auth
 
 **Files:**
+
 - Modify: `apps/web/src/server/env.ts:46-49` (after the `google` block)
 - Modify: `apps/web/src/server/auth.ts` (whole file)
 
 **Interfaces:**
+
 - Consumes: `initAppleClientSecret`, `appleClientSecret`, `AppleSecretConfig` (Task 1); `appleDisplayName` (Task 2).
 - Produces: `auth` (unchanged export), now with an `apple` provider when configured.
 
@@ -503,9 +513,7 @@ const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
 // Build the config in one narrowing step, so `servicesId` et al. are `string`
 // below without non-null assertions.
 let appleSecret =
-  servicesId && teamId && keyId && privateKey
-    ? { servicesId, teamId, keyId, privateKey }
-    : null;
+  servicesId && teamId && keyId && privateKey ? { servicesId, teamId, keyId, privateKey } : null;
 
 // Mint the first client secret before the provider is constructed.
 //
@@ -622,7 +630,7 @@ pnpm --filter @evenup/web test:e2e
 
 Expected: PASS — 28 tests (7 specs × 4 browser projects), unchanged (Apple button is not rendered; `NEXT_PUBLIC_APPLE_ENABLED` is unset).
 
-Note (corrected 2026-07-08): `accountLinking.enabled` **already defaults to `true`** in better-auth 1.6.20 — `oauth2/link-account.mjs:22` blocks only on an explicit `=== false`. So `account: { accountLinking: { enabled: true } }` is a **no-op** that documents intent; it changes nothing for existing Google or magic-link users. The property that actually gates linking is `requireLocalEmailVerified ?? true`, which additionally requires the *existing local row* to be `emailVerified: true`. Magic-link users always are. Run the E2E suite anyway.
+Note (corrected 2026-07-08): `accountLinking.enabled` **already defaults to `true`** in better-auth 1.6.20 — `oauth2/link-account.mjs:22` blocks only on an explicit `=== false`. So `account: { accountLinking: { enabled: true } }` is a **no-op** that documents intent; it changes nothing for existing Google or magic-link users. The property that actually gates linking is `requireLocalEmailVerified ?? true`, which additionally requires the _existing local row_ to be `emailVerified: true`. Magic-link users always are. Run the E2E suite anyway.
 
 - [ ] **Step 5: Commit**
 
@@ -642,12 +650,14 @@ git commit -m "feat(web): Apple social provider + verified-email account linking
 ## Task 4: Web sign-in button + CZ/EN strings
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts:25` (after `auth.continueGoogle`)
 - Modify: `packages/i18n/src/locales/en.ts:25` (after `auth.continueGoogle`)
 - Modify: `apps/web/src/components/icons.tsx` (add `AppleLogo`)
 - Modify: `apps/web/src/components/sign-in.tsx:8-10, 71-88`
 
 **Interfaces:**
+
 - Consumes: nothing from earlier tasks (the button calls `signIn.social`, which already exists).
 - Produces: `AppleLogo({ size }: { size?: number }): JSX.Element` from `@/components/icons`; i18n key `auth.continueApple`.
 
@@ -720,41 +730,43 @@ const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 Replace the whole `{googleEnabled ? ( ... ) : null}` block (lines 71-88) with:
 
 ```tsx
-            {googleEnabled || appleEnabled ? (
-              <>
-                <div className="flex items-center gap-3 text-xs text-neutral-400">
-                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
-                  {t('common.or')}
-                  <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
-                </div>
-                {googleEnabled ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
-                    data-testid="google-signin"
-                  >
-                    {t('auth.continueGoogle')}
-                  </Button>
-                ) : null}
-                {appleEnabled ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="flex w-full items-center justify-center gap-2"
-                    onClick={() => signIn.social({ provider: 'apple', callbackURL: '/' })}
-                    data-testid="apple-signin"
-                  >
-                    <AppleLogo size={16} />
-                    {t('auth.continueApple')}
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
+{
+  googleEnabled || appleEnabled ? (
+    <>
+      <div className="flex items-center gap-3 text-xs text-neutral-400">
+        <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        {t('common.or')}
+        <span className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+      </div>
+      {googleEnabled ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
+          data-testid="google-signin"
+        >
+          {t('auth.continueGoogle')}
+        </Button>
+      ) : null}
+      {appleEnabled ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex w-full items-center justify-center gap-2"
+          onClick={() => signIn.social({ provider: 'apple', callbackURL: '/' })}
+          data-testid="apple-signin"
+        >
+          <AppleLogo size={16} />
+          {t('auth.continueApple')}
+        </Button>
+      ) : null}
+    </>
+  ) : null;
+}
 ```
 
-The divider now renders when *either* provider is enabled, instead of being welded to Google.
+The divider now renders when _either_ provider is enabled, instead of being welded to Google.
 
 - [ ] **Step 6: Verify**
 
@@ -778,12 +790,14 @@ git commit -m "feat(web): Continue with Apple button + CZ/EN strings"
 ## Task 5: Operator config — env, Docker, docs
 
 **Files:**
+
 - Modify: `.env.example:18-22` (**replace** the existing `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` stubs)
 - Modify: `infra/docker/Dockerfile:25-32` (build stage)
 - Modify: `docker-compose.yml:38-59` (build args + environment)
 - Modify: `docs/SELF_HOSTING.md:40`
 
 **Interfaces:**
+
 - Consumes: the env names from Task 3 (`APPLE_SERVICES_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_BUNDLE_ID`) and `NEXT_PUBLIC_APPLE_ENABLED` from Task 4.
 - Produces: nothing consumed by later tasks.
 
@@ -793,7 +807,7 @@ git commit -m "feat(web): Continue with Apple button + CZ/EN strings"
 2. `NEXT_PUBLIC_*` is inlined by `next build`, not read at runtime — but `docker-compose.yml` passes no `build.args` and does not even list `NEXT_PUBLIC_GOOGLE_ENABLED` under `environment:`, and `infra/docker/Dockerfile` declares no `ARG`. **So a self-hoster following `docker compose build` never gets a Google button**, and Apple would inherit that exactly.
 
 > **Verified 2026-07-08, do not "fix" what isn't broken:** Coolify production
-> *does* render the Google button. Its `NEXT_PUBLIC_GOOGLE_ENABLED` is marked
+> _does_ render the Google button. Its `NEXT_PUBLIC_GOOGLE_ENABLED` is marked
 > `is_buildtime: true`, and Coolify injects build-time vars into Dockerfile
 > builds on its own (the prod bundle has the ternary folded away and the button
 > rendered unconditionally — checked against
@@ -851,22 +865,22 @@ RUN pnpm --filter @evenup/web build
 Replace the `build:` block (lines 39-41) with:
 
 ```yaml
-    build:
-      context: .
-      dockerfile: infra/docker/Dockerfile
-      args:
-        NEXT_PUBLIC_GOOGLE_ENABLED: ${NEXT_PUBLIC_GOOGLE_ENABLED:-}
-        NEXT_PUBLIC_APPLE_ENABLED: ${NEXT_PUBLIC_APPLE_ENABLED:-}
+build:
+  context: .
+  dockerfile: infra/docker/Dockerfile
+  args:
+    NEXT_PUBLIC_GOOGLE_ENABLED: ${NEXT_PUBLIC_GOOGLE_ENABLED:-}
+    NEXT_PUBLIC_APPLE_ENABLED: ${NEXT_PUBLIC_APPLE_ENABLED:-}
 ```
 
 And after the two `GOOGLE_CLIENT_*` lines in `environment:` (lines 56-57), add:
 
 ```yaml
-      APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
-      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
-      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
-      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
-      APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-company.lnrt.evenup}
+APPLE_SERVICES_ID: ${APPLE_SERVICES_ID:-}
+APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-company.lnrt.evenup}
 ```
 
 - [ ] **Step 4: Document the portal setup**
@@ -901,7 +915,7 @@ In `docs/SELF_HOSTING.md`, replace the single `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_
   > **Private-relay email.** Users who pick "Hide My Email" get an
   > `@privaterelay.appleid.com` address. Magic links and group invites sent to it
   > **bounce** unless you register your sending domain under Apple's
-  > *Certificates, Identifiers & Profiles → More → Configure Email Sources*.
+  > _Certificates, Identifiers & Profiles → More → Configure Email Sources_.
 ```
 
 - [ ] **Step 5: Verify the compose file parses and the image builds**
@@ -930,12 +944,14 @@ unaffected.) Declare the ARGs so self-hosted builds match."
 ## Task 6: Native Apple sign-in on iOS
 
 **Files:**
+
 - Modify: `apps/mobile/package.json` (deps)
 - Modify: `apps/mobile/app.config.ts:34-43` (plugins)
 - Create: `apps/mobile/src/lib/apple-sign-in.ts`
 - Modify: `apps/mobile/app/sign-in.tsx`
 
 **Interfaces:**
+
 - Consumes: the `apple` provider from Task 3 (server-side `appBundleIdentifier` validates the id_token audience).
 - Produces: `signInWithApple(): Promise<{ ok: boolean; canceled: boolean }>` from `@/lib/apple-sign-in`.
 
@@ -1040,24 +1056,24 @@ import { signInWithApple } from '@/lib/apple-sign-in';
 Add state and a handler inside `SignInScreen`, after the existing `submit` function:
 
 ```tsx
-  const [appleAvailable, setAppleAvailable] = useState(false);
-  const [appleError, setAppleError] = useState<string | null>(null);
+const [appleAvailable, setAppleAvailable] = useState(false);
+const [appleError, setAppleError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
-  }, []);
+useEffect(() => {
+  if (Platform.OS !== 'ios') return;
+  void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+}, []);
 
-  async function onApple() {
-    setAppleError(null);
-    try {
-      const { ok, canceled } = await signInWithApple();
-      if (ok) router.replace('/');
-      else if (!canceled) setAppleError(t('error.generic'));
-    } catch {
-      setAppleError(t('error.generic'));
-    }
+async function onApple() {
+  setAppleError(null);
+  try {
+    const { ok, canceled } = await signInWithApple();
+    if (ok) router.replace('/');
+    else if (!canceled) setAppleError(t('error.generic'));
+  } catch {
+    setAppleError(t('error.generic'));
   }
+}
 ```
 
 Add `useEffect` to the React import on line 1:
@@ -1069,16 +1085,20 @@ import { useEffect, useState } from 'react';
 Then render the button inside the `<>...</>` branch, directly after the email `<Pressable>`:
 
 ```tsx
-          {appleAvailable ? (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={theme.radius}
-              style={styles.appleButton}
-              onPress={onApple}
-            />
-          ) : null}
-          {appleError ? <Text style={styles.error}>{appleError}</Text> : null}
+{
+  appleAvailable ? (
+    <AppleAuthentication.AppleAuthenticationButton
+      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+      cornerRadius={theme.radius}
+      style={styles.appleButton}
+      onPress={onApple}
+    />
+  ) : null;
+}
+{
+  appleError ? <Text style={styles.error}>{appleError}</Text> : null;
+}
 ```
 
 And add the two styles to the `StyleSheet.create({...})` block:
@@ -1150,7 +1170,7 @@ test list left entirely unexercised.)
 · Playwright 28/28 ✓. (An earlier draft framed this as "with `accountLinking` newly
 enabled — no regression." That framing was wrong: `enabled` already defaulted to
 `true`, so nothing about linking changed. The suite passing confirms no regression
-from the *other* changes, which is still worth having.)
+from the _other_ changes, which is still worth having.)
 
 Without `DATABASE_URL`, the `api` suite reports `Environment variable not found:
 DATABASE_URL` and skips 31 tests. That is a missing env var, not a regression.
@@ -1165,7 +1185,7 @@ grep -rn "NEXT_PUBLIC_APPLE_ENABLED" apps/web/src infra/docker/Dockerfile docker
 
 Expected: three hits — the component, the Dockerfile `ARG`/`ENV`, and the compose build arg. Missing the Dockerfile hit means `docker compose build` produces a bundle where the button never renders.
 
-> **Do not test this gate by grepping the bundle for `apple-signin`** (verified 2026-07-08). When `NEXT_PUBLIC_APPLE_ENABLED` is *unset*, Next does not inline it and cannot fold the branch — the chunk keeps a runtime lookup, `"true"===d.env.NEXT_PUBLIC_APPLE_ENABLED`, and the `apple-signin` string stays in the bundle even though the button never renders. Only when the var **is** defined at build does the ternary get folded away. So the string's presence proves nothing; check the rendered DOM instead.
+> **Do not test this gate by grepping the bundle for `apple-signin`** (verified 2026-07-08). When `NEXT_PUBLIC_APPLE_ENABLED` is _unset_, Next does not inline it and cannot fold the branch — the chunk keeps a runtime lookup, `"true"===d.env.NEXT_PUBLIC_APPLE_ENABLED`, and the `apple-signin` string stays in the bundle even though the button never renders. Only when the var **is** defined at build does the ternary get folded away. So the string's presence proves nothing; check the rendered DOM instead.
 
 Separately, when deploying to Coolify, add `NEXT_PUBLIC_APPLE_ENABLED=true` with **`is_buildtime: true`** — Coolify inlines it at build the same way it already does for `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
@@ -1192,7 +1212,7 @@ Automated tests cover the minter (12 tests, incl. the refresh-on-read path) and 
 - [ ] iOS device: the native sheet appears and sign-in succeeds
 - [ ] iOS device: a **first-ever** Apple sign-in stores the user's real name (not `EvenUp user`) — this is the one shot at it
 - [ ] iOS device: a **second** sign-in still lands in the same account
-- [ ] Send a group invite to a `@privaterelay.appleid.com` address and confirm it is **delivered, not bounced** — otherwise register the Resend sending domain under Apple's *Email Sources*
+- [ ] Send a group invite to a `@privaterelay.appleid.com` address and confirm it is **delivered, not bounced** — otherwise register the Resend sending domain under Apple's _Email Sources_
 - [ ] Cancel the native sheet mid-flow: no error is shown
 
 - [ ] **Step 5: Final commit (if any fixes were needed)**
@@ -1208,7 +1228,8 @@ git commit -m "chore: verification fixes for Apple sign-in"
 
 1. **Task 5 also plumbs `NEXT_PUBLIC_*` build args through the Dockerfile and compose.** The spec (§9) said only "add the env vars". The Dockerfile declares no `ARG NEXT_PUBLIC_*` and compose passes no `build.args`, so `docker compose build` produces a bundle with the social buttons dead-code-eliminated. Two lines per flag, squarely in the blast radius of this change.
 
-   *An earlier draft of this plan claimed Coolify production was broken too. That was checked and is false* — Coolify injects `is_buildtime` vars into Dockerfile builds itself, and the deployed bundle renders the Google button. The fix is for self-hosters, not for prod.
+   _An earlier draft of this plan claimed Coolify production was broken too. That was checked and is false_ — Coolify injects `is_buildtime` vars into Dockerfile builds itself, and the deployed bundle renders the Google button. The fix is for self-hosters, not for prod.
+
 2. **`nonEmptyName` from spec §5(a) is named `appleDisplayName`** and lives in its own `apple-profile.ts` rather than inside `auth.ts`, so it can be unit-tested. Same behavior.
 3. **`.env.example` gains `NEXT_PUBLIC_GOOGLE_ENABLED`** alongside the Apple flag, since Task 5 makes it functional for `docker compose` for the first time.
 4. **Task 7 adds a Coolify-specific note** that `APPLE_PRIVATE_KEY` must be `is_buildtime: false`. The spec's §10 risk table anticipated newline mangling but not the image-layer exposure.

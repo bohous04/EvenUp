@@ -3,6 +3,8 @@ dist
 build
 .next
 .turbo
+# Local Claude Code state (untracked worktrees, scratch); never present in CI.
+.claude
 coverage
 pnpm-lock.yaml
 playwright-report

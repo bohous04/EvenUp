@@ -3,7 +3,9 @@ import { appleDisplayName } from './apple-profile.js';
 
 describe('appleDisplayName', () => {
   it('prefers the name Apple supplied', () => {
-    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe('Alice Smith');
+    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe(
+      'Alice Smith',
+    );
   });
 
   it('trims surrounding whitespace', () => {
@@ -23,7 +25,9 @@ describe('appleDisplayName', () => {
   });
 
   it('uses the relay local-part for a hidden-email user', () => {
-    expect(appleDisplayName({ name: '', email: 'x7k2m9p4qz@privaterelay.appleid.com' })).toBe('x7k2m9p4qz');
+    expect(appleDisplayName({ name: '', email: 'x7k2m9p4qz@privaterelay.appleid.com' })).toBe(
+      'x7k2m9p4qz',
+    );
   });
 
   it('never returns an empty string when both name and email are missing', () => {
@@ -43,7 +47,9 @@ describe('appleDisplayName', () => {
   });
 
   it('leaves a normal-length name untouched', () => {
-    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe('Alice Smith');
+    expect(appleDisplayName({ name: 'Alice Smith', email: 'alice@example.com' })).toBe(
+      'Alice Smith',
+    );
   });
 
   it('caps the email local-part too, not just the name', () => {

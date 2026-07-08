@@ -79,7 +79,8 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
   > **Private-relay email.** Users who pick "Hide My Email" get an
   > `@privaterelay.appleid.com` address. Magic links and group invites sent to it
   > **bounce** unless you register your sending domain under Apple's
-  > *Certificates, Identifiers & Profiles → More → Configure Email Sources*.
+  > _Certificates, Identifiers & Profiles → More → Configure Email Sources_.
+
 - **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model. OCR API keys are
   **per-user (BYO)**, not a global secret.
 - **`STORAGE_*`** — S3/MinIO endpoint and credentials for receipt images.

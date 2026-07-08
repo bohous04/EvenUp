@@ -177,10 +177,14 @@ Three details, each verified against installed source:
 > reads:
 >
 > ```js
-> if (!isTrustedProvider && !userInfo.emailVerified
->     || requireLocalEmailVerified && !dbUser.user.emailVerified
->     || accountLinking?.enabled === false            // ← only an explicit false blocks
->     || accountLinking?.disableImplicitLinking === true) { /* "account not linked" */ }
+> if (
+>   (!isTrustedProvider && !userInfo.emailVerified) ||
+>   (requireLocalEmailVerified && !dbUser.user.emailVerified) ||
+>   accountLinking?.enabled === false || // ← only an explicit false blocks
+>   accountLinking?.disableImplicitLinking === true
+> ) {
+>   /* "account not linked" */
+> }
 > ```
 >
 > `enabled` blocks only when explicitly `false`, so it **defaults to true**. There
@@ -194,7 +198,7 @@ mentioned — is `requireLocalEmailVerified`, defaulting to `true`. Implicit lin
 requires **both**:
 
 1. the identity provider asserts `email_verified` (Apple and Google both do), **and**
-2. the *existing local user row* already has `emailVerified: true`.
+2. the _existing local user row_ already has `emailVerified: true`.
 
 Clause 2 is what closes the classic takeover: an attacker pre-registers an
 unverified account at the victim's email, then waits for the victim to sign in with
@@ -229,7 +233,7 @@ if (token.user?.name) {
 ```
 
 Apple's **id_token carries no `name` claim**. The name arrives only in the
-form_post `user` parameter, and only on the user's _first_ consent ever.
+form*post `user` parameter, and only on the user's \_first* consent ever.
 
 | Path                 | `token.user`             | Resulting name              |
 | -------------------- | ------------------------ | --------------------------- |
@@ -314,13 +318,13 @@ Add `APPLE_SERVICES_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`,
 
 ## 10. Risks
 
-| Risk                                                   | Mitigation                                                                                                                                                                                                                                                                                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `.p8` newlines mangled by Coolify's env handling       | `\n`-unescape, then validate `importPKCS8` **at startup**. **Fail soft, not fast** (corrected 2026-07-08 after exercising it): `auth.ts` has a top-level `await`, so it is an async module — letting the mint throw makes every importer fail to evaluate, and **all of `/api/auth/*` returns 500**, killing magic-link and Google sign-in too, with only `InvalidCharacterError: Invalid character` in the log. Apple is an *optional* provider and must never break required auth. So: catch, `console.error` naming `APPLE_PRIVATE_KEY`, and don't register the provider. Apple then returns `404 PROVIDER_NOT_FOUND`; everything else keeps working. Verified end-to-end against a production build. |
-| Apple client secret silently expires                   | Runtime derivation + per-request getter (§3); the whole point of decision #2                                                                                                                                                                                                                     |
-| **Private-relay email bounces**                        | EvenUp sends magic links and group invites via Resend. Mail to `@privaterelay.appleid.com` **bounces** unless the Resend sending domain is registered under Apple's _Email Sources_. Silently breaks invites for exactly the users who chose "Hide My Email". Register the domain as part of §2. |
-| `better-auth` floats `^1.2.9` → 1.6.20                 | Out of scope to fix here, but the range is misleading. Worth pinning in a follow-up; this spec targets 1.6.20 explicitly                                                                                                                                                                         |
-| Hidden-email users get `EvenUp user` as a display name | Accepted. §5(b) backfills the real name whenever Apple supplies it; users can rename in profile settings                                                                                                                                                                                         |
+| Risk                                                   | Mitigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.p8` newlines mangled by Coolify's env handling       | `\n`-unescape, then validate `importPKCS8` **at startup**. **Fail soft, not fast** (corrected 2026-07-08 after exercising it): `auth.ts` has a top-level `await`, so it is an async module — letting the mint throw makes every importer fail to evaluate, and **all of `/api/auth/*` returns 500**, killing magic-link and Google sign-in too, with only `InvalidCharacterError: Invalid character` in the log. Apple is an _optional_ provider and must never break required auth. So: catch, `console.error` naming `APPLE_PRIVATE_KEY`, and don't register the provider. Apple then returns `404 PROVIDER_NOT_FOUND`; everything else keeps working. Verified end-to-end against a production build. |
+| Apple client secret silently expires                   | Runtime derivation + per-request getter (§3); the whole point of decision #2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Private-relay email bounces**                        | EvenUp sends magic links and group invites via Resend. Mail to `@privaterelay.appleid.com` **bounces** unless the Resend sending domain is registered under Apple's _Email Sources_. Silently breaks invites for exactly the users who chose "Hide My Email". Register the domain as part of §2.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `better-auth` floats `^1.2.9` → 1.6.20                 | Out of scope to fix here, but the range is misleading. Worth pinning in a follow-up; this spec targets 1.6.20 explicitly                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Hidden-email users get `EvenUp user` as a display name | Accepted. §5(b) backfills the real name whenever Apple supplies it; users can rename in profile settings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ## 11. Definition of done
 
