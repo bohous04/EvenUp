@@ -50,7 +50,14 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
      `APPLE_KEY_ID`; the downloaded `AuthKey_*.p8` becomes `APPLE_PRIVATE_KEY`
      (literal `\n` for newlines is fine). **The `.p8` downloads exactly once.**
   4. `APPLE_TEAM_ID` is on the membership page. `APPLE_BUNDLE_ID` defaults to
-     `company.lnrt.evenup`.
+     `company.lnrt.evenup` — **that is this reference app's own bundle
+     identifier, not a placeholder.** If you fork EvenUp and ship your own iOS
+     app under a different bundle id, you **must** set `APPLE_BUNDLE_ID` to
+     match it. Leave the default in place while shipping a different bundle id
+     and native Sign In with Apple fails silently: the id_token's audience
+     won't match your app, but web sign-in keeps working unaffected, because
+     it validates against the separate `APPLE_SERVICES_ID` instead — so the
+     mismatch is easy to miss until someone tries the native app.
   5. Set **`NEXT_PUBLIC_APPLE_ENABLED=true`** (build time) to render the button.
 
   EvenUp derives Apple's `client_secret` (an ES256 JWT, max ~182 days) from the
@@ -60,6 +67,14 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
   > `NEXT_PUBLIC_*` flags are needed at build time. Docker build args are visible
   > in the image's layer history, so passing the `.p8` as one bakes a private key
   > into every copy of your image.
+
+  > **A bad `APPLE_PRIVATE_KEY` disables Apple sign-in, not the app.** If the
+  > key can't be parsed as a PKCS8 ES256 key, EvenUp logs a line naming
+  > `APPLE_PRIVATE_KEY` and simply does not register the Apple provider — the
+  > app boots normally, and magic-link and Google sign-in are unaffected. The
+  > symptom is the Apple button doing nothing, with requests to Apple sign-in
+  > returning `404 PROVIDER_NOT_FOUND`. If that happens, check the server log
+  > for the line naming `APPLE_PRIVATE_KEY`.
 
   > **Private-relay email.** Users who pick "Hide My Email" get an
   > `@privaterelay.appleid.com` address. Magic links and group invites sent to it
