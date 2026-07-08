@@ -35,6 +35,9 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_GOOGLE_ENABLED=${{ vars.NEXT_PUBLIC_GOOGLE_ENABLED }}
+            NEXT_PUBLIC_APPLE_ENABLED=${{ vars.NEXT_PUBLIC_APPLE_ENABLED }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
