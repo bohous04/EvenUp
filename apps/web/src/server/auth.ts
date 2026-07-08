@@ -1,15 +1,14 @@
-/** Better Auth server instance (PRD §8.2): email magic link + optional Google / Apple. */
+/** Better Auth server instance (PRD §8.2): email + password, optional Google / Apple. */
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { magicLink, bearer } from 'better-auth/plugins';
+import { bearer } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { expo } from '@better-auth/expo';
 import { prisma } from '@evenup/db';
 import { env } from './env.js';
-import { rememberMagicLink } from './magic-link-store.js';
-import { sendEmail, magicLinkEmail } from './email.js';
+import { sendEmail, resetPasswordEmail, verifyEmail } from './email.js';
 import { initAppleClientSecret } from './apple-secret.js';
 import { buildSocialProviders } from './social-providers.js';
 
@@ -49,7 +48,7 @@ let appleSecret =
 
 // Mint the first client secret before the provider is constructed. Apple is
 // an optional provider: if the key doesn't parse, we must not take down
-// magic-link/Google sign-in with it (this file has a top-level `await`, so an
+// email+password/Google sign-in with it (this file has a top-level `await`, so an
 // unhandled rejection here would fail evaluation of every importer of
 // `auth.ts`, i.e. every `/api/auth/*` route). So we fail *soft* — log loudly
 // and disable Apple by clearing `appleSecret`, leaving everything else up.
@@ -74,7 +73,21 @@ export const auth = betterAuth({
   baseURL: env.authUrl,
   secret: env.authSecret,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
-  emailAndPassword: { enabled: false },
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: !env.authDevEcho,
+    minPasswordLength: 8,
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail(resetPasswordEmail(user.email, url));
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail(verifyEmail(user.email, url));
+    },
+  },
   // Rate limiting protects auth in production (§9.2); disabled in dev/E2E so the
   // test suite's rapid repeated sign-ins aren't throttled.
   rateLimit: { enabled: !env.authDevEcho },
@@ -110,15 +123,9 @@ export const auth = betterAuth({
   },
   plugins: [
     // Native deep-link session handoff for the Expo app: appends the session
-    // cookie to the evenup:// redirect after magic-link verify so the client
-    // can store it (without this, the app bounces back to sign-in). FR-1.5.
+    // cookie to the evenup:// redirect after a native OAuth callback so the
+    // client can store it (without this, the app bounces back to sign-in). FR-1.5.
     expo(),
-    magicLink({
-      sendMagicLink: async ({ email, url }) => {
-        if (env.authDevEcho) rememberMagicLink(email, url); // local/E2E sign-in
-        await sendEmail(magicLinkEmail(email, url));
-      },
-    }),
     bearer(), // token auth for the mobile app (Expo client stores it in secure storage)
     nextCookies(), // must be last
   ],

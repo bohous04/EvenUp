@@ -1,16 +1,19 @@
 import { type Page, expect } from '@playwright/test';
 
-/** Sign in via the dev magic-link echo endpoint (AUTH_DEV_ECHO=true). */
-export async function signIn(page: Page, email: string): Promise<void> {
-  await page.goto('/');
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: /sign in with email/i }).click();
-  await expect(page.getByTestId('magic-sent')).toBeVisible();
+const TEST_PASSWORD = 'test-password-123';
 
-  const res = await page.request.get(`/api/dev/magic-link?email=${encodeURIComponent(email)}`);
-  expect(res.ok()).toBeTruthy();
-  const { url } = (await res.json()) as { url: string };
-  await page.goto(url); // verifies the token and sets the session cookie
+/** Create a verified-in-dev user and sign in through the password form. */
+export async function signIn(page: Page, email: string): Promise<void> {
+  // Create the account (idempotent-ish per unique email); auto-signs-in in dev.
+  await page.request.post('/api/auth/sign-up/email', {
+    data: { name: email.split('@')[0], email, password: TEST_PASSWORD },
+  });
+  // Exercise the login form itself (drops the sign-up session first).
+  await page.context().clearCookies();
+  await page.goto('/');
+  await page.getByLabel(/email/i).fill(email);
+  await page.getByTestId('password-input').fill(TEST_PASSWORD);
+  await page.getByTestId('signin-submit').click();
   await expect(page.getByTestId('new-group-btn')).toBeVisible();
 }
 

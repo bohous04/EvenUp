@@ -27,7 +27,7 @@
 
 - Dev Postgres: container `evenup-dev-db` on port 55432. Export before any api/E2E run: `export DATABASE_URL='postgresql://evenup:pass@localhost:55432/evenup'`. If missing, recreate: `docker run -d --name evenup-dev-db -e POSTGRES_USER=evenup -e POSTGRES_PASSWORD=pass -e POSTGRES_DB=evenup -p 55432:5432 postgres:16-alpine` then `DATABASE_URL=… pnpm --filter @evenup/db exec prisma migrate deploy`.
 - E2E `webServer` needs a production build: `export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0' BETTER_AUTH_SECRET='test-secret-for-build-verification-only-000' AUTH_DEV_ECHO=true` then `pnpm --filter @evenup/web build` before `pnpm --filter @evenup/web test:e2e`.
-- Baseline before this plan: typecheck 6/6, lint (2 pre-existing `apps/mobile` `no-console` warnings), unit 310, Playwright 28/28.
+- Baseline before this plan: typecheck 6/6, lint (2 pre-existing `apps/mobile` `no-console` warnings), unit 323, Playwright 56/56.
 
 ## File Structure
 
@@ -71,7 +71,7 @@ The load-bearing change. Removing the `magicLink` plugin, the web sign-in UI, th
 
 **Interfaces produced (later tasks rely on these):**
 
-- Web client: `signIn.email({ email, password, callbackURL })`, `signUp.email({ name, email, password })`, `authClient.forgetPassword({ email, redirectTo })`, `authClient.resetPassword({ newPassword, token })`, `authClient.sendVerificationEmail({ email, callbackURL })` — all core, exported from `@/lib/auth-client`.
+- Web client: `signIn.email({ email, password, callbackURL })`, `signUp.email({ name, email, password })`, `authClient.requestPasswordReset({ email, redirectTo })`, `authClient.resetPassword({ newPassword, token })`, `authClient.sendVerificationEmail({ email, callbackURL })` — all core, exported from `@/lib/auth-client`.
 - i18n keys added: `auth.signInTitle`, `auth.email`, `auth.password`, `auth.signInBtn`, `auth.signUpLink`, `auth.forgotLink`, `auth.err.invalidCredentials`, `auth.err.unverified`.
 - Sign-in page testids: keep the human-facing form; the "check inbox" magic state (`data-testid="magic-sent"`) is removed.
 
@@ -225,7 +225,7 @@ export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c
 pnpm --filter @evenup/web build && pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck/lint clean; i18n parity green; Playwright **28/28** (all critical flows now sign in via password). If a test other than sign-in fails, it's a real regression — fix it, don't skip.
+Expected: typecheck/lint clean; i18n parity green; Playwright **56/56** (all critical flows now sign in via password). If a test other than sign-in fails, it's a real regression — fix it, don't skip.
 
 - [ ] **Step 9: Commit**
 
@@ -273,14 +273,14 @@ Password `<Input type="password" autoComplete="new-password" minLength={8}>`. On
 
 **Files:** Create `apps/web/src/app/forgot-password/page.tsx`, `apps/web/src/app/reset-password/page.tsx`; modify i18n.
 
-**Interfaces consumed:** `authClient.forgetPassword`, `authClient.resetPassword` (Task 1). **Produced:** routes `/forgot-password`, `/reset-password`; testids `forgot-email`, `forgot-submit`, `forgot-sent`, `reset-password-input`, `reset-submit`, `reset-done`.
+**Interfaces consumed:** `authClient.requestPasswordReset`, `authClient.resetPassword` (Task 1). **Produced:** routes `/forgot-password`, `/reset-password`; testids `forgot-email`, `forgot-submit`, `forgot-sent`, `reset-password-input`, `reset-submit`, `reset-done`.
 
 - [ ] **Step 1: i18n (both)** — `auth.forgotTitle`, `auth.forgotBtn` ("Send reset link"/"Poslat odkaz"), `auth.forgotSent` ("If that address exists, we sent a reset link."/"Pokud e-mail existuje, poslali jsme odkaz."), `auth.resetTitle`, `auth.newPassword` ("New password"/"Nové heslo"), `auth.resetBtn` ("Set new password"/"Nastavit heslo"), `auth.resetDone` ("Password changed — you can sign in."/"Heslo změněno — můžete se přihlásit."), `auth.err.resetToken` ("This reset link is invalid or expired."/"Odkaz je neplatný nebo vypršel.").
 
 - [ ] **Step 2: `/forgot-password`** — email form:
 
 ```tsx
-await authClient.forgetPassword({ email, redirectTo: '/reset-password' });
+await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' });
 setSent(true); // always show the same message (don't reveal whether the email exists)
 ```
 
@@ -309,7 +309,7 @@ If `token` is absent, show the invalid-link message.
 
 - [ ] **Step 1: i18n (both)** — `auth.verifyTitle` ("Verify your email"/"Ověřte e-mail"), `auth.verifyBody` ("We sent a link to {email}. Click it to finish."/"Poslali jsme odkaz na {email}. Klepnutím dokončíte."), `auth.resend` ("Resend"/"Poslat znovu"), `auth.resent` ("Sent."/"Odesláno.").
 
-- [ ] **Step 2: Page** — reads `email` from `useSearchParams()`, shows the body, and a Resend button:
+- [ ] **Step 2: Page** — reads `email` from `useSearchParams()`, shows the body, and a Resend button: (wrap the `useSearchParams()` consumer in a `<Suspense fallback={null}>` — Next 15 fails `next build` otherwise, same as reset-password)
 
 ```tsx
 await authClient.sendVerificationEmail({ email, callbackURL: '/' });
@@ -354,11 +354,11 @@ Add a `TextInput` with `secureTextEntry` for the password, a "Forgot password?" 
 
 **Files:** Create `apps/mobile/app/sign-up.tsx`, `apps/mobile/app/forgot-password.tsx`; modify i18n.
 
-**Interfaces consumed:** `signUp.email`, `authClient.forgetPassword`.
+**Interfaces consumed:** `signUp.email`, `authClient.requestPasswordReset`.
 
 - [ ] **Step 1: `app/sign-up.tsx`** — name + email + password RN screen (mirror `sign-in.tsx` styling) → `signUp.email({ name, email, password })` → on success show a "verify your email" message (RN `Text`), link back to sign-in. Reuse the `auth.*` i18n keys from Tasks 1-2.
 
-- [ ] **Step 2: `app/forgot-password.tsx`** — email screen → `authClient.forgetPassword({ email, redirectTo: <WEB_URL>/reset-password })` → always show `t('auth.forgotSent')`. **The reset itself completes in the browser** (the emailed link opens the web page); the app implements no reset-token screen.
+- [ ] **Step 2: `app/forgot-password.tsx`** — email screen → `authClient.requestPasswordReset({ email, redirectTo: <WEB_URL>/reset-password })` → always show `t('auth.forgotSent')`. **The reset itself completes in the browser** (the emailed link opens the web page); the app implements no reset-token screen.
 
 - [ ] **Step 3: Gates + commit** — mobile `typecheck` + `lint` (2 warnings). `git commit -m "feat(mobile): sign-up and forgot-password screens"`.
 
@@ -377,7 +377,7 @@ export ENCRYPTION_KEY='0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c
 pnpm --filter @evenup/web build && pnpm --filter @evenup/web test:e2e
 ```
 
-Expected: typecheck 6/6; lint clean apart from the 2 pre-existing mobile warnings; unit suites green; Playwright 28/28. No `magicLink` / `magic-link-store` / `consumeMagicLink` references remain: `grep -rn "magicLink\|magic-link-store\|consumeMagicLink\|signIn.magicLink" apps packages --include="*.ts" --include="*.tsx" | grep -v node_modules` → no hits.
+Expected: typecheck 6/6; lint clean apart from the 2 pre-existing mobile warnings; unit suites green; Playwright 56/56. No `magicLink` / `magic-link-store` / `consumeMagicLink` references remain: `grep -rn "magicLink\|magic-link-store\|consumeMagicLink\|signIn.magicLink" apps packages --include="*.ts" --include="*.tsx" | grep -v node_modules` → no hits.
 
 - [ ] **Step 2: Exercise the real password flow against a dev build** — with `AUTH_DEV_ECHO=true` (verification off), `pnpm --filter @evenup/web start` and curl:
   - `POST /api/auth/sign-up/email {name,email,password}` → 200, session set.

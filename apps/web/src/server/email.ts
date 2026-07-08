@@ -1,5 +1,6 @@
 /**
- * Email delivery for transactional messages (magic links). Tries, in order:
+ * Email delivery for transactional messages (password reset + email
+ * verification). Tries, in order:
  *   1. Resend (if RESEND_API_KEY) — HTTP API, no extra dependency
  *   2. SMTP via nodemailer (if SMTP_HOST) — universal, for self-hosting
  *   3. console fallback (dev) — logs the message instead of sending
@@ -65,26 +66,45 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     await sendViaSmtp(message);
     return;
   }
-  // No provider configured — log it (dev). Magic links also surface via
-  // AUTH_DEV_ECHO for local/E2E sign-in.
+  // No provider configured — log it (dev).
   // eslint-disable-next-line no-console
   console.log(
     `[email] (no provider) to=${message.to} subject="${message.subject}"\n${message.text}`,
   );
 }
 
-/** Branded bilingual (CZ/EN) magic-link email. */
-export function magicLinkEmail(to: string, url: string): EmailMessage {
-  const text = `Přihlaste se do EvenUp / Sign in to EvenUp\n\n${url}\n\nOdkaz platí omezenou dobu. Pokud jste o přihlášení nežádali, tento e-mail ignorujte.\nThis link expires shortly. If you didn't request it, you can ignore this email.`;
-  const html = `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#171717">
+/** Shared branded HTML shell for a single-button transactional email. */
+function brandedButton(url: string, intro: string, cta: string): string {
+  return `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#171717">
   <div style="max-width:480px;margin:0 auto;padding:32px 20px">
     <div style="background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:28px;text-align:center">
       <div style="font-size:20px;font-weight:800;color:#4f46e5">EvenUp</div>
-      <p style="color:#525252;margin:8px 0 24px">Přihlaste se klepnutím na tlačítko · Sign in by tapping the button</p>
-      <a href="${url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">Přihlásit se / Sign in</a>
+      <p style="color:#525252;margin:8px 0 24px">${intro}</p>
+      <a href="${url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">${cta}</a>
       <p style="color:#737373;font-size:12px;margin-top:24px;word-break:break-all">${url}</p>
     </div>
     <p style="color:#a3a3a3;font-size:12px;text-align:center;margin-top:16px">Odkaz brzy vyprší. Pokud jste o přihlášení nežádali, e-mail ignorujte.<br/>This link expires shortly. If you didn't request it, ignore this email.</p>
   </div></body></html>`;
-  return { to, subject: 'Přihlášení do EvenUp / Sign in to EvenUp', html, text };
+}
+
+/** Branded bilingual (CZ/EN) password-reset email. */
+export function resetPasswordEmail(to: string, url: string): EmailMessage {
+  const text = `Obnovení hesla EvenUp / Reset your EvenUp password\n\n${url}\n\nPokud jste o obnovení nežádali, tento e-mail ignorujte.\nIf you didn't request this, ignore this email.`;
+  const html = brandedButton(
+    url,
+    'Obnovte heslo klepnutím na tlačítko · Reset your password',
+    'Obnovit heslo / Reset password',
+  );
+  return { to, subject: 'Obnovení hesla EvenUp / Reset your EvenUp password', html, text };
+}
+
+/** Branded bilingual (CZ/EN) email-verification email. */
+export function verifyEmail(to: string, url: string): EmailMessage {
+  const text = `Ověření e-mailu EvenUp / Verify your EvenUp email\n\n${url}\n\nPokud jste si účet nezakládali, tento e-mail ignorujte.\nIf you didn't create an account, ignore this email.`;
+  const html = brandedButton(
+    url,
+    'Ověřte e-mail klepnutím na tlačítko · Verify your email',
+    'Ověřit e-mail / Verify email',
+  );
+  return { to, subject: 'Ověření e-mailu EvenUp / Verify your EvenUp email', html, text };
 }
