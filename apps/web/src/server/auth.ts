@@ -19,17 +19,30 @@ const googleProvider =
 
 const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
 // Build the config in one narrowing step, so `servicesId` et al. are `string`
-// below without non-null assertions.
-const appleSecret =
+// below without non-null assertions. `let` because a failed mint below clears
+// it back to `null`.
+let appleSecret =
   servicesId && teamId && keyId && privateKey
     ? { servicesId, teamId, keyId, privateKey }
     : null;
 
-// Mint the first client secret before the provider is constructed. An
-// unparseable `.p8` fails the boot with a clear error instead of surfacing as
-// an opaque `invalid_client` from Apple at the first sign-in.
+// Mint the first client secret before the provider is constructed. Apple is
+// an optional provider: if the key doesn't parse, we must not take down
+// magic-link/Google sign-in with it (this file has a top-level `await`, so an
+// unhandled rejection here would fail evaluation of every importer of
+// `auth.ts`, i.e. every `/api/auth/*` route). So we fail *soft* — log loudly
+// and disable Apple by clearing `appleSecret`, leaving everything else up.
 if (appleSecret) {
-  await initAppleClientSecret(appleSecret);
+  try {
+    await initAppleClientSecret(appleSecret);
+  } catch (error) {
+    console.error(
+      'APPLE_PRIVATE_KEY could not be parsed as a PKCS8 ES256 key. ' +
+        'Sign In with Apple is DISABLED; other sign-in methods are unaffected.',
+      error,
+    );
+    appleSecret = null;
+  }
 }
 
 const appleProvider = appleSecret
