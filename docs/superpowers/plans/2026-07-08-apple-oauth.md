@@ -274,7 +274,10 @@ let refreshing = false;
 /**
  * Mint the first token. Called once, with top-level `await`, before the Better
  * Auth provider is constructed — so `appleClientSecret()` is never cold.
- * Throws on an unparseable key, failing the boot rather than the first sign-in.
+ * Throws on an unparseable key. NOTE: `auth.ts` catches this and disables Apple
+ * rather than letting it propagate — see Task 3. A top-level `await` that rejects
+ * makes `auth.ts` an async module that never evaluates, taking all of `/api/auth/*`
+ * down with it (magic link and Google included).
  */
 export async function initAppleClientSecret(cfg: AppleSecretConfig): Promise<void> {
   config = cfg;
@@ -499,16 +502,29 @@ const googleProvider =
 const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
 // Build the config in one narrowing step, so `servicesId` et al. are `string`
 // below without non-null assertions.
-const appleSecret =
+let appleSecret =
   servicesId && teamId && keyId && privateKey
     ? { servicesId, teamId, keyId, privateKey }
     : null;
 
-// Mint the first client secret before the provider is constructed. An
-// unparseable `.p8` fails the boot with a clear error instead of surfacing as
-// an opaque `invalid_client` from Apple at the first sign-in.
+// Mint the first client secret before the provider is constructed.
+//
+// Fail SOFT, not fast. `auth.ts` has a top-level `await`, which makes it an async
+// module: if this rejects, every importer fails to evaluate and ALL of
+// `/api/auth/*` returns 500 — magic link and Google included — logging only
+// `InvalidCharacterError: Invalid character`. Apple is optional; a typo in its key
+// must not break the auth everyone else uses. Verified against a production build.
 if (appleSecret) {
-  await initAppleClientSecret(appleSecret);
+  try {
+    await initAppleClientSecret(appleSecret);
+  } catch (error) {
+    console.error(
+      'APPLE_PRIVATE_KEY could not be parsed as a PKCS8 ES256 key. ' +
+        'Sign In with Apple is DISABLED; other sign-in methods are unaffected.',
+      error,
+    );
+    appleSecret = null; // provider is not registered → 404 PROVIDER_NOT_FOUND
+  }
 }
 
 const appleProvider = appleSecret
@@ -583,6 +599,20 @@ pnpm --filter @evenup/web build
 ```
 
 Expected: build succeeds. The top-level `await` in `auth.ts` requires an ESM output target; if `next build` reports "Top-level await is not available", the fallback is to move the `await` into a lazily-awaited module-scope promise consumed by the getter. Verify before assuming.
+
+**A build with `APPLE_*` unset proves almost nothing** — the awaited branch never runs. Exercise it for real (done 2026-07-08; results recorded in `.superpowers/sdd/task-3-report.md`):
+
+```bash
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out /tmp/k.pem   # a valid PKCS8 ES256 key
+# set APPLE_SERVICES_ID / APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY (newlines as literal \n)
+pnpm --filter @evenup/web build && pnpm --filter @evenup/web start
+curl -X POST localhost:3000/api/auth/sign-in/social -H 'Content-Type: application/json' \
+  -d '{"provider":"apple","callbackURL":"/"}'
+```
+
+Expect `200` and a JSON `{"url":"https://appleid.apple.com/auth/authorize?...client_id=<your Services ID>..."}`. This is the strongest available proof short of Apple itself: `createAuthorizationURL` throws `CLIENT_ID_AND_SECRET_REQUIRED` unless `options.clientSecret` is truthy, so a returned URL means **the getter fired and produced a real string** — not `[object Promise]`.
+
+Then repeat with a deliberately malformed `APPLE_PRIVATE_KEY` and assert the fail-soft contract: `GET /api/auth/get-session` → **200**, `POST /api/auth/sign-in/social {provider:apple}` → **404 `PROVIDER_NOT_FOUND`**, magic-link sign-in → **200**, and the log names `APPLE_PRIVATE_KEY`.
 
 - [ ] **Step 4: Run the full E2E suite**
 
