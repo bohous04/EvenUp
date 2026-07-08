@@ -45,6 +45,10 @@ export const en: Messages = {
   'auth.resetBtn': 'Set new password',
   'auth.resetDone': 'Password changed — you can sign in.',
   'auth.err.resetToken': 'This reset link is invalid or expired.',
+  'auth.verifyTitle': 'Verify your email',
+  'auth.verifyBody': 'We sent a link to {email}. Click it to finish.',
+  'auth.resend': 'Resend',
+  'auth.resent': 'Sent.',
 
   'nav.groups': 'Groups',
   'nav.activity': 'Activity',

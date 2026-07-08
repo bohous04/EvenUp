@@ -45,6 +45,10 @@ export const cs = {
   'auth.resetBtn': 'Nastavit heslo',
   'auth.resetDone': 'Heslo změněno — můžete se přihlásit.',
   'auth.err.resetToken': 'Odkaz je neplatný nebo vypršel.',
+  'auth.verifyTitle': 'Ověřte e-mail',
+  'auth.verifyBody': 'Poslali jsme odkaz na {email}. Klepnutím dokončíte.',
+  'auth.resend': 'Poslat znovu',
+  'auth.resent': 'Odesláno.',
 
   'nav.groups': 'Skupiny',
   'nav.activity': 'Historie',
