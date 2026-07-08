@@ -121,6 +121,8 @@ export const cs = {
   'expense.income': 'Příjem',
   'expense.transfer': 'Převod',
 
+  'csv.import': 'Import CSV',
+
   'expense.recurring': 'Opakovat',
   'recurrence.none': 'Ne',
   'recurrence.daily': 'Denně',

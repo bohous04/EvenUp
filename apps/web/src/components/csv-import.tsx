@@ -62,6 +62,7 @@ export function CsvImport({ groupId, members }: { groupId: string; members: Memb
         }
         value={csv}
         onChange={(e) => setCsv(e.target.value)}
+        aria-label={t('csv.import')}
         data-testid="csv-input"
       />
       {error ? (

@@ -82,7 +82,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     { key: 'invite', icon: Mail, label: t('invite.create'), onSelect: () => openPanel('invite') },
     { key: 'stats', icon: BarChart3, label: t('stats.spendByCategory'), onSelect: () => openPanel('stats') },
     { key: 'activity', icon: History, label: t('nav.activity'), onSelect: () => openPanel('activity') },
-    { key: 'csv', icon: FileUp, label: 'CSV import', onSelect: () => openPanel('csv') },
+    { key: 'csv', icon: FileUp, label: t('csv.import'), onSelect: () => openPanel('csv') },
     { key: 'bank', icon: Landmark, label: t('member.iban'), onSelect: () => openPanel('bank') },
   ];
 
@@ -256,7 +256,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         />
       </Sheet>
 
-      <Sheet open={panel === 'csv'} onClose={() => setPanel(null)} title="CSV import">
+      <Sheet open={panel === 'csv'} onClose={() => setPanel(null)} title={t('csv.import')}>
         <CsvImport
           groupId={groupId}
           members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}

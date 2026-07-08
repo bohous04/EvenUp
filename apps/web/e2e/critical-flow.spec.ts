@@ -244,6 +244,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await closeSheet(page);
 
     await openGroupSheet(page, 'csv');
+
+    // A11y on the OPEN CSV import sheet.
+    const sheetA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(sheetA11y.violations, JSON.stringify(sheetA11y.violations, null, 2)).toEqual([]);
+
     await page
       .getByTestId('csv-input')
       .fill(

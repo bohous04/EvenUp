@@ -121,6 +121,8 @@ export const en: Messages = {
   'expense.income': 'Income',
   'expense.transfer': 'Transfer',
 
+  'csv.import': 'CSV import',
+
   'expense.recurring': 'Repeat',
   'recurrence.none': 'No',
   'recurrence.daily': 'Daily',
