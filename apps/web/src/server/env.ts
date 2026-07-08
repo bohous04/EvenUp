@@ -47,6 +47,18 @@ export const env = {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   },
+  /**
+   * Sign In with Apple. `servicesId` is the Services ID (the *web* OAuth client
+   * id); `bundleId` is the iOS App ID, used only to validate native id_tokens.
+   * They are different identifiers and are not interchangeable.
+   */
+  apple: {
+    servicesId: process.env.APPLE_SERVICES_ID,
+    bundleId: process.env.APPLE_BUNDLE_ID ?? 'company.lnrt.evenup',
+    teamId: process.env.APPLE_TEAM_ID,
+    keyId: process.env.APPLE_KEY_ID,
+    privateKey: process.env.APPLE_PRIVATE_KEY,
+  },
   email: {
     from: process.env.EMAIL_FROM ?? 'EvenUp <onboarding@resend.dev>',
     resendApiKey: process.env.RESEND_API_KEY,

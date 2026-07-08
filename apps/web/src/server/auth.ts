@@ -1,4 +1,4 @@
-/** Better Auth server instance (PRD §8.2): email magic link + optional Google. */
+/** Better Auth server instance (PRD §8.2): email magic link + optional Google / Apple. */
 import 'server-only';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -9,11 +9,50 @@ import { prisma } from '@evenup/db';
 import { env } from './env.js';
 import { rememberMagicLink } from './magic-link-store.js';
 import { sendEmail, magicLinkEmail } from './email.js';
+import { appleClientSecret, initAppleClientSecret } from './apple-secret.js';
+import { appleDisplayName } from './apple-profile.js';
 
-const socialProviders =
+const googleProvider =
   env.google.clientId && env.google.clientSecret
     ? { google: { clientId: env.google.clientId, clientSecret: env.google.clientSecret } }
     : undefined;
+
+const { servicesId, teamId, keyId, privateKey, bundleId } = env.apple;
+// Build the config in one narrowing step, so `servicesId` et al. are `string`
+// below without non-null assertions.
+const appleSecret =
+  servicesId && teamId && keyId && privateKey
+    ? { servicesId, teamId, keyId, privateKey }
+    : null;
+
+// Mint the first client secret before the provider is constructed. An
+// unparseable `.p8` fails the boot with a clear error instead of surfacing as
+// an opaque `invalid_client` from Apple at the first sign-in.
+if (appleSecret) {
+  await initAppleClientSecret(appleSecret);
+}
+
+const appleProvider = appleSecret
+  ? {
+      apple: {
+        clientId: appleSecret.servicesId,
+        // A getter, not a value: Better Auth reads `options.clientSecret` on
+        // every token exchange, which is what lets the JWT refresh in place.
+        get clientSecret() {
+          return appleClientSecret();
+        },
+        // Audience for validating *native* id_tokens only; the web callback
+        // decodes its id_token without an audience check.
+        appBundleIdentifier: bundleId,
+        mapProfileToUser: (profile: { name?: string | null; email?: string | null }) => ({
+          name: appleDisplayName(profile),
+        }),
+      },
+    }
+  : undefined;
+
+const socialProviders =
+  googleProvider || appleProvider ? { ...googleProvider, ...appleProvider } : undefined;
 
 export const auth = betterAuth({
   baseURL: env.authUrl,
@@ -23,8 +62,14 @@ export const auth = betterAuth({
   // Rate limiting protects auth in production (§9.2); disabled in dev/E2E so the
   // test suite's rapid repeated sign-ins aren't throttled.
   rateLimit: { enabled: !env.authDevEcho },
-  // Allow the Expo app's deep-link scheme as a trusted origin (FR-1.5).
-  trustedOrigins: ['evenup://'],
+  trustedOrigins: [
+    'evenup://', // the Expo app's deep-link scheme (FR-1.5)
+    'https://appleid.apple.com', // Apple form_posts the callback cross-origin
+  ],
+  // Link a social account into an existing user when the provider vouches for
+  // the email. Apple and Google both send `email_verified`, so no
+  // `trustedProviders` — that would force-link *unverified* emails.
+  account: { accountLinking: { enabled: true } },
   socialProviders,
   plugins: [
     // Native deep-link session handoff for the Expo app: appends the session
