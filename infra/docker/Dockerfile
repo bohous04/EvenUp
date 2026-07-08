@@ -39,12 +39,13 @@ ENV NEXT_PUBLIC_APPLE_ENABLED=$NEXT_PUBLIC_APPLE_ENABLED
 ENV NEXT_TELEMETRY_DISABLED=1
 # `next build` evaluates server modules while collecting page data under
 # NODE_ENV=production, and `@/server/env` fails fast when a required secret is
-# missing. These are throwaway build-time placeholders — they are never inlined
-# into the client bundle (not NEXT_PUBLIC_*), do not carry into the runner stage,
-# and the real secrets are supplied to the runtime container's environment.
-ENV ENCRYPTION_KEY=0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0
-ENV BETTER_AUTH_SECRET=build-time-placeholder-not-used-at-runtime
-RUN pnpm --filter @evenup/web build
+# missing. Pass throwaway placeholders inline for this one command so they never
+# persist as image ENV (Docker's SecretsUsedInArgOrEnv check) nor reach the runner
+# stage; they are not NEXT_PUBLIC_* so they aren't inlined into the client bundle
+# either. Real secrets are supplied to the runtime container's environment.
+RUN ENCRYPTION_KEY=0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0 \
+  BETTER_AUTH_SECRET=build-time-placeholder-not-used-at-runtime \
+  pnpm --filter @evenup/web build
 
 # ---------- runner ----------
 FROM base AS runner
