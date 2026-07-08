@@ -50,7 +50,7 @@ let appleSecret =
 
 // Mint the first client secret before the provider is constructed. Apple is
 // an optional provider: if the key doesn't parse, we must not take down
-// magic-link/Google sign-in with it (this file has a top-level `await`, so an
+// email+password/Google sign-in with it (this file has a top-level `await`, so an
 // unhandled rejection here would fail evaluation of every importer of
 // `auth.ts`, i.e. every `/api/auth/*` route). So we fail *soft* — log loudly
 // and disable Apple by clearing `appleSecret`, leaving everything else up.
