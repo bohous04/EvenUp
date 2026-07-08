@@ -21,6 +21,7 @@ export const cs = {
   'common.optional': 'Nepovinné',
   'common.total': 'Celkem',
   'common.or': 'nebo',
+  'common.showAll': 'Zobrazit vše',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',
@@ -86,6 +87,8 @@ export const cs = {
   'group.template.event': 'Událost',
   'group.template.other': 'Jiné',
   'group.members': 'Členové',
+  'group.spentTotal': 'Utraceno {total}',
+  'group.menu': 'Možnosti skupiny',
   'group.simplifyDebts': 'Zjednodušit dluhy',
   'group.archive': 'Archivovat skupinu',
   'group.archived': 'Archivováno',

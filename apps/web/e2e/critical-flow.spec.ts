@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { signIn, uniqueEmail } from './helpers';
+import { signIn, uniqueEmail, openGroupSheet, closeSheet } from './helpers';
 
 test.describe('EvenUp critical journey (PRD §10.1)', () => {
   // Guarantee a test never leaves its context offline (avoids cross-test cascades).
@@ -25,12 +25,14 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('group-title')).toHaveText('Tatry 2026');
 
     // Add two members (the creator is already a member).
+    await openGroupSheet(page, 'members');
     for (const name of ['Petr', 'Jana']) {
       await page.getByTestId('member-name-input').fill(name);
       await page.getByTestId('add-member-btn').click();
       // The member chip (role=img with the name as its accessible label).
       await expect(page.getByRole('img', { name }).first()).toBeVisible();
     }
+    await closeSheet(page);
 
     // Add an equal-split expense of 900 paid by the creator, categorized.
     await page.getByTestId('add-expense-open').click();
@@ -41,6 +43,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-submit').click();
 
     // Activity feed shows the create events (FR-9.1).
+    await openGroupSheet(page, 'activity');
     await expect(page.getByTestId('activity-list')).toBeVisible();
     await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
     // Before filtering: the feed shows member-added entries too.
@@ -49,16 +52,19 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('activity-action-filter').selectOption('expense.created');
     await expect(page.getByTestId('activity-list')).toContainText(/Chata/);
     await expect(page.getByTestId('activity-list')).not.toContainText('Petr');
+    await closeSheet(page);
 
     // Balances: the payer is +600.00, suggested payments exist (debt minimization).
     await expect(page.getByTestId('payments-list')).toBeVisible();
     await expect(page.getByText(/600[.,]00/)).toBeVisible();
 
     // Spend stats show the categorized expense (FR-12.2).
+    await openGroupSheet(page, 'stats');
     await expect(page.getByTestId('spend-stats')).toBeVisible();
     await expect(
       page.getByTestId('spend-stats').getByText(/Accommodation|Ubytování/),
     ).toBeVisible();
+    await closeSheet(page);
 
     // A11y check on the populated group page (§9.4).
     const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
@@ -86,13 +92,17 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Byt').click();
 
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
 
     // Save the creator's IBAN (defaults to the first member in the select).
+    await openGroupSheet(page, 'bank');
     await page.getByTestId('bank-iban-input').fill('CZ6508000000192000145399');
     await page.getByTestId('bank-save-btn').click();
+    await closeSheet(page);
 
     // Exact split: creator pays, Petr owes 100.
     await page.getByTestId('add-expense-open').click();
@@ -137,9 +147,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('group-name-input').fill('Večeře');
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Večeře').click();
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
 
     // Upload a (valid, tiny) image — it is downscaled client-side before upload;
     // the mocked OpenRouter ignores the pixels and returns two items.
@@ -198,8 +210,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Base currency CZK (default).
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Tatry').click();
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
+    await closeSheet(page);
 
     // 100 EUR at rate 25 -> 2500 CZK in base.
     await page.getByTestId('add-expense-open').click();
@@ -223,11 +237,13 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('group-name-input').fill('Byt CSV');
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Byt CSV').click();
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
 
-    await page.getByTestId('csv-toggle').click();
+    await openGroupSheet(page, 'csv');
     await page
       .getByTestId('csv-input')
       .fill(
@@ -236,7 +252,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('csv-import-btn').click();
 
     await expect(page.getByTestId('csv-result')).toContainText('2');
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'stats');
     await expect(page.getByTestId('spend-stats')).toBeVisible();
+    await closeSheet(page);
   });
 
   test('add-expense opens a focused modal and Escape closes it (§9.4)', async ({
@@ -278,9 +298,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('group-name-input').fill('Adv');
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Adv').click();
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
 
     // Choosing EXACT keeps the per-member inputs reachable: the "fewer options"
     // toggle is disabled so the required inputs can't be collapsed out of reach.
@@ -367,6 +389,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Rename').click();
 
+    await openGroupSheet(page, 'members');
     await page.getByTestId('member-name-input').fill('Petr');
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
@@ -390,6 +413,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('member-rename-input').press('Escape');
     await expect(memberList.getByText('Pavel')).toBeVisible();
     await expect(memberList.getByText('Zmeneno')).toHaveCount(0);
+    await closeSheet(page);
   });
 
   test('language switch CZ <-> EN updates the UI', async ({ page }, testInfo) => {
@@ -410,6 +434,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('group-name-input').fill('Invite');
     await page.getByTestId('create-group-submit').click();
     await page.getByText('Invite').click();
+    await openGroupSheet(page, 'invite');
     await page.getByTestId('invite-btn').click();
     const url = await page.getByTestId('invite-url').textContent();
     await page.goto(new URL(url!).pathname);

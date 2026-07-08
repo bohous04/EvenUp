@@ -21,6 +21,7 @@ export const en: Messages = {
   'common.optional': 'Optional',
   'common.total': 'Total',
   'common.or': 'or',
+  'common.showAll': 'Show all',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
@@ -86,6 +87,8 @@ export const en: Messages = {
   'group.template.event': 'Event',
   'group.template.other': 'Other',
   'group.members': 'Members',
+  'group.spentTotal': '{total} spent',
+  'group.menu': 'Group options',
   'group.simplifyDebts': 'Simplify debts',
   'group.archive': 'Archive group',
   'group.archived': 'Archived',

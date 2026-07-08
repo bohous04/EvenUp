@@ -21,3 +21,14 @@ export async function signIn(page: Page, email: string): Promise<void> {
 export function uniqueEmail(prefix: string, seed: number): string {
   return `${prefix}+${seed}@example.com`;
 }
+
+/** Open the group "⋯" menu and select one of its items (menu-<item> testid). */
+export async function openGroupSheet(page: Page, item: string) {
+  await page.getByTestId('group-menu-btn').click();
+  await page.getByTestId(`menu-${item}`).click();
+}
+
+/** Close the currently open sheet via its X button. */
+export async function closeSheet(page: Page) {
+  await page.getByTestId('sheet-close').click();
+}
