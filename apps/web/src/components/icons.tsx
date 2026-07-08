@@ -10,6 +10,8 @@ import {
   Pencil,
   X,
   ChevronDown,
+  Eye,
+  EyeOff,
   ShoppingCart,
   Utensils,
   Car,
@@ -62,4 +64,4 @@ export function AppleLogo({ size = 16 }: { size?: number }) {
   );
 }
 
-export { Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown };
+export { Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown, Eye, EyeOff };

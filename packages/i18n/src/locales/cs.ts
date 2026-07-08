@@ -29,6 +29,8 @@ export const cs = {
   'auth.signInBtn': 'Přihlásit se',
   'auth.signUpLink': 'Nemáte účet? Zaregistrujte se',
   'auth.forgotLink': 'Zapomenuté heslo?',
+  'auth.showPassword': 'Zobrazit heslo',
+  'auth.hidePassword': 'Skrýt heslo',
   'auth.err.invalidCredentials': 'Nesprávný e-mail nebo heslo.',
   'auth.err.unverified': 'Nejdřív si ověřte e-mail — zkontrolujte schránku.',
   'auth.signUpTitle': 'Vytvořte si účet',

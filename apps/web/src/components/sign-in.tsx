@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { signIn } from '@/lib/auth-client';
-import { Button, Card, Input, Label } from '@/components/ui';
+import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 import { AppleLogo } from '@/components/icons';
 
 // Only offer Google/Apple sign-in when the instance has configured them
@@ -55,14 +55,15 @@ export function SignIn() {
             </div>
             <div>
               <Label htmlFor="password">{t('auth.password')}</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 data-testid="password-input"
+                showLabel={t('auth.showPassword')}
+                hideLabel={t('auth.hidePassword')}
               />
             </div>
             {error ? (

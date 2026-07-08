@@ -1,5 +1,6 @@
 'use client';
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
+import { Eye, EyeOff } from './icons';
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -34,6 +35,39 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
         className={`w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 ${className}`}
         {...props}
       />
+    );
+  },
+);
+
+/**
+ * A password field with a show/hide toggle. Manages its own `type`
+ * (password ↔ text); pass the localized `showLabel`/`hideLabel` for the
+ * toggle's accessible name (this primitives module has no i18n of its own).
+ */
+type PasswordInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> & {
+  showLabel?: string;
+  hideLabel?: string;
+};
+
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+  function PasswordInput(
+    { className = '', showLabel = 'Show password', hideLabel = 'Hide password', ...props },
+    ref,
+  ) {
+    const [visible, setVisible] = useState(false);
+    return (
+      <div className="relative">
+        <Input ref={ref} type={visible ? 'text' : 'password'} className={`pr-10 ${className}`} {...props} />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? hideLabel : showLabel}
+          aria-pressed={visible}
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+        >
+          {visible ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+        </button>
+      </div>
     );
   },
 );

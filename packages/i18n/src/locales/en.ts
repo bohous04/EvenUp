@@ -29,6 +29,8 @@ export const en: Messages = {
   'auth.signInBtn': 'Sign in',
   'auth.signUpLink': "Don't have an account? Sign up",
   'auth.forgotLink': 'Forgot password?',
+  'auth.showPassword': 'Show password',
+  'auth.hidePassword': 'Hide password',
   'auth.err.invalidCredentials': 'Wrong email or password.',
   'auth.err.unverified': 'Verify your email first — check your inbox.',
   'auth.signUpTitle': 'Create your account',

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
-import { Button, Card, Input, Label } from '@/components/ui';
+import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 
 export function SignUp() {
   const { t } = useI18n();
@@ -84,15 +84,16 @@ export function SignUp() {
               </div>
               <div>
                 <Label htmlFor="password">{t('auth.password')}</Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   minLength={8}
                   data-testid="signup-password"
+                  showLabel={t('auth.showPassword')}
+                  hideLabel={t('auth.hidePassword')}
                 />
               </div>
               {error ? (

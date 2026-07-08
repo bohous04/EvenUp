@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { authClient } from '@/lib/auth-client';
-import { Button, Card, Input, Label } from '@/components/ui';
+import { Button, Card, Label, PasswordInput } from '@/components/ui';
 
 function ResetPasswordForm() {
   const { t } = useI18n();
@@ -56,15 +56,16 @@ function ResetPasswordForm() {
           <form onSubmit={submit} className="space-y-4">
             <div>
               <Label htmlFor="new-password">{t('auth.newPassword')}</Label>
-              <Input
+              <PasswordInput
                 id="new-password"
-                type="password"
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
                 minLength={8}
                 data-testid="reset-password-input"
+                showLabel={t('auth.showPassword')}
+                hideLabel={t('auth.hidePassword')}
               />
             </div>
             {error ? (
