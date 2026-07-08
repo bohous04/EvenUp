@@ -20,7 +20,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const group = await prisma.group.findUnique({
     where: { id: receipt.groupId },
-    select: { createdById: true, members: { where: { userId: session.user.id }, select: { id: true } } },
+    select: {
+      createdById: true,
+      members: { where: { userId: session.user.id }, select: { id: true } },
+    },
   });
   const allowed = group && (group.createdById === session.user.id || group.members.length > 0);
   if (!allowed) return new Response('Forbidden', { status: 403 });
@@ -42,7 +45,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     'image/heif',
     'image/avif',
   ]);
-  const contentType = SAFE_IMAGE_TYPES.has(obj.contentType) ? obj.contentType : 'application/octet-stream';
+  const contentType = SAFE_IMAGE_TYPES.has(obj.contentType)
+    ? obj.contentType
+    : 'application/octet-stream';
 
   return new Response(Buffer.from(obj.bytes), {
     status: 200,

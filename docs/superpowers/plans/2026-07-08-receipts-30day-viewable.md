@@ -26,10 +26,12 @@
 **Files:** Modify `packages/api/src/storage/object-store.ts`, `packages/api/src/storage/object-store.test.ts`. Modify `packages/api/src/index.ts` (export `createInMemoryObjectStore`).
 
 **Interfaces produced:**
+
 - `ObjectStore.getObject(key: string): Promise<{ bytes: Uint8Array; contentType: string } | null>`
 - `createInMemoryObjectStore(): ObjectStore` (module-fresh Map per call)
 
 - [ ] **Step 1: Failing test** — append to `object-store.test.ts`:
+
 ```ts
 import { createInMemoryObjectStore } from './object-store.js';
 
@@ -48,8 +50,10 @@ describe('createInMemoryObjectStore', () => {
   });
 });
 ```
+
 - [ ] **Step 2: Run → fail** — `pnpm --filter @evenup/api exec vitest run src/storage/object-store.test.ts` (Expected: FAIL, `createInMemoryObjectStore` undefined).
 - [ ] **Step 3: Implement.** In `object-store.ts`: add `getObject` to the `ObjectStore` interface; implement in `createS3ObjectStore` using `GetObjectCommand` (import it), reading the body via `await Body.transformToByteArray()` and returning `{ bytes, contentType: ContentType ?? 'application/octet-stream' }`, catching `NoSuchKey`/`name==='NoSuchKey'`/`$metadata.httpStatusCode===404` → `null`; `createNoopObjectStore().getObject` → `async () => null`; add:
+
 ```ts
 export function createInMemoryObjectStore(): ObjectStore {
   const store = new Map<string, { bytes: Uint8Array; contentType: string }>();
@@ -66,6 +70,7 @@ export function createInMemoryObjectStore(): ObjectStore {
   };
 }
 ```
+
 - [ ] **Step 4: Run → pass.** Also `pnpm --filter @evenup/api exec tsc --noEmit` clean. Export `createInMemoryObjectStore` from `index.ts`.
 - [ ] **Step 5: Commit** — `feat(api): ObjectStore.getObject + in-memory store for receipt viewing`.
 
@@ -78,12 +83,16 @@ export function createInMemoryObjectStore(): ObjectStore {
 **Interfaces produced:** `getObjectStore(): ObjectStore` (singleton) — used by the tRPC context, view route, cron route.
 
 - [ ] **Step 1: env.ts** — replace `receiptAutoDelete` with:
+
 ```ts
   receiptRetentionDays: Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10),
   cronSecret: process.env.CRON_SECRET,
 ```
+
 (keep the `storage` block as-is).
+
 - [ ] **Step 2: Shared resolver** — create `apps/web/src/server/object-store.ts`:
+
 ```ts
 import 'server-only';
 import {
@@ -112,6 +121,7 @@ export function getObjectStore(): ObjectStore {
   return store;
 }
 ```
+
 - [ ] **Step 3: trpc.ts** — replace the inline `objectStore` construction with `import { getObjectStore } from './object-store.js';` and `objectStore: getObjectStore(),` in `createContext`.
 - [ ] **Step 4: Docs/env** — in `.env.example` replace the `RECEIPT_AUTO_DELETE` line with `RECEIPT_RETENTION_DAYS=30` and add `CRON_SECRET=` (with a comment: set to a random string; used by the receipt-cleanup scheduled task). Update the `docs/SELF_HOSTING.md` row.
 - [ ] **Step 5: Verify** — `pnpm --filter @evenup/db exec prisma generate >/dev/null && pnpm turbo run typecheck --filter=@evenup/web`.
@@ -126,14 +136,19 @@ export function getObjectStore(): ObjectStore {
 - [ ] **Step 1: Failing test** — replace the two existing auto-delete tests' env toggling with retention: add a test that with `process.env.RECEIPT_RETENTION_DAYS='30'` the scan **keeps** `storageKey` (starts `receipts/`, `deleteObject` NOT called), and a test that with `'0'` it deletes + clears (`deleteObject` called, `storageKey===''`). Reuse the in-memory/capturing store + `makeOcrFetch()` already in the file. Wrap env with a `try/finally` restore (pattern already used).
 - [ ] **Step 2: Run → fail** (`-t "retention"`), Expected FAIL (current code uses `RECEIPT_AUTO_DELETE`).
 - [ ] **Step 3: Implement** — in `ocr.ts scan`, replace:
+
 ```ts
-        const autoDelete = process.env.RECEIPT_AUTO_DELETE !== 'false';
+const autoDelete = process.env.RECEIPT_AUTO_DELETE !== 'false';
 ```
+
 with:
+
 ```ts
-        const retentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+const retentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
 ```
+
 and change `if (autoDelete) {` to `if (retentionDays === 0) {`.
+
 - [ ] **Step 4: Run → pass** — full `integration.test.ts` + `tsc --noEmit` clean.
 - [ ] **Step 5: Commit** — `feat(api): keep receipt image for RECEIPT_RETENTION_DAYS (default 30)`.
 
@@ -148,6 +163,7 @@ and change `if (autoDelete) {` to `if (retentionDays === 0) {`.
 - [ ] **Step 1: Failing integration test** — in `receipt-cleanup.test.ts` (needs DB): create two receipts with non-empty `storageKey` — one `createdAt` 40 days ago, one today (use `testPrisma.receipt.create` with explicit `createdAt`); put matching objects in a capturing in-memory store; run `cleanupExpiredReceipts({ ..., retentionDays: 30, now: new Date() })`; assert `deleted===1`, the old receipt's `storageKey===''` and its object deleted, the recent one untouched. Add a case where `deleteObject` throws for the expired row → the row's `storageKey` is still cleared and `deleted` still counts it (best-effort). (Import `testPrisma`/`resetDb` from the harness; this is a new test file — mirror `integration.test.ts`'s `beforeEach(resetDb)`.)
 - [ ] **Step 2: Run → fail.**
 - [ ] **Step 3: Implement** `receipt-cleanup.ts`:
+
 ```ts
 /** Delete receipt images past the retention window (PRD §4.5, FR-5.8). */
 import type { PrismaClient } from '@evenup/db';
@@ -178,6 +194,7 @@ export async function cleanupExpiredReceipts(args: {
   return { deleted };
 }
 ```
+
 - [ ] **Step 4: Migration** — add `@@index([createdAt])` to `model Receipt` in `schema.prisma`, then generate the migration SQL. Create `packages/db/prisma/migrations/2_receipt_created_at_idx/migration.sql` with `CREATE INDEX "Receipt_createdAt_idx" ON "Receipt"("createdAt");` and run `prisma migrate deploy` against the dev DB to confirm it applies. Run `prisma generate`.
 - [ ] **Step 5: Run → pass** + `tsc --noEmit`. Export `cleanupExpiredReceipts` from `index.ts`.
 - [ ] **Step 6: Commit** — `feat(api): expired-receipt cleanup service + Receipt.createdAt index`.
@@ -189,6 +206,7 @@ export async function cleanupExpiredReceipts(args: {
 **Files:** Create `apps/web/src/app/api/cron/receipt-cleanup/route.ts`.
 
 - [ ] **Step 1: Implement** the route:
+
 ```ts
 import { prisma } from '@evenup/db';
 import { cleanupExpiredReceipts } from '@evenup/api';
@@ -218,6 +236,7 @@ export async function POST(req: Request) {
   return Response.json({ deleted });
 }
 ```
+
 - [ ] **Step 2: Verify** — `pnpm turbo run typecheck --filter=@evenup/web` clean. (No unit test for the thin route; the service is tested in Task 4. Sanity: with `CRON_SECRET` unset the route returns 401.)
 - [ ] **Step 3: Commit** — `feat(web): secret-guarded receipt-cleanup cron route`.
 
@@ -228,6 +247,7 @@ export async function POST(req: Request) {
 **Files:** Create `apps/web/src/app/api/receipts/[id]/route.ts`.
 
 - [ ] **Step 1: Implement**:
+
 ```ts
 import { prisma } from '@evenup/db';
 import { auth } from '@/server/auth';
@@ -246,7 +266,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const group = await prisma.group.findUnique({
     where: { id: receipt.groupId },
-    select: { createdById: true, members: { where: { userId: session.user.id }, select: { id: true } } },
+    select: {
+      createdById: true,
+      members: { where: { userId: session.user.id }, select: { id: true } },
+    },
   });
   const allowed = group && (group.createdById === session.user.id || group.members.length > 0);
   if (!allowed) return new Response('Forbidden', { status: 403 });
@@ -259,7 +282,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
 }
 ```
+
 > Next 15 route params are async (`Promise<{id}>`) — matches the existing `[...all]`/`[trpc]` handlers. Confirm the group-membership check mirrors `assertGroupAccess` (creator or a member with `userId === session.user.id`).
+
 - [ ] **Step 2: Verify** — `pnpm turbo run typecheck --filter=@evenup/web` clean.
 - [ ] **Step 3: Commit** — `feat(web): session + group-gated receipt image view route`.
 
@@ -273,7 +298,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 - [ ] **Step 2: Run → fail.**
 - [ ] **Step 3: Implement `list`** — extend `transactionInclude` with `receipt: { select: { id: true, storageKey: true } }` and map each returned tx to add `receiptId: tx.receipt?.id ?? null` and `hasReceiptImage: !!tx.receipt?.storageKey`. (Return the mapped shape; keep existing fields.)
 - [ ] **Step 4: i18n** — add `'receipt.view'` to `cs.ts` (`'Zobrazit účtenku'`) and `en.ts` (`'View receipt'`).
-- [ ] **Step 5: UI** — in `group-detail.tsx` Transactions list, for a tx where `hasReceiptImage`, render next to it: `<a href={\`/api/receipts/${tx.receiptId}\`} target="_blank" rel="noreferrer" className="text-xs text-brand-700 underline" data-testid="view-receipt">{t('receipt.view')}</a>`. Use the `Receipt`/`Camera` icon from `@/components/icons` if one exists; otherwise text only.
+- [ ] **Step 5: UI** — in `group-detail.tsx` Transactions list, for a tx where `hasReceiptImage`, render next to it: `<a href={\`/api/receipts/${tx.receiptId}\`} target="\_blank" rel="noreferrer" className="text-xs text-brand-700 underline" data-testid="view-receipt">{t('receipt.view')}</a>`. Use the `Receipt`/`Camera`icon from`@/components/icons` if one exists; otherwise text only.
 - [ ] **Step 6: Run API test → pass**; `typecheck` + `i18n` test pass.
 - [ ] **Step 7: E2E** — extend the OCR test in `critical-flow.spec.ts`: after saving the itemized expense, assert `page.getByTestId('view-receipt')` is visible, then `const res = await page.request.get(new URL(await page.getByTestId('view-receipt').getAttribute('href')!, page.url()).toString()); expect(res.status()).toBe(200); expect(res.headers()['content-type']).toContain('image/');`. (The E2E web server uses the in-memory store via `AUTH_DEV_ECHO`, so the scanned image is retrievable.) Rebuild web before running: build cmd from prior plan, then `playwright test --project=chromium -g "OCR receipt"`.
 - [ ] **Step 8: Commit** — `feat(web): show "View receipt" link on receipt-backed expenses (FR-5.8)`.
@@ -295,5 +320,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 4. Merge to `main`, push (auto-deploy), verify a real scan → "View receipt" → image loads on evenup.lnrtdev.cz.
 
 ## Self-review notes
+
 - Spec coverage: getObject/in-memory → T1; resolver+env → T2; retention → T3; cleanup+index → T4; cron route → T5; view route → T6; surface+tests → T7; verify → T8; MinIO/cap/scheduled-task → Ops. All mapped.
 - Type consistency: `getObject` signature identical in T1 (def) and T6 (use); `getObjectStore()` defined T2, used T5/T6; `cleanupExpiredReceipts` signature identical T4 (def) / T5 (use).

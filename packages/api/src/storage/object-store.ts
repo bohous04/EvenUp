@@ -4,7 +4,12 @@
  * OCR work on a self-host with no storage configured. Tests use an in-memory
  * fake, so CI makes no live S3 calls.
  */
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { NoSuchKey } from '@aws-sdk/client-s3';
 
 export interface ObjectStore {
