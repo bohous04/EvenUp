@@ -33,7 +33,7 @@ export const cs = {
   'auth.err.unverified': 'Nejdřív si ověřte e-mail — zkontrolujte schránku.',
   'auth.signUpTitle': 'Vytvořte si účet',
   'auth.name': 'Jméno',
-  'auth.signUpBtn': 'Zaregistrovat',
+  'auth.signUpBtn': 'Zaregistrovat se',
   'auth.haveAccount': 'Už máte účet? Přihlaste se',
   'auth.verifySent': 'Zkontrolujte schránku a ověřte e-mail.',
   'auth.err.emailInUse': 'Tento e-mail už je registrovaný.',
