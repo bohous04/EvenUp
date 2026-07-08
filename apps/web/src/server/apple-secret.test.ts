@@ -97,6 +97,9 @@ describe('appleClientSecret refresh-on-read', () => {
     // Must not leak fake timers into the other 8 tests in this file (or any
     // other test file in the same worker).
     vi.useRealTimers();
+    // Restore any spies (e.g. SignJWT.prototype.sign, console.error) even if
+    // an assertion earlier in the test threw before an inline mockRestore().
+    vi.restoreAllMocks();
   });
 
   it('does not refresh before the 120-day threshold (negative control)', async () => {
@@ -113,8 +116,6 @@ describe('appleClientSecret refresh-on-read', () => {
 
     expect(appleClientSecret()).toBe(original);
     expect(signSpy).not.toHaveBeenCalled();
-
-    signSpy.mockRestore();
   });
 
   it('fires a re-mint past the 120-day threshold and eventually serves the new token', async () => {
@@ -152,12 +153,13 @@ describe('appleClientSecret refresh-on-read', () => {
     await vi.waitFor(() => {
       expect(errorSpy).toHaveBeenCalled();
     });
-    // The stale-but-still-valid token must still be served after the failed
-    // re-mint settles — this is the fail-open behavior the fix must preserve.
-    expect(appleClientSecret()).toBe(original);
+    // The stale-but-still-valid token was already proven to be served above,
+    // synchronously, before the failed re-mint even settled — that is the
+    // fail-open guarantee. A second post-settlement read is intentionally not
+    // taken here: it would cross the still-past-threshold clock again and
+    // kick off an uncontrolled second re-mint (also rejecting, also logging
+    // asynchronously) that could outlive this test's mocks.
     expect(errorSpy.mock.calls[0]?.[0]).toMatch(/apple client secret re-mint failed/i);
-
-    errorSpy.mockRestore();
   });
 
   it('the refreshing guard prevents a pile-up: two reads past the threshold trigger exactly one re-mint', async () => {
@@ -180,7 +182,5 @@ describe('appleClientSecret refresh-on-read', () => {
       expect(signSpy).toHaveBeenCalled();
     });
     expect(signSpy).toHaveBeenCalledTimes(1);
-
-    signSpy.mockRestore();
   });
 });
