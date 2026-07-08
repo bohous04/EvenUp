@@ -71,7 +71,7 @@ export function AvatarStack({
         </span>
       ))}
       {extra > 0 ? (
-        <span className="-ml-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 ring-2 ring-white dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-900">
+        <span className="-ml-1.5 first:ml-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 ring-2 ring-white dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-900">
           +{extra}
         </span>
       ) : null}

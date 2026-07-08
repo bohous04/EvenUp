@@ -23,7 +23,7 @@ export function AmountText({
   const color = !colored
     ? ''
     : minorUnits === 0
-      ? 'text-zinc-400'
+      ? 'text-zinc-500 dark:text-zinc-400'
       : minorUnits > 0
         ? 'text-green-600 dark:text-green-400'
         : 'text-red-600 dark:text-red-400';
