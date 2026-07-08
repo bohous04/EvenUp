@@ -36,7 +36,7 @@ describe('mintAppleClientSecret', () => {
     expect(claims.sub).toBe('company.lnrt.evenup.web');
   });
 
-  it('never exceeds Apple\'s maximum secret lifetime', async () => {
+  it("never exceeds Apple's maximum secret lifetime", async () => {
     const cfg = await makeConfig();
     const claims = decodeJwt(await mintAppleClientSecret(cfg, 1_800_000_000));
     expect(claims.iat).toBe(1_800_000_000);

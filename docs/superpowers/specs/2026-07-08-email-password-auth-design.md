@@ -9,9 +9,9 @@
 
 EvenUp currently logs users in with an **email magic link** (Better Auth `magicLink` plugin), plus optional Google/Apple OAuth. The user wants to switch the primary email method to **email + password**, demote the emailed link to **password reset only**, and (in sibling specs) add optional 2FA and a connected-accounts UI.
 
-This spec covers **#1: email + password**, on **both web and mobile**, as a **hard switch** — the magic-link *login* is removed, not kept alongside.
+This spec covers **#1: email + password**, on **both web and mobile**, as a **hard switch** — the magic-link _login_ is removed, not kept alongside.
 
-"Magic link only for reset" resolves to a mechanism swap: Better Auth's password reset is its **own** `forget-password` → email → `reset-password` flow, *not* the `magicLink` plugin. So we **remove the `magicLink` plugin** and the reset email is the native forget-password link. Same UX (click an emailed link), different mechanism.
+"Magic link only for reset" resolves to a mechanism swap: Better Auth's password reset is its **own** `forget-password` → email → `reset-password` flow, _not_ the `magicLink` plugin. So we **remove the `magicLink` plugin** and the reset email is the native forget-password link. Same UX (click an emailed link), different mechanism.
 
 ## 2. Confirmed design decisions
 
@@ -30,7 +30,7 @@ This spec covers **#1: email + password**, on **both web and mobile**, as a **ha
 
 - New users can't complete `requireEmailVerification` → can't log in.
 - Existing **magic-link-only** users have no password; the reset email that would let them set one never arrives → **locked out**.
-- The mobile app currently has *only* magic-link login; removing it server-side leaves old mobile users with no working path until they set a password (which needs email).
+- The mobile app currently has _only_ magic-link login; removing it server-side leaves old mobile users with no working path until they set a password (which needs email).
 
 Google/Apple OAuth users are unaffected — they never used a password.
 
@@ -76,15 +76,15 @@ Config option names verified against installed `@better-auth/core@1.6.20` types:
 Better Auth exposes email+password as **core** client methods (no client plugin, like `signIn.social`): `signIn.email`, `signUp.email`, `forgetPassword`, `resetPassword`. Remove `magicLinkClient()` from `apps/web/src/lib/auth-client.ts`.
 
 - **`sign-in.tsx`** — replace the magic-link form with email + password (`signIn.email({ email, password, callbackURL: '/' })`). Keep the Google/Apple social buttons and divider unchanged. Add a **"Forgot password?"** link and a **"Sign up"** toggle/link.
-- **`sign-up.tsx`** *(new)* — name + email + password → `signUp.email({ name, email, password })` → "check your email to verify" screen. Handle "email already in use".
-- **`forgot-password.tsx`** *(new, or a mode of sign-in)* — email → `forgetPassword({ email, redirectTo: '/reset-password' })` → "if that address exists, we sent a link".
-- **`/reset-password` page** *(new, `apps/web/src/app/reset-password/page.tsx`)* — reads `token` from the query, new-password form → `resetPassword({ newPassword, token })` → success → sign-in.
+- **`sign-up.tsx`** _(new)_ — name + email + password → `signUp.email({ name, email, password })` → "check your email to verify" screen. Handle "email already in use".
+- **`forgot-password.tsx`** _(new, or a mode of sign-in)_ — email → `forgetPassword({ email, redirectTo: '/reset-password' })` → "if that address exists, we sent a link".
+- **`/reset-password` page** _(new, `apps/web/src/app/reset-password/page.tsx`)_ — reads `token` from the query, new-password form → `resetPassword({ newPassword, token })` → success → sign-in.
 - **Verify-email landing** — Better Auth's GET `/verify-email?token=…&callbackURL=…` verifies and redirects to `callbackURL`; with `autoSignInAfterVerification` the user lands signed in. We provide the post-signup "verify your inbox" screen and a **resend** action (`sendVerificationEmail`).
 
 ### 4.4 Mobile UI — `apps/mobile/app/`
 
 - **`sign-in.tsx`** — email + password (`signIn.email`). Keep the native Apple button (`signInWithApple`). Add "Forgot password?" and "Sign up".
-- **`sign-up.tsx`** *(new)* — name + email + password → `signUp.email` → "verify your email" screen.
+- **`sign-up.tsx`** _(new)_ — name + email + password → `signUp.email` → "verify your email" screen.
 - **Forgot password** — email → `forgetPassword({ email, redirectTo: <web>/reset-password })` → "we sent you an email." **The reset itself is completed in the browser** on the web `/reset-password` page; the app implements no reset-token screen and no reset deep link.
 - Email verification link likewise opens the web verify route. The Expo `authClient` keeps its bearer-token/secure-store setup; only the sign-in method changes.
 
@@ -114,20 +114,20 @@ Surface Better Auth's error codes as friendly localized strings: invalid credent
 
 ## 8. Testing
 
-- **E2E (web):** the rewritten `helpers.signIn` (password) exercises sign-up + sign-in across the existing 7 specs × 4 projects; verification is disabled via `AUTH_DEV_ECHO`. Add focused specs for the wrong-password and forgot-password entry points (the reset *completion* needs a token — seed or intercept, or assert up to the "email sent" state).
+- **E2E (web):** the rewritten `helpers.signIn` (password) exercises sign-up + sign-in across the existing 7 specs × 4 projects; verification is disabled via `AUTH_DEV_ECHO`. Add focused specs for the wrong-password and forgot-password entry points (the reset _completion_ needs a token — seed or intercept, or assert up to the "email sent" state).
 - **Unit (web, vitest):** any pure helper extracted (e.g. mapping BA error codes → i18n keys) gets a test. The email templates get a render test (subject present, URL present, no unresolved placeholder).
 - **Not automatable here:** real email delivery, the verification click, and the reset click end-to-end — they need #0. Documented, verified manually in staging once #0 lands.
 - **Mobile:** typecheck + lint; the real flows need a device/staging (consistent with the Apple work).
 
 ## 9. Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| Deploying before #0 locks out magic-link users + breaks mobile | Deploy gate (§3); #1's DoD excludes prod deploy |
-| E2E breaks when magic-link login is removed | `helpers.signIn` rewritten to password in the same change; verification gated off by `AUTH_DEV_ECHO` |
-| Removing `magicLink` breaks the Expo deep-link handoff | `expo()` stays; it's needed for native **OAuth** callbacks, not just magic-link — comment corrected |
-| Open signup + no verification = spam/impersonation | `requireEmailVerification: true` in prod |
-| Reset/verify deep-link complexity on mobile | Reset + verify are web-hosted; mobile never handles the token |
+| Risk                                                           | Mitigation                                                                                           |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Deploying before #0 locks out magic-link users + breaks mobile | Deploy gate (§3); #1's DoD excludes prod deploy                                                      |
+| E2E breaks when magic-link login is removed                    | `helpers.signIn` rewritten to password in the same change; verification gated off by `AUTH_DEV_ECHO` |
+| Removing `magicLink` breaks the Expo deep-link handoff         | `expo()` stays; it's needed for native **OAuth** callbacks, not just magic-link — comment corrected  |
+| Open signup + no verification = spam/impersonation             | `requireEmailVerification: true` in prod                                                             |
+| Reset/verify deep-link complexity on mobile                    | Reset + verify are web-hosted; mobile never handles the token                                        |
 
 ## 10. Out of scope
 

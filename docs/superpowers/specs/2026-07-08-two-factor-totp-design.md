@@ -3,7 +3,7 @@
 > **Status:** approved design, ready to plan
 > **Date:** 2026-07-08
 > **Scope owner:** `apps/web`, `apps/mobile`, `packages/db` (migration), `packages/i18n`
-> **Related:** sub-project **#2** of the auth overhaul. **Depends on #1** (email + password — [`2026-07-08-email-password-auth-design.md`](./2026-07-08-email-password-auth-design.md)). Siblings: **#3** connected accounts. **#0** (SMTP) is *not* needed by 2FA itself.
+> **Related:** sub-project **#2** of the auth overhaul. **Depends on #1** (email + password — [`2026-07-08-email-password-auth-design.md`](./2026-07-08-email-password-auth-design.md)). Siblings: **#3** connected accounts. **#0** (SMTP) is _not_ needed by 2FA itself.
 
 ## 1. Context & goal
 
@@ -22,7 +22,7 @@ Add **optional, per-user two-factor authentication** to EvenUp using **TOTP (aut
 
 ## 3. 🔴 Security semantics — read before building
 
-**2FA gates the password login path only.** Better Auth's `two-factor` plugin hooks the credential sign-in: after a correct password, it withholds the session (`twoFactorRedirect`) until a valid TOTP/backup code. **It does NOT gate OAuth sign-in.** A user with 2FA enabled *and* a linked Google/Apple account can still sign in via that provider **without** the second factor.
+**2FA gates the password login path only.** Better Auth's `two-factor` plugin hooks the credential sign-in: after a correct password, it withholds the session (`twoFactorRedirect`) until a valid TOTP/backup code. **It does NOT gate OAuth sign-in.** A user with 2FA enabled _and_ a linked Google/Apple account can still sign in via that provider **without** the second factor.
 
 This is not a hole — Google/Apple enforce their own 2FA — but it defines what EvenUp's 2FA protects: **the password credential**, nothing else. The enrollment UI states this plainly ("Two-factor protects password sign-in; your Google/Apple logins are protected by those providers").
 
@@ -58,6 +58,7 @@ Secret and backup codes are stored **encrypted** by the plugin (`symmetricEncryp
 ### 5.4 Enrollment UI (web + mobile) — in Settings / "Security"
 
 Flow:
+
 1. "Enable two-factor" → confirm **password**.
 2. `twoFactor.enable({ password })` → render QR from `totpURI` (web: QR image; mobile: QR + the secret as copyable text, since scanning on the same device is awkward) + display the **backup codes** with a "download / copy — you won't see these again" affordance.
 3. Verify a 6-digit code → `twoFactor.verifyTotp({ code })` → enabled; `User.twoFactorEnabled` flips true.
@@ -67,6 +68,7 @@ Also: **Disable** (`twoFactor.disable({ password })`), and **Regenerate backup c
 ### 5.5 Login second-factor step (web + mobile)
 
 After `signIn.email`, if the response indicates `twoFactorRedirect` (2FA pending), route to a **"Enter your 6-digit code"** screen:
+
 - `twoFactor.verifyTotp({ code })` → session completes → home.
 - "Use a backup code instead" → `twoFactor.verifyBackupCode({ code })`.
 - The existing `databaseHooks.session.create.before` (admin seed / disabled block) still runs when the session finally completes.
@@ -96,12 +98,12 @@ Surface plugin error codes as friendly localized strings: invalid TOTP code, inv
 
 ## 8. Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| Users think 2FA protects everything | Enrollment copy states it gates the **password** path; OAuth is provider-protected (§3) |
-| Lost authenticator **and** lost backup codes → lockout | Backup codes shown/downloadable at enrollment; **admin "reset 2FA"** (§5.6) as last resort; OAuth login (if linked) also bypasses |
-| OAuth-only user clicks "enable 2FA" and it fails on missing password | Section gated behind "has a password", with a hint |
-| Migration failure on boot | Same entrypoint-migration path already proven by `3_admin_vip`; test against dev DB first |
+| Risk                                                                 | Mitigation                                                                                                                        |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Users think 2FA protects everything                                  | Enrollment copy states it gates the **password** path; OAuth is provider-protected (§3)                                           |
+| Lost authenticator **and** lost backup codes → lockout               | Backup codes shown/downloadable at enrollment; **admin "reset 2FA"** (§5.6) as last resort; OAuth login (if linked) also bypasses |
+| OAuth-only user clicks "enable 2FA" and it fails on missing password | Section gated behind "has a password", with a hint                                                                                |
+| Migration failure on boot                                            | Same entrypoint-migration path already proven by `3_admin_vip`; test against dev DB first                                         |
 
 ## 9. Out of scope
 

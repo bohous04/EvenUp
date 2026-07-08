@@ -44,9 +44,7 @@ if (appleVarsSet > 0 && appleVarsSet < 4) {
 // below without non-null assertions. `let` because a failed mint below clears
 // it back to `null`.
 let appleSecret =
-  servicesId && teamId && keyId && privateKey
-    ? { servicesId, teamId, keyId, privateKey }
-    : null;
+  servicesId && teamId && keyId && privateKey ? { servicesId, teamId, keyId, privateKey } : null;
 
 // Mint the first client secret before the provider is constructed. Apple is
 // an optional provider: if the key doesn't parse, we must not take down

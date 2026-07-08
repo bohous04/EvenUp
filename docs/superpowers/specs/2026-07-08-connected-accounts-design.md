@@ -33,7 +33,7 @@ This is why **`allowUnlinkingAll` is NOT set**: Better Auth's default last-accou
 
 One line: `account: { accountLinking: { enabled: true, allowDifferentEmails: true } }`. Nothing else changes.
 
-### 4.2 Web — `apps/web/src/components/connected-accounts.tsx` *(new Card)*
+### 4.2 Web — `apps/web/src/components/connected-accounts.tsx` _(new Card)_
 
 Rendered by the settings page (`<ConnectedAccounts />`) so `settings/page.tsx` doesn't grow and the card is a testable unit.
 
@@ -43,13 +43,14 @@ Rendered by the settings page (`<ConnectedAccounts />`) so `settings/page.tsx` d
 - **Disconnect** → `unlinkAccount({ providerId, accountId })` → refetch.
 - Icons: `AppleLogo` from `icons.tsx`; a Google mark.
 
-### 4.3 Pure decision helper — `apps/web/src/components/connectable-providers.ts` *(new)*
+### 4.3 Pure decision helper — `apps/web/src/components/connectable-providers.ts` _(new)_
 
 `connectableProviders(accounts, { google, apple })` → the list of providers to offer as connectable (enabled on instance ∧ not already in `accounts`). Pure, **unit-tested in vitest** — this is the one automatically-verifiable piece (the real OAuth link/unlink needs a provider, so it's manual staging, consistent with the Apple work).
 
 ### 4.4 Mobile — `apps/mobile`
 
 A "Connected accounts" screen mirroring the web card:
+
 - **List / unlink** are provider-agnostic API calls — identical to web.
 - **Link Apple:** native — `linkSocial({ provider: 'apple', idToken: { token, nonce } })` reusing the existing native-credential + nonce flow from the Apple sign-in work. `allowDifferentEmails: true` is what lets "Hide My Email" attach.
 - **Link Google:** EvenUp mobile has no native Google today, so Google linking uses the OAuth **redirect** opened via `expo-web-browser` (or is deferred if Google-on-mobile isn't wired). Called out in the plan; not a blocker for Apple linking.
@@ -57,6 +58,7 @@ A "Connected accounts" screen mirroring the web card:
 ### 4.5 Error handling
 
 Surface Better Auth codes as friendly localized strings:
+
 - `FAILED_TO_UNLINK_LAST_ACCOUNT` → "This is your only login method. Set a password first," linking to #1's password card.
 - `account_already_linked_to_different_user` → "That account is already connected to another EvenUp account."
 - Link email-mismatch cannot occur here (we set `allowDifferentEmails: true`).
@@ -77,12 +79,12 @@ The settings "Login & security" area stacks three independently-owned cards: **p
 
 ## 7. Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| Apple "Hide My Email" fails to link (`email_doesn't_match`) | `allowDifferentEmails: true` (§3), verified to touch only the manual authenticated path |
-| A user disconnects their only login | Better Auth's default last-account guard blocks it; UI explains + points to "set a password" (#1) |
-| Linking an account already owned by another user | Surfaced as a friendly error; Better Auth rejects the bind |
-| Mobile Google linking complexity | Apple native link ships; Google-on-mobile via web-browser redirect or deferred, called out — doesn't block the headline "Hide My Email" case |
+| Risk                                                        | Mitigation                                                                                                                                   |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Apple "Hide My Email" fails to link (`email_doesn't_match`) | `allowDifferentEmails: true` (§3), verified to touch only the manual authenticated path                                                      |
+| A user disconnects their only login                         | Better Auth's default last-account guard blocks it; UI explains + points to "set a password" (#1)                                            |
+| Linking an account already owned by another user            | Surfaced as a friendly error; Better Auth rejects the bind                                                                                   |
+| Mobile Google linking complexity                            | Apple native link ships; Google-on-mobile via web-browser redirect or deferred, called out — doesn't block the headline "Hide My Email" case |
 
 ## 8. Out of scope
 
