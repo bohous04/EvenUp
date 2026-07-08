@@ -1134,10 +1134,18 @@ pnpm typecheck && pnpm lint && pnpm test
 pnpm --filter @evenup/web test:e2e
 ```
 
-Expected (baseline measured 2026-07-08 on this branch, before any Apple work):
-typecheck clean across 6 packages; lint clean apart from **2 pre-existing
+Expected: typecheck clean across 6 packages; lint clean apart from **2 pre-existing
 `no-console` warnings in `apps/mobile`**; `core` 195 + `i18n` 19 + `api` 65 +
-**`web` 16 (new)** = 295 unit tests; Playwright **28/28** (7 specs × 4 projects).
+**`web` 20 (new)** = 299 unit tests; Playwright **28/28** (7 specs × 4 projects).
+
+(`web` is 20, not the 16 originally planned: the review of Task 1 added four
+fake-timer tests covering the refresh-on-read path, which the plan's original
+test list left entirely unexercised.)
+
+**Actual, run 2026-07-08 on this branch:** typecheck 6/6 ✓ · lint 6/6, exactly the
+2 pre-existing mobile warnings ✓ · unit 299 ✓ (core 195, i18n 19, api 65, web 20)
+· Playwright 28/28 ✓ (with `accountLinking` newly enabled — no regression to the
+existing magic-link flows).
 
 Without `DATABASE_URL`, the `api` suite reports `Environment variable not found:
 DATABASE_URL` and skips 31 tests. That is a missing env var, not a regression.
@@ -1160,7 +1168,16 @@ Separately, when deploying to Coolify, add `NEXT_PUBLIC_APPLE_ENABLED=true` with
 
 - [ ] **Step 3: Record what is NOT covered**
 
-Automated tests cover the minter (8 tests) and the display-name mapper (8 tests). They do **not** cover: the web redirect flow, the native flow, account linking, or private-relay delivery. Those require Apple and a real device. The manual staging checklist below is the only verification they get.
+Automated tests cover the minter (12 tests, incl. the refresh-on-read path) and the display-name mapper (8 tests).
+
+**Verified locally beyond the automated suite** (against a real production build + `next start`, with a self-signed ES256 key — recorded in `.superpowers/sdd/task-3-report.md`):
+
+- The top-level `await` in `auth.ts` does not break route-handler init: `GET /api/auth/get-session` → 200.
+- `POST /api/auth/sign-in/social {provider:'apple'}` → 200 with a real `appleid.apple.com/auth/authorize` URL carrying `client_id=<Services ID>` and `response_mode=form_post`. Since `createAuthorizationURL` throws `CLIENT_ID_AND_SECRET_REQUIRED` unless `options.clientSecret` is truthy, **this proves the getter fires per-request and returns a string**, not `[object Promise]`.
+- Fail-soft: a malformed `APPLE_PRIVATE_KEY` → `get-session` 200, magic-link 200, Apple 404 `PROVIDER_NOT_FOUND`, log names `APPLE_PRIVATE_KEY`.
+- The web button, via headless Chromium against a production build: flag set → Apple button renders, exactly one divider, and clicking it navigates to Apple. Flags unset → no buttons, no divider.
+
+**Still NOT covered by anything automated**, and reachable only via the manual staging checklist below: the Apple **callback** leg (Apple → our `/api/auth/callback/apple`), the native iOS flow, real account linking against Apple, and private-relay email delivery. All four need Apple credentials; the last two also need a real device or a real mailbox. Nothing here pretends otherwise.
 
 - [ ] **Step 4: Manual staging verification** (requires the Task-2 portal artifacts + deploy)
 
