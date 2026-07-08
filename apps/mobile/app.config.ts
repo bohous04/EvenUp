@@ -34,6 +34,7 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    'expo-apple-authentication',
     ['expo-camera', { cameraPermission: 'EvenUp uses the camera to scan receipts.' }],
     [
       'expo-image-picker',
