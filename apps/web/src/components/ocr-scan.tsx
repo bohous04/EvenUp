@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { decimalStringToMinor, minorToDecimalString, splitItemized } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Button, Card, Input, Select } from '@/components/ui';
+import { Button, Input, Select } from '@/components/ui';
 import { MemberChip } from '@/components/member-chip';
 import { Camera, Trash2, Plus } from '@/components/icons';
 
@@ -72,10 +72,12 @@ export function OcrScan({
   groupId,
   members,
   baseCurrency,
+  onSaved,
 }: {
   groupId: string;
   members: MemberLite[];
   baseCurrency: string;
+  onSaved?: () => void;
 }) {
   const { t, formatCurrency } = useI18n();
   const utils = trpc.useUtils();
@@ -108,6 +110,7 @@ export function OcrScan({
       void utils.balance.get.invalidate({ groupId });
       void utils.stats.byCategory.invalidate({ groupId });
       void utils.activity.list.invalidate({ groupId });
+      onSaved?.();
     },
     onError: (e) => setError(e.message),
   });
@@ -214,8 +217,7 @@ export function OcrScan({
   }
 
   return (
-    <Card>
-      <h3 className="mb-3 font-semibold">{t('ocr.scan')}</h3>
+    <div>
       <input
         ref={fileRef}
         type="file"
@@ -373,6 +375,6 @@ export function OcrScan({
           {error}
         </p>
       ) : null}
-    </Card>
+    </div>
   );
 }

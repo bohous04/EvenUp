@@ -36,9 +36,9 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
 
     // Add an equal-split expense of 900 paid by the creator, categorized.
     await page.getByTestId('add-expense-open').click();
-    await page.getByTestId('expense-title-input').fill('Chata');
     await page.getByTestId('expense-amount-input').fill('900');
-    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('expense-title-input').fill('Chata');
+    await page.getByTestId('expense-category-row').click();
     await page.getByTestId('category-chip-accommodation').click();
     await page.getByTestId('add-expense-submit').click();
 
@@ -107,7 +107,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Exact split: creator pays, Petr owes 100.
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
-    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0'); // creator owes nothing
@@ -159,6 +159,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
       'base64',
     );
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-receipt-row').click();
     await page.getByTestId('ocr-file-input').setInputFiles({
       name: 'receipt.png',
       mimeType: 'image/png',
@@ -217,9 +219,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
 
     // 100 EUR at rate 25 -> 2500 CZK in base.
     await page.getByTestId('add-expense-open').click();
-    await page.getByTestId('expense-title-input').fill('Lanovka');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('expense-title-input').fill('Lanovka');
     await page.getByTestId('expense-currency-select').selectOption('EUR');
     await page.getByTestId('expense-fx-input').fill('25');
     await page.getByTestId('add-expense-submit').click();
@@ -309,14 +310,15 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
     await closeSheet(page);
 
-    // Choosing EXACT keeps the per-member inputs reachable: the "fewer options"
+    // Choosing EXACT keeps the per-member inputs reachable: the split row's
     // toggle is disabled so the required inputs can't be collapsed out of reach.
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
-    await page.getByTestId('expense-more-options').click();
+    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     await expect(page.getByTestId('per-member-inputs')).toBeVisible();
-    await expect(page.getByTestId('expense-more-options')).toBeDisabled();
+    // A non-EQUAL split forces the split row open — its toggle is disabled.
+    await expect(page.getByTestId('expense-split-row')).toBeDisabled();
 
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0');
@@ -324,12 +326,12 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-submit').click();
     await expect(page.getByRole('dialog')).toBeHidden();
 
-    // Reopening starts from clean defaults — advanced is collapsed and the
-    // previous split/currency settings did not carry over.
+    // Reopening starts from clean defaults — the split row is collapsed again and
+    // the currency is back to base.
     await page.getByTestId('add-expense-open').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByTestId('expense-currency-select')).toHaveCount(0);
     await expect(page.getByTestId('split-type-EXACT')).toHaveCount(0);
+    await expect(page.getByTestId('expense-currency-select')).toHaveValue('CZK');
   });
 
   test('admin (ADMIN_EMAILS) reaches the management dashboard (§9.4)', async ({ page }) => {

@@ -1,13 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { decimalStringToMinor, EXPENSE_CATEGORIES, RECURRENCE_INTERVALS } from '@evenup/core';
+import {
+  decimalStringToMinor,
+  splitEqually,
+  EXPENSE_CATEGORIES,
+  RECURRENCE_INTERVALS,
+} from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import type { MessageKey } from '@evenup/i18n';
-import { Button, Card, Input, Label, Select } from '@/components/ui';
+import { Button, Input, Label, SectionLabel } from '@/components/ui';
+import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
-import { Modal } from '@/components/modal';
-import { CategoryIcon, Plus, ChevronDown } from '@/components/icons';
+import { Sheet } from '@/components/sheet';
+import { Fab } from '@/components/fab';
+import { OcrScan } from '@/components/ocr-scan';
+import { CategoryIcon, Camera, ChevronDown } from '@/components/icons';
 
 interface MemberLite {
   id: string;
@@ -72,6 +80,51 @@ function Segmented({
   );
 }
 
+type Row = 'split' | 'category' | 'date' | 'repeat' | null;
+
+/** Collapsible settings row inside the expense sheet (Split / Category / Date / Repeat). */
+function DisclosureRow({
+  label,
+  value,
+  open,
+  disabled,
+  onToggle,
+  testId,
+  children,
+}: {
+  label: string;
+  value: React.ReactNode;
+  open: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-zinc-100 dark:border-zinc-800">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        disabled={disabled}
+        data-testid={testId}
+        className="flex w-full items-center justify-between py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed"
+      >
+        <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
+        <span className="flex items-center gap-1 font-semibold text-brand-600 dark:text-brand-100">
+          {value}
+          <ChevronDown
+            size={16}
+            aria-hidden
+            className={`transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </span>
+      </button>
+      {open ? <div className="pb-3">{children}</div> : null}
+    </div>
+  );
+}
+
 export function AddExpenseForm({
   groupId,
   members,
@@ -84,7 +137,6 @@ export function AddExpenseForm({
   const { t } = useI18n();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(baseCurrency);
@@ -97,6 +149,9 @@ export function AddExpenseForm({
   // Per-member values for shares / exact amounts / percentages, keyed by member id.
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<Row>(null);
+  const [ocrOpen, setOcrOpen] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const payerId = members.some((m) => m.id === payerIdRaw) ? payerIdRaw : (members[0]?.id ?? '');
   const isSelected = (id: string) => !deselected.has(id);
@@ -121,7 +176,8 @@ export function AddExpenseForm({
       setSplitType('EQUAL');
       setPayerId('');
       setDeselected(new Set());
-      setShowAdvanced(false);
+      setOpenRow(null);
+      setDate(new Date().toISOString().slice(0, 10));
       setError(null);
       setOpen(false);
       void utils.transaction.list.invalidate({ groupId });
@@ -142,13 +198,6 @@ export function AddExpenseForm({
       setFxRate(fxResolve.data.rateDecimal);
     }
   }, [currency, baseCurrency, fxResolve.data, fxRate]);
-
-  // The advanced panel holds the only inputs for a non-EQUAL split (per-member
-  // amounts) and for a foreign currency (the FX rate). Force it open whenever one
-  // of those is active so those required inputs can never be collapsed out of
-  // reach; the toggle is disabled in that state.
-  const requiresAdvanced = splitType !== 'EQUAL' || currency !== baseCurrency;
-  const advancedOpen = showAdvanced || requiresAdvanced;
 
   function toggle(id: string) {
     setDeselected((prev) => {
@@ -174,7 +223,7 @@ export function AddExpenseForm({
       title,
       currency,
       category,
-      date: new Date(),
+      date: new Date(date),
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
     };
 
@@ -242,61 +291,123 @@ export function AddExpenseForm({
         ? '%'
         : t('expense.amount');
 
+  // A non-EQUAL split's per-member inputs must stay reachable: force the split
+  // row open and disable its toggle (mirrors today's requiresAdvanced rule).
+  const splitForced = splitType !== 'EQUAL';
+  const splitOpen = openRow === 'split' || splitForced;
+
+  // Live equal-split preview per selected member (cent-accurate via core).
+  let shares: Record<string, number> = {};
+  if (splitType === 'EQUAL' && selectedMembers.length > 0) {
+    try {
+      const total = decimalStringToMinor(amount || '0', currency);
+      if (total > 0) {
+        shares = Object.fromEntries(
+          splitEqually(total, selectedMembers.map((m) => ({ memberId: m.id }))).map((s) => [
+            s.memberId,
+            s.computedMinorUnits,
+          ]),
+        );
+      }
+    } catch {
+      // ignore preview errors while the user is typing
+    }
+  }
+
+  const toggleRow = (row: Exclude<Row, null>) => setOpenRow((r) => (r === row ? null : row));
+  const categoryLabel = t(`category.${category}` as MessageKey);
+
   return (
     <>
-      <Card>
-        <Button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="w-full"
-          data-testid="add-expense-open"
-        >
-          <Plus size={18} aria-hidden />
-          {t('expense.add')}
-        </Button>
-      </Card>
+      <Fab
+        onClick={() => setOpen(true)}
+        aria-label={t('expense.add')}
+        data-testid="add-expense-open"
+      />
 
-      <Modal
+      <Sheet
         open={open}
         onClose={() => setOpen(false)}
         title={t('expense.add')}
         testId="add-expense-modal"
       >
         <form className="space-y-4" onSubmit={submit}>
-          {/* Essentials */}
-          <div>
-            <Label htmlFor="e-title">{t('expense.title')}</Label>
-            <Input
-              id="e-title"
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              data-testid="expense-title-input"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="e-amount">{t('expense.amount')}</Label>
-            <Input
+          {/* Amount first */}
+          <div className="flex items-end justify-center gap-2">
+            <input
               id="e-amount"
               inputMode="decimal"
+              autoFocus
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={`0 ${currency}`}
+              placeholder="0"
               disabled={splitType === 'EXACT'}
               required={splitType !== 'EXACT'}
+              aria-label={t('expense.amount')}
               data-testid="expense-amount-input"
+              className="w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 disabled:opacity-40 dark:text-zinc-100 dark:placeholder:text-zinc-600"
             />
+            <select
+              value={currency}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                setFxRate('');
+              }}
+              aria-label={t('expense.currency')}
+              data-testid="expense-currency-select"
+              className="mb-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
+            >
+              {[baseCurrency, 'CZK', 'EUR', 'USD', 'GBP', 'PLN']
+                .filter((c, i, arr) => arr.indexOf(c) === i)
+                .map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </select>
           </div>
 
+          {/* FX rate, only for a foreign currency (kept next to the amount) */}
+          {currency !== baseCurrency ? (
+            <div className="mx-auto max-w-xs">
+              <Label htmlFor="e-fx">{`${t('fx.rate')} → ${baseCurrency}`}</Label>
+              <Input
+                id="e-fx"
+                inputMode="decimal"
+                value={fxRate}
+                onChange={(e) => setFxRate(e.target.value)}
+                placeholder="24.5"
+                required
+                data-testid="expense-fx-input"
+              />
+              {fxResolve.data ? (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400" data-testid="fx-source">
+                  {fxResolve.data.stale
+                    ? t('fx.stale')
+                    : fxResolve.data.source === 'frankfurter'
+                      ? `${t('fx.rate')} · Frankfurter`
+                      : t('fx.override')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Title */}
+          <input
+            id="e-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            placeholder={t('expense.title')}
+            aria-label={t('expense.title')}
+            data-testid="expense-title-input"
+            className="w-full border-b border-zinc-100 bg-transparent pb-2 text-center text-sm outline-none placeholder:text-zinc-400 focus:border-brand-500 dark:border-zinc-800"
+          />
+
+          {/* Paid by — chips exactly as today (radiogroup, payer-chip-<id> testids) */}
           <div>
-            <Label>{t('expense.paidBy')}</Label>
-            <div
-              className="flex flex-wrap gap-2"
-              role="radiogroup"
-              aria-label={t('expense.paidBy')}
-            >
+            <SectionLabel>{t('expense.paidBy')}</SectionLabel>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('expense.paidBy')}>
               {members.map((m) => {
                 const selected = payerId === m.id;
                 return (
@@ -309,16 +420,11 @@ export function AddExpenseForm({
                     data-testid={`payer-chip-${m.id}`}
                     className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
                       selected
-                        ? 'border-brand-600 bg-brand-50 font-medium text-brand-800 dark:bg-brand-600/20 dark:text-brand-100'
-                        : 'border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
+                        ? 'border-brand-600 bg-brand-50 font-medium text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
+                        : 'border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
                     }`}
                   >
-                    <MemberChip
-                      initials={m.initials}
-                      color={m.color}
-                      name={m.displayName}
-                      size="sm"
-                    />
+                    <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
                     {m.displayName}
                   </button>
                 );
@@ -326,127 +432,50 @@ export function AddExpenseForm({
             </div>
           </div>
 
+          {/* For whom — toggle chips with a live equal-share preview */}
           <div>
-            <Label>{t('expense.splitBetween')}</Label>
-            <div
-              className="flex flex-wrap gap-2"
-              role="group"
-              aria-label={t('expense.splitBetween')}
-            >
-              {members.map((m) => (
-                <MemberChip
-                  key={m.id}
-                  initials={m.initials}
-                  color={m.color}
-                  name={m.displayName}
-                  selected={isSelected(m.id)}
-                  onClick={() => toggle(m.id)}
-                />
-              ))}
+            <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('expense.splitBetween')}>
+              {members.map((m) => {
+                const selected = isSelected(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => toggle(m.id)}
+                    className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
+                      selected
+                        ? 'border-brand-600 bg-brand-50 font-medium text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
+                        : 'border-zinc-200 opacity-60 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                    {m.displayName}
+                    {selected && shares[m.id] != null ? (
+                      <AmountText
+                        minorUnits={shares[m.id]!}
+                        currency={currency}
+                        className="text-xs text-zinc-500 dark:text-zinc-400"
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Progressive disclosure */}
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            aria-expanded={advancedOpen}
-            disabled={requiresAdvanced}
-            data-testid="expense-more-options"
-            className="flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:text-brand-100"
-          >
-            <ChevronDown
-              size={16}
-              aria-hidden
-              className={`transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
-            />
-            {advancedOpen ? t('expense.fewerOptions') : t('expense.moreOptions')}
-          </button>
-
-          {advancedOpen ? (
-            <div className="space-y-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="e-currency">{t('expense.currency')}</Label>
-                  <Select
-                    id="e-currency"
-                    value={currency}
-                    onChange={(e) => {
-                      setCurrency(e.target.value);
-                      setFxRate('');
-                    }}
-                    data-testid="expense-currency-select"
-                  >
-                    {[baseCurrency, 'CZK', 'EUR', 'USD', 'GBP', 'PLN']
-                      .filter((c, i, arr) => arr.indexOf(c) === i)
-                      .map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                          {c === baseCurrency ? ` (${t('group.baseCurrency')})` : ''}
-                        </option>
-                      ))}
-                  </Select>
-                </div>
-                {currency !== baseCurrency ? (
-                  <div>
-                    <Label htmlFor="e-fx">{`${t('fx.rate')} → ${baseCurrency}`}</Label>
-                    <Input
-                      id="e-fx"
-                      inputMode="decimal"
-                      value={fxRate}
-                      onChange={(e) => setFxRate(e.target.value)}
-                      placeholder="24.5"
-                      required
-                      data-testid="expense-fx-input"
-                    />
-                    {fxResolve.data ? (
-                      <p className="mt-1 text-xs text-zinc-500" data-testid="fx-source">
-                        {fxResolve.data.stale
-                          ? t('fx.stale')
-                          : fxResolve.data.source === 'frankfurter'
-                            ? `${t('fx.rate')} · Frankfurter`
-                            : t('fx.override')}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <div>
-                <Label>{t('expense.category')}</Label>
-                <div
-                  className="grid grid-cols-5 gap-2"
-                  role="radiogroup"
-                  aria-label={t('expense.category')}
-                >
-                  {EXPENSE_CATEGORIES.map((c) => {
-                    const label = t(`category.${c.key}` as never);
-                    const selected = category === c.key;
-                    return (
-                      <button
-                        key={c.key}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setCategory(c.key)}
-                        title={label}
-                        data-testid={`category-chip-${c.key}`}
-                        className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
-                          selected
-                            ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-600/20 dark:text-brand-100'
-                            : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
-                        }`}
-                      >
-                        <CategoryIcon name={c.iconName} size={20} />
-                        <span className="text-[10px] leading-tight">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <Label>{t('expense.splitBetween')}</Label>
+          {/* Collapsed settings rows */}
+          <div className="border-t border-zinc-100 dark:border-zinc-800">
+            <DisclosureRow
+              label={t('expense.splitBetween')}
+              value={t(SPLIT_LABELS[splitType])}
+              open={splitOpen}
+              disabled={splitForced}
+              onToggle={() => toggleRow('split')}
+              testId="expense-split-row"
+            >
+              <div className="space-y-3">
                 <Segmented
                   ariaLabel={t('expense.splitBetween')}
                   value={splitType}
@@ -457,49 +486,114 @@ export function AddExpenseForm({
                     label: t(SPLIT_LABELS[st]),
                   }))}
                 />
-              </div>
-
-              {splitType !== 'EQUAL' ? (
-                <div className="space-y-2" data-testid="per-member-inputs">
-                  {selectedMembers.map((m) => (
-                    <div key={m.id} className="flex items-center gap-2">
-                      <MemberChip
-                        initials={m.initials}
-                        color={m.color}
-                        name={m.displayName}
-                        size="sm"
-                      />
-                      <span className="flex-1 text-sm">{m.displayName}</span>
-                      <div className="w-28">
-                        <Input
-                          inputMode="decimal"
-                          aria-label={`${m.displayName} ${perMemberLabel}`}
-                          placeholder={perMemberLabel}
-                          value={values[m.id] ?? ''}
-                          onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))}
-                          data-testid={`member-value-${m.id}`}
-                        />
+                {splitType !== 'EQUAL' ? (
+                  <div className="space-y-2" data-testid="per-member-inputs">
+                    {selectedMembers.map((m) => (
+                      <div key={m.id} className="flex items-center gap-2">
+                        <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                        <span className="flex-1 text-sm">{m.displayName}</span>
+                        <div className="w-28">
+                          <Input
+                            inputMode="decimal"
+                            aria-label={`${m.displayName} ${perMemberLabel}`}
+                            placeholder={perMemberLabel}
+                            value={values[m.id] ?? ''}
+                            onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))}
+                            data-testid={`member-value-${m.id}`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              <div>
-                <Label>{t('expense.recurring')}</Label>
-                <Segmented
-                  ariaLabel={t('expense.recurring')}
-                  value={recurrence}
-                  onChange={(v) => setRecurrence(v as RecurrenceValue)}
-                  testIdPrefix="recurrence"
-                  options={RECURRENCE_VALUES.map((r) => ({
-                    value: r,
-                    label: r === 'none' ? t('recurrence.none') : t(`recurrence.${r}` as never),
-                  }))}
-                />
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ) : null}
+            </DisclosureRow>
+
+            <DisclosureRow
+              label={t('expense.category')}
+              value={
+                <span className="flex items-center gap-1.5">
+                  <CategoryIcon name={EXPENSE_CATEGORIES.find((c) => c.key === category)?.iconName ?? 'package'} />
+                  {categoryLabel}
+                </span>
+              }
+              open={openRow === 'category'}
+              onToggle={() => toggleRow('category')}
+              testId="expense-category-row"
+            >
+              <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t('expense.category')}>
+                {EXPENSE_CATEGORIES.map((c) => {
+                  const label = t(`category.${c.key}` as never);
+                  const selected = category === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setCategory(c.key)}
+                      title={label}
+                      data-testid={`category-chip-${c.key}`}
+                      className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
+                        selected
+                          ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
+                          : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                      }`}
+                    >
+                      <CategoryIcon name={c.iconName} size={20} />
+                      <span className="text-[10px] leading-tight">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </DisclosureRow>
+
+            <DisclosureRow
+              label={t('expense.date')}
+              value={date}
+              open={openRow === 'date'}
+              onToggle={() => toggleRow('date')}
+              testId="expense-date-row"
+            >
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-label={t('expense.date')}
+                data-testid="expense-date-input"
+              />
+            </DisclosureRow>
+
+            <DisclosureRow
+              label={t('expense.recurring')}
+              value={recurrence === 'none' ? t('recurrence.none') : t(`recurrence.${recurrence}` as never)}
+              open={openRow === 'repeat'}
+              onToggle={() => toggleRow('repeat')}
+              testId="expense-repeat-row"
+            >
+              <Segmented
+                ariaLabel={t('expense.recurring')}
+                value={recurrence}
+                onChange={(v) => setRecurrence(v as RecurrenceValue)}
+                testIdPrefix="recurrence"
+                options={RECURRENCE_VALUES.map((r) => ({
+                  value: r,
+                  label: r === 'none' ? t('recurrence.none') : t(`recurrence.${r}` as never),
+                }))}
+              />
+            </DisclosureRow>
+
+            {/* Receipt scan — opens the OCR flow in its own sheet */}
+            <button
+              type="button"
+              onClick={() => setOcrOpen(true)}
+              data-testid="expense-receipt-row"
+              className="flex w-full items-center justify-between py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+            >
+              <span className="text-zinc-600 dark:text-zinc-300">{t('ocr.scan')}</span>
+              <Camera size={16} aria-hidden className="text-brand-600 dark:text-brand-100" />
+            </button>
+          </div>
 
           {error ? (
             <p role="alert" className="text-sm text-red-700 dark:text-red-400">
@@ -507,20 +601,31 @@ export function AddExpenseForm({
             </p>
           ) : null}
 
-          <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-              {t('common.cancel')}
-            </Button>
+          <div className="sticky bottom-0 -mx-5 border-t border-zinc-100 bg-white px-5 pb-1 pt-3 dark:border-zinc-800 dark:bg-zinc-900">
             <Button
               type="submit"
               disabled={createExpense.isPending}
+              className="w-full"
               data-testid="add-expense-submit"
             >
               {createExpense.isPending ? t('common.loading') : t('common.save')}
             </Button>
           </div>
         </form>
-      </Modal>
+      </Sheet>
+
+      {/* OCR flow in its own sheet, stacked above the expense sheet */}
+      <Sheet open={ocrOpen} onClose={() => setOcrOpen(false)} title={t('ocr.scan')}>
+        <OcrScan
+          groupId={groupId}
+          members={members}
+          baseCurrency={baseCurrency}
+          onSaved={() => {
+            setOcrOpen(false);
+            setOpen(false);
+          }}
+        />
+      </Sheet>
     </>
   );
 }

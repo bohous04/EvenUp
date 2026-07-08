@@ -11,7 +11,6 @@ import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { SettleCard } from '@/components/settle-card';
 import { BalancesCard } from '@/components/balances-card';
-import { OcrScan } from '@/components/ocr-scan';
 import { SpendStats } from '@/components/spend-stats';
 import { CsvImport } from '@/components/csv-import';
 import { ActivityFeed } from '@/components/activity-feed';
@@ -199,16 +198,13 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
       </Card>
 
-      {/* Expense entry trigger (reshaped into a FAB + sheet in the next task) */}
+      {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it). */}
       {activeMembers.length > 0 ? (
-        <>
-          <AddExpenseForm
-            groupId={groupId}
-            members={memberLite}
-            baseCurrency={group.data.baseCurrency}
-          />
-          <OcrScan groupId={groupId} members={memberLite} baseCurrency={group.data.baseCurrency} />
-        </>
+        <AddExpenseForm
+          groupId={groupId}
+          members={memberLite}
+          baseCurrency={group.data.baseCurrency}
+        />
       ) : null}
 
       {/* ⋯ menu + feature sheets */}
