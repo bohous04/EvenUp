@@ -147,7 +147,7 @@ export const cs = {
   'category.custom.name': 'Název kategorie',
   'category.custom.icon': 'Ikona',
   'category.custom.deleteConfirm':
-    'Opravdu smazat kategorii? Její výdaje se přesunou do „Ostatní".',
+    'Opravdu smazat kategorii? Její výdaje se přesunou do „Ostatní“.',
   'category.custom.duplicate': 'Kategorie s tímto názvem už existuje.',
   'category.custom.empty': 'Zatím žádné vlastní kategorie.',
 

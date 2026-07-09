@@ -49,6 +49,7 @@ export function CategoryManager({ groupId }: { groupId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [draftIcon, setDraftIcon] = useState(CUSTOM_CATEGORY_ICONS[0]!);
 
   const iconGrid = (selected: string, onPick: (icon: string) => void) => (
     <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t('category.custom.icon')}>
@@ -78,39 +79,53 @@ export function CategoryManager({ groupId }: { groupId: string }) {
       {list.data && list.data.length > 0 ? (
         <ul className="space-y-1">
           {list.data.map((c) => (
-            <li key={c.id} className="flex items-center gap-2 py-1" data-testid={`category-row-${c.id}`}>
-              <span className="text-zinc-600 dark:text-zinc-300">
-                <CategoryIcon name={c.iconName} size={18} />
-              </span>
+            <li
+              key={c.id}
+              className={editingId === c.id ? 'space-y-2 py-1' : 'flex items-center gap-2 py-1'}
+              data-testid={`category-row-${c.id}`}
+            >
               {editingId === c.id ? (
                 <>
-                  <Input
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    aria-label={t('category.custom.name')}
-                    className="flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => draft.trim() && update.mutate({ categoryId: c.id, name: draft.trim() })}
-                    aria-label={t('common.save')}
-                    className={iconButtonClass}
-                  >
-                    <Check size={16} aria-hidden />
-                  </button>
-                  <button type="button" onClick={() => setEditingId(null)} aria-label={t('common.cancel')} className={iconButtonClass}>
-                    <X size={16} aria-hidden />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-600 dark:text-zinc-300">
+                      <CategoryIcon name={draftIcon} size={18} />
+                    </span>
+                    <Input
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      aria-label={t('category.custom.name')}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        draft.trim() &&
+                        update.mutate({ categoryId: c.id, name: draft.trim(), iconName: draftIcon })
+                      }
+                      aria-label={t('common.save')}
+                      className={iconButtonClass}
+                    >
+                      <Check size={16} aria-hidden />
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)} aria-label={t('common.cancel')} className={iconButtonClass}>
+                      <X size={16} aria-hidden />
+                    </button>
+                  </div>
+                  {iconGrid(draftIcon, setDraftIcon)}
                 </>
               ) : (
                 <>
+                  <span className="text-zinc-600 dark:text-zinc-300">
+                    <CategoryIcon name={c.iconName} size={18} />
+                  </span>
                   <span className="flex-1 truncate text-sm">{c.name}</span>
                   <button
                     type="button"
                     onClick={() => {
                       setEditingId(c.id);
                       setDraft(c.name);
+                      setDraftIcon(c.iconName);
                     }}
                     aria-label={`${t('common.edit')} — ${c.name}`}
                     data-testid={`category-rename-${c.id}`}
