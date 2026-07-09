@@ -4,6 +4,8 @@ import {
   isExpenseCategory,
   categoryIcon,
   summarizeByCategory,
+  CUSTOM_CATEGORY_ICONS,
+  isCustomCategoryKey,
 } from './category.js';
 
 describe('expense categories (FR-12.2)', () => {
@@ -77,5 +79,36 @@ describe('summarizeByCategory', () => {
       { type: 'expense', category: 'health', baseMinorUnits: 1000 },
     ]);
     expect(summary.map((s) => s.category)).toEqual(['health', 'transport']);
+  });
+});
+
+describe('custom categories', () => {
+  test('isCustomCategoryKey matches only custom:<id>', () => {
+    expect(isCustomCategoryKey('custom:abc123')).toBe(true);
+    expect(isCustomCategoryKey('groceries')).toBe(false);
+    expect(isCustomCategoryKey('custom:')).toBe(false);
+    expect(isCustomCategoryKey('custom:ABC')).toBe(false);
+  });
+
+  test('CUSTOM_CATEGORY_ICONS contains the built-in icons and no duplicates', () => {
+    for (const c of EXPENSE_CATEGORIES) expect(CUSTOM_CATEGORY_ICONS).toContain(c.iconName);
+    expect(new Set(CUSTOM_CATEGORY_ICONS).size).toBe(CUSTOM_CATEGORY_ICONS.length);
+  });
+
+  test('summarizeByCategory keeps customKeys as own buckets, folds dangling ones', () => {
+    const txns = [
+      { type: 'expense', category: 'custom:live1', baseMinorUnits: 100 },
+      { type: 'expense', category: 'custom:gone9', baseMinorUnits: 50 },
+      { type: 'expense', category: 'groceries', baseMinorUnits: 25 },
+    ] as const;
+    const withOpts = summarizeByCategory(txns, { customKeys: new Set(['custom:live1']) });
+    expect(withOpts.find((s) => s.category === 'custom:live1')?.totalMinorUnits).toBe(100);
+    expect(withOpts.find((s) => s.category === 'other')?.totalMinorUnits).toBe(50);
+    expect(withOpts.find((s) => s.category === 'groceries')?.totalMinorUnits).toBe(25);
+    // Without opts: byte-for-byte legacy behavior — everything custom folds to other.
+    const legacy = summarizeByCategory(txns);
+    expect(legacy.find((s) => s.category === 'other')?.totalMinorUnits).toBe(150);
+    expect(legacy.find((s) => s.category === 'groceries')?.totalMinorUnits).toBe(25);
+    expect(legacy.some((s) => s.category.startsWith('custom:'))).toBe(false);
   });
 });

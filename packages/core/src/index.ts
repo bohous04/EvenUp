@@ -95,7 +95,9 @@ export {
   type CategorySummary,
   type Categorizable,
   EXPENSE_CATEGORIES,
+  CUSTOM_CATEGORY_ICONS,
   isExpenseCategory,
+  isCustomCategoryKey,
   categoryIcon,
   summarizeByCategory,
 } from './category/category.js';

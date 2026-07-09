@@ -30,6 +30,18 @@ export function isExpenseCategory(value: string): boolean {
   return BY_KEY.has(value);
 }
 
+/** Curated icon names selectable for custom categories (clients map to SVG). */
+export const CUSTOM_CATEGORY_ICONS: readonly string[] = [
+  ...EXPENSE_CATEGORIES.map((c) => c.iconName),
+  'dog', 'gift', 'coffee', 'dumbbell', 'music',
+  'wrench', 'fuel', 'baby', 'gamepad-2', 'beer',
+];
+
+/** Group-scoped custom categories are referenced as `custom:<cuid>`. */
+export function isCustomCategoryKey(key: string): boolean {
+  return /^custom:[a-z0-9]+$/.test(key);
+}
+
 /** Semantic icon name for a category key, defaulting to the "other" icon. */
 export function categoryIcon(key: string | null | undefined): string {
   return (key ? BY_KEY.get(key) : undefined)?.iconName ?? OTHER.iconName;
@@ -52,11 +64,18 @@ export interface CategorySummary {
  * (income reduces the bucket) and ignoring transfers. Sorted by total
  * descending, ties broken by category key.
  */
-export function summarizeByCategory(transactions: readonly Categorizable[]): CategorySummary[] {
+export function summarizeByCategory(
+  transactions: readonly Categorizable[],
+  opts?: { customKeys?: ReadonlySet<string> },
+): CategorySummary[] {
+  const customKeys = opts?.customKeys;
   const totals = new Map<string, { total: number; count: number }>();
   for (const txn of transactions) {
     if (txn.type === 'transfer') continue;
-    const key = txn.category && isExpenseCategory(txn.category) ? txn.category : 'other';
+    const key =
+      txn.category && (isExpenseCategory(txn.category) || customKeys?.has(txn.category))
+        ? txn.category
+        : 'other';
     const bucket = totals.get(key) ?? { total: 0, count: 0 };
     bucket.total += txn.baseMinorUnits;
     bucket.count += 1;
