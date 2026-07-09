@@ -7,10 +7,11 @@
  * index and finds a row already marked `sent`.
  */
 import type { Prisma, PrismaClient } from '@evenup/db';
-import type {
-  NotifiableUser,
-  NotificationChannel,
-  NotificationPayload,
+import {
+  toNotifiableUser,
+  type NotifiableUser,
+  type NotificationChannel,
+  type NotificationPayload,
 } from '../notifications/types.js';
 
 /** Outcome of a single delivery attempt. `duplicate` means somebody already sent it. */
@@ -155,12 +156,7 @@ export async function retryStalledDeliveries(
   for (const row of stalled) {
     // A user who opted out between the failure and the retry is not chased.
     if (!row.user.notificationsEnabled) continue;
-    const user: NotifiableUser = {
-      id: row.user.id,
-      email: row.user.email,
-      name: row.user.name,
-      locale: row.user.locale,
-    };
+    const user = toNotifiableUser(row.user);
     const channel = pickChannel(args.channels, user);
     if (!channel) continue;
     retried++;

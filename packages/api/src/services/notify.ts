@@ -10,12 +10,18 @@
  * performs themselves. There is no path by which someone else adds you.)
  *
  * A failed notification must never fail the mutation that triggered it. Every
- * entry point here swallows and logs. The delivery row survives as `pending` or
- * `failed`, and the next cron pass retries it.
+ * entry point here swallows and logs.
+ *
+ * Recovery is only guaranteed once `deliver()` has written its row: a send that
+ * fails after that leaves a `pending`/`failed` row for the cron's retry sweep.
+ * A failure *before* it — one of the lookups below throwing — leaves no row and
+ * drops the notification, logged and unretried. That is the accepted trade: the
+ * settlement itself is already committed, and the user's intent was to record a
+ * payment, not to send an email.
  */
 import { settlementIdempotencyKey } from '@evenup/core';
 import { toMinor, type PrismaClient } from '@evenup/db';
-import type { NotificationChannel } from '../notifications/types.js';
+import { toNotifiableUser, type NotificationChannel } from '../notifications/types.js';
 import { deliver } from './notification-delivery.js';
 
 /** Matches `NotificationConfig.maxAttempts`; the cron owns the real retry budget. */
@@ -75,12 +81,7 @@ export async function notifySettlementRecorded(args: NotifySettlementArgs): Prom
     await deliver({
       prisma: args.prisma,
       channels: args.channels,
-      user: {
-        id: recipient.id,
-        email: recipient.email,
-        name: recipient.name,
-        locale: recipient.locale,
-      },
+      user: toNotifiableUser(recipient),
       payload: {
         kind: 'settlement.received',
         groupId: txn.group.id,
@@ -95,7 +96,8 @@ export async function notifySettlementRecorded(args: NotifySettlementArgs): Prom
     });
   } catch (err) {
     // Swallowed on purpose: recording the settlement succeeded, and that is the
-    // user's actual intent. The cron's retry sweep picks up the delivery row.
+    // user's actual intent. If a delivery row was written, the cron's retry
+    // sweep picks it up; if we failed before that, this log is the only trace.
     console.error('[notifications] settlement notification failed', err);
   }
 }

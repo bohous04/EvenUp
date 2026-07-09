@@ -122,13 +122,11 @@ export {
 
 // Notification scheduling (digest windows, reminder thresholds, idempotency keys)
 export {
-  type NotificationKind,
   type DigestDueInput,
   type ActivityEvent,
   type DigestItem,
   type CoalesceOptions,
   type ReminderPayment,
-  NOTIFICATION_KINDS,
   DEFAULT_DIGEST_INTERVAL_HOURS,
   DEFAULT_REMINDER_INTERVAL_HOURS,
   DEFAULT_REMINDER_THRESHOLD_MINOR_UNITS,

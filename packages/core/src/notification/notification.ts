@@ -16,9 +16,6 @@ export const DEFAULT_REMINDER_THRESHOLD_MINOR_UNITS = 5_000;
 
 const HOUR_MS = 3_600_000;
 
-export const NOTIFICATION_KINDS = ['digest', 'reminder', 'settlement.received'] as const;
-export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
-
 function assertValidDate(date: Date, label: string): void {
   if (Number.isNaN(date.getTime())) {
     throw new TypeError(`${label} is not a valid date`);
@@ -135,14 +132,24 @@ export function reminderPayments<T extends ReminderPayment>(
   return payments.filter((p) => p.amountMinorUnits >= floor);
 }
 
-/** `digest:<userId>:<groupId>:<windowStartMs>` — at most one digest per window. */
+/** `<kind>:<...parts>:<windowStartMs>` — at most one such message per window. */
+function windowedKey(
+  kind: string,
+  now: Date,
+  intervalHours: number,
+  ...parts: readonly string[]
+): string {
+  return [kind, ...parts, windowStart(now, intervalHours).getTime()].join(':');
+}
+
+/** At most one digest per user, per group, per window. */
 export function digestIdempotencyKey(
   userId: string,
   groupId: string,
   now: Date,
   intervalHours: number = DEFAULT_DIGEST_INTERVAL_HOURS,
 ): string {
-  return `digest:${userId}:${groupId}:${windowStart(now, intervalHours).getTime()}`;
+  return windowedKey('digest', now, intervalHours, userId, groupId);
 }
 
 /** At most one reminder per debtor, per creditor, per window. */
@@ -153,8 +160,7 @@ export function reminderIdempotencyKey(
   now: Date,
   intervalHours: number = DEFAULT_REMINDER_INTERVAL_HOURS,
 ): string {
-  const bucket = windowStart(now, intervalHours).getTime();
-  return `reminder:${userId}:${groupId}:${creditorMemberId}:${bucket}`;
+  return windowedKey('reminder', now, intervalHours, userId, groupId, creditorMemberId);
 }
 
 /** One notification per settlement transaction, forever. */
