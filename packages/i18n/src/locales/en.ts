@@ -96,6 +96,7 @@ export const en: Messages = {
   'group.archive': 'Archive group',
   'group.archived': 'Archived',
   'group.empty': 'No groups yet. Create your first one!',
+  'group.categories': 'Categories',
 
   'member.add': 'Add member',
   'member.name': 'Name',
@@ -142,6 +143,13 @@ export const en: Messages = {
   'category.health': 'Health',
   'category.travel': 'Travel',
   'category.other': 'Other',
+  'category.custom.add': 'Add category',
+  'category.custom.name': 'Category name',
+  'category.custom.icon': 'Icon',
+  'category.custom.deleteConfirm':
+    'Really delete the category? Its expenses move to "Other".',
+  'category.custom.duplicate': 'A category with this name already exists.',
+  'category.custom.empty': 'No custom categories yet.',
 
   'split.equal': 'Equally',
   'split.exact': 'Exact amounts',
@@ -200,6 +208,9 @@ export const en: Messages = {
   'activityType.group.updated': 'Group updated',
   'activityType.group.archived': 'Group archived',
   'activityType.group.restored': 'Group restored',
+  'activityType.category.created': 'Category created',
+  'activityType.category.updated': 'Category updated',
+  'activityType.category.deleted': 'Category deleted',
 
   'error.generic': 'Something went wrong. Please try again.',
   'error.notFound': 'Not found',

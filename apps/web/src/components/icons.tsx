@@ -31,6 +31,16 @@ import {
   ChevronRight,
   ChevronLeft,
   LogOut,
+  Dog,
+  Gift,
+  Coffee,
+  Dumbbell,
+  Music,
+  Wrench,
+  Fuel,
+  Baby,
+  Gamepad2,
+  Beer,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +56,16 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   pill: Pill,
   plane: Plane,
   package: Package,
+  dog: Dog,
+  gift: Gift,
+  coffee: Coffee,
+  dumbbell: Dumbbell,
+  music: Music,
+  wrench: Wrench,
+  fuel: Fuel,
+  baby: Baby,
+  'gamepad-2': Gamepad2,
+  beer: Beer,
 };
 
 export function CategoryIcon({ name, size = 16 }: { name: string; size?: number }) {

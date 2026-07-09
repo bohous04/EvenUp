@@ -22,6 +22,9 @@ const ACTION_OPTIONS = [
   'group.updated',
   'group.archived',
   'group.restored',
+  'category.created',
+  'category.updated',
+  'category.deleted',
 ] as const;
 
 export function ActivityFeed({

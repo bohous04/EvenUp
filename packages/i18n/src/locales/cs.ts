@@ -96,6 +96,7 @@ export const cs = {
   'group.archive': 'Archivovat skupinu',
   'group.archived': 'Archivováno',
   'group.empty': 'Zatím žádné skupiny. Vytvořte první!',
+  'group.categories': 'Kategorie',
 
   'member.add': 'Přidat člena',
   'member.name': 'Jméno',
@@ -142,6 +143,13 @@ export const cs = {
   'category.health': 'Zdraví',
   'category.travel': 'Cestování',
   'category.other': 'Ostatní',
+  'category.custom.add': 'Přidat kategorii',
+  'category.custom.name': 'Název kategorie',
+  'category.custom.icon': 'Ikona',
+  'category.custom.deleteConfirm':
+    'Opravdu smazat kategorii? Její výdaje se přesunou do „Ostatní".',
+  'category.custom.duplicate': 'Kategorie s tímto názvem už existuje.',
+  'category.custom.empty': 'Zatím žádné vlastní kategorie.',
 
   'split.equal': 'Rovným dílem',
   'split.exact': 'Přesné částky',
@@ -200,6 +208,9 @@ export const cs = {
   'activityType.group.updated': 'Skupina upravena',
   'activityType.group.archived': 'Skupina archivována',
   'activityType.group.restored': 'Skupina obnovena',
+  'activityType.category.created': 'Kategorie vytvořena',
+  'activityType.category.updated': 'Kategorie upravena',
+  'activityType.category.deleted': 'Kategorie smazána',
 
   'error.generic': 'Něco se pokazilo. Zkuste to prosím znovu.',
   'error.notFound': 'Nenalezeno',

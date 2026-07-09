@@ -18,6 +18,8 @@ export function describeActivity(
       return t('activity.created', { actor, item: str(p.name) });
     case 'member.added':
       return t('activity.created', { actor, item: str(p.name) });
+    case 'category.created':
+      return t('activity.created', { actor, item: str(p.name) });
     case 'expense.created':
       return t('activity.created', { actor, item: str(p.title) });
     case 'expenses.imported':
@@ -29,8 +31,11 @@ export function describeActivity(
       return t('activity.settled', { actor, amount: formatCurrency(Number(p.amount ?? 0)) });
     case 'transaction.deleted':
       return t('activity.deleted', { actor, item: str(p.title) });
+    case 'category.deleted':
+      return t('activity.deleted', { actor, item: str(p.name) });
     case 'member.updated':
     case 'group.updated':
+    case 'category.updated':
     case 'group.archived':
     case 'group.restored':
       return t('activity.edited', { actor, item: str(p.name) });
