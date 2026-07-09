@@ -24,6 +24,12 @@ interface MemberLite {
   color: string;
 }
 
+interface CustomCategoryLite {
+  id: string;
+  name: string;
+  iconName: string;
+}
+
 type SplitType = 'EQUAL' | 'EXACT' | 'SHARES' | 'PERCENTAGE';
 
 const SPLIT_LABELS: Record<SplitType, MessageKey> = {
@@ -146,10 +152,12 @@ export function AddExpenseForm({
   groupId,
   members,
   baseCurrency,
+  customCategories,
 }: {
   groupId: string;
   members: MemberLite[];
   baseCurrency: string;
+  customCategories: CustomCategoryLite[];
 }) {
   const { t, formatDate } = useI18n();
   const utils = trpc.useUtils();
@@ -332,7 +340,19 @@ export function AddExpenseForm({
   }
 
   const toggleRow = (row: Exclude<Row, null>) => setOpenRow((r) => (r === row ? null : row));
-  const categoryLabel = t(`category.${category}` as MessageKey);
+
+  // Resolve the selected category's label + icon. A `custom:<id>` value shows the
+  // custom category's own name/icon; if that custom was deleted meanwhile we fall
+  // back to the built-in "other" label/icon.
+  const selectedCustom = category.startsWith('custom:')
+    ? customCategories.find((c) => `custom:${c.id}` === category)
+    : undefined;
+  const categoryLabel = category.startsWith('custom:')
+    ? (selectedCustom?.name ?? t('category.other'))
+    : t(`category.${category}` as MessageKey);
+  const categoryIconName = selectedCustom
+    ? selectedCustom.iconName
+    : (EXPENSE_CATEGORIES.find((c) => c.key === category)?.iconName ?? 'package');
 
   return (
     <>
@@ -530,7 +550,7 @@ export function AddExpenseForm({
               label={t('expense.category')}
               value={
                 <span className="flex items-center gap-1.5">
-                  <CategoryIcon name={EXPENSE_CATEGORIES.find((c) => c.key === category)?.iconName ?? 'package'} />
+                  <CategoryIcon name={categoryIconName} />
                   {categoryLabel}
                 </span>
               }
@@ -559,6 +579,29 @@ export function AddExpenseForm({
                     >
                       <CategoryIcon name={c.iconName} size={20} />
                       <span className="text-[10px] leading-tight">{label}</span>
+                    </button>
+                  );
+                })}
+                {customCategories.map((c) => {
+                  const key = `custom:${c.id}`;
+                  const selected = category === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setCategory(key)}
+                      title={c.name}
+                      data-testid={`category-chip-${key}`}
+                      className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
+                        selected
+                          ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
+                          : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                      }`}
+                    >
+                      <CategoryIcon name={c.iconName} size={20} />
+                      <span className="text-[10px] leading-tight">{c.name}</span>
                     </button>
                   );
                 })}

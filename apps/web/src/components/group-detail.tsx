@@ -14,6 +14,7 @@ import { BalancesCard } from '@/components/balances-card';
 import { SpendStats } from '@/components/spend-stats';
 import { CsvImport } from '@/components/csv-import';
 import { ActivityFeed } from '@/components/activity-feed';
+import { CategoryManager } from '@/components/category-manager';
 import { Sheet } from '@/components/sheet';
 import { MenuSheet } from '@/components/menu-sheet';
 import {
@@ -22,17 +23,19 @@ import {
   BarChart3,
   History,
   FileUp,
+  Tags,
   MoreHorizontal,
   ChevronLeft,
 } from '@/components/icons';
 
-type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | null;
+type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const group = trpc.group.get.useQuery({ groupId });
   const transactions = trpc.transaction.list.useQuery({ groupId });
   const stats = trpc.stats.byCategory.useQuery({ groupId });
+  const customCategories = trpc.category.list.useQuery({ groupId });
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
@@ -78,6 +81,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     { key: 'members', icon: Users, label: t('group.members'), onSelect: () => openPanel('members') },
     { key: 'invite', icon: Mail, label: t('invite.create'), onSelect: () => openPanel('invite') },
     { key: 'stats', icon: BarChart3, label: t('stats.spendByCategory'), onSelect: () => openPanel('stats') },
+    { key: 'categories', icon: Tags, label: t('group.categories'), onSelect: () => openPanel('categories') },
     { key: 'activity', icon: History, label: t('nav.activity'), onSelect: () => openPanel('activity') },
     { key: 'csv', icon: FileUp, label: t('csv.import'), onSelect: () => openPanel('csv') },
   ];
@@ -202,6 +206,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           groupId={groupId}
           members={memberLite}
           baseCurrency={group.data.baseCurrency}
+          customCategories={customCategories.data ?? []}
         />
       ) : null}
 
@@ -239,7 +244,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       </Sheet>
 
       <Sheet open={panel === 'stats'} onClose={() => setPanel(null)} title={t('stats.spendByCategory')}>
-        <SpendStats groupId={groupId} baseCurrency={group.data.baseCurrency} />
+        <SpendStats
+          groupId={groupId}
+          baseCurrency={group.data.baseCurrency}
+          customCategories={customCategories.data ?? []}
+        />
+      </Sheet>
+
+      <Sheet open={panel === 'categories'} onClose={() => setPanel(null)} title={t('group.categories')}>
+        <CategoryManager groupId={groupId} />
       </Sheet>
 
       <Sheet open={panel === 'activity'} onClose={() => setPanel(null)} title={t('nav.activity')}>

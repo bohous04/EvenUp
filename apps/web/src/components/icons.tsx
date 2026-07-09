@@ -28,6 +28,7 @@ import {
   History,
   FileUp,
   Landmark,
+  Tags,
   ChevronRight,
   ChevronLeft,
   LogOut,
@@ -107,7 +108,7 @@ export function GoogleLogo({ size = 16 }: { size?: number }) {
 
 export {
   Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown, Eye, EyeOff,
-  MoreHorizontal, Settings, Users, BarChart3, History, FileUp, Landmark,
+  MoreHorizontal, Settings, Users, BarChart3, History, FileUp, Landmark, Tags,
   ChevronRight, ChevronLeft, LogOut,
 };
 export type { LucideIcon };

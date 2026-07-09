@@ -6,8 +6,22 @@ import { trpc } from '@/lib/trpc';
 import { AmountText } from '@/components/amount-text';
 import { CategoryIcon } from '@/components/icons';
 
+interface CustomCategoryLite {
+  id: string;
+  name: string;
+  iconName: string;
+}
+
 /** Simple spend-by-category breakdown for a group (FR-12.2). */
-export function SpendStats({ groupId, baseCurrency }: { groupId: string; baseCurrency: string }) {
+export function SpendStats({
+  groupId,
+  baseCurrency,
+  customCategories,
+}: {
+  groupId: string;
+  baseCurrency: string;
+  customCategories: CustomCategoryLite[];
+}) {
   const { t } = useI18n();
   const stats = trpc.stats.byCategory.useQuery({ groupId });
 
@@ -19,12 +33,23 @@ export function SpendStats({ groupId, baseCurrency }: { groupId: string; baseCur
 
   return (
     <ul className="space-y-2" data-testid="spend-stats">
-      {stats.data.map((s) => (
+      {stats.data.map((s) => {
+        // A `custom:<id>` bucket shows the custom category's own name/icon; a
+        // dangling custom key (folded server-side, shouldn't surface here) falls
+        // back to the built-in "other" label/icon.
+        const custom = s.category.startsWith('custom:')
+          ? customCategories.find((c) => `custom:${c.id}` === s.category)
+          : undefined;
+        const label = s.category.startsWith('custom:')
+          ? (custom?.name ?? t('category.other'))
+          : t(`category.${s.category}` as MessageKey);
+        const iconName = custom ? custom.iconName : categoryIcon(s.category);
+        return (
         <li key={s.category} className="space-y-1">
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2">
-              <CategoryIcon name={categoryIcon(s.category)} />
-              {t(`category.${s.category}` as MessageKey)}
+              <CategoryIcon name={iconName} />
+              {label}
             </span>
             <AmountText
               minorUnits={s.totalMinorUnits}
@@ -39,7 +64,8 @@ export function SpendStats({ groupId, baseCurrency }: { groupId: string; baseCur
             />
           </div>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
