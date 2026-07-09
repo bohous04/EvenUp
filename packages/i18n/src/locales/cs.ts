@@ -9,6 +9,7 @@ export const cs = {
   'app.tagline': 'Spravedlivé dělení nákladů ve skupině',
 
   'common.save': 'Uložit',
+  'common.saved': 'Uloženo',
   'common.cancel': 'Zrušit',
   'common.delete': 'Smazat',
   'common.edit': 'Upravit',

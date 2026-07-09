@@ -9,6 +9,7 @@ export const en: Messages = {
   'app.tagline': 'Fair group expense splitting',
 
   'common.save': 'Save',
+  'common.saved': 'Saved',
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
   'common.edit': 'Edit',

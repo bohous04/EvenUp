@@ -16,9 +16,15 @@ export default function SettingsPage() {
   const [name, setName] = useState('');
   const [account, setAccount] = useState('');
   const [accountError, setAccountError] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
 
   const updateProfile = trpc.user.updateProfile.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
+    onSuccess: () => {
+      void utils.user.me.invalidate();
+      // Transient "saved" notice — auto-hides instead of sticking around.
+      setNameSaved(true);
+      window.setTimeout(() => setNameSaved(false), 2500);
+    },
   });
   const setBankAccount = trpc.user.setBankAccount.useMutation({
     onSuccess: () => {
@@ -110,12 +116,12 @@ export default function SettingsPage() {
             </Button>
           </div>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('profile.nicknameHint')}</p>
-          {updateProfile.isSuccess ? (
+          {nameSaved ? (
             <p
               className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400"
               data-testid="profile-name-saved"
             >
-              <Check size={16} aria-hidden /> {t('common.save')}
+              <Check size={16} aria-hidden /> {t('common.saved')}
             </p>
           ) : null}
         </form>
