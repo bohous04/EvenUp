@@ -30,12 +30,16 @@ export function CategoryManager({ groupId }: { groupId: string }) {
       setEditingId(null);
       invalidate();
     },
+    onError: (e) =>
+      setError(e.data?.code === 'CONFLICT' ? t('category.custom.duplicate') : e.message),
   });
   const remove = trpc.category.remove.useMutation({
     onSuccess: () => {
       invalidate();
       void utils.stats.byCategory.invalidate({ groupId });
     },
+    onError: (e) =>
+      setError(e.data?.code === 'CONFLICT' ? t('category.custom.duplicate') : e.message),
   });
 
   const [name, setName] = useState('');
@@ -134,6 +138,12 @@ export function CategoryManager({ groupId }: { groupId: string }) {
         <EmptyState title={t('category.custom.empty')} />
       )}
 
+      {error ? (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      ) : null}
+
       <form
         className="space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800"
         onSubmit={(e) => {
@@ -151,11 +161,6 @@ export function CategoryManager({ groupId }: { groupId: string }) {
           />
         </div>
         {iconGrid(iconName, setIconName)}
-        {error ? (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
         <Button type="submit" disabled={create.isPending} data-testid="category-add-btn">
           {create.isPending ? t('common.loading') : t('category.custom.add')}
         </Button>

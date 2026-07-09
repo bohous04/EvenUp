@@ -558,4 +558,50 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const lineHeight = await amount.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
     expect(box!.height).toBeLessThan(lineHeight * 1.5);
   });
+
+  test('custom categories: create, use in expense, see in stats, delete folds to Other', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('cats', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Kategorie');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Kategorie').click();
+
+    // Create the category (axe-check the open sheet too).
+    await openGroupSheet(page, 'categories');
+    const sheetA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(sheetA11y.violations, JSON.stringify(sheetA11y.violations, null, 2)).toEqual([]);
+    await page.getByTestId('category-name-input').fill('Pivo');
+    await page.getByTestId('category-icon-beer').click();
+    await page.getByTestId('category-add-btn').click();
+    await expect(page.getByText('Pivo')).toBeVisible();
+    await closeSheet(page);
+
+    // Use it in an expense via the grid.
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('240');
+    await page.getByTestId('expense-title-input').fill('Bečka');
+    await page.getByTestId('expense-category-row').click();
+    await page.getByTestId(/^category-chip-custom:/).click();
+    await page.getByTestId('add-expense-submit').click();
+
+    // Stats show the custom name.
+    await openGroupSheet(page, 'stats');
+    await expect(page.getByTestId('spend-stats').getByText('Pivo')).toBeVisible();
+    await closeSheet(page);
+
+    // Delete → the amount folds into the built-in Other bucket.
+    await openGroupSheet(page, 'categories');
+    page.once('dialog', (d) => void d.accept());
+    await page.getByTestId(/^category-delete-/).click();
+    await expect(page.getByTestId(/^category-row-/)).toHaveCount(0);
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'stats');
+    await expect(page.getByTestId('spend-stats').getByText(/Ostatní|Other/)).toBeVisible();
+    await expect(page.getByTestId('spend-stats').getByText('Pivo')).toHaveCount(0);
+  });
 });
