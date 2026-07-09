@@ -415,26 +415,8 @@ export function AddExpenseForm({
         onClose={() => setOpen(false)}
         title={t('expense.add')}
         testId="add-expense-modal"
-        footer={
-          <>
-            {error ? (
-              <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="submit"
-              form="add-expense-form"
-              disabled={createExpense.isPending}
-              className="w-full"
-              data-testid="add-expense-submit"
-            >
-              {createExpense.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </>
-        }
       >
-        <form id="add-expense-form" className="space-y-4" onSubmit={submit}>
+        <form className="space-y-4" onSubmit={submit}>
           {/* Amount first — the amount is centered (sits above the title), the
               currency is pinned to the far right. */}
           <div className="relative flex items-end justify-center">
@@ -755,6 +737,22 @@ export function AddExpenseForm({
             </button>
           </div>
 
+          {error ? (
+            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              {error}
+            </p>
+          ) : null}
+
+          {/* In-flow (not sticky) so it never floats over the form; the sheet's
+              bottom padding scrolls it clear of the mobile browser toolbar. */}
+          <Button
+            type="submit"
+            disabled={createExpense.isPending}
+            className="w-full"
+            data-testid="add-expense-submit"
+          >
+            {createExpense.isPending ? t('common.loading') : t('common.save')}
+          </Button>
         </form>
       </Sheet>
 
