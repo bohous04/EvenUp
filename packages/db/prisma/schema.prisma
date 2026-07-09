@@ -33,6 +33,7 @@ model User {
   locale                 String  @default("cs")
   defaultCurrency        String  @default("CZK")
   openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
+  bankAccountEncrypted   String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
   ocrModel               String?
 
   // Operator/tier fields (hosted-instance management dashboard).
