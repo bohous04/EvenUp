@@ -1,8 +1,11 @@
 /** User profile & settings, incl. BYO OpenRouter key (PRD §7.2, §6.2, FR-1.6). */
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import { deriveInitials, parseCzAccount, maskCzAccount } from '@evenup/core';
 import { router, protectedProcedure } from '../trpc.js';
 import { currencyCode } from '../schemas.js';
 import { deleteUserAccount } from '../services/account.js';
+import { logActivity } from '../services/activity.js';
 
 export const userRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
@@ -16,13 +19,21 @@ export const userRouter = router({
         defaultCurrency: true,
         ocrModel: true,
         openRouterKeyEncrypted: true,
+        bankAccountEncrypted: true,
         isAdmin: true,
         isVip: true,
       },
     });
-    // Never expose the key; just whether one is configured.
-    const { openRouterKeyEncrypted, ...rest } = user;
-    return { ...rest, hasOpenRouterKey: openRouterKeyEncrypted !== null };
+    // Never expose the key or the raw account; just derived, non-sensitive facts.
+    const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
+    return {
+      ...rest,
+      hasOpenRouterKey: openRouterKeyEncrypted !== null,
+      bankAccountMasked:
+        bankAccountEncrypted !== null
+          ? maskCzAccount(ctx.secretBox.decrypt(bankAccountEncrypted))
+          : null,
+    };
   }),
 
   updateSettings: protectedProcedure
@@ -38,6 +49,52 @@ export const userRouter = router({
       await ctx.prisma.user.update({ where: { id: ctx.user.id }, data: input });
       return { ok: true };
     }),
+
+  /** Rename the account AND every group member linked to it (spec 2026-07-09 §4). */
+  updateProfile: protectedProcedure
+    .input(z.object({ name: z.string().trim().min(1).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const linked = await ctx.prisma.member.findMany({
+        where: { userId: ctx.user.id },
+        select: { id: true, groupId: true },
+      });
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: ctx.user.id }, data: { name: input.name } });
+        if (linked.length > 0) {
+          await tx.member.updateMany({
+            where: { userId: ctx.user.id },
+            data: { displayName: input.name, initials: deriveInitials(input.name) },
+          });
+        }
+        for (const groupId of new Set(linked.map((m) => m.groupId))) {
+          await logActivity(tx, groupId, ctx.user.id, 'member.updated', { name: input.name });
+        }
+      });
+      return { ok: true as const, membersRenamed: linked.length };
+    }),
+
+  /** Store the CZ bank account used for SPAYD QR in all groups (spec §4). */
+  setBankAccount: protectedProcedure
+    .input(z.object({ account: z.string().trim().max(30) }))
+    .mutation(async ({ ctx, input }) => {
+      const compact = input.account.replace(/\s+/g, '');
+      if (!parseCzAccount(compact)) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid account number' });
+      }
+      await ctx.prisma.user.update({
+        where: { id: ctx.user.id },
+        data: { bankAccountEncrypted: ctx.secretBox.encrypt(compact) },
+      });
+      return { ok: true as const, masked: maskCzAccount(compact) };
+    }),
+
+  clearBankAccount: protectedProcedure.mutation(async ({ ctx }) => {
+    await ctx.prisma.user.update({
+      where: { id: ctx.user.id },
+      data: { bankAccountEncrypted: null },
+    });
+    return { ok: true as const };
+  }),
 
   setOpenRouterKey: protectedProcedure
     .input(z.object({ apiKey: z.string().trim().min(8).max(400) }))
