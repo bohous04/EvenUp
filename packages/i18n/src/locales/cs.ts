@@ -208,6 +208,13 @@ export const cs = {
   'settings.data.export': 'Exportovat moje data',
   'settings.data.delete': 'Smazat účet',
   'settings.data.deleteConfirm': 'Opravdu smazat účet? Tuto akci nelze vzít zpět.',
+
+  'profile.title': 'Profil',
+  'profile.nickname': 'Přezdívka',
+  'profile.nicknameHint': 'Změna se projeví ve všech tvých skupinách.',
+  'profile.bankAccount': 'Číslo účtu',
+  'profile.bankAccountHint': 'Použije se pro QR platby ve všech tvých skupinách.',
+  'profile.bankAccountInvalid': 'Neplatné číslo účtu. Zkontroluj formát 19-2000145399/0800.',
 } as const;
 
 export type MessageKey = keyof typeof cs;

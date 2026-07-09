@@ -208,4 +208,11 @@ export const en: Messages = {
   'settings.data.export': 'Export my data',
   'settings.data.delete': 'Delete account',
   'settings.data.deleteConfirm': 'Really delete your account? This cannot be undone.',
+
+  'profile.title': 'Profile',
+  'profile.nickname': 'Nickname',
+  'profile.nicknameHint': 'Renaming applies in all your groups.',
+  'profile.bankAccount': 'Bank account',
+  'profile.bankAccountHint': 'Used for QR payments in all your groups.',
+  'profile.bankAccountInvalid': 'Invalid account number. Check the 19-2000145399/0800 format.',
 };
