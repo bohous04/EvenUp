@@ -10,7 +10,8 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
   const { t } = useI18n();
   const balances = trpc.balance.get.useQuery({ groupId });
 
-  if (balances.isLoading) return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
+  if (balances.isLoading)
+    return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
   if (!balances.data) return null;
 
   const max = Math.max(...balances.data.balances.map((b) => Math.abs(b.balanceMinorUnits)), 1);

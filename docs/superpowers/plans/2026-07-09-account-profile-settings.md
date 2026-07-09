@@ -26,11 +26,13 @@
 ### Task 1: Core CZ-account module (parse, IBAN, mask)
 
 **Files:**
+
 - Create: `packages/core/src/bank/cz-account.ts`
 - Create: `packages/core/src/bank/cz-account.test.ts`
 - Modify: `packages/core/src/index.ts` (add export block)
 
 **Interfaces:**
+
 - Produces (later tasks import from `@evenup/core`):
   - `parseCzAccount(input: string): { prefix: string; number: string; bankCode: string } | null`
   - `czAccountToIban(input: string): string | null` (returns compact uppercase IBAN, e.g. `CZ6508000000192000145399`)
@@ -167,7 +169,8 @@ export function parseCzAccount(input: string): CzAccount | null {
 export function czAccountToIban(input: string): string | null {
   const account = parseCzAccount(input);
   if (!account) return null;
-  const bban = account.bankCode + account.prefix.padStart(6, '0') + account.number.padStart(10, '0');
+  const bban =
+    account.bankCode + account.prefix.padStart(6, '0') + account.number.padStart(10, '0');
   // Check digits: move "CZ00" behind the BBAN, letters → numbers (C=12, Z=35),
   // then 98 - (big number mod 97). BigInt keeps the 30-digit arithmetic exact.
   const numeric = `${bban}123500`; // C→12, Z→35, 0, 0
@@ -211,10 +214,12 @@ git commit -m "feat(core): Czech account number parsing, IBAN conversion, displa
 ### Task 2: DB — `User.bankAccountEncrypted` column + migration
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma` (User model, after `openRouterKeyEncrypted`)
 - Create: `packages/db/prisma/migrations/<timestamp>_user_bank_account/migration.sql` (generated)
 
 **Interfaces:**
+
 - Produces: `User.bankAccountEncrypted: string | null` available on the Prisma client for Tasks 3–4.
 
 - [ ] **Step 1: Edit the schema**
@@ -252,10 +257,12 @@ git commit -m "feat(db): encrypted user-level bank account column"
 ### Task 3: API — profile procedures on the user router
 
 **Files:**
+
 - Modify: `packages/api/src/routers/user.ts`
 - Create: `packages/api/src/routers/user-profile.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseCzAccount`, `maskCzAccount` from `@evenup/core` (Task 1); `deriveInitials` from `@evenup/core`; `logActivity` from `../services/activity.js` (existing, signature `logActivity(prisma, groupId, userId, action, payload)`).
 - Produces (client-visible):
   - `user.updateProfile({ name: string })` — updates `User.name` + every member where `userId === ctx.user.id` (displayName + re-derived initials) + one `member.updated` activity per affected group; returns `{ ok: true, membersRenamed: number }`.
@@ -386,15 +393,15 @@ import { logActivity } from '../services/activity.js';
 In `me`, add `bankAccountEncrypted: true` to the `select`, then change the return to:
 
 ```ts
-    const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
-    return {
-      ...rest,
-      hasOpenRouterKey: openRouterKeyEncrypted !== null,
-      bankAccountMasked:
-        bankAccountEncrypted !== null
-          ? maskCzAccount(ctx.secretBox.decrypt(bankAccountEncrypted))
-          : null,
-    };
+const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
+return {
+  ...rest,
+  hasOpenRouterKey: openRouterKeyEncrypted !== null,
+  bankAccountMasked:
+    bankAccountEncrypted !== null
+      ? maskCzAccount(ctx.secretBox.decrypt(bankAccountEncrypted))
+      : null,
+};
 ```
 
 Add the three procedures (after `updateSettings`):
@@ -465,10 +472,12 @@ git commit -m "feat(api): profile procedures — nickname propagation + encrypte
 ### Task 4: API — `generateSpayd` payee resolution order
 
 **Files:**
+
 - Modify: `packages/api/src/routers/settlement.ts`
 - Create: `packages/api/src/routers/settlement-resolution.test.ts`
 
 **Interfaces:**
+
 - Consumes: `czAccountToIban` from `@evenup/core` (Task 1); `User.bankAccountEncrypted` (Task 2); `user.setBankAccount` (Task 3, in tests).
 - Produces: unchanged `generateSpayd` API shape; new resolution: ① linked user's account (RN = user's name), ② legacy `member.bankDetail`, ③ `PRECONDITION_FAILED` (same message as today).
 
@@ -574,50 +583,50 @@ Expected: the "user-level" tests FAIL (today only `bankDetail` is consulted); th
 Add `czAccountToIban` to the `@evenup/core` import. Change the member lookup include and the IBAN/RN selection (replacing the current `if (!member.bankDetail) throw` + decrypt block):
 
 ```ts
-      const member = await ctx.prisma.member.findFirst({
-        where: { id: input.toMemberId, groupId: input.groupId },
-        include: {
-          bankDetail: true,
-          user: { select: { name: true, bankAccountEncrypted: true } },
-        },
-      });
-      if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+const member = await ctx.prisma.member.findFirst({
+  where: { id: input.toMemberId, groupId: input.groupId },
+  include: {
+    bankDetail: true,
+    user: { select: { name: true, bankAccountEncrypted: true } },
+  },
+});
+if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
 
-      // Payee resolution (spec 2026-07-09 §4): the linked user's account-level
-      // CZ bank account wins; legacy per-member BankDetail stays as fallback.
-      let iban: string | null = null;
-      let recipientName = member.displayName;
-      let variableSymbol = input.variableSymbol;
-      if (member.user?.bankAccountEncrypted) {
-        iban = czAccountToIban(ctx.secretBox.decrypt(member.user.bankAccountEncrypted));
-        recipientName = member.user.name ?? member.displayName;
-      }
-      if (!iban && member.bankDetail) {
-        iban = ctx.secretBox.decrypt(member.bankDetail.ibanEncrypted);
-        recipientName = member.bankDetail.recipientName ?? member.displayName;
-        variableSymbol = member.bankDetail.variableSymbol ?? input.variableSymbol;
-      }
-      if (!iban) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Recipient has no saved IBAN; settle in cash or manually (FR-7.4).',
-        });
-      }
-      const spayd = buildSpayd({
-        iban,
-        amountMinorUnits: input.amountMinorUnits,
-        currency: input.currency,
-        message: input.message,
-        recipientName,
-        variableSymbol,
-      });
-      return { spayd };
+// Payee resolution (spec 2026-07-09 §4): the linked user's account-level
+// CZ bank account wins; legacy per-member BankDetail stays as fallback.
+let iban: string | null = null;
+let recipientName = member.displayName;
+let variableSymbol = input.variableSymbol;
+if (member.user?.bankAccountEncrypted) {
+  iban = czAccountToIban(ctx.secretBox.decrypt(member.user.bankAccountEncrypted));
+  recipientName = member.user.name ?? member.displayName;
+}
+if (!iban && member.bankDetail) {
+  iban = ctx.secretBox.decrypt(member.bankDetail.ibanEncrypted);
+  recipientName = member.bankDetail.recipientName ?? member.displayName;
+  variableSymbol = member.bankDetail.variableSymbol ?? input.variableSymbol;
+}
+if (!iban) {
+  throw new TRPCError({
+    code: 'PRECONDITION_FAILED',
+    message: 'Recipient has no saved IBAN; settle in cash or manually (FR-7.4).',
+  });
+}
+const spayd = buildSpayd({
+  iban,
+  amountMinorUnits: input.amountMinorUnits,
+  currency: input.currency,
+  message: input.message,
+  recipientName,
+  variableSymbol,
+});
+return { spayd };
 ```
 
 Also mark the legacy write path deprecated — in `packages/api/src/routers/member.ts`, extend the doc position above `setBankDetail` with:
 
 ```ts
-  /** @deprecated Per-member bank details are legacy; the web app now stores the account on the User (spec 2026-07-09). Kept for mobile/back-compat and as a read fallback in generateSpayd. */
+/** @deprecated Per-member bank details are legacy; the web app now stores the account on the User (spec 2026-07-09). Kept for mobile/back-compat and as a read fallback in generateSpayd. */
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -636,10 +645,12 @@ git commit -m "feat(api): resolve QR payee from user-level bank account with leg
 ### Task 5: Settings UI — Profile card + i18n keys
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts`, `packages/i18n/src/locales/en.ts`
 - Modify: `apps/web/src/app/settings/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `user.updateProfile`, `user.setBankAccount`, `user.clearBankAccount`, `me.bankAccountMasked`/`me.name` (Tasks 3); kit components (`Card`, `SectionLabel`, `Input`, `Label`, `Button`, `Check` icon).
 - Produces testids the e2e (Task 6) relies on: `profile-name-input`, `profile-name-save`, `profile-name-saved`, `bank-account-input`, `bank-account-save`, `bank-account-masked`, `bank-account-clear`, `bank-account-error`.
 
@@ -672,111 +683,115 @@ git commit -m "feat(api): resolve QR payee from user-level bank account with leg
 Add state + mutations inside the component (below the existing `apiKey` state):
 
 ```tsx
-  const [name, setName] = useState('');
-  const [account, setAccount] = useState('');
-  const [accountError, setAccountError] = useState(false);
+const [name, setName] = useState('');
+const [account, setAccount] = useState('');
+const [accountError, setAccountError] = useState(false);
 
-  const updateProfile = trpc.user.updateProfile.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
-  });
-  const setBankAccount = trpc.user.setBankAccount.useMutation({
-    onSuccess: () => {
-      setAccount('');
-      setAccountError(false);
-      void utils.user.me.invalidate();
-    },
-    onError: () => setAccountError(true),
-  });
-  const clearBankAccount = trpc.user.clearBankAccount.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
-  });
+const updateProfile = trpc.user.updateProfile.useMutation({
+  onSuccess: () => void utils.user.me.invalidate(),
+});
+const setBankAccount = trpc.user.setBankAccount.useMutation({
+  onSuccess: () => {
+    setAccount('');
+    setAccountError(false);
+    void utils.user.me.invalidate();
+  },
+  onError: () => setAccountError(true),
+});
+const clearBankAccount = trpc.user.clearBankAccount.useMutation({
+  onSuccess: () => void utils.user.me.invalidate(),
+});
 ```
 
 Insert as the FIRST `<Card>` on the page (above the OpenRouter card):
 
 ```tsx
-      <Card>
-        <SectionLabel>{t('profile.title')}</SectionLabel>
+<Card>
+  <SectionLabel>{t('profile.title')}</SectionLabel>
 
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const trimmed = name.trim();
-            if (trimmed) updateProfile.mutate({ name: trimmed });
-          }}
+  <form
+    className="space-y-2"
+    onSubmit={(e) => {
+      e.preventDefault();
+      const trimmed = name.trim();
+      if (trimmed) updateProfile.mutate({ name: trimmed });
+    }}
+  >
+    <Label htmlFor="p-name">{t('profile.nickname')}</Label>
+    <div className="flex gap-2">
+      <Input
+        id="p-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={me.data?.name ?? ''}
+        data-testid="profile-name-input"
+      />
+      <Button type="submit" disabled={updateProfile.isPending} data-testid="profile-name-save">
+        {updateProfile.isPending ? t('common.loading') : t('common.save')}
+      </Button>
+    </div>
+    <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('profile.nicknameHint')}</p>
+    {updateProfile.isSuccess ? (
+      <p
+        className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400"
+        data-testid="profile-name-saved"
+      >
+        <Check size={16} aria-hidden /> {t('common.save')}
+      </p>
+    ) : null}
+  </form>
+
+  <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+    <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
+    {me.data?.bankAccountMasked ? (
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold tabular-nums" data-testid="bank-account-masked">
+          {me.data.bankAccountMasked}
+        </span>
+        <Button
+          variant="danger"
+          onClick={() => clearBankAccount.mutate()}
+          disabled={clearBankAccount.isPending}
+          data-testid="bank-account-clear"
         >
-          <Label htmlFor="p-name">{t('profile.nickname')}</Label>
-          <div className="flex gap-2">
-            <Input
-              id="p-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={me.data?.name ?? ''}
-              data-testid="profile-name-input"
-            />
-            <Button type="submit" disabled={updateProfile.isPending} data-testid="profile-name-save">
-              {updateProfile.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('profile.nicknameHint')}</p>
-          {updateProfile.isSuccess ? (
-            <p
-              className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400"
-              data-testid="profile-name-saved"
-            >
-              <Check size={16} aria-hidden /> {t('common.save')}
-            </p>
-          ) : null}
-        </form>
-
-        <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-          <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
-          {me.data?.bankAccountMasked ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold tabular-nums" data-testid="bank-account-masked">
-                {me.data.bankAccountMasked}
-              </span>
-              <Button
-                variant="danger"
-                onClick={() => clearBankAccount.mutate()}
-                disabled={clearBankAccount.isPending}
-                data-testid="bank-account-clear"
-              >
-                {t('common.delete')}
-              </Button>
-            </div>
-          ) : (
-            <form
-              className="space-y-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (account.trim()) setBankAccount.mutate({ account: account.trim() });
-              }}
-            >
-              <div className="flex gap-2">
-                <Input
-                  id="p-account"
-                  value={account}
-                  onChange={(e) => setAccount(e.target.value)}
-                  placeholder="19-2000145399/0800"
-                  inputMode="numeric"
-                  data-testid="bank-account-input"
-                />
-                <Button type="submit" disabled={setBankAccount.isPending} data-testid="bank-account-save">
-                  {setBankAccount.isPending ? t('common.loading') : t('common.save')}
-                </Button>
-              </div>
-              {accountError ? (
-                <p role="alert" className="text-sm text-red-700 dark:text-red-400" data-testid="bank-account-error">
-                  {t('profile.bankAccountInvalid')}
-                </p>
-              ) : null}
-            </form>
-          )}
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{t('profile.bankAccountHint')}</p>
+          {t('common.delete')}
+        </Button>
+      </div>
+    ) : (
+      <form
+        className="space-y-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (account.trim()) setBankAccount.mutate({ account: account.trim() });
+        }}
+      >
+        <div className="flex gap-2">
+          <Input
+            id="p-account"
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+            placeholder="19-2000145399/0800"
+            inputMode="numeric"
+            data-testid="bank-account-input"
+          />
+          <Button type="submit" disabled={setBankAccount.isPending} data-testid="bank-account-save">
+            {setBankAccount.isPending ? t('common.loading') : t('common.save')}
+          </Button>
         </div>
-      </Card>
+        {accountError ? (
+          <p
+            role="alert"
+            className="text-sm text-red-700 dark:text-red-400"
+            data-testid="bank-account-error"
+          >
+            {t('profile.bankAccountInvalid')}
+          </p>
+        ) : null}
+      </form>
+    )}
+    <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{t('profile.bankAccountHint')}</p>
+  </div>
+</Card>
 ```
 
 Update the page imports: add `SectionLabel` to the `@/components/ui` import. While in the file, restyle the two pre-existing card headings for consistency: `<h3 className="mb-1 font-semibold">OpenRouter API key</h3>` → `<SectionLabel className="mb-1">OpenRouter API key</SectionLabel>` and `<h3 className="mb-3 font-semibold">{t('settings.data.title')}</h3>` → `<SectionLabel>{t('settings.data.title')}</SectionLabel>`.
@@ -801,11 +816,13 @@ git commit -m "feat(web): profile card in settings — nickname + bank account f
 ### Task 6: Remove the group bank sheet + e2e coverage
 
 **Files:**
+
 - Modify: `apps/web/src/components/group-detail.tsx` (remove `bank` menu item, bank `Sheet`, `BankDetailsForm` + `Landmark` imports)
 - Delete: `apps/web/src/components/bank-details-form.tsx`
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: settings testids from Task 5; existing e2e helpers `signIn`, `uniqueEmail`, `openGroupSheet`, `closeSheet`.
 - Produces: group ⋯ menu has 5 items; SPAYD e2e flows through Settings.
 
@@ -814,53 +831,51 @@ git commit -m "feat(web): profile card in settings — nickname + bank account f
 In `critical-flow.spec.ts`, in the exact-split/SPAYD test, replace the bank-sheet block:
 
 ```ts
-    await openGroupSheet(page, 'bank');
-    await page.getByTestId('bank-iban-input').fill('CZ6508000000192000145399');
-    await page.getByTestId('bank-save-btn').click();
-    await closeSheet(page);
+await openGroupSheet(page, 'bank');
+await page.getByTestId('bank-iban-input').fill('CZ6508000000192000145399');
+await page.getByTestId('bank-save-btn').click();
+await closeSheet(page);
 ```
 
 with the Settings flow (the creator's member is linked to the account, so the account-level number powers the QR; the SPAYD assertion later in the test stays unchanged because `19-2000145399/0800` converts to the same IBAN):
 
 ```ts
-    // Save the creator's bank account in Settings (CZ format; spec 2026-07-09).
-    await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('bank-account-input').fill('19-2000145399/0800');
-    await page.getByTestId('bank-account-save').click();
-    await expect(page.getByTestId('bank-account-masked')).toHaveText('…5399/0800');
-    await page.goBack();
+// Save the creator's bank account in Settings (CZ format; spec 2026-07-09).
+await page.getByRole('link', { name: /settings|nastavení/i }).click();
+await page.getByTestId('bank-account-input').fill('19-2000145399/0800');
+await page.getByTestId('bank-account-save').click();
+await expect(page.getByTestId('bank-account-masked')).toHaveText('…5399/0800');
+await page.goBack();
 
-    // The per-group bank sheet is gone from the ⋯ menu.
-    await page.getByTestId('group-menu-btn').click();
-    await expect(page.getByTestId('menu-bank')).toHaveCount(0);
-    await page.getByTestId('sheet-close').click();
+// The per-group bank sheet is gone from the ⋯ menu.
+await page.getByTestId('group-menu-btn').click();
+await expect(page.getByTestId('menu-bank')).toHaveCount(0);
+await page.getByTestId('sheet-close').click();
 ```
 
 Append a new test inside the describe block:
 
 ```ts
-  test('nickname change in settings renames linked members in groups', async ({
-    page,
-  }, testInfo) => {
-    const email = uniqueEmail('nick', testInfo.workerIndex + Date.now());
-    await signIn(page, email);
+test('nickname change in settings renames linked members in groups', async ({ page }, testInfo) => {
+  const email = uniqueEmail('nick', testInfo.workerIndex + Date.now());
+  await signIn(page, email);
 
-    await page.getByTestId('new-group-btn').click();
-    await page.getByTestId('group-name-input').fill('Nick');
-    await page.getByTestId('create-group-submit').click();
-    await page.getByText('Nick').click();
-    await expect(page.getByTestId('group-title')).toHaveText('Nick');
+  await page.getByTestId('new-group-btn').click();
+  await page.getByTestId('group-name-input').fill('Nick');
+  await page.getByTestId('create-group-submit').click();
+  await page.getByText('Nick').click();
+  await expect(page.getByTestId('group-title')).toHaveText('Nick');
 
-    await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('profile-name-input').fill('Michal Novák');
-    await page.getByTestId('profile-name-save').click();
-    await expect(page.getByTestId('profile-name-saved')).toBeVisible();
+  await page.getByRole('link', { name: /settings|nastavení/i }).click();
+  await page.getByTestId('profile-name-input').fill('Michal Novák');
+  await page.getByTestId('profile-name-save').click();
+  await expect(page.getByTestId('profile-name-saved')).toBeVisible();
 
-    await page.goto('/');
-    await page.getByText('Nick').click();
-    await openGroupSheet(page, 'members');
-    await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
-  });
+  await page.goto('/');
+  await page.getByText('Nick').click();
+  await openGroupSheet(page, 'members');
+  await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
+});
 ```
 
 Run to confirm RED (rebuild + run, chromium only):

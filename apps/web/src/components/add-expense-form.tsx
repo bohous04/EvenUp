@@ -328,10 +328,10 @@ export function AddExpenseForm({
       const total = decimalStringToMinor(amount || '0', currency);
       if (total > 0) {
         shares = Object.fromEntries(
-          splitEqually(total, selectedMembers.map((m) => ({ memberId: m.id }))).map((s) => [
-            s.memberId,
-            s.computedMinorUnits,
-          ]),
+          splitEqually(
+            total,
+            selectedMembers.map((m) => ({ memberId: m.id })),
+          ).map((s) => [s.memberId, s.computedMinorUnits]),
         );
       }
     } catch {
@@ -418,7 +418,10 @@ export function AddExpenseForm({
                 data-testid="expense-fx-input"
               />
               {fxResolve.data ? (
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400" data-testid="fx-source">
+                <p
+                  className="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+                  data-testid="fx-source"
+                >
                   {fxResolve.data.stale
                     ? t('fx.stale')
                     : fxResolve.data.source === 'frankfurter'
@@ -444,7 +447,11 @@ export function AddExpenseForm({
           {/* Paid by — chips exactly as today (radiogroup, payer-chip-<id> testids) */}
           <div>
             <SectionLabel>{t('expense.paidBy')}</SectionLabel>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('expense.paidBy')}>
+            <div
+              className="flex flex-wrap gap-2"
+              role="radiogroup"
+              aria-label={t('expense.paidBy')}
+            >
               {members.map((m) => {
                 const selected = payerId === m.id;
                 return (
@@ -461,7 +468,12 @@ export function AddExpenseForm({
                         : 'border-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
                     }`}
                   >
-                    <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                    <MemberChip
+                      initials={m.initials}
+                      color={m.color}
+                      name={m.displayName}
+                      size="sm"
+                    />
                     {m.displayName}
                   </button>
                 );
@@ -472,7 +484,11 @@ export function AddExpenseForm({
           {/* For whom — toggle chips with a live equal-share preview */}
           <div>
             <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('expense.splitBetween')}>
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label={t('expense.splitBetween')}
+            >
               {members.map((m) => {
                 const selected = isSelected(m.id);
                 return (
@@ -487,7 +503,12 @@ export function AddExpenseForm({
                         : 'border-zinc-200 opacity-60 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
                     }`}
                   >
-                    <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                    <MemberChip
+                      initials={m.initials}
+                      color={m.color}
+                      name={m.displayName}
+                      size="sm"
+                    />
                     {m.displayName}
                     {selected && shares[m.id] != null ? (
                       <AmountText
@@ -527,7 +548,12 @@ export function AddExpenseForm({
                   <div className="space-y-2" data-testid="per-member-inputs">
                     {selectedMembers.map((m) => (
                       <div key={m.id} className="flex items-center gap-2">
-                        <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                        <MemberChip
+                          initials={m.initials}
+                          color={m.color}
+                          name={m.displayName}
+                          size="sm"
+                        />
                         <span className="flex-1 text-sm">{m.displayName}</span>
                         <div className="w-28">
                           <Input
@@ -558,7 +584,11 @@ export function AddExpenseForm({
               onToggle={() => toggleRow('category')}
               testId="expense-category-row"
             >
-              <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t('expense.category')}>
+              <div
+                className="grid grid-cols-5 gap-2"
+                role="radiogroup"
+                aria-label={t('expense.category')}
+              >
                 {EXPENSE_CATEGORIES.map((c) => {
                   const label = t(`category.${c.key}` as never);
                   const selected = category === c.key;
@@ -627,7 +657,11 @@ export function AddExpenseForm({
 
             <DisclosureRow
               label={t('expense.recurring')}
-              value={recurrence === 'none' ? t('recurrence.none') : t(`recurrence.${recurrence}` as never)}
+              value={
+                recurrence === 'none'
+                  ? t('recurrence.none')
+                  : t(`recurrence.${recurrence}` as never)
+              }
               open={openRow === 'repeat'}
               onToggle={() => toggleRow('repeat')}
               testId="expense-repeat-row"

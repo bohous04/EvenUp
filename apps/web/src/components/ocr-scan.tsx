@@ -247,10 +247,7 @@ export function OcrScan({
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
 
           {items.map((it, i) => (
-            <div
-              key={i}
-              className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
-            >
+            <div key={i} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
               <div className="mb-2 flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <Input
@@ -334,7 +331,9 @@ export function OcrScan({
                   <AmountText
                     minorUnits={perMember.get(m.id) ?? 0}
                     currency={baseCurrency}
-                    className={perMember.get(m.id) ? 'font-medium' : 'text-zinc-500 dark:text-zinc-400'}
+                    className={
+                      perMember.get(m.id) ? 'font-medium' : 'text-zinc-500 dark:text-zinc-400'
+                    }
                     testId={`ocr-person-${m.id}`}
                   />
                 </li>

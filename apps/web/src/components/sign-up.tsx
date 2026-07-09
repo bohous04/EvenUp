@@ -115,7 +115,11 @@ export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
               </Button>
             </form>
             <div className="text-center text-sm">
-              <Link href="/" data-testid="signin-link" className="text-brand-600 dark:text-brand-100">
+              <Link
+                href="/"
+                data-testid="signin-link"
+                className="text-brand-600 dark:text-brand-100"
+              >
                 {t('auth.haveAccount')}
               </Link>
             </div>

@@ -111,7 +111,11 @@ export default function SettingsPage() {
               placeholder={me.data?.name ?? ''}
               data-testid="profile-name-input"
             />
-            <Button type="submit" disabled={updateProfile.isPending} data-testid="profile-name-save">
+            <Button
+              type="submit"
+              disabled={updateProfile.isPending}
+              data-testid="profile-name-save"
+            >
               {updateProfile.isPending ? t('common.loading') : t('common.save')}
             </Button>
           </div>
@@ -130,7 +134,10 @@ export default function SettingsPage() {
           <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
           {me.data?.bankAccountMasked ? (
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold tabular-nums" data-testid="bank-account-masked">
+              <span
+                className="text-sm font-semibold tabular-nums"
+                data-testid="bank-account-masked"
+              >
                 {me.data.bankAccountMasked}
               </span>
               <Button
@@ -159,18 +166,28 @@ export default function SettingsPage() {
                   inputMode="numeric"
                   data-testid="bank-account-input"
                 />
-                <Button type="submit" disabled={setBankAccount.isPending} data-testid="bank-account-save">
+                <Button
+                  type="submit"
+                  disabled={setBankAccount.isPending}
+                  data-testid="bank-account-save"
+                >
                   {setBankAccount.isPending ? t('common.loading') : t('common.save')}
                 </Button>
               </div>
               {accountError ? (
-                <p role="alert" className="text-sm text-red-700 dark:text-red-400" data-testid="bank-account-error">
+                <p
+                  role="alert"
+                  className="text-sm text-red-700 dark:text-red-400"
+                  data-testid="bank-account-error"
+                >
                   {t('profile.bankAccountInvalid')}
                 </p>
               ) : null}
             </form>
           )}
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{t('profile.bankAccountHint')}</p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            {t('profile.bankAccountHint')}
+          </p>
         </div>
       </Card>
       <Card>

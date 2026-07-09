@@ -45,25 +45,25 @@ export function SpendStats({
           : t(`category.${s.category}` as MessageKey);
         const iconName = custom ? custom.iconName : categoryIcon(s.category);
         return (
-        <li key={s.category} className="space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              <CategoryIcon name={iconName} />
-              {label}
-            </span>
-            <AmountText
-              minorUnits={s.totalMinorUnits}
-              currency={baseCurrency}
-              className="font-medium"
-            />
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <div
-              className="h-full rounded-full bg-brand-500"
-              style={{ width: `${Math.max(2, (Math.abs(s.totalMinorUnits) / max) * 100)}%` }}
-            />
-          </div>
-        </li>
+          <li key={s.category} className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <CategoryIcon name={iconName} />
+                {label}
+              </span>
+              <AmountText
+                minorUnits={s.totalMinorUnits}
+                currency={baseCurrency}
+                className="font-medium"
+              />
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-brand-500"
+                style={{ width: `${Math.max(2, (Math.abs(s.totalMinorUnits) / max) * 100)}%` }}
+              />
+            </div>
+          </li>
         );
       })}
     </ul>

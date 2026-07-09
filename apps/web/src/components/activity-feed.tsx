@@ -76,10 +76,7 @@ export function ActivityFeed({
         </Select>
       </div>
       {query.data && query.data.items.length > 0 ? (
-        <ul
-          className="divide-y divide-zinc-100 dark:divide-zinc-800"
-          data-testid="activity-list"
-        >
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="activity-list">
           {query.data.items.map((it) => (
             <li key={it.id} className="flex items-center justify-between py-2 text-sm">
               <span>

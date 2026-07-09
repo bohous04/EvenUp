@@ -52,7 +52,11 @@ export function CategoryManager({ groupId }: { groupId: string }) {
   const [draftIcon, setDraftIcon] = useState(CUSTOM_CATEGORY_ICONS[0]!);
 
   const iconGrid = (selected: string, onPick: (icon: string) => void) => (
-    <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t('category.custom.icon')}>
+    <div
+      className="grid grid-cols-5 gap-2"
+      role="radiogroup"
+      aria-label={t('category.custom.icon')}
+    >
       {CUSTOM_CATEGORY_ICONS.map((icon) => (
         <button
           key={icon}
@@ -108,7 +112,12 @@ export function CategoryManager({ groupId }: { groupId: string }) {
                     >
                       <Check size={16} aria-hidden />
                     </button>
-                    <button type="button" onClick={() => setEditingId(null)} aria-label={t('common.cancel')} className={iconButtonClass}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      aria-label={t('common.cancel')}
+                      className={iconButtonClass}
+                    >
                       <X size={16} aria-hidden />
                     </button>
                   </div>

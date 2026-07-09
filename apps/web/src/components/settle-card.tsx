@@ -37,7 +37,10 @@ export function SettleCard({
     <Card>
       <SectionLabel>{t('balance.suggestedPayments')}</SectionLabel>
       {payments.length === 0 ? (
-        <p className="py-2 text-center text-sm text-zinc-500 dark:text-zinc-400" data-testid="settled-up">
+        <p
+          className="py-2 text-center text-sm text-zinc-500 dark:text-zinc-400"
+          data-testid="settled-up"
+        >
           {t('balance.settledUp')}
         </p>
       ) : (
@@ -122,10 +125,20 @@ function SettleRow({
         <ChevronRight size={16} aria-hidden className="shrink-0 text-zinc-300 dark:text-zinc-600" />
       </button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title={t('settle.title')} testId="settle-sheet">
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('settle.title')}
+        testId="settle-sheet"
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <MemberChip initials={from.initials} color={from.color} name={from.displayName} size="sm" />
+            <MemberChip
+              initials={from.initials}
+              color={from.color}
+              name={from.displayName}
+              size="sm"
+            />
             {from.displayName}
             <ArrowRight size={14} aria-hidden className="text-zinc-300 dark:text-zinc-600" />
             <MemberChip initials={to.initials} color={to.color} name={to.displayName} size="sm" />

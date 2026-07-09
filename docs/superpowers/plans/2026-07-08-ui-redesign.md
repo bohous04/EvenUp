@@ -27,6 +27,7 @@
 ### Task 1: Indigo tokens + zinc sweep + base kit restyle
 
 **Files:**
+
 - Modify: `apps/web/src/app/globals.css`
 - Modify: `apps/web/src/components/ui.tsx` (full rewrite below)
 - Modify: `apps/web/src/app/layout.tsx:16` (themeColor)
@@ -34,6 +35,7 @@
 - Modify: `apps/web/public/manifest.webmanifest` (if it contains `#2563eb`)
 
 **Interfaces:**
+
 - Produces: `Button`, `Input`, `Select`, `Card`, `Label`, `iconButtonClass` (same signatures as today, restyled) plus new `SectionLabel` (h3 props) and `EmptyState({ icon?, title, action? })`. All later tasks import these from `@/components/ui`.
 
 - [ ] **Step 1: Mechanical gray sweep (neutral → zinc)**
@@ -234,11 +236,13 @@ git commit -m "feat(web): indigo design tokens, zinc grays, restyled base kit"
 ### Task 2: AmountText, Avatar sizes + AvatarStack, icon additions
 
 **Files:**
+
 - Create: `apps/web/src/components/amount-text.tsx`
 - Modify: `apps/web/src/components/member-chip.tsx`
 - Modify: `apps/web/src/components/icons.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `AmountText({ minorUnits: number; currency: string; colored?: boolean; className?: string; testId?: string })` — the only allowed renderer for money amounts.
   - `MemberChip` gains size `'xs'` (existing `'sm' | 'md'` unchanged).
@@ -334,9 +338,28 @@ Add to the lucide import list: `MoreHorizontal, Settings, Users, BarChart3, Hist
 
 ```tsx
 export {
-  Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown,
-  MoreHorizontal, Settings, Users, BarChart3, History, FileUp, Landmark,
-  ChevronRight, ChevronLeft, Calendar, Repeat, LogOut,
+  Scale,
+  Mail,
+  Camera,
+  Check,
+  ArrowRight,
+  Trash2,
+  Plus,
+  Pencil,
+  X,
+  ChevronDown,
+  MoreHorizontal,
+  Settings,
+  Users,
+  BarChart3,
+  History,
+  FileUp,
+  Landmark,
+  ChevronRight,
+  ChevronLeft,
+  Calendar,
+  Repeat,
+  LogOut,
 };
 export type { LucideIcon };
 ```
@@ -348,10 +371,22 @@ Add the Google brand logo next to `AppleLogo` (lucide has no brand marks):
 export function GoogleLogo({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden focusable="false">
-      <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z" />
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z" />
+      <path
+        fill="#FFC107"
+        d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"
+      />
     </svg>
   );
 }
@@ -370,11 +405,13 @@ git commit -m "feat(web): AmountText, AvatarStack, xs avatars, redesign icons"
 ### Task 3: Sheet, Fab, MenuSheet components
 
 **Files:**
+
 - Create: `apps/web/src/components/sheet.tsx`
 - Create: `apps/web/src/components/fab.tsx`
 - Create: `apps/web/src/components/menu-sheet.tsx`
 
 **Interfaces:**
+
 - Consumes: `iconButtonClass` from Task 1; icons from Task 2.
 - Produces:
   - `Sheet({ open, onClose, title, children, testId? })` — same props as `Modal`; bottom sheet under `sm`, centered dialog above. Close button testid: `sheet-close`.
@@ -569,12 +606,14 @@ Note: the spec's generic `ListRow` is deliberately not built as a kit component 
 ### Task 4: Settle card + balance bars (replace BalancesPanel)
 
 **Files:**
+
 - Create: `apps/web/src/components/settle-card.tsx`
 - Create: `apps/web/src/components/balances-card.tsx`
 - Delete: `apps/web/src/components/balances-panel.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx:111-120` (swap the panel for the two new cards)
 
 **Interfaces:**
+
 - Consumes: `Sheet` (Task 3), `AmountText` (Task 2), `SectionLabel`/`Card`/`Button` (Task 1), existing `trpc.balance.get`, `trpc.settlement.generateSpayd`, `trpc.transaction.recordTransfer`, `QrCode`.
 - Produces: `SettleCard({ groupId, members, baseCurrency })` and `BalancesCard({ groupId, baseCurrency })` where `members: { id; displayName; initials; color }[]`.
 - Preserved testids: `payments-list`, `settled-up`, `settle-btn` (now the whole tappable row), `mark-cash`, `mark-paid`, `balance-<memberId>`. New: `settle-sheet`.
@@ -714,10 +753,20 @@ function SettleRow({
         <ChevronRight size={16} aria-hidden className="shrink-0 text-zinc-300 dark:text-zinc-600" />
       </button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title={t('settle.title')} testId="settle-sheet">
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('settle.title')}
+        testId="settle-sheet"
+      >
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <MemberChip initials={from.initials} color={from.color} name={from.displayName} size="sm" />
+            <MemberChip
+              initials={from.initials}
+              color={from.color}
+              name={from.displayName}
+              size="sm"
+            />
             {from.displayName}
             <ArrowRight size={14} aria-hidden className="text-zinc-300 dark:text-zinc-600" />
             <MemberChip initials={to.initials} color={to.color} name={to.displayName} size="sm" />
@@ -859,12 +908,14 @@ Expected: PASS — `settle-btn`, `mark-cash`, `mark-paid`, SPAYD text, and `bala
 ### Task 5: Group page restructure — header, transactions, ⋯ menu with sheets
 
 **Files:**
+
 - Modify: `apps/web/src/components/group-detail.tsx` (full rewrite below)
 - Modify: `apps/web/src/components/spend-stats.tsx`, `activity-feed.tsx`, `csv-import.tsx`, `bank-details-form.tsx` (strip `Card` wrappers/headings — a titled `Sheet` now frames them)
 - Modify: `packages/i18n/src/locales/cs.ts`, `packages/i18n/src/locales/en.ts` (3 new keys)
 - Modify: `apps/web/e2e/helpers.ts`, `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `MenuSheet`/`Sheet` (Task 3), `SettleCard`/`BalancesCard` (Task 4), `AmountText`, `SectionLabel`.
 - Produces: group page renders **only** header → SettleCard → BalancesCard → transactions card → (AddExpenseForm trigger, reshaped in Task 6). Menu trigger testid `group-menu-btn`; items `menu-members`, `menu-invite`, `menu-stats`, `menu-activity`, `menu-csv`, `menu-bank`. e2e helper `openGroupSheet(page, item)`.
 - New i18n keys: `common.showAll`, `group.spentTotal` (param `{total}`), `group.menu`.
@@ -1054,10 +1105,25 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   };
 
   const menuItems = [
-    { key: 'members', icon: Users, label: t('group.members'), onSelect: () => openPanel('members') },
+    {
+      key: 'members',
+      icon: Users,
+      label: t('group.members'),
+      onSelect: () => openPanel('members'),
+    },
     { key: 'invite', icon: Mail, label: t('invite.create'), onSelect: () => openPanel('invite') },
-    { key: 'stats', icon: BarChart3, label: t('stats.spendByCategory'), onSelect: () => openPanel('stats') },
-    { key: 'activity', icon: History, label: t('nav.activity'), onSelect: () => openPanel('activity') },
+    {
+      key: 'stats',
+      icon: BarChart3,
+      label: t('stats.spendByCategory'),
+      onSelect: () => openPanel('stats'),
+    },
+    {
+      key: 'activity',
+      icon: History,
+      label: t('nav.activity'),
+      onSelect: () => openPanel('activity'),
+    },
     { key: 'csv', icon: FileUp, label: 'CSV import', onSelect: () => openPanel('csv') },
     { key: 'bank', icon: Landmark, label: t('member.iban'), onSelect: () => openPanel('bank') },
   ];
@@ -1074,10 +1140,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             <ChevronLeft size={13} aria-hidden />
             {t('nav.groups')}
           </Link>
-          <h1
-            className="truncate text-2xl font-extrabold tracking-tight"
-            data-testid="group-title"
-          >
+          <h1 className="truncate text-2xl font-extrabold tracking-tight" data-testid="group-title">
             {group.data.name}
           </h1>
           {totalSpent > 0 ? (
@@ -1108,7 +1171,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         <SectionLabel>{t('nav.transactions')}</SectionLabel>
         {visibleTxs.length > 0 ? (
           <>
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="transactions-list">
+            <ul
+              className="divide-y divide-zinc-100 dark:divide-zinc-800"
+              data-testid="transactions-list"
+            >
               {visibleTxs.map((tx) => {
                 const payer = tx.payers[0]?.member;
                 return (
@@ -1220,7 +1286,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </div>
       </Sheet>
 
-      <Sheet open={panel === 'stats'} onClose={() => setPanel(null)} title={t('stats.spendByCategory')}>
+      <Sheet
+        open={panel === 'stats'}
+        onClose={() => setPanel(null)}
+        title={t('stats.spendByCategory')}
+      >
         <SpendStats groupId={groupId} baseCurrency={group.data.baseCurrency} />
       </Sheet>
 
@@ -1265,12 +1335,14 @@ Expected: full suite PASS. If an axe violation appears on an open sheet, fix con
 ### Task 6: Expense sheet — FAB trigger, amount-first layout, OCR inside
 
 **Files:**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx` (full rewrite below)
 - Modify: `apps/web/src/components/ocr-scan.tsx` (strip Card wrapper, add `onSaved`)
 - Modify: `apps/web/src/components/group-detail.tsx` (remove the standalone `<OcrScan …/>` render + import)
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `Sheet`, `Fab` (Task 3), `AmountText` (Task 2), `splitEqually` + `decimalStringToMinor` from `@evenup/core` (already exported).
 - Produces: `AddExpenseForm` keeps its props `{ groupId, members, baseCurrency }` but renders a `Fab` (testid `add-expense-open`, aria-label `t('expense.add')`) + amount-first `Sheet`. `OcrScan` gains optional `onSaved?: () => void` and loses its Card wrapper (parent frames it in a Sheet titled `t('ocr.scan')`).
 - Testid changes: `expense-more-options` **removed**; new row testids `expense-split-row`, `expense-category-row`, `expense-date-row`, `expense-repeat-row`, `expense-receipt-row`, `expense-date-input`. `expense-currency-select` is now **always** rendered. All other expense/OCR testids unchanged.
@@ -1816,9 +1888,11 @@ git commit -m "feat(web): amount-first expense sheet behind a FAB, OCR scan insi
 ### Task 7: Groups dashboard — cards, AvatarStack, create-group sheet
 
 **Files:**
+
 - Modify: `apps/web/src/components/groups-dashboard.tsx` (full rewrite below)
 
 **Interfaces:**
+
 - Consumes: `Fab`, `Sheet` (Task 3), `AvatarStack` (Task 2), existing `trpc.group.list/create`.
 - Preserved testids/names: `new-group-btn` (now the FAB, accessible name still `t('group.create')` via aria-label — the language-switch e2e asserts this name), `group-name-input`, `create-group-submit`.
 
@@ -1893,7 +1967,11 @@ export function GroupsDashboard() {
         </Card>
       )}
 
-      <Fab onClick={() => setOpen(true)} aria-label={t('group.create')} data-testid="new-group-btn" />
+      <Fab
+        onClick={() => setOpen(true)}
+        aria-label={t('group.create')}
+        data-testid="new-group-btn"
+      />
 
       <Sheet open={open} onClose={() => setOpen(false)} title={t('group.create')}>
         <form
@@ -1974,11 +2052,13 @@ git commit -m "feat(web): dashboard group cards with avatar stacks + create-grou
 ### Task 8: Header wordmark, sign-in restyle, secondary-page token pass
 
 **Files:**
+
 - Modify: `apps/web/src/components/header.tsx` (full rewrite below)
 - Modify: `apps/web/src/components/sign-in.tsx` (restyle; logic untouched)
 - Modify: `apps/web/src/app/settings/page.tsx`, `apps/web/src/app/admin/page.tsx`, `apps/web/src/app/invite/[token]/page.tsx` (mechanical class pass)
 
 **Interfaces:**
+
 - Consumes: `GoogleLogo`/`AppleLogo`/`Settings`/`LogOut` icons (Task 2).
 - Preserved: `nav-admin` testid; the settings link's accessible name must keep matching `/settings|nastavení/i` (e2e OCR test); the language-toggle buttons `CS`/`EN` keep their behavior; env-flag gating of OAuth buttons unchanged.
 
@@ -2110,10 +2190,10 @@ grep -n 'rounded-lg\|shadow-md\|shadow-sm\|font-bold' \
 
 Apply this mapping to every hit (leave semantics alone):
 
-| Old | New |
-| --- | --- |
-| `rounded-lg` (inputs/buttons) | `rounded-xl` |
-| `shadow-sm` / `shadow-md` on cards | *(delete — hairline borders only)* |
+| Old                                        | New                                      |
+| ------------------------------------------ | ---------------------------------------- |
+| `rounded-lg` (inputs/buttons)              | `rounded-xl`                             |
+| `shadow-sm` / `shadow-md` on cards         | _(delete — hairline borders only)_       |
 | page `<h1 className="text-2xl font-bold">` | `text-2xl font-extrabold tracking-tight` |
 
 - [ ] **Step 4: Run e2e (admin + settings + invite + language tests), commit**
@@ -2130,6 +2210,7 @@ git commit -m "feat(web): wordmark header, restyled sign-in with brand logos, se
 ### Task 9: Full verification pass
 
 **Files:**
+
 - Modify: only what the checks below surface.
 
 - [ ] **Step 1: Full pipeline**

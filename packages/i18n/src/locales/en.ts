@@ -146,8 +146,7 @@ export const en: Messages = {
   'category.custom.add': 'Add category',
   'category.custom.name': 'Category name',
   'category.custom.icon': 'Icon',
-  'category.custom.deleteConfirm':
-    'Really delete the category? Its expenses move to "Other".',
+  'category.custom.deleteConfirm': 'Really delete the category? Its expenses move to "Other".',
   'category.custom.duplicate': 'A category with this name already exists.',
   'category.custom.empty': 'No custom categories yet.',
 

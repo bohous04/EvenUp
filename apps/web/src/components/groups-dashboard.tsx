@@ -66,7 +66,11 @@ export function GroupsDashboard() {
         </Card>
       )}
 
-      <Fab onClick={() => setOpen(true)} aria-label={t('group.create')} data-testid="new-group-btn" />
+      <Fab
+        onClick={() => setOpen(true)}
+        aria-label={t('group.create')}
+        data-testid="new-group-btn"
+      />
 
       <Sheet open={open} onClose={() => setOpen(false)} title={t('group.create')}>
         <form

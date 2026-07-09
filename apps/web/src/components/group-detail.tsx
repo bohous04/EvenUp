@@ -78,11 +78,31 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   };
 
   const menuItems = [
-    { key: 'members', icon: Users, label: t('group.members'), onSelect: () => openPanel('members') },
+    {
+      key: 'members',
+      icon: Users,
+      label: t('group.members'),
+      onSelect: () => openPanel('members'),
+    },
     { key: 'invite', icon: Mail, label: t('invite.create'), onSelect: () => openPanel('invite') },
-    { key: 'stats', icon: BarChart3, label: t('stats.spendByCategory'), onSelect: () => openPanel('stats') },
-    { key: 'categories', icon: Tags, label: t('group.categories'), onSelect: () => openPanel('categories') },
-    { key: 'activity', icon: History, label: t('nav.activity'), onSelect: () => openPanel('activity') },
+    {
+      key: 'stats',
+      icon: BarChart3,
+      label: t('stats.spendByCategory'),
+      onSelect: () => openPanel('stats'),
+    },
+    {
+      key: 'categories',
+      icon: Tags,
+      label: t('group.categories'),
+      onSelect: () => openPanel('categories'),
+    },
+    {
+      key: 'activity',
+      icon: History,
+      label: t('nav.activity'),
+      onSelect: () => openPanel('activity'),
+    },
     { key: 'csv', icon: FileUp, label: t('csv.import'), onSelect: () => openPanel('csv') },
   ];
 
@@ -98,10 +118,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             <ChevronLeft size={13} aria-hidden />
             {t('nav.groups')}
           </Link>
-          <h1
-            className="truncate text-2xl font-extrabold tracking-tight"
-            data-testid="group-title"
-          >
+          <h1 className="truncate text-2xl font-extrabold tracking-tight" data-testid="group-title">
             {group.data.name}
           </h1>
           {totalSpent > 0 ? (
@@ -131,7 +148,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         <SectionLabel>{t('nav.transactions')}</SectionLabel>
         {visibleTxs.length > 0 ? (
           <>
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="transactions-list">
+            <ul
+              className="divide-y divide-zinc-100 dark:divide-zinc-800"
+              data-testid="transactions-list"
+            >
               {visibleTxs.map((tx) => {
                 const payer = tx.payers[0]?.member;
                 return (
@@ -243,7 +263,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </div>
       </Sheet>
 
-      <Sheet open={panel === 'stats'} onClose={() => setPanel(null)} title={t('stats.spendByCategory')}>
+      <Sheet
+        open={panel === 'stats'}
+        onClose={() => setPanel(null)}
+        title={t('stats.spendByCategory')}
+      >
         <SpendStats
           groupId={groupId}
           baseCurrency={group.data.baseCurrency}
@@ -251,7 +275,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         />
       </Sheet>
 
-      <Sheet open={panel === 'categories'} onClose={() => setPanel(null)} title={t('group.categories')}>
+      <Sheet
+        open={panel === 'categories'}
+        onClose={() => setPanel(null)}
+        title={t('group.categories')}
+      >
         <CategoryManager groupId={groupId} />
       </Sheet>
 

@@ -24,11 +24,13 @@
 ### Task 1: Core — custom-category primitives + summarize opts
 
 **Files:**
+
 - Modify: `packages/core/src/category/category.ts`
 - Modify: `packages/core/src/category/category.test.ts` (add cases)
 - Modify: `packages/core/src/index.ts` (export additions)
 
 **Interfaces:**
+
 - Produces: `CUSTOM_CATEGORY_ICONS: readonly string[]` (exactly: the ten built-in iconNames plus `'dog','gift','coffee','dumbbell','music','wrench','fuel','baby','gamepad-2','beer'`), `isCustomCategoryKey(key: string): boolean` (`/^custom:[a-z0-9]+$/`), and `summarizeByCategory(transactions, opts?: { customKeys?: ReadonlySet<string> })` where keys in `customKeys` survive as own buckets.
 
 - [ ] **Step 1: Write the failing tests** (append to `category.test.ts`)
@@ -74,8 +76,16 @@ describe('custom categories', () => {
 /** Curated icon names selectable for custom categories (clients map to SVG). */
 export const CUSTOM_CATEGORY_ICONS: readonly string[] = [
   ...EXPENSE_CATEGORIES.map((c) => c.iconName),
-  'dog', 'gift', 'coffee', 'dumbbell', 'music',
-  'wrench', 'fuel', 'baby', 'gamepad-2', 'beer',
+  'dog',
+  'gift',
+  'coffee',
+  'dumbbell',
+  'music',
+  'wrench',
+  'fuel',
+  'baby',
+  'gamepad-2',
+  'beer',
 ];
 
 /** Group-scoped custom categories are referenced as `custom:<cuid>`. */
@@ -110,9 +120,11 @@ Export the two new symbols from `packages/core/src/index.ts` in the existing cat
 ### Task 2: DB — `GroupCategory` model + migration
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 
 **Interfaces:**
+
 - Produces: `prisma.groupCategory` client model (`id`, `groupId`, `name`, `iconName`, `createdAt`; unique `(groupId, name)`), `Group.categories` relation.
 
 - [ ] **Step 1:** Add the model from spec §2 verbatim after `model Member`'s block region, and `categories GroupCategory[]` inside `model Group`'s relation list.
@@ -128,6 +140,7 @@ Export the two new symbols from `packages/core/src/index.ts` in the existing cat
 ### Task 3: API — category router, createExpense guard, stats wiring
 
 **Files:**
+
 - Create: `packages/api/src/routers/category.ts`
 - Create: `packages/api/src/routers/category.test.ts`
 - Modify: `packages/api/src/routers/index.ts` (or wherever the root router merges — grep `settlementRouter` to find it) to mount `category: categoryRouter`
@@ -135,6 +148,7 @@ Export the two new symbols from `packages/core/src/index.ts` in the existing cat
 - Modify: `packages/api/src/routers/stats.ts` (customKeys pass-through)
 
 **Interfaces:**
+
 - Consumes: Task 1 core exports; Task 2 model; existing `assertGroupAccess`, `logActivity`, harness.
 - Produces: `category.list({groupId}) → {id,name,iconName}[]`; `category.create({groupId,name,iconName})`; `category.update({categoryId,name?,iconName?})`; `category.remove({categoryId})` (reassigns `custom:<id>` transactions to `'other'` in one tx); activity actions `category.created|updated|deleted` with `{name}` payloads.
 
@@ -301,7 +315,13 @@ export const categoryRouter = router({
     }),
 
   update: protectedProcedure
-    .input(z.object({ categoryId: z.string(), name: nameInput.optional(), iconName: iconInput.optional() }))
+    .input(
+      z.object({
+        categoryId: z.string(),
+        name: nameInput.optional(),
+        iconName: iconInput.optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { groupId } = await groupIdForCategory(ctx.prisma, input.categoryId);
       await assertGroupAccess(ctx.prisma, ctx.user, groupId);
@@ -342,15 +362,15 @@ Mount it in the root router file next to the other routers (`category: categoryR
 `transaction.ts` createExpense — after `assertGroupAccess`, add:
 
 ```ts
-      if (input.category && isCustomCategoryKey(input.category)) {
-        const exists = await ctx.prisma.groupCategory.findFirst({
-          where: { id: input.category.slice('custom:'.length), groupId: input.groupId },
-          select: { id: true },
-        });
-        if (!exists) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Unknown category' });
-        }
-      }
+if (input.category && isCustomCategoryKey(input.category)) {
+  const exists = await ctx.prisma.groupCategory.findFirst({
+    where: { id: input.category.slice('custom:'.length), groupId: input.groupId },
+    select: { id: true },
+  });
+  if (!exists) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Unknown category' });
+  }
+}
 ```
 
 (import `isCustomCategoryKey` from `@evenup/core`; verify `TRPCError` import exists.)
@@ -376,12 +396,14 @@ Mount it in the root router file next to the other routers (`category: categoryR
 ### Task 4: Web — icons map, i18n keys, activity labels
 
 **Files:**
+
 - Modify: `apps/web/src/components/icons.tsx`
 - Modify: `packages/i18n/src/locales/cs.ts`, `en.ts`
 - Modify: `apps/web/src/lib/activity-message.ts`
 - Modify: `apps/web/src/components/activity-feed.tsx` (ACTION_OPTIONS list)
 
 **Interfaces:**
+
 - Produces: `CategoryIcon` renders every `CUSTOM_CATEGORY_ICONS` name; i18n keys per spec §6; `describeActivity` handles `category.*`.
 
 - [ ] **Step 1:** `icons.tsx` — add lucide imports `Dog, Gift, Coffee, Dumbbell, Music, Wrench, Fuel, Baby, Gamepad2, Beer` and extend `CATEGORY_ICONS`: `dog: Dog, gift: Gift, coffee: Coffee, dumbbell: Dumbbell, music: Music, wrench: Wrench, fuel: Fuel, baby: Baby, 'gamepad-2': Gamepad2, beer: Beer`.
@@ -425,12 +447,14 @@ en mirrors: `'Categories'`, `'Add category'`, `'Category name'`, `'Icon'`, `'Rea
 ### Task 5: Web — management sheet + expense grid + stats labels
 
 **Files:**
+
 - Create: `apps/web/src/components/category-manager.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx` (menu item `categories` after `stats`, panel Sheet, `category.list` query, pass customs to `AddExpenseForm` and `SpendStats`)
 - Modify: `apps/web/src/components/add-expense-form.tsx` (grid shows customs; `customCategories` prop)
 - Modify: `apps/web/src/components/spend-stats.tsx` (`customCategories` prop for labels/icons)
 
 **Interfaces:**
+
 - Consumes: `category` router (Task 3), icons/i18n (Task 4), kit components, `CUSTOM_CATEGORY_ICONS` from core.
 - Produces testids for Task 6: `menu-categories`, `category-name-input`, `category-icon-<iconName>`, `category-add-btn`, `category-row-<id>`, `category-delete-<id>`, `category-rename-<id>`, plus grid tile `category-chip-custom:<id>` (the existing `category-chip-${key}` pattern applied to the custom key).
 
@@ -484,7 +508,11 @@ export function CategoryManager({ groupId }: { groupId: string }) {
   const [draft, setDraft] = useState('');
 
   const iconGrid = (selected: string, onPick: (icon: string) => void) => (
-    <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label={t('category.custom.icon')}>
+    <div
+      className="grid grid-cols-5 gap-2"
+      role="radiogroup"
+      aria-label={t('category.custom.icon')}
+    >
       {CUSTOM_CATEGORY_ICONS.map((icon) => (
         <button
           key={icon}
@@ -511,7 +539,11 @@ export function CategoryManager({ groupId }: { groupId: string }) {
       {list.data && list.data.length > 0 ? (
         <ul className="space-y-1">
           {list.data.map((c) => (
-            <li key={c.id} className="flex items-center gap-2 py-1" data-testid={`category-row-${c.id}`}>
+            <li
+              key={c.id}
+              className="flex items-center gap-2 py-1"
+              data-testid={`category-row-${c.id}`}
+            >
               <span className="text-zinc-600 dark:text-zinc-300">
                 <CategoryIcon name={c.iconName} size={18} />
               </span>
@@ -526,13 +558,20 @@ export function CategoryManager({ groupId }: { groupId: string }) {
                   />
                   <button
                     type="button"
-                    onClick={() => draft.trim() && update.mutate({ categoryId: c.id, name: draft.trim() })}
+                    onClick={() =>
+                      draft.trim() && update.mutate({ categoryId: c.id, name: draft.trim() })
+                    }
                     aria-label={t('common.save')}
                     className={iconButtonClass}
                   >
                     <Check size={16} aria-hidden />
                   </button>
-                  <button type="button" onClick={() => setEditingId(null)} aria-label={t('common.cancel')} className={iconButtonClass}>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    aria-label={t('common.cancel')}
+                    className={iconButtonClass}
+                  >
                     <X size={16} aria-hidden />
                   </button>
                 </>
@@ -609,9 +648,9 @@ export function CategoryManager({ groupId }: { groupId: string }) {
 - [ ] **Step 2:** `group-detail.tsx` — add `'categories'` to the `Panel` union; menu item `{ key: 'categories', icon: Tags, label: t('group.categories'), onSelect: () => openPanel('categories') }` after `stats` (import `Tags` — add `Tags` to `icons.tsx` lucide re-exports); render:
 
 ```tsx
-      <Sheet open={panel === 'categories'} onClose={() => setPanel(null)} title={t('group.categories')}>
-        <CategoryManager groupId={groupId} />
-      </Sheet>
+<Sheet open={panel === 'categories'} onClose={() => setPanel(null)} title={t('group.categories')}>
+  <CategoryManager groupId={groupId} />
+</Sheet>
 ```
 
 Add one query `const customCategories = trpc.category.list.useQuery({ groupId });` and pass `customCategories={customCategories.data ?? []}` to BOTH `<AddExpenseForm …/>` and `<SpendStats …/>`.
@@ -638,59 +677,61 @@ const custom = s.category.startsWith('custom:')
 ### Task 6: E2E coverage
 
 **Files:**
+
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: testids from Task 5; helpers `signIn`, `uniqueEmail`, `openGroupSheet`, `closeSheet`.
 
 - [ ] **Step 1:** Append inside the describe block:
 
 ```ts
-  test('custom categories: create, use in expense, see in stats, delete folds to Other', async ({
-    page,
-  }, testInfo) => {
-    const email = uniqueEmail('cats', testInfo.workerIndex + Date.now());
-    await signIn(page, email);
+test('custom categories: create, use in expense, see in stats, delete folds to Other', async ({
+  page,
+}, testInfo) => {
+  const email = uniqueEmail('cats', testInfo.workerIndex + Date.now());
+  await signIn(page, email);
 
-    await page.getByTestId('new-group-btn').click();
-    await page.getByTestId('group-name-input').fill('Kategorie');
-    await page.getByTestId('create-group-submit').click();
-    await page.getByText('Kategorie').click();
+  await page.getByTestId('new-group-btn').click();
+  await page.getByTestId('group-name-input').fill('Kategorie');
+  await page.getByTestId('create-group-submit').click();
+  await page.getByText('Kategorie').click();
 
-    // Create the category (axe-check the open sheet too).
-    await openGroupSheet(page, 'categories');
-    const sheetA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(sheetA11y.violations, JSON.stringify(sheetA11y.violations, null, 2)).toEqual([]);
-    await page.getByTestId('category-name-input').fill('Pivo');
-    await page.getByTestId('category-icon-beer').click();
-    await page.getByTestId('category-add-btn').click();
-    await expect(page.getByText('Pivo')).toBeVisible();
-    await closeSheet(page);
+  // Create the category (axe-check the open sheet too).
+  await openGroupSheet(page, 'categories');
+  const sheetA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(sheetA11y.violations, JSON.stringify(sheetA11y.violations, null, 2)).toEqual([]);
+  await page.getByTestId('category-name-input').fill('Pivo');
+  await page.getByTestId('category-icon-beer').click();
+  await page.getByTestId('category-add-btn').click();
+  await expect(page.getByText('Pivo')).toBeVisible();
+  await closeSheet(page);
 
-    // Use it in an expense via the grid.
-    await page.getByTestId('add-expense-open').click();
-    await page.getByTestId('expense-amount-input').fill('240');
-    await page.getByTestId('expense-title-input').fill('Bečka');
-    await page.getByTestId('expense-category-row').click();
-    await page.getByTestId(/^category-chip-custom:/).click();
-    await page.getByTestId('add-expense-submit').click();
+  // Use it in an expense via the grid.
+  await page.getByTestId('add-expense-open').click();
+  await page.getByTestId('expense-amount-input').fill('240');
+  await page.getByTestId('expense-title-input').fill('Bečka');
+  await page.getByTestId('expense-category-row').click();
+  await page.getByTestId(/^category-chip-custom:/).click();
+  await page.getByTestId('add-expense-submit').click();
 
-    // Stats show the custom name.
-    await openGroupSheet(page, 'stats');
-    await expect(page.getByTestId('spend-stats').getByText('Pivo')).toBeVisible();
-    await closeSheet(page);
+  // Stats show the custom name.
+  await openGroupSheet(page, 'stats');
+  await expect(page.getByTestId('spend-stats').getByText('Pivo')).toBeVisible();
+  await closeSheet(page);
 
-    // Delete → the amount folds into the built-in Other bucket.
-    await openGroupSheet(page, 'categories');
-    page.once('dialog', (d) => void d.accept());
-    await page.getByTestId(/^category-delete-/).click();
-    await expect(page.getByTestId(/^category-row-/)).toHaveCount(0);
-    await closeSheet(page);
+  // Delete → the amount folds into the built-in Other bucket.
+  await openGroupSheet(page, 'categories');
+  page.once('dialog', (d) => void d.accept());
+  await page.getByTestId(/^category-delete-/).click();
+  await expect(page.getByTestId(/^category-row-/)).toHaveCount(0);
+  await closeSheet(page);
 
-    await openGroupSheet(page, 'stats');
-    await expect(page.getByTestId('spend-stats').getByText(/Ostatní|Other/)).toBeVisible();
-    await expect(page.getByTestId('spend-stats').getByText('Pivo')).toHaveCount(0);
-  });
+  await openGroupSheet(page, 'stats');
+  await expect(page.getByTestId('spend-stats').getByText(/Ostatní|Other/)).toBeVisible();
+  await expect(page.getByTestId('spend-stats').getByText('Pivo')).toHaveCount(0);
+});
 ```
 
 (`getByTestId` accepts a RegExp; `window.confirm` is auto-accepted via the one-shot dialog handler registered BEFORE the click.)

@@ -82,6 +82,7 @@ member actions (`{ name }` payload).
 ### Group `⋯` menu → new item "Kategorie" (after Statistics)
 
 Sheet `menu-categories` → panel listing the group's custom categories:
+
 - Row: icon + name, pencil (inline rename + icon change), trash. Delete asks
   for confirmation (`window.confirm`) with copy explaining expenses move to
   "Ostatní".

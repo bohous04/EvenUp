@@ -33,8 +33,16 @@ export function isExpenseCategory(value: string): boolean {
 /** Curated icon names selectable for custom categories (clients map to SVG). */
 export const CUSTOM_CATEGORY_ICONS: readonly string[] = [
   ...EXPENSE_CATEGORIES.map((c) => c.iconName),
-  'dog', 'gift', 'coffee', 'dumbbell', 'music',
-  'wrench', 'fuel', 'baby', 'gamepad-2', 'beer',
+  'dog',
+  'gift',
+  'coffee',
+  'dumbbell',
+  'music',
+  'wrench',
+  'fuel',
+  'baby',
+  'gamepad-2',
+  'beer',
 ];
 
 /** Group-scoped custom categories are referenced as `custom:<cuid>`. */

@@ -35,7 +35,8 @@ export function parseCzAccount(input: string): CzAccount | null {
 export function czAccountToIban(input: string): string | null {
   const account = parseCzAccount(input);
   if (!account) return null;
-  const bban = account.bankCode + account.prefix.padStart(6, '0') + account.number.padStart(10, '0');
+  const bban =
+    account.bankCode + account.prefix.padStart(6, '0') + account.number.padStart(10, '0');
   // Check digits: move "CZ00" behind the BBAN, letters → numbers (C=12, Z=35),
   // then 98 - (big number mod 97). BigInt keeps the 30-digit arithmetic exact.
   const numeric = `${bban}123500`; // C→12, Z→35, 0, 0

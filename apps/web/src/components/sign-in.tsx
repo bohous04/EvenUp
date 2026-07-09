@@ -92,7 +92,11 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
               {t('auth.forgotLink')}
             </Link>
             <Link
-              href={safeCallback === '/' ? '/sign-up' : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`}
+              href={
+                safeCallback === '/'
+                  ? '/sign-up'
+                  : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
+              }
               data-testid="signup-link"
               className="text-brand-600 dark:text-brand-100"
             >

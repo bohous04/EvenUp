@@ -3,7 +3,7 @@
 > **Status:** approved design, ready to implement
 > **Date:** 2026-07-08
 > **Scope owner:** `apps/web` (all screens), `packages/i18n`
-> **Related:** [`docs/PRD.md`](../../PRD.md) §9 (UX/a11y) · supersedes the *visual* layer of
+> **Related:** [`docs/PRD.md`](../../PRD.md) §9 (UX/a11y) · supersedes the _visual_ layer of
 > [`2026-07-08-add-expense-redesign-design.md`](2026-07-08-add-expense-redesign-design.md) (its modal
 > architecture and unchanged-payload rule carry over) · mobile Expo app is a later, separate project.
 
@@ -11,9 +11,9 @@
 
 The web app works but looks like an unstyled developer tool: generic blue Tailwind,
 every feature (members, expense form, OCR, CSV, bank details, stats, activity,
-transactions) stacked on one page with no hierarchy. The user wants the *structure*
+transactions) stacked on one page with no hierarchy. The user wants the _structure_
 of Settle Up (hero balances, debts, transaction list, FAB, focused expense entry)
-with a **modern, light-first, minimalistic** identity — explicitly *not* Settle Up's
+with a **modern, light-first, minimalistic** identity — explicitly _not_ Settle Up's
 dark wine/pink look.
 
 Approved via interactive mockups (visual companion, 2026-07-08):
@@ -30,16 +30,16 @@ Approved via interactive mockups (visual companion, 2026-07-08):
 Replace the blue `brand` scale with indigo and add semantic tokens. Light is the
 designed-first theme; dark mirrors it via `prefers-color-scheme` as today.
 
-| Token | Light | Dark |
-| --- | --- | --- |
+| Token             | Light                                                                                         | Dark                            |
+| ----------------- | --------------------------------------------------------------------------------------------- | ------------------------------- |
 | `--color-brand-*` | Tailwind indigo scale; primary `#4f46e5` (600), hover `#4338ca` (700), tint bg `#eef2ff` (50) | same hues, tint bg `indigo-950` |
-| Page background | `#fafafa` (zinc-50) | `#09090b` (zinc-950) |
-| Card surface | `#ffffff` | `#18181b` (zinc-900) |
-| Hairline border | `#ececee` (~zinc-200) | `#27272a` (zinc-800) |
-| Text | `#18181b` (zinc-900) | `#f4f4f5` |
-| Muted text | `#71717a` (zinc-500) | `#a1a1aa` (zinc-400) |
-| Positive amount | `green-600` | `green-400` |
-| Negative amount | `red-600` | `red-400` |
+| Page background   | `#fafafa` (zinc-50)                                                                           | `#09090b` (zinc-950)            |
+| Card surface      | `#ffffff`                                                                                     | `#18181b` (zinc-900)            |
+| Hairline border   | `#ececee` (~zinc-200)                                                                         | `#27272a` (zinc-800)            |
+| Text              | `#18181b` (zinc-900)                                                                          | `#f4f4f5`                       |
+| Muted text        | `#71717a` (zinc-500)                                                                          | `#a1a1aa` (zinc-400)            |
+| Positive amount   | `green-600`                                                                                   | `green-400`                     |
+| Negative amount   | `red-600`                                                                                     | `red-400`                       |
 
 - **Radii:** cards `rounded-2xl` (16px), inputs/buttons `rounded-xl` (12px), chips/pills `rounded-full`.
 - **Shadows:** none on cards (hairline borders instead); soft indigo shadow only on the FAB.
@@ -53,14 +53,14 @@ designed-first theme; dark mirrors it via `prefers-color-scheme` as today.
 
 Extend the existing kit; everything is Tailwind + native elements, no new deps.
 
-| Component | File | Notes |
-| --- | --- | --- |
-| `Sheet` | `sheet.tsx` (new) | Wraps the existing native-`<dialog>` `Modal` mechanics. `< sm` breakpoint: bottom sheet (pinned bottom, `rounded-t-2xl`, grab handle, `max-h-[92dvh]`, scrollable body); `≥ sm`: centered dialog. Focus trap / Escape / backdrop-close come free from `showModal()`. `Modal` stays for callers not yet migrated; end state is every dialog on `Sheet`. |
-| `Fab` | `fab.tsx` (new) | Fixed bottom-right circular button, indigo, `lucide` `Plus`, ≥ 56px touch target, `shadow-[indigo]`. Respects safe-area insets (PWA). |
-| `Avatar` | `member-chip.tsx` (extend) | Existing `MemberChip` is the base: colored circle + initials; add sizes (`xs 18px / sm 24px / md 32px`) and an overlapping `AvatarStack`. |
-| `AmountText` | `ui.tsx` | Formats via existing `formatCurrency`, applies tabular-nums + sign color + nowrap + NBSP. Single place enforcing the no-wrap rule. |
-| `SectionLabel`, `ListRow`, `EmptyState` | `ui.tsx` | Uppercase card label; icon/avatar + title/subtitle + trailing amount row (used by transactions, debts, menu items); friendly empty state with icon. |
-| `MenuSheet` | `menu-sheet.tsx` (new) | The `⋯` menu: a `Sheet` of `ListRow` items (icon + label + chevron). Simpler and more touch-friendly than a hover dropdown; one component serves mobile + desktop. |
+| Component                               | File                       | Notes                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Sheet`                                 | `sheet.tsx` (new)          | Wraps the existing native-`<dialog>` `Modal` mechanics. `< sm` breakpoint: bottom sheet (pinned bottom, `rounded-t-2xl`, grab handle, `max-h-[92dvh]`, scrollable body); `≥ sm`: centered dialog. Focus trap / Escape / backdrop-close come free from `showModal()`. `Modal` stays for callers not yet migrated; end state is every dialog on `Sheet`. |
+| `Fab`                                   | `fab.tsx` (new)            | Fixed bottom-right circular button, indigo, `lucide` `Plus`, ≥ 56px touch target, `shadow-[indigo]`. Respects safe-area insets (PWA).                                                                                                                                                                                                                  |
+| `Avatar`                                | `member-chip.tsx` (extend) | Existing `MemberChip` is the base: colored circle + initials; add sizes (`xs 18px / sm 24px / md 32px`) and an overlapping `AvatarStack`.                                                                                                                                                                                                              |
+| `AmountText`                            | `ui.tsx`                   | Formats via existing `formatCurrency`, applies tabular-nums + sign color + nowrap + NBSP. Single place enforcing the no-wrap rule.                                                                                                                                                                                                                     |
+| `SectionLabel`, `ListRow`, `EmptyState` | `ui.tsx`                   | Uppercase card label; icon/avatar + title/subtitle + trailing amount row (used by transactions, debts, menu items); friendly empty state with icon.                                                                                                                                                                                                    |
+| `MenuSheet`                             | `menu-sheet.tsx` (new)     | The `⋯` menu: a `Sheet` of `ListRow` items (icon + label + chevron). Simpler and more touch-friendly than a hover dropdown; one component serves mobile + desktop.                                                                                                                                                                                     |
 
 Icons: `lucide-react` SVG components only via `icons.tsx` — **never emoji glyphs**
 (standing user rule). New re-exports needed: `MoreHorizontal, Settings, Users,
@@ -118,7 +118,7 @@ bottom:
 5. **Collapsed rows** (progressive disclosure, replaces „Více možností“): `Split`
    (Equally ▾ → existing split-type controls expand), `Date`, `Category` (existing
    icon-grid picker), `Repeat`, `Receipt` (`Camera` icon → existing OCR flow moves
-   *inside* the sheet; the standalone `OcrScan` card disappears from the page).
+   _inside_ the sheet; the standalone `OcrScan` card disappears from the page).
 6. **Save** — full-width indigo button pinned at sheet bottom.
 
 ### 4.3 Groups dashboard (`groups-dashboard.tsx`)
