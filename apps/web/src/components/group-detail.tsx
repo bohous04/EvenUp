@@ -120,7 +120,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </button>
       </div>
 
-      <SettleCard groupId={groupId} members={memberLite} baseCurrency={group.data.baseCurrency} />
       <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 
       {/* Recent transactions */}
@@ -194,6 +193,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           <p className="py-2 text-center text-sm text-zinc-500 dark:text-zinc-400">—</p>
         )}
       </Card>
+
+      <SettleCard groupId={groupId} members={memberLite} baseCurrency={group.data.baseCurrency} />
 
       {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it). */}
       {activeMembers.length > 0 ? (
