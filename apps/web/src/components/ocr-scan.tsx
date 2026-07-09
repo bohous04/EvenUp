@@ -301,65 +301,65 @@ export function OcrScan({
           {items.map((it, i) => {
             const unassigned = it.assigned.size === 0;
             return (
-            <div
-              key={i}
-              className={`rounded-lg border p-3 transition-colors ${
-                unassigned
-                  ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-950/20'
-                  : 'border-zinc-200 dark:border-zinc-800'
-              }`}
-              data-testid={`ocr-item-${i}`}
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <Input
-                    value={it.name}
-                    onChange={(e) => patchItem(i, { name: e.target.value })}
-                    placeholder={t('ocr.itemName')}
-                    aria-label={t('ocr.itemName')}
-                    data-testid={`ocr-item-name-${i}`}
-                  />
+              <div
+                key={i}
+                className={`rounded-lg border p-3 transition-colors ${
+                  unassigned
+                    ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-950/20'
+                    : 'border-zinc-200 dark:border-zinc-800'
+                }`}
+                data-testid={`ocr-item-${i}`}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      value={it.name}
+                      onChange={(e) => patchItem(i, { name: e.target.value })}
+                      placeholder={t('ocr.itemName')}
+                      aria-label={t('ocr.itemName')}
+                      data-testid={`ocr-item-name-${i}`}
+                    />
+                  </div>
+                  <div className="w-24 shrink-0">
+                    <Input
+                      value={it.priceText}
+                      onChange={(e) => patchItem(i, { priceText: e.target.value })}
+                      inputMode="decimal"
+                      placeholder="0"
+                      aria-label={t('expense.amount')}
+                      data-testid={`ocr-item-price-${i}`}
+                      className="text-right"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(i)}
+                    aria-label={t('common.delete')}
+                    data-testid={`ocr-item-remove-${i}`}
+                    className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
                 </div>
-                <div className="w-24 shrink-0">
-                  <Input
-                    value={it.priceText}
-                    onChange={(e) => patchItem(i, { priceText: e.target.value })}
-                    inputMode="decimal"
-                    placeholder="0"
-                    aria-label={t('expense.amount')}
-                    data-testid={`ocr-item-price-${i}`}
-                    className="text-right"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  {members.map((m) => (
+                    <MemberChip
+                      key={m.id}
+                      initials={m.initials}
+                      color={m.color}
+                      name={m.displayName}
+                      selected={it.assigned.has(m.id)}
+                      onClick={() => toggleAssign(i, m.id)}
+                    />
+                  ))}
+                  {unassigned ? (
+                    <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                      <AlertCircle size={13} aria-hidden />
+                      {t('ocr.unassigned')}
+                    </span>
+                  ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeItem(i)}
-                  aria-label={t('common.delete')}
-                  data-testid={`ocr-item-remove-${i}`}
-                  className="rounded-md p-2 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
-                >
-                  <Trash2 size={16} aria-hidden />
-                </button>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {members.map((m) => (
-                  <MemberChip
-                    key={m.id}
-                    initials={m.initials}
-                    color={m.color}
-                    name={m.displayName}
-                    selected={it.assigned.has(m.id)}
-                    onClick={() => toggleAssign(i, m.id)}
-                  />
-                ))}
-                {unassigned ? (
-                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-                    <AlertCircle size={13} aria-hidden />
-                    {t('ocr.unassigned')}
-                  </span>
-                ) : null}
-              </div>
-            </div>
             );
           })}
 
@@ -448,7 +448,11 @@ export function OcrScan({
           role="alert"
           className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200"
         >
-          <AlertCircle size={16} aria-hidden className="mt-0.5 shrink-0 text-red-500 dark:text-red-400" />
+          <AlertCircle
+            size={16}
+            aria-hidden
+            className="mt-0.5 shrink-0 text-red-500 dark:text-red-400"
+          />
           <span>{error}</span>
         </div>
       ) : null}

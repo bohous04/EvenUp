@@ -23,6 +23,7 @@
 ### Task 1: Backend — twoFactor plugin, schema, migration, client
 
 **Files:**
+
 - Modify: `apps/web/src/server/auth.ts`
 - Modify: `apps/web/src/lib/auth-client.ts`
 - Modify: `packages/db/prisma/schema.prisma`
@@ -30,6 +31,7 @@
 - Modify: `packages/api/src/routers/user.ts` (add `twoFactorEnabled` to `me`)
 
 **Interfaces:**
+
 - Produces: server `auth` now supports `authClient.twoFactor.*`; `authClient.listAccounts/linkSocial/unlinkAccount/changePassword` (built-in); `user.me` returns `twoFactorEnabled: boolean`.
 
 - [ ] **Step 1: Add the twoFactor plugin to the server**
@@ -121,11 +123,13 @@ git commit -m "feat(auth): add TOTP two-factor plugin, schema, migration"
 ### Task 2: i18n keys + localized Better-Auth error helper
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts`, `packages/i18n/src/locales/en.ts`
 - Create: `apps/web/src/lib/auth-errors.ts`
 - Create: `apps/web/src/lib/auth-errors.test.ts`
 
 **Interfaces:**
+
 - Produces: `authErrorMessage(code: string | undefined, t: (k: MessageKey) => string): string` — maps a Better Auth error code to a localized string, defaulting to `t('security.error.generic')`.
 
 - [ ] **Step 1: Add i18n keys**
@@ -184,10 +188,14 @@ const t = (k: string) => k; // identity: assert on the KEY chosen
 describe('authErrorMessage', () => {
   it('maps invalid password codes', () => {
     expect(authErrorMessage('INVALID_PASSWORD', t as never)).toBe('security.error.invalidPassword');
-    expect(authErrorMessage('CREDENTIAL_ACCOUNT_NOT_FOUND', t as never)).toBe('security.error.invalidPassword');
+    expect(authErrorMessage('CREDENTIAL_ACCOUNT_NOT_FOUND', t as never)).toBe(
+      'security.error.invalidPassword',
+    );
   });
   it('maps invalid 2FA code', () => {
-    expect(authErrorMessage('INVALID_TWO_FACTOR_CODE', t as never)).toBe('security.error.invalidCode');
+    expect(authErrorMessage('INVALID_TWO_FACTOR_CODE', t as never)).toBe(
+      'security.error.invalidCode',
+    );
     expect(authErrorMessage('INVALID_BACKUP_CODE', t as never)).toBe('security.error.invalidCode');
   });
   it('falls back to generic for unknown/undefined', () => {
@@ -210,10 +218,7 @@ Create `apps/web/src/lib/auth-errors.ts`:
 import type { MessageKey } from '@evenup/i18n';
 
 /** Map a Better Auth error code to a localized message key + translate it. */
-export function authErrorMessage(
-  code: string | undefined,
-  t: (key: MessageKey) => string,
-): string {
+export function authErrorMessage(code: string | undefined, t: (key: MessageKey) => string): string {
   switch (code) {
     case 'INVALID_PASSWORD':
     case 'CREDENTIAL_ACCOUNT_NOT_FOUND':
@@ -243,9 +248,11 @@ git commit -m "feat(web): security i18n strings + Better Auth error mapping"
 ### Task 3: PasswordSection component
 
 **Files:**
+
 - Create: `apps/web/src/components/security/password-section.tsx`
 
 **Interfaces:**
+
 - Consumes: `authClient.changePassword`, `authClient.requestPasswordReset`, `authErrorMessage`.
 - Produces: `<PasswordSection hasPassword={boolean} email={string} />`.
 
@@ -273,7 +280,9 @@ export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; 
     return (
       <div>
         <SectionLabel>{t('security.password.title')}</SectionLabel>
-        <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('security.password.setVia')}</p>
+        <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
+          {t('security.password.setVia')}
+        </p>
         <Button
           variant="secondary"
           disabled={busy}
@@ -281,7 +290,10 @@ export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; 
           onClick={async () => {
             setBusy(true);
             setErr(null);
-            const res = await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' });
+            const res = await authClient.requestPasswordReset({
+              email,
+              redirectTo: '/reset-password',
+            });
             setBusy(false);
             if (res.error) setErr(authErrorMessage(res.error.code, t));
             else setMsg(t('security.password.setLinkSent'));
@@ -290,7 +302,11 @@ export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; 
           {t('security.password.sendSetLink')}
         </Button>
         {msg ? <p className="mt-2 text-sm text-green-700 dark:text-green-400">{msg}</p> : null}
-        {err ? <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">{err}</p> : null}
+        {err ? (
+          <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
+            {err}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -321,15 +337,34 @@ export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; 
       <SectionLabel>{t('security.password.title')}</SectionLabel>
       <div>
         <Label htmlFor="cur-pw">{t('security.password.current')}</Label>
-        <PasswordInput id="cur-pw" value={current} onChange={(e) => setCurrent(e.target.value)} required data-testid="current-password" />
+        <PasswordInput
+          id="cur-pw"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          required
+          data-testid="current-password"
+        />
       </div>
       <div>
         <Label htmlFor="new-pw">{t('security.password.new')}</Label>
-        <PasswordInput id="new-pw" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} data-testid="new-password" />
+        <PasswordInput
+          id="new-pw"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          required
+          minLength={8}
+          data-testid="new-password"
+        />
       </div>
-      <Button type="submit" disabled={busy} data-testid="change-password-btn">{t('security.password.change')}</Button>
+      <Button type="submit" disabled={busy} data-testid="change-password-btn">
+        {t('security.password.change')}
+      </Button>
       {msg ? <p className="text-sm text-green-700 dark:text-green-400">{msg}</p> : null}
-      {err ? <p role="alert" className="text-sm text-red-700 dark:text-red-400">{err}</p> : null}
+      {err ? (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {err}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -350,9 +385,11 @@ Note: `PasswordInput` and `requestPasswordReset` signatures already exist in the
 ### Task 4: LinkedAccountsSection component
 
 **Files:**
+
 - Create: `apps/web/src/components/security/linked-accounts-section.tsx`
 
 **Interfaces:**
+
 - Consumes: `authClient.listAccounts`, `authClient.linkSocial`, `authClient.unlinkAccount`, `authErrorMessage`.
 - Produces: `<LinkedAccountsSection googleEnabled={boolean} appleEnabled={boolean} />`.
 
@@ -371,7 +408,13 @@ import { GoogleLogo, AppleLogo } from '@/components/icons';
 
 type Provider = 'google' | 'apple';
 
-export function LinkedAccountsSection({ googleEnabled, appleEnabled }: { googleEnabled: boolean; appleEnabled: boolean }) {
+export function LinkedAccountsSection({
+  googleEnabled,
+  appleEnabled,
+}: {
+  googleEnabled: boolean;
+  appleEnabled: boolean;
+}) {
   const { t } = useI18n();
   const [providers, setProviders] = useState<string[] | null>(null); // providerIds from listAccounts
   const [err, setErr] = useState<string | null>(null);
@@ -381,13 +424,20 @@ export function LinkedAccountsSection({ googleEnabled, appleEnabled }: { googleE
     if (res.data) setProviders(res.data.map((a) => a.providerId ?? a.provider));
     else setErr(authErrorMessage(res.error?.code, t));
   };
-  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    void load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const has = (p: string) => providers?.includes(p) ?? false;
   // "credential" is the email+password account; count total login methods.
   const methodCount = (providers ?? []).length;
 
-  const social: { id: Provider; label: string; enabled: boolean; Logo: React.FC<{ size?: number }> }[] = [
+  const social: {
+    id: Provider;
+    label: string;
+    enabled: boolean;
+    Logo: React.FC<{ size?: number }>;
+  }[] = [
     { id: 'google', label: 'Google', enabled: googleEnabled, Logo: GoogleLogo },
     { id: 'apple', label: 'Apple', enabled: appleEnabled, Logo: AppleLogo },
   ];
@@ -402,36 +452,46 @@ export function LinkedAccountsSection({ googleEnabled, appleEnabled }: { googleE
             {has('credential') ? t('security.linked.connected') : '—'}
           </span>
         </li>
-        {social.filter((s) => s.enabled).map((s) => (
-          <li key={s.id} className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2"><s.Logo size={16} /> {s.label}</span>
-            {has(s.id) ? (
-              <Button
-                variant="ghost"
-                disabled={methodCount <= 1}
-                title={methodCount <= 1 ? t('security.linked.lastMethod') : undefined}
-                data-testid={`unlink-${s.id}`}
-                onClick={async () => {
-                  const res = await authClient.unlinkAccount({ providerId: s.id });
-                  if (res.error) setErr(authErrorMessage(res.error.code, t));
-                  else void load();
-                }}
-              >
-                {t('security.linked.unlink')}
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                data-testid={`link-${s.id}`}
-                onClick={() => authClient.linkSocial({ provider: s.id, callbackURL: '/settings' })}
-              >
-                {t('security.linked.link')}
-              </Button>
-            )}
-          </li>
-        ))}
+        {social
+          .filter((s) => s.enabled)
+          .map((s) => (
+            <li key={s.id} className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <s.Logo size={16} /> {s.label}
+              </span>
+              {has(s.id) ? (
+                <Button
+                  variant="ghost"
+                  disabled={methodCount <= 1}
+                  title={methodCount <= 1 ? t('security.linked.lastMethod') : undefined}
+                  data-testid={`unlink-${s.id}`}
+                  onClick={async () => {
+                    const res = await authClient.unlinkAccount({ providerId: s.id });
+                    if (res.error) setErr(authErrorMessage(res.error.code, t));
+                    else void load();
+                  }}
+                >
+                  {t('security.linked.unlink')}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  data-testid={`link-${s.id}`}
+                  onClick={() =>
+                    authClient.linkSocial({ provider: s.id, callbackURL: '/settings' })
+                  }
+                >
+                  {t('security.linked.link')}
+                </Button>
+              )}
+            </li>
+          ))}
       </ul>
-      {err ? <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">{err}</p> : null}
+      {err ? (
+        <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -452,9 +512,11 @@ Note: confirm the shape returned by `authClient.listAccounts()` at runtime — B
 ### Task 5: TwoFactorSection component
 
 **Files:**
+
 - Create: `apps/web/src/components/security/two-factor-section.tsx`
 
 **Interfaces:**
+
 - Consumes: `authClient.twoFactor.enable/verifyTotp/disable`, `qrcode`, `authErrorMessage`.
 - Produces: `<TwoFactorSection enabled={boolean} hasPassword={boolean} onChanged={() => void} />`.
 
@@ -473,7 +535,15 @@ import { Button, Label, PasswordInput, Input, SectionLabel } from '@/components/
 
 type Stage = 'idle' | 'password' | 'verify' | 'backup';
 
-export function TwoFactorSection({ enabled, hasPassword, onChanged }: { enabled: boolean; hasPassword: boolean; onChanged: () => void }) {
+export function TwoFactorSection({
+  enabled,
+  hasPassword,
+  onChanged,
+}: {
+  enabled: boolean;
+  hasPassword: boolean;
+  onChanged: () => void;
+}) {
   const { t } = useI18n();
   const [stage, setStage] = useState<Stage>('idle');
   const [password, setPassword] = useState('');
@@ -494,10 +564,14 @@ export function TwoFactorSection({ enabled, hasPassword, onChanged }: { enabled:
   }
 
   async function startEnable() {
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     const res = await authClient.twoFactor.enable({ password });
     setBusy(false);
-    if (res.error || !res.data) { setErr(authErrorMessage(res.error?.code, t)); return; }
+    if (res.error || !res.data) {
+      setErr(authErrorMessage(res.error?.code, t));
+      return;
+    }
     setBackupCodes(res.data.backupCodes ?? []);
     const uri = res.data.totpURI as string;
     const url = new URL(uri);
@@ -507,48 +581,87 @@ export function TwoFactorSection({ enabled, hasPassword, onChanged }: { enabled:
   }
 
   async function confirmCode() {
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     const res = await authClient.twoFactor.verifyTotp({ code });
     setBusy(false);
-    if (res.error) { setErr(authErrorMessage(res.error.code, t)); return; }
+    if (res.error) {
+      setErr(authErrorMessage(res.error.code, t));
+      return;
+    }
     setStage('backup'); // show backup codes, then Done
   }
 
   async function disable() {
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     const res = await authClient.twoFactor.disable({ password });
     setBusy(false);
-    if (res.error) { setErr(authErrorMessage(res.error.code, t)); return; }
-    reset(); onChanged();
+    if (res.error) {
+      setErr(authErrorMessage(res.error.code, t));
+      return;
+    }
+    reset();
+    onChanged();
   }
 
-  function reset() { setStage('idle'); setPassword(''); setCode(''); setQr(''); setSecret(''); setBackupCodes([]); setErr(null); }
+  function reset() {
+    setStage('idle');
+    setPassword('');
+    setCode('');
+    setQr('');
+    setSecret('');
+    setBackupCodes([]);
+    setErr(null);
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <SectionLabel className="mb-0">{t('security.2fa.title')}</SectionLabel>
-        <span className={`text-sm font-semibold ${enabled ? 'text-green-700 dark:text-green-400' : 'text-zinc-500'}`} data-testid="2fa-status">
+        <span
+          className={`text-sm font-semibold ${enabled ? 'text-green-700 dark:text-green-400' : 'text-zinc-500'}`}
+          data-testid="2fa-status"
+        >
           {enabled ? t('security.2fa.on') : t('security.2fa.off')}
         </span>
       </div>
 
       {stage === 'idle' && !enabled ? (
-        <Button variant="secondary" data-testid="enable-2fa-btn" onClick={() => setStage('password')}>{t('security.2fa.enable')}</Button>
+        <Button
+          variant="secondary"
+          data-testid="enable-2fa-btn"
+          onClick={() => setStage('password')}
+        >
+          {t('security.2fa.enable')}
+        </Button>
       ) : null}
       {stage === 'idle' && enabled ? (
-        <Button variant="danger" data-testid="disable-2fa-btn" onClick={() => setStage('password')}>{t('security.2fa.disable')}</Button>
+        <Button variant="danger" data-testid="disable-2fa-btn" onClick={() => setStage('password')}>
+          {t('security.2fa.disable')}
+        </Button>
       ) : null}
 
       {stage === 'password' ? (
         <div className="space-y-2">
           <Label htmlFor="tfa-pw">{t('security.password.current')}</Label>
-          <PasswordInput id="tfa-pw" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="2fa-password" />
+          <PasswordInput
+            id="tfa-pw"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            data-testid="2fa-password"
+          />
           <div className="flex gap-2">
-            <Button disabled={busy || !password} data-testid="2fa-password-continue" onClick={enabled ? disable : startEnable}>
+            <Button
+              disabled={busy || !password}
+              data-testid="2fa-password-continue"
+              onClick={enabled ? disable : startEnable}
+            >
               {t('security.2fa.confirm')}
             </Button>
-            <Button variant="ghost" onClick={reset}>{t('common.cancel')}</Button>
+            <Button variant="ghost" onClick={reset}>
+              {t('common.cancel')}
+            </Button>
           </div>
         </div>
       ) : null}
@@ -556,21 +669,47 @@ export function TwoFactorSection({ enabled, hasPassword, onChanged }: { enabled:
       {stage === 'verify' ? (
         <div className="space-y-2">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('security.2fa.scan')}</p>
-          {qr ? <img src={qr} alt={t('security.2fa.title')} width={200} height={200} className="rounded-lg bg-white p-2" /> : null}
+          {qr ? (
+            <img
+              src={qr}
+              alt={t('security.2fa.title')}
+              width={200}
+              height={200}
+              className="rounded-lg bg-white p-2"
+            />
+          ) : null}
           <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('security.2fa.secret')}</p>
-          <code className="block break-all text-xs" data-testid="2fa-secret">{secret}</code>
+          <code className="block break-all text-xs" data-testid="2fa-secret">
+            {secret}
+          </code>
           <Label htmlFor="tfa-code">{t('security.2fa.code')}</Label>
-          <Input id="tfa-code" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} data-testid="2fa-code" />
-          <Button disabled={busy || code.length < 6} data-testid="2fa-confirm-btn" onClick={confirmCode}>{t('security.2fa.confirm')}</Button>
+          <Input
+            id="tfa-code"
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            data-testid="2fa-code"
+          />
+          <Button
+            disabled={busy || code.length < 6}
+            data-testid="2fa-confirm-btn"
+            onClick={confirmCode}
+          >
+            {t('security.2fa.confirm')}
+          </Button>
         </div>
       ) : null}
 
       {stage === 'backup' ? (
         <div className="space-y-2" data-testid="2fa-backup">
           <SectionLabel>{t('security.2fa.backupTitle')}</SectionLabel>
-          <p className="text-sm text-amber-700 dark:text-amber-400">{t('security.2fa.backupHint')}</p>
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            {t('security.2fa.backupHint')}
+          </p>
           <ul className="grid grid-cols-2 gap-1 font-mono text-sm">
-            {backupCodes.map((c) => <li key={c}>{c}</li>)}
+            {backupCodes.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
           </ul>
           <div className="flex gap-2">
             <Button
@@ -585,12 +724,24 @@ export function TwoFactorSection({ enabled, hasPassword, onChanged }: { enabled:
             >
               {t('security.2fa.download')}
             </Button>
-            <Button data-testid="2fa-done-btn" onClick={() => { reset(); onChanged(); }}>{t('security.2fa.done')}</Button>
+            <Button
+              data-testid="2fa-done-btn"
+              onClick={() => {
+                reset();
+                onChanged();
+              }}
+            >
+              {t('security.2fa.done')}
+            </Button>
           </div>
         </div>
       ) : null}
 
-      {err ? <p role="alert" className="text-sm text-red-700 dark:text-red-400">{err}</p> : null}
+      {err ? (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -611,10 +762,12 @@ Note: `twoFactor.enable` returns `{ totpURI, backupCodes }` (per Better Auth 1.2
 ### Task 6: Wire SecurityCard into the Settings page
 
 **Files:**
+
 - Create: `apps/web/src/components/security/security-card.tsx`
 - Modify: `apps/web/src/app/settings/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `trpc.user.me` (`twoFactorEnabled`), `authClient.listAccounts` (to detect `hasPassword`), env flags `NEXT_PUBLIC_GOOGLE_ENABLED` / `NEXT_PUBLIC_APPLE_ENABLED`.
 - Produces: `<SecurityCard />`.
 
@@ -685,9 +838,11 @@ git commit -m "feat(web): Security card in Settings (password, methods, 2FA)"
 ### Task 7: Sign-in 2FA step (in-place)
 
 **Files:**
+
 - Modify: `apps/web/src/components/sign-in.tsx`
 
 **Interfaces:**
+
 - Consumes: `authClient.signIn.email` (`onSuccess` → `data.twoFactorRedirect`), `authClient.twoFactor.verifyTotp/verifyBackupCode`, `authErrorMessage`.
 
 - [ ] **Step 1: Read the current sign-in component**
@@ -728,16 +883,38 @@ When `twoFactor` is true, render this block instead of the email/password form (
   }}
   className="space-y-3"
 >
-  <Label htmlFor="signin-2fa">{useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}</Label>
-  <Input id="signin-2fa" inputMode={useBackup ? 'text' : 'numeric'} value={code} onChange={(e) => setCode(e.target.value)} autoFocus data-testid="signin-2fa-code" />
+  <Label htmlFor="signin-2fa">
+    {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
+  </Label>
+  <Input
+    id="signin-2fa"
+    inputMode={useBackup ? 'text' : 'numeric'}
+    value={code}
+    onChange={(e) => setCode(e.target.value)}
+    autoFocus
+    data-testid="signin-2fa-code"
+  />
   {!useBackup ? (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={trustDevice}
+        onChange={(e) => setTrustDevice(e.target.checked)}
+      />
       {t('security.2fa.trustDevice')}
     </label>
   ) : null}
-  <Button type="submit" data-testid="signin-2fa-submit">{t('security.2fa.confirm')}</Button>
-  <button type="button" className="block text-sm text-brand-600" onClick={() => { setUseBackup(!useBackup); setCode(''); }}>
+  <Button type="submit" data-testid="signin-2fa-submit">
+    {t('security.2fa.confirm')}
+  </Button>
+  <button
+    type="button"
+    className="block text-sm text-brand-600"
+    onClick={() => {
+      setUseBackup(!useBackup);
+      setCode('');
+    }}
+  >
     {useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
   </button>
 </form>
@@ -758,9 +935,11 @@ git commit -m "feat(web): 2FA code step in sign-in"
 ### Task 8: Integration smoke test + manual verification checklist
 
 **Files:**
+
 - Create: `packages/api/src/routers/two-factor.test.ts` (optional integration smoke — requires a local DB)
 
 **Interfaces:**
+
 - Consumes: the Better Auth server `auth.api` methods.
 
 - [ ] **Step 1: Optional 2FA integration smoke (only if a local Postgres is available)**
@@ -770,6 +949,7 @@ Add `otpauth` as a devDependency of `apps/web` (`pnpm --filter web add -D otpaut
 - [ ] **Step 2: Manual verification checklist (run against the deployed build)**
 
 Verify each, since the interactive flows aren't fully E2E-covered:
+
 - Change password with correct/incorrect current password (incorrect → localized error).
 - OAuth-only account: password section shows "set a password"; the email link works.
 - Link Google/Apple → returns to `/settings` showing Connected; unlink; the last remaining method's Unlink is disabled.
