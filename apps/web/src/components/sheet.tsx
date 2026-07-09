@@ -1,14 +1,18 @@
 'use client';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { iconButtonClass } from '@/components/ui';
 import { X } from '@/components/icons';
 import { lockBodyScroll } from '@/lib/scroll-lock';
 
+/** Drag the grab handle down at least this far (px) to dismiss the sheet. */
+const DRAG_CLOSE_PX = 110;
+
 /**
  * Accessible sheet on the native `<dialog>` element — the same mechanics as
  * Modal (focus trap, top layer, Escape, backdrop-close) but presented as a
- * bottom sheet on phones and a centered card from `sm` up.
+ * bottom sheet on phones and a centered card from `sm` up. On phones the grab
+ * handle can be dragged down to dismiss.
  */
 export function Sheet({
   open,
@@ -30,18 +34,45 @@ export function Sheet({
   // the form.
   const pressedOnBackdrop = useRef(false);
   const titleId = useId();
+  // Drag-to-dismiss on the grab handle: follow the finger while pulling down,
+  // then either snap back or close past the threshold.
+  const [dragging, setDragging] = useState(false);
+  const dragStartY = useRef<number | null>(null);
+  const dragDy = useRef(0);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) el.showModal();
     else if (!open && el.open) el.close();
+    if (!open) el.style.transform = ''; // clear any leftover drag offset
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     return lockBodyScroll();
   }, [open]);
+
+  function startDrag(clientY: number, pointerId: number, target: HTMLElement) {
+    dragStartY.current = clientY;
+    dragDy.current = 0;
+    setDragging(true);
+    target.setPointerCapture?.(pointerId);
+  }
+  function moveDrag(clientY: number) {
+    if (dragStartY.current === null || !ref.current) return;
+    const dy = Math.max(0, clientY - dragStartY.current);
+    dragDy.current = dy;
+    ref.current.style.transform = dy ? `translateY(${dy}px)` : '';
+  }
+  function endDrag() {
+    if (dragStartY.current === null) return;
+    const dy = dragDy.current;
+    dragStartY.current = null;
+    setDragging(false);
+    if (ref.current) ref.current.style.transform = ''; // snap back (or close)
+    if (dy > DRAG_CLOSE_PX) onClose();
+  }
 
   return (
     <dialog
@@ -66,7 +97,11 @@ export function Sheet({
       // sm+ restores the UA `inset: 0` (top/bottom 0) so `margin: auto` performs
       // real dialog centering — `top/bottom: auto` would drop the dialog at its
       // static (in-flow) position in Firefox, pushing it half off-screen.
-      className="bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      // While dragging we follow the finger with no transition; on release the
+      // transition animates the snap-back (or close).
+      className={`bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100${
+        dragging ? '' : ' transition-transform duration-200'
+      }`}
     >
       {open ? (
         <div
@@ -78,7 +113,19 @@ export function Sheet({
           className="max-h-[92dvh] overflow-y-auto overscroll-contain p-5 pb-[max(6rem,env(safe-area-inset-bottom))] sm:max-h-[85vh] sm:pb-5"
           data-testid={testId}
         >
-          <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-zinc-200 sm:hidden dark:bg-zinc-700" />
+          {/* Grab handle — drag down to dismiss (phones only). The wrapper is a
+              generous, scroll-proof (`touch-none`) target around the thin pill. */}
+          <div
+            onPointerDown={(e) => startDrag(e.clientY, e.pointerId, e.currentTarget)}
+            onPointerMove={(e) => moveDrag(e.clientY)}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            className="-mx-5 -mt-5 mb-1 flex cursor-grab touch-none select-none justify-center px-5 pb-2 pt-4 active:cursor-grabbing sm:hidden"
+            aria-hidden
+            data-testid="sheet-drag-handle"
+          >
+            <div className="h-1 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+          </div>
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 id={titleId} className="text-lg font-bold tracking-tight">
               {title}
