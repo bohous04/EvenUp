@@ -98,11 +98,17 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
     await closeSheet(page);
 
-    // Save the creator's IBAN (defaults to the first member in the select).
-    await openGroupSheet(page, 'bank');
-    await page.getByTestId('bank-iban-input').fill('CZ6508000000192000145399');
-    await page.getByTestId('bank-save-btn').click();
-    await closeSheet(page);
+    // Save the creator's bank account in Settings (CZ format; spec 2026-07-09).
+    await page.getByRole('link', { name: /settings|nastavení/i }).click();
+    await page.getByTestId('bank-account-input').fill('19-2000145399/0800');
+    await page.getByTestId('bank-account-save').click();
+    await expect(page.getByTestId('bank-account-masked')).toHaveText('…5399/0800');
+    await page.goBack();
+
+    // The per-group bank sheet is gone from the ⋯ menu.
+    await page.getByTestId('group-menu-btn').click();
+    await expect(page.getByTestId('menu-bank')).toHaveCount(0);
+    await page.getByTestId('sheet-close').click();
 
     // Exact split: creator pays, Petr owes 100.
     await page.getByTestId('add-expense-open').click();
@@ -118,6 +124,29 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('settle-btn')).toHaveCount(1);
     await page.getByTestId('settle-btn').first().click();
     await expect(page.getByText(/SPD\*1\.0\*ACC:CZ6508000000192000145399/)).toBeVisible();
+  });
+
+  test('nickname change in settings renames linked members in groups', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('nick', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Nick');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Nick').click();
+    await expect(page.getByTestId('group-title')).toHaveText('Nick');
+
+    await page.getByRole('link', { name: /settings|nastavení/i }).click();
+    await page.getByTestId('profile-name-input').fill('Michal Novák');
+    await page.getByTestId('profile-name-save').click();
+    await expect(page.getByTestId('profile-name-saved')).toBeVisible();
+
+    await page.goto('/');
+    await page.getByText('Nick').click();
+    await openGroupSheet(page, 'members');
+    await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
   });
 
   test('OCR receipt → assign items via chips → itemized expense (FR-5.4, mocked OpenRouter)', async ({

@@ -14,7 +14,6 @@ import { BalancesCard } from '@/components/balances-card';
 import { SpendStats } from '@/components/spend-stats';
 import { CsvImport } from '@/components/csv-import';
 import { ActivityFeed } from '@/components/activity-feed';
-import { BankDetailsForm } from '@/components/bank-details-form';
 import { Sheet } from '@/components/sheet';
 import { MenuSheet } from '@/components/menu-sheet';
 import {
@@ -23,12 +22,11 @@ import {
   BarChart3,
   History,
   FileUp,
-  Landmark,
   MoreHorizontal,
   ChevronLeft,
 } from '@/components/icons';
 
-type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'bank' | null;
+type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | null;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
@@ -82,7 +80,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     { key: 'stats', icon: BarChart3, label: t('stats.spendByCategory'), onSelect: () => openPanel('stats') },
     { key: 'activity', icon: History, label: t('nav.activity'), onSelect: () => openPanel('activity') },
     { key: 'csv', icon: FileUp, label: t('csv.import'), onSelect: () => openPanel('csv') },
-    { key: 'bank', icon: Landmark, label: t('member.iban'), onSelect: () => openPanel('bank') },
   ];
 
   return (
@@ -255,12 +252,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       <Sheet open={panel === 'csv'} onClose={() => setPanel(null)} title={t('csv.import')}>
         <CsvImport
           groupId={groupId}
-          members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}
-        />
-      </Sheet>
-
-      <Sheet open={panel === 'bank'} onClose={() => setPanel(null)} title={t('member.iban')}>
-        <BankDetailsForm
           members={activeMembers.map((m) => ({ id: m.id, displayName: m.displayName }))}
         />
       </Sheet>
