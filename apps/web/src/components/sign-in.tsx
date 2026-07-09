@@ -11,8 +11,14 @@ import { AppleLogo, GoogleLogo } from '@/components/icons';
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
 const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 
-export function SignIn() {
+/**
+ * `callbackURL` lets embedding pages (e.g. the invite page) get the user back
+ * after auth instead of being dumped on the dashboard. Only same-origin paths
+ * are accepted; anything else falls back to '/'.
+ */
+export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
   const { t } = useI18n();
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +28,7 @@ export function SignIn() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signIn.email({ email, password, callbackURL: '/' });
+    const res = await signIn.email({ email, password, callbackURL: safeCallback });
     setLoading(false);
     if (res.error) {
       const code = res.error.code;
@@ -86,7 +92,7 @@ export function SignIn() {
               {t('auth.forgotLink')}
             </Link>
             <Link
-              href="/sign-up"
+              href={safeCallback === '/' ? '/sign-up' : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`}
               data-testid="signup-link"
               className="text-brand-600 dark:text-brand-100"
             >
@@ -105,7 +111,7 @@ export function SignIn() {
                   type="button"
                   variant="secondary"
                   className="flex w-full items-center justify-center gap-2"
-                  onClick={() => signIn.social({ provider: 'google', callbackURL: '/' })}
+                  onClick={() => signIn.social({ provider: 'google', callbackURL: safeCallback })}
                   data-testid="google-signin"
                 >
                   <GoogleLogo size={16} />
@@ -117,7 +123,7 @@ export function SignIn() {
                   type="button"
                   variant="secondary"
                   className="flex w-full items-center justify-center gap-2"
-                  onClick={() => signIn.social({ provider: 'apple', callbackURL: '/' })}
+                  onClick={() => signIn.social({ provider: 'apple', callbackURL: safeCallback })}
                   data-testid="apple-signin"
                 >
                   <AppleLogo size={16} />

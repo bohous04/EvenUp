@@ -26,7 +26,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <p className="mb-4 text-center text-sm text-zinc-600 dark:text-zinc-300">
           {t('invite.claim')}
         </p>
-        <SignIn />
+        <SignIn callbackURL={`/invite/${token}`} />
       </div>
     );
   }
@@ -68,7 +68,10 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         ))}
       </ul>
       <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-        <Button onClick={() => claim.mutate({ token }, { onError: (e) => setError(e.message) })}>
+        <Button
+          data-testid="invite-join-new"
+          onClick={() => claim.mutate({ token }, { onError: (e) => setError(e.message) })}
+        >
           {t('common.add')} — {t('member.add')}
         </Button>
       </div>

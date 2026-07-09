@@ -491,6 +491,45 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
   });
 
+  test('invite link survives sign-in — invitee returns to the invite and can join', async ({
+    page,
+  }, testInfo) => {
+    const owner = uniqueEmail('inviter', testInfo.workerIndex + Date.now());
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Výlet');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Výlet').click();
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Create the invitee's account, then follow the link signed-out — the
+    // typical recipient state.
+    const invitee = uniqueEmail('invitee', testInfo.workerIndex + Date.now());
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Katka', email: invitee, password: 'test-password-123' },
+    });
+    await page.context().clearCookies();
+    await page.goto(new URL(inviteUrl!).pathname);
+
+    // Signing in from the embedded form must land back on the invite, not '/'.
+    await page.getByLabel(/email/i).fill(invitee);
+    await page.getByTestId('password-input').fill('test-password-123');
+    await page.getByTestId('signin-submit').click();
+    await expect(page.getByRole('heading', { name: 'Výlet' })).toBeVisible();
+    await expect(page).toHaveURL(/\/invite\//);
+
+    // Join as a new member; claiming pushes to the dashboard with the group.
+    await page.getByTestId('invite-join-new').click();
+    await expect(page.getByTestId('group-title')).toHaveCount(0);
+    await expect(page.getByText('Výlet')).toBeVisible();
+  });
+
   test('large amounts never wrap (design-spec hard rule)', async ({ page }, testInfo) => {
     const email = uniqueEmail('wrap', testInfo.workerIndex + Date.now());
     await signIn(page, email);

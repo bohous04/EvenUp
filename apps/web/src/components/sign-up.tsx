@@ -5,8 +5,10 @@ import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 
-export function SignUp() {
+/** `callbackURL`: where the verification link lands the user (default '/'). */
+export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
   const { t } = useI18n();
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +20,7 @@ export function SignUp() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signUp.email({ name, email, password });
+    const res = await signUp.email({ name, email, password, callbackURL: safeCallback });
     setLoading(false);
     if (res.error) {
       setError(
