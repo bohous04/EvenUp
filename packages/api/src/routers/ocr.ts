@@ -105,6 +105,9 @@ export const ocrRouter = router({
         });
         return { receiptId: receipt.id, result };
       } catch (err) {
+        // Log the real reason server-side (the client only ever sees a generic
+        // fallback message) so failures are diagnosable from the app logs.
+        console.error('[ocr] extractReceipt failed:', err instanceof Error ? err.message : err);
         // Record the failure and tell the client to fall back to manual entry (FR-5.6/5.7).
         await ctx.prisma.receipt.create({
           data: {
