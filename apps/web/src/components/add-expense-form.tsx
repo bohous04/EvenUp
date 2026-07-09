@@ -77,7 +77,7 @@ function Segmented({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700"
+      className="flex flex-wrap justify-center gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700"
     >
       {options.map((o) => {
         const selected = o.value === value;
@@ -448,7 +448,7 @@ export function AddExpenseForm({
           <div>
             <SectionLabel>{t('expense.paidBy')}</SectionLabel>
             <div
-              className="flex flex-wrap gap-2"
+              className="flex flex-wrap justify-center gap-2"
               role="radiogroup"
               aria-label={t('expense.paidBy')}
             >
@@ -485,7 +485,7 @@ export function AddExpenseForm({
           <div>
             <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
             <div
-              className="flex flex-wrap gap-2"
+              className="flex flex-wrap justify-center gap-2"
               role="group"
               aria-label={t('expense.splitBetween')}
             >
