@@ -23,6 +23,7 @@ export const en: Messages = {
   'common.total': 'Total',
   'common.or': 'or',
   'common.showAll': 'Show all',
+  'transactions.showMore': 'Show more transactions',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
@@ -179,6 +180,7 @@ export const en: Messages = {
   'ocr.processing': 'Processing receipt…',
   'ocr.assignItems': 'Assign items to members',
   'ocr.unassigned': 'Unassigned',
+  'ocr.receiptTitle': 'Receipt',
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
   'ocr.apiKeyRequired': 'Enter your OpenRouter API key to scan receipts',

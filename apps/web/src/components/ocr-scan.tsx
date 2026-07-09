@@ -92,6 +92,9 @@ export function OcrScan({
   const galleryRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
+  // Detected shop name — used as the saved expense title so it reads naturally
+  // (e.g. "Albert") instead of a hardcoded English "Receipt".
+  const [merchant, setMerchant] = useState<string | null>(null);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
 
@@ -105,6 +108,7 @@ export function OcrScan({
         })),
       );
       setReceiptId(res.receiptId);
+      setMerchant(res.result.merchant);
       setError(null);
     },
     // Surface the actionable reason rather than a blanket "recognition failed":
@@ -118,6 +122,7 @@ export function OcrScan({
     onSuccess: () => {
       setItems(null);
       setReceiptId(null);
+      setMerchant(null);
       void utils.transaction.list.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
       void utils.stats.byCategory.invalidate({ groupId });
@@ -212,7 +217,7 @@ export function OcrScan({
     const total = prepared.reduce((a, it) => a + (it.minor ?? 0), 0);
     createExpense.mutate({
       groupId,
-      title: 'Receipt',
+      title: merchant?.trim() || t('ocr.receiptTitle'),
       currency: baseCurrency,
       date: new Date(),
       payers: [{ memberId: payerId, amountMinorUnits: total }],
@@ -429,6 +434,7 @@ export function OcrScan({
               onClick={() => {
                 setItems(null);
                 setReceiptId(null);
+                setMerchant(null);
               }}
             >
               {t('common.cancel')}

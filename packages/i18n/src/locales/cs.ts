@@ -23,6 +23,7 @@ export const cs = {
   'common.total': 'Celkem',
   'common.or': 'nebo',
   'common.showAll': 'Zobrazit vše',
+  'transactions.showMore': 'Zobrazit další transakce',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',
@@ -180,6 +181,7 @@ export const cs = {
   'ocr.processing': 'Zpracování účtenky…',
   'ocr.assignItems': 'Přiřaďte položky členům',
   'ocr.unassigned': 'Nepřiřazeno',
+  'ocr.receiptTitle': 'Účtenka',
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
   'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',

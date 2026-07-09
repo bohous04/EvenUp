@@ -209,7 +209,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 className="mt-2 w-full rounded-xl py-2 text-center text-sm font-semibold text-brand-600 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-brand-600/10"
                 data-testid="tx-show-all"
               >
-                {t('common.showAll')}
+                {t('transactions.showMore')}
               </button>
             ) : null}
           </>
