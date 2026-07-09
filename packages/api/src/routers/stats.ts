@@ -10,15 +10,22 @@ export const statsRouter = router({
     .input(z.object({ groupId: z.string() }))
     .query(async ({ ctx, input }) => {
       await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
-      const txns = await ctx.prisma.transaction.findMany({
-        where: { groupId: input.groupId },
-        select: { type: true, category: true, baseMinorUnits: true },
-      });
+      const [txns, customs] = await Promise.all([
+        ctx.prisma.transaction.findMany({
+          where: { groupId: input.groupId },
+          select: { type: true, category: true, baseMinorUnits: true },
+        }),
+        ctx.prisma.groupCategory.findMany({
+          where: { groupId: input.groupId },
+          select: { id: true },
+        }),
+      ]);
       const entries: Categorizable[] = txns.map((t) => ({
         type: t.type.toLowerCase() as Categorizable['type'],
         category: t.category,
         baseMinorUnits: toMinor(t.baseMinorUnits),
       }));
-      return summarizeByCategory(entries);
+      const customKeys = new Set(customs.map((c) => `custom:${c.id}`));
+      return summarizeByCategory(entries, { customKeys });
     }),
 });

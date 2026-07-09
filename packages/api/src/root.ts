@@ -12,6 +12,7 @@ import { fxRouter } from './routers/fx.js';
 import { statsRouter } from './routers/stats.js';
 import { activityRouter } from './routers/activity.js';
 import { adminRouter } from './routers/admin.js';
+import { categoryRouter } from './routers/category.js';
 
 export const appRouter = router({
   group: groupRouter,
@@ -26,6 +27,7 @@ export const appRouter = router({
   stats: statsRouter,
   activity: activityRouter,
   admin: adminRouter,
+  category: categoryRouter,
 });
 
 export type AppRouter = typeof appRouter;

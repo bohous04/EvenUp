@@ -9,6 +9,7 @@ import {
   parseExpensesCsv,
   splitEqually,
   isExpenseCategory,
+  isCustomCategoryKey,
 } from '@evenup/core';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
@@ -50,6 +51,16 @@ export const transactionRouter = router({
   createExpense: protectedProcedure.input(createExpenseInput).mutation(async ({ ctx, input }) => {
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
     const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: input.groupId } });
+
+    if (input.category && isCustomCategoryKey(input.category)) {
+      const exists = await ctx.prisma.groupCategory.findFirst({
+        where: { id: input.category.slice('custom:'.length), groupId: input.groupId },
+        select: { id: true },
+      });
+      if (!exists) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Unknown category' });
+      }
+    }
 
     const plan = planExpense(input);
     const { rateDecimal, overridden } = await resolveRateDecimal(
