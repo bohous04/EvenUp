@@ -27,6 +27,7 @@ export function CategoryManager({ groupId }: { groupId: string }) {
   });
   const update = trpc.category.update.useMutation({
     onSuccess: () => {
+      setError(null);
       setEditingId(null);
       invalidate();
     },
@@ -35,6 +36,7 @@ export function CategoryManager({ groupId }: { groupId: string }) {
   });
   const remove = trpc.category.remove.useMutation({
     onSuccess: () => {
+      setError(null);
       invalidate();
       void utils.stats.byCategory.invalidate({ groupId });
     },
