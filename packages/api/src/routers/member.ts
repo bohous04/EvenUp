@@ -99,6 +99,7 @@ export const memberRouter = router({
       return { deleted: true };
     }),
 
+  /** @deprecated Per-member bank details are legacy; the web app now stores the account on the User (spec 2026-07-09). Kept for mobile/back-compat and as a read fallback in generateSpayd. */
   setBankDetail: protectedProcedure.input(setBankDetailInput).mutation(async ({ ctx, input }) => {
     const groupId = await groupIdForMember(ctx, input.memberId);
     await assertGroupAccess(ctx.prisma, ctx.user, groupId);
