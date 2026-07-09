@@ -12,9 +12,14 @@ const secretBox = createSecretBox(env.encryptionKey);
 
 export async function createTrpcContext(headers: Headers): Promise<Context> {
   const session = await auth.api.getSession({ headers });
+  // The client sends its chosen UI locale so server error messages come back
+  // translated; anything else falls back to the context default (Czech).
+  const localeHeader = headers.get('x-locale');
+  const locale = localeHeader === 'en' || localeHeader === 'cs' ? localeHeader : undefined;
   return createContext({
     prisma,
     secretBox,
+    locale,
     user: session?.user
       ? { id: session.user.id, email: session.user.email, name: session.user.name }
       : null,

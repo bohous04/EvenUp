@@ -5,12 +5,26 @@
  */
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
+import { catalogs, t as translate, type MessageKey } from '@evenup/i18n';
 import type { Context } from './context.js';
 import { logError, shouldLogError } from './services/error-log.js';
 
+// Reverse map English error text → its `errors.*` key, built once from the en
+// catalog. Routers throw plain English messages (readable in code and logs);
+// the formatter below rewrites them into the caller's locale.
+const ERROR_KEY_BY_EN: Record<string, MessageKey> = Object.fromEntries(
+  (Object.entries(catalogs.en) as [MessageKey, string][])
+    .filter(([key]) => key.startsWith('errors.'))
+    .map(([key, value]) => [value, key]),
+);
+
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape }) {
+  // Localize known server error messages to the request's locale (defaults to
+  // Czech). Unknown messages (Zod, internal) pass through untouched.
+  errorFormatter({ shape, ctx }) {
+    const key = ERROR_KEY_BY_EN[shape.message];
+    if (key && ctx?.locale) return { ...shape, message: translate(ctx.locale, key) };
     return shape;
   },
 });

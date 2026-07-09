@@ -43,7 +43,7 @@ export function planExpense(input: CreateExpenseInput): ExpensePlan {
   if (payersTotal !== total) {
     throw new TRPCError({
       code: 'BAD_REQUEST',
-      message: `Payers paid ${payersTotal} but the expense total is ${total}.`,
+      message: 'The payer amounts do not add up to the expense total.',
     });
   }
 

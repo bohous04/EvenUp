@@ -10,7 +10,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      links: [httpBatchLink({ url: '/api/trpc', transformer: superjson })],
+      links: [
+        httpBatchLink({
+          url: '/api/trpc',
+          transformer: superjson,
+          // Tell the server which locale to translate error messages into.
+          headers: () => {
+            const locale = window.localStorage.getItem('evenup.locale');
+            return locale === 'en' || locale === 'cs' ? { 'x-locale': locale } : {};
+          },
+        }),
+      ],
     }),
   );
 
