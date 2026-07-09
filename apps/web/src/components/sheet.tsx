@@ -70,7 +70,12 @@ export function Sheet({
     >
       {open ? (
         <div
-          className="max-h-[92dvh] overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-h-[85vh]"
+          // The bottom gutter must clear the mobile browser's bottom toolbar,
+          // which `env(safe-area-inset-bottom)` does NOT cover (that's only the
+          // home indicator). Without it, a tall form's last rows sit behind the
+          // toolbar with nothing to scroll them into view. Desktop (centered
+          // card, no chrome) keeps the compact padding.
+          className="max-h-[92dvh] overflow-y-auto overscroll-contain p-5 pb-[max(6rem,env(safe-area-inset-bottom))] sm:max-h-[85vh] sm:pb-5"
           data-testid={testId}
         >
           <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-zinc-200 sm:hidden dark:bg-zinc-700" />
