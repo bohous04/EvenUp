@@ -15,7 +15,9 @@ export async function createTrpcContext(headers: Headers): Promise<Context> {
   return createContext({
     prisma,
     secretBox,
-    user: session?.user ? { id: session.user.id, email: session.user.email } : null,
+    user: session?.user
+      ? { id: session.user.id, email: session.user.email, name: session.user.name }
+      : null,
     objectStore: getObjectStore(),
     fxFetch: fetch, // global fetch enables on-demand FX; tests inject a fake
     ocrRateLimit,

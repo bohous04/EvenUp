@@ -93,7 +93,9 @@ export const inviteRouter = router({
           });
         } else {
           const count = await tx.member.count({ where: { groupId: invite.groupId } });
-          const name = input.displayName ?? ctx.user.email.split('@')[0] ?? 'Guest';
+          // Prefer the name entered at sign-up; fall back to the email local-part.
+          const derivedName = ctx.user.name?.trim() || ctx.user.email.split('@')[0] || 'Guest';
+          const name = input.displayName ?? derivedName;
           claimed = await tx.member.create({
             data: {
               groupId: invite.groupId,

@@ -17,6 +17,8 @@ export interface RateLimiter {
 export interface AuthUser {
   readonly id: string;
   readonly email: string;
+  /** Display name from sign-up (Better Auth `user.name`); may be empty. */
+  readonly name?: string | null;
 }
 
 export interface Context {

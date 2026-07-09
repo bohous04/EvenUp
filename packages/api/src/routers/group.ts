@@ -8,6 +8,8 @@ import { logActivity } from '../services/activity.js';
 
 export const groupRouter = router({
   create: protectedProcedure.input(createGroupInput).mutation(async ({ ctx, input }) => {
+    // Prefer the name entered at sign-up; fall back to the email local-part.
+    const displayName = ctx.user.name?.trim() || ctx.user.email.split('@')[0] || 'Admin';
     const group = await ctx.prisma.group.create({
       data: {
         name: input.name,
@@ -18,8 +20,8 @@ export const groupRouter = router({
         // The creator joins as the first ADMIN member (FR-2.6).
         members: {
           create: {
-            displayName: ctx.user.email.split('@')[0] ?? 'Admin',
-            initials: deriveInitials(ctx.user.email.split('@')[0] ?? 'Admin'),
+            displayName,
+            initials: deriveInitials(displayName),
             color: colorForIndex(0),
             role: 'ADMIN',
             userId: ctx.user.id,
