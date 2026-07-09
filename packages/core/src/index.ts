@@ -71,6 +71,14 @@ export {
   formatSpaydDate,
 } from './spayd/spayd.js';
 
+// Czech bank accounts (parsing, IBAN conversion, display mask)
+export {
+  type CzAccount,
+  parseCzAccount,
+  czAccountToIban,
+  maskCzAccount,
+} from './bank/cz-account.js';
+
 // Member identity (initials + chip colors)
 export {
   type MemberColor,
