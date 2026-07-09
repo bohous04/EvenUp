@@ -26,14 +26,14 @@ This spec covers **Spec A** of a two-part effort. Spec B (live shared split sess
 subscribe to the domain-event seam introduced here.
 
 **In scope:** domain-event seam, notification preferences, delivery records, an email channel, a
-cron endpoint, digests, debt reminders, two immediate-lane events, and moving recurring
+cron endpoint, digests, debt reminders, one immediate-lane event, and moving recurring
 materialization onto the cron.
 
 **Out of scope:** Expo push, web push, in-app notification centre, `expense.updated` events.
 
 ### Why email only
 
-- **Web push is expensive here.** `apps/web/public/sw.js` is a *kill-switch* service worker: EvenUp
+- **Web push is expensive here.** `apps/web/public/sw.js` is a _kill-switch_ service worker: EvenUp
   shipped a caching worker, hit stale-asset bugs across deploys, and replaced it with one that
   purges caches and unregisters itself. New visitors register no worker at all. Web push needs a
   persistent registered worker, so adding it means reversing a deliberate retreat.
@@ -48,7 +48,7 @@ shaped so push drops in without re-architecture.
 
 ### Why email is not push
 
-FR-11.1 mandates push notifications *on mobile* for added/edited expenses. Email has a spam cliff
+FR-11.1 mandates push notifications _on mobile_ for added/edited expenses. Email has a spam cliff
 that push does not: six people at dinner adding twenty expenses would generate ~100 emails under
 per-event delivery. Email therefore gets **digests**, not per-event mail. Note also that FR-11.1's
 "edited expense" describes an event that cannot occur — the transaction router has no `update`
@@ -73,11 +73,12 @@ export interface NotifiableUser {
   readonly locale: string;
 }
 
+// `items[].lastAt` is an ISO string, not a Date: payloads round-trip through
+// JSON on NotificationDelivery so a failed send can be replayed verbatim.
 export type NotificationPayload =
-  | { kind: 'digest'; groupId; groupName; items: DigestItem[]; netMinorUnits; currency }
-  | { kind: 'reminder'; groupId; groupName; creditorName; amountMinorUnits; currency; spayd? }
-  | { kind: 'settlement.received'; groupId; groupName; payerName; amountMinorUnits; currency }
-  | { kind: 'group.added'; groupId; groupName; actorName };
+  | { kind: 'digest'; groupId; groupName; items: DigestEntry[]; netMinorUnits; currency }
+  | { kind: 'reminder'; groupId; groupName; creditorName; amountMinorUnits; currency; spayd }
+  | { kind: 'settlement.received'; groupId; groupName; payerName; amountMinorUnits; currency };
 
 export interface NotificationChannel {
   readonly id: 'email' | 'push' | 'webpush';
@@ -104,11 +105,11 @@ the event source of truth, and becomes the seam Spec B's realtime channel subscr
 We deliberately do **not** add a `NotificationEvent` table. The three things we send have different
 shapes:
 
-| Producer | Source | Recipients resolved |
-|---|---|---|
-| Digest | `ActivityLog` since watermark | at digest time (batch — nobody is waiting) |
-| Immediate | mutation, inline | at mutation time |
-| Reminder | `getGroupBalances` | at cron time; never touches the event log |
+| Producer  | Source                        | Recipients resolved                        |
+| --------- | ----------------------------- | ------------------------------------------ |
+| Digest    | `ActivityLog` since watermark | at digest time (batch — nobody is waiting) |
+| Immediate | mutation, inline              | at mutation time                           |
+| Reminder  | `getGroupBalances`            | at cron time; never touches the event log  |
 
 A per-`(event, recipient)` outbox would serve only the first, duplicate a table we already have, and
 add a recipient-resolution query to the hot mutation path. One `NotificationDelivery` table serves
@@ -133,16 +134,23 @@ model NotificationPreference {
 model NotificationDelivery {
   id             String    @id @default(cuid())
   userId         String
-  kind           String    // digest | reminder | settlement.received | group.added
+  kind           String    // digest | reminder | settlement.received
   channel        String    // email
   idempotencyKey String    @unique
   status         String    // pending | sent | failed
   attempts       Int       @default(0)
   sentAt         DateTime?
   error          String?
+  payload        Json      // added during implementation — see below
   createdAt      DateTime  @default(now())
 }
 ```
+
+`payload` was not in the original design and turned out to be load-bearing. A retry must re-send what
+the failed attempt would have sent, and a digest cannot be recomputed after the fact: its watermark
+has not advanced, but its idempotency key is already taken, so recomputation would collide with
+itself. Storing the rendered payload makes the retry a verbatim replay. It holds display names and
+amounts, never secrets.
 
 `NotificationPreference` rows are created lazily; absence means defaults (unmuted, never digested).
 
@@ -171,8 +179,10 @@ on that transaction, resolved through your linked `Member`. Group-level events (
 `receipt-cleanup`, scheduled externally (Coolify scheduled tasks). Three phases, **in order**:
 
 1. **Materialize** due recurring transactions across all non-archived groups, writing their
-   `ActivityLog` rows. (`materializeDue` lifted out of the tRPC router into a shared service; the
-   procedure remains as a thin delegating wrapper, since `integration.test.ts` calls it.)
+   `ActivityLog` rows with a `null` actor — nobody did this, the schedule did, so it is never
+   filtered out of anyone's digest as "your own action". (`materializeDue` is lifted out of the tRPC
+   router into a shared service; the procedure remains as a thin delegating wrapper so a client can
+   force one group to catch up, and because `integration.test.ts` calls it.)
 2. **Digest** — for each user whose `lastDigestAt` is older than the digest interval, read
    `ActivityLog` since the watermark, filter to what affects them, send, advance the watermark.
 3. **Remind** — for each non-archived group, call `getGroupBalances`; for each linked member owing
@@ -186,20 +196,27 @@ Defaults: digest every 24h, reminders every 168h (weekly), reminder threshold 50
 
 ### Immediate lane
 
-Exactly two events send synchronously, after their mutation commits:
+Exactly **one** event sends synchronously, after its mutation commits:
 
 - `settlement.received` — someone recorded a transfer paying **you**.
-- `group.added` — you were added to a group.
 
-Each writes a `pending` delivery row and attempts the send inline. Failure is not propagated to the
-mutation's caller; the next cron pass sweeps `pending` and `failed` rows and retries. Immediates get
-reliability without introducing a queue.
+It writes a `pending` delivery row and attempts the send inline. Failure is not propagated to the
+mutation's caller; the next cron pass sweeps `pending` and `failed` rows and retries. The immediate
+gets reliability without introducing a queue.
+
+> **Cut during implementation: `group.added`.** The design called for a second immediate, "you were
+> added to a group". It has no trigger. `member.add` only ever creates _virtual_ members
+> (`userId` is never set), and the sole path by which a `Member` gains a `userId` is `invite.claim`,
+> which the recipient performs themselves. Emailing someone about a button they just clicked is not
+> a notification. Instead, `invite.claim` now writes a `member.joined` activity row — it previously
+> wrote none at all, in violation of FR-9.1 — so the _other_ members learn of the join in their next
+> digest.
 
 ## Error handling
 
 - Send failure marks the delivery `failed`, increments `attempts`, and stores a truncated `error`.
   The cron retries rows with `attempts < 3`, then leaves them dead for inspection.
-- The delivery row is written `pending` *before* the send, and flipped to `sent` after. A crash
+- The delivery row is written `pending` _before_ the send, and flipped to `sent` after. A crash
   between the two leaves a `pending` row that the next sweep retries; the unique `idempotencyKey`
   makes that retry safe.
 - The digest watermark advances **only** after a successful send.
@@ -209,6 +226,12 @@ reliability without introducing a queue.
   matching `receipt-cleanup`.
 - A notification failure must never fail the mutation that triggered it. The immediate lane catches
   and swallows, logging to `console.error`.
+- **The unique-violation check must be structural, not `instanceof`.** Under Next's bundler, this
+  module and the `PrismaClient` instance that throws can resolve to different copies of
+  `@prisma/client`, so `err instanceof Prisma.PrismaClientKnownRequestError` is `false` and the
+  collision escapes as an unhandled 500 on the _second_ cron run. Integration tests share one module
+  realm and cannot catch this; it was found by driving the deployed route. Detection reads
+  `err.code === 'P2002'` directly (`isUniqueViolation`), and a regression test pins it.
 
 ## Testing
 
