@@ -116,8 +116,6 @@ export const en: Messages = {
   'expense.note': 'Note',
   'expense.paidBy': 'Paid by',
   'expense.splitBetween': 'Split between',
-  'expense.moreOptions': 'More options',
-  'expense.fewerOptions': 'Fewer options',
   'expense.income': 'Income',
   'expense.transfer': 'Transfer',
 

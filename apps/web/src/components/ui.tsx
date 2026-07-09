@@ -103,7 +103,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
       {icon ? <span className="text-zinc-300 dark:text-zinc-600">{icon}</span> : null}
-      <p className="text-sm text-zinc-400">{title}</p>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">{title}</p>
       {action}
     </div>
   );

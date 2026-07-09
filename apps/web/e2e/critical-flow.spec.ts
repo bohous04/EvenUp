@@ -195,6 +195,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // assert on the count going to zero instead — a stronger check (both must close).
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
+    // The stacked-sheet close must release the body scroll lock (regression guard).
+    const bodyOverflow = await page.evaluate(() => document.body.style.overflow);
+    expect(bodyOverflow).toBe('');
+
     // The itemized expense was created with the edited total (75.10 CZK).
     await expect(page.getByTestId('ocr-items')).toBeHidden();
     // Scoped to the transactions list: the activity feed also mentions "Receipt".

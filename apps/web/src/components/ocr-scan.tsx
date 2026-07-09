@@ -4,6 +4,7 @@ import { decimalStringToMinor, minorToDecimalString, splitItemized } from '@even
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Input, Select } from '@/components/ui';
+import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { Camera, Trash2, Plus } from '@/components/icons';
 
@@ -79,7 +80,7 @@ export function OcrScan({
   baseCurrency: string;
   onSaved?: () => void;
 }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
@@ -243,7 +244,7 @@ export function OcrScan({
         </Button>
       ) : (
         <div className="space-y-3" data-testid="ocr-items">
-          <p className="text-sm text-zinc-500">{t('ocr.assignItems')}</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
 
           {items.map((it, i) => (
             <div
@@ -303,16 +304,19 @@ export function OcrScan({
 
           <div className="flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
             <span className="text-sm font-medium">{t('common.total')}</span>
-            <span className="text-base font-semibold" data-testid="ocr-total">
-              {formatCurrency(runningTotal, baseCurrency)}
-            </span>
+            <AmountText
+              minorUnits={runningTotal}
+              currency={baseCurrency}
+              className="text-base font-semibold"
+              testId="ocr-total"
+            />
           </div>
 
           <div
             className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50"
             data-testid="ocr-per-person"
           >
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {t('ocr.perPerson')}
             </p>
             <ul className="space-y-1.5">
@@ -327,12 +331,12 @@ export function OcrScan({
                     />
                     {m.displayName}
                   </span>
-                  <span
-                    className={perMember.get(m.id) ? 'font-medium' : 'text-zinc-400'}
-                    data-testid={`ocr-person-${m.id}`}
-                  >
-                    {formatCurrency(perMember.get(m.id) ?? 0, baseCurrency)}
-                  </span>
+                  <AmountText
+                    minorUnits={perMember.get(m.id) ?? 0}
+                    currency={baseCurrency}
+                    className={perMember.get(m.id) ? 'font-medium' : 'text-zinc-500 dark:text-zinc-400'}
+                    testId={`ocr-person-${m.id}`}
+                  />
                 </li>
               ))}
             </ul>

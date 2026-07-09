@@ -1,6 +1,5 @@
 'use client';
 import {
-  Scale,
   Mail,
   Camera,
   Check,
@@ -29,8 +28,6 @@ import {
   Landmark,
   ChevronRight,
   ChevronLeft,
-  Calendar,
-  Repeat,
   LogOut,
   type LucideIcon,
 } from 'lucide-react';
@@ -87,8 +84,8 @@ export function GoogleLogo({ size = 16 }: { size?: number }) {
 }
 
 export {
-  Scale, Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown,
+  Mail, Camera, Check, ArrowRight, Trash2, Plus, Pencil, X, ChevronDown,
   MoreHorizontal, Settings, Users, BarChart3, History, FileUp, Landmark,
-  ChevronRight, ChevronLeft, Calendar, Repeat, LogOut,
+  ChevronRight, ChevronLeft, LogOut,
 };
 export type { LucideIcon };

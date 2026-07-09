@@ -23,7 +23,9 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   if (!session?.user) {
     return (
       <div>
-        <p className="mb-4 text-center text-sm text-zinc-600">{t('invite.claim')}</p>
+        <p className="mb-4 text-center text-sm text-zinc-600 dark:text-zinc-300">
+          {t('invite.claim')}
+        </p>
         <SignIn />
       </div>
     );
@@ -41,7 +43,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   return (
     <Card>
       <h1 className="mb-1 text-xl font-extrabold tracking-tight">{preview.data.groupName}</h1>
-      <p className="mb-4 text-sm text-zinc-600">{t('invite.claim')}</p>
+      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">{t('invite.claim')}</p>
       {error ? (
         <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">
           {error}

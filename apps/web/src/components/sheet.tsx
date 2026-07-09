@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { iconButtonClass } from '@/components/ui';
 import { X } from '@/components/icons';
+import { lockBodyScroll } from '@/lib/scroll-lock';
 
 /**
  * Accessible sheet on the native `<dialog>` element — the same mechanics as
@@ -24,6 +25,9 @@ export function Sheet({
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
+  // Only treat a click as a backdrop dismissal when the press *started* on the
+  // backdrop too — otherwise a text drag that ends on the backdrop would discard
+  // the form.
   const pressedOnBackdrop = useRef(false);
   const titleId = useId();
 
@@ -36,21 +40,20 @@ export function Sheet({
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    return lockBodyScroll();
   }, [open]);
 
   return (
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      // Escape fires `cancel`; keep the close controlled through React state.
       onCancel={(e) => {
         e.preventDefault();
         onClose();
       }}
+      // Self-heal if the dialog is ever closed by a path we didn't drive, so the
+      // trigger can reopen it.
       onClose={() => {
         if (open) onClose();
       }}

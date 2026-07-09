@@ -80,14 +80,14 @@ export function SignIn() {
             <Link
               href="/forgot-password"
               data-testid="forgot-link"
-              className="text-blue-600 dark:text-blue-400"
+              className="text-brand-600 dark:text-brand-100"
             >
               {t('auth.forgotLink')}
             </Link>
             <Link
               href="/sign-up"
               data-testid="signup-link"
-              className="text-blue-600 dark:text-blue-400"
+              className="text-brand-600 dark:text-brand-100"
             >
               {t('auth.signUpLink')}
             </Link>

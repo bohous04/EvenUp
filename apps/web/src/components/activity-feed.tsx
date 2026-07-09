@@ -88,7 +88,9 @@ export function ActivityFeed({
                   it.actorName,
                 )}
               </span>
-              <span className="text-xs text-zinc-500">{formatDate(it.createdAt)}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {formatDate(it.createdAt)}
+              </span>
             </li>
           ))}
         </ul>

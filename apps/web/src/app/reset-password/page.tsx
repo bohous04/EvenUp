@@ -44,7 +44,7 @@ function ResetPasswordForm() {
             <p data-testid="reset-done" className="text-sm text-zinc-700 dark:text-zinc-300">
               {t('auth.resetDone')}
             </p>
-            <Link href="/" className="text-sm text-blue-600 dark:text-blue-400">
+            <Link href="/" className="text-sm text-brand-600 dark:text-brand-100">
               {t('auth.signInBtn')}
             </Link>
           </div>

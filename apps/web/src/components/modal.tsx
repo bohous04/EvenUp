@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { iconButtonClass } from '@/components/ui';
 import { X } from '@/components/icons';
+import { lockBodyScroll } from '@/lib/scroll-lock';
 
 /**
  * Accessible modal built on the native `<dialog>` element — no dependency. Using
@@ -41,11 +42,7 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    return lockBodyScroll();
   }, [open]);
 
   return (

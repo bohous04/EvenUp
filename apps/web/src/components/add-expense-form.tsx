@@ -42,8 +42,13 @@ function todayLocalIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Parse YYYY-MM-DD as LOCAL noon — stays on the picked day in every timezone. */
+/**
+ * Parse YYYY-MM-DD as LOCAL noon — stays on the picked day in every timezone.
+ * Falls back to "now" for a malformed/empty input rather than feeding
+ * `Number`'s NaN-tolerant parsing bogus year/month/day parts downstream.
+ */
 function parseLocalDate(iso: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date();
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12, 0, 0);
 }
@@ -569,6 +574,7 @@ export function AddExpenseForm({
             >
               <Input
                 type="date"
+                required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 aria-label={t('expense.date')}

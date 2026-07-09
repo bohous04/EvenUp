@@ -50,7 +50,7 @@ export function SignUp() {
             </p>
             <Link
               href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
-              className="text-sm text-blue-600 dark:text-blue-400"
+              className="text-sm text-brand-600 dark:text-brand-100"
               data-testid="verify-email-link"
             >
               {t('auth.resend')}
@@ -112,7 +112,7 @@ export function SignUp() {
               </Button>
             </form>
             <div className="text-center text-sm">
-              <Link href="/" data-testid="signin-link" className="text-blue-600 dark:text-blue-400">
+              <Link href="/" data-testid="signin-link" className="text-brand-600 dark:text-brand-100">
                 {t('auth.haveAccount')}
               </Link>
             </div>
