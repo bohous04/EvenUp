@@ -182,6 +182,8 @@ export const cs = {
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
   'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',
+  'ocr.accessRequired':
+    'Ke skenování účtenek potřebujete VIP přístup, nebo vlastní OpenRouter API klíč. Přidejte ho v Nastavení.',
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',

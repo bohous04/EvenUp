@@ -6,7 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { Button, Input, Select } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
-import { Camera, Trash2, Plus } from '@/components/icons';
+import { Camera, ImageIcon, Trash2, Plus } from '@/components/icons';
 
 interface MemberLite {
   id: string;
@@ -82,7 +82,14 @@ export function OcrScan({
 }) {
   const { t } = useI18n();
   const utils = trpc.useUtils();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const me = trpc.user.me.useQuery();
+  // Receipt OCR needs either VIP access (shared instance key) or the user's own
+  // BYO OpenRouter key. Without either, scanning always fails server-side, so we
+  // tell them upfront instead of after a doomed attempt. Default to allowed
+  // while the profile is still loading to avoid flashing the notice.
+  const lacksOcrAccess = me.data ? !me.data.isVip && !me.data.hasOpenRouterKey : false;
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
@@ -100,7 +107,11 @@ export function OcrScan({
       setReceiptId(res.receiptId);
       setError(null);
     },
-    onError: () => setError(t('ocr.failed')),
+    // Surface the actionable reason rather than a blanket "recognition failed":
+    // no VIP access and no BYO OpenRouter key is a config problem the user can
+    // fix (PRECONDITION_FAILED), not an unreadable photo.
+    onError: (e) =>
+      setError(e.data?.code === 'PRECONDITION_FAILED' ? t('ocr.accessRequired') : t('ocr.failed')),
   });
 
   const createExpense = trpc.transaction.createExpense.useMutation({
@@ -219,11 +230,25 @@ export function OcrScan({
 
   return (
     <div>
+      {/* Camera forces the rear camera; gallery (no `capture`) opens the photo
+          library. Two entry points so the user can take a photo now OR pick an
+          existing one. */}
       <input
-        ref={fileRef}
+        ref={cameraRef}
         type="file"
         accept="image/*"
         capture="environment"
+        className="hidden"
+        data-testid="ocr-camera-input"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onFile(f);
+        }}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
         className="hidden"
         data-testid="ocr-file-input"
         onChange={(e) => {
@@ -233,15 +258,37 @@ export function OcrScan({
       />
 
       {!items ? (
-        <Button
-          variant="secondary"
-          onClick={() => fileRef.current?.click()}
-          disabled={scan.isPending}
-          data-testid="ocr-upload-btn"
-        >
-          <Camera size={16} aria-hidden />
-          {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
-        </Button>
+        lacksOcrAccess ? (
+          <div
+            className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300"
+            data-testid="ocr-access-required"
+          >
+            {t('ocr.accessRequired')}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => cameraRef.current?.click()}
+              disabled={scan.isPending}
+              className="flex-1"
+              data-testid="ocr-upload-btn"
+            >
+              <Camera size={16} aria-hidden />
+              {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => galleryRef.current?.click()}
+              disabled={scan.isPending}
+              className="flex-1"
+              data-testid="ocr-gallery-btn"
+            >
+              <ImageIcon size={16} aria-hidden />
+              {t('ocr.fromGallery')}
+            </Button>
+          </div>
+        )
       ) : (
         <div className="space-y-3" data-testid="ocr-items">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>

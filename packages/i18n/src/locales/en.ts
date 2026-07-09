@@ -181,6 +181,8 @@ export const en: Messages = {
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
   'ocr.apiKeyRequired': 'Enter your OpenRouter API key to scan receipts',
+  'ocr.accessRequired':
+    'To scan receipts you need VIP access, or your own OpenRouter API key. Add one in Settings.',
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',

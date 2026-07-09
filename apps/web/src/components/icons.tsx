@@ -2,6 +2,7 @@
 import {
   Mail,
   Camera,
+  Image as ImageIcon,
   Check,
   ArrowRight,
   Trash2,
@@ -121,6 +122,7 @@ export function GoogleLogo({ size = 16 }: { size?: number }) {
 export {
   Mail,
   Camera,
+  ImageIcon,
   Check,
   ArrowRight,
   Trash2,

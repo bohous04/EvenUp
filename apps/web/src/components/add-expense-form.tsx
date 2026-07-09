@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import {
+  allocateEvenly,
   decimalStringToMinor,
+  minorToDecimalString,
   splitEqually,
   EXPENSE_CATEGORIES,
   RECURRENCE_INTERVALS,
@@ -233,6 +235,40 @@ export function AddExpenseForm({
     });
   }
 
+  /**
+   * EXACT split with live auto-balancing: the top amount is the target total,
+   * members whose field the user has typed into are "locked", and every other
+   * member evenly shares the remaining amount (cent-accurate). Editing one
+   * member therefore rebalances only the untouched ones. Returns each selected
+   * member's amount in minor units.
+   */
+  function exactMinorByMember(): Map<string, number> {
+    const toMinor = (s: string) => {
+      try {
+        return decimalStringToMinor(s, currency);
+      } catch {
+        return 0;
+      }
+    };
+    const isLocked = (id: string) => (values[id] ?? '').trim() !== '';
+    const result = new Map<string, number>();
+    const total = toMinor(amount || '0');
+    let lockedSum = 0;
+    for (const m of selectedMembers) {
+      if (!isLocked(m.id)) continue;
+      const v = toMinor((values[m.id] ?? '').trim());
+      result.set(m.id, v);
+      lockedSum += v;
+    }
+    // Untouched members evenly share whatever is left of the target total.
+    const free = selectedMembers.filter((m) => !isLocked(m.id));
+    if (free.length > 0) {
+      const shares = allocateEvenly(Math.max(0, total - lockedSum), free.length);
+      free.forEach((m, i) => result.set(m.id, shares[i] ?? 0));
+    }
+    return result;
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -254,10 +290,12 @@ export function AddExpenseForm({
 
     try {
       if (splitType === 'EXACT') {
-        // The total is the sum of the per-member exact amounts.
+        // Locked members keep their typed value; untouched ones share the
+        // remainder of the top total (see exactMinorByMember).
+        const amounts = exactMinorByMember();
         const exact = selectedMembers.map((m) => ({
           memberId: m.id,
-          exactMinorUnits: decimalStringToMinor(values[m.id] ?? '0', currency),
+          exactMinorUnits: amounts.get(m.id) ?? 0,
         }));
         const total = exact.reduce((a, x) => a + x.exactMinorUnits, 0);
         if (total <= 0) throw new Error('zero');
@@ -316,10 +354,7 @@ export function AddExpenseForm({
         ? '%'
         : t('expense.amount');
 
-  // A non-EQUAL split's per-member inputs must stay reachable: force the split
-  // row open and disable its toggle (mirrors today's requiresAdvanced rule).
-  const splitForced = splitType !== 'EQUAL';
-  const splitOpen = openRow === 'split' || splitForced;
+  const splitOpen = openRow === 'split';
 
   // Live equal-split preview per selected member (cent-accurate via core).
   let shares: Record<string, number> = {};
@@ -338,6 +373,19 @@ export function AddExpenseForm({
       // ignore preview errors while the user is typing
     }
   }
+
+  // Auto-balanced amounts for the EXACT split; drives both the per-member field
+  // display and what gets submitted.
+  const exactAmounts = splitType === 'EXACT' ? exactMinorByMember() : null;
+  // What to show in a member's amount field: the raw text they typed (locked),
+  // otherwise the live auto-balanced share (blank while there's nothing to share).
+  const memberFieldValue = (id: string): string => {
+    if (splitType !== 'EXACT') return values[id] ?? '';
+    const typed = values[id];
+    if (typed != null && typed.trim() !== '') return typed;
+    const minor = exactAmounts?.get(id) ?? 0;
+    return minor > 0 ? minorToDecimalString(minor, currency) : '';
+  };
 
   const toggleRow = (row: Exclude<Row, null>) => setOpenRow((r) => (r === row ? null : row));
 
@@ -367,8 +415,26 @@ export function AddExpenseForm({
         onClose={() => setOpen(false)}
         title={t('expense.add')}
         testId="add-expense-modal"
+        footer={
+          <>
+            {error ? (
+              <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">
+                {error}
+              </p>
+            ) : null}
+            <Button
+              type="submit"
+              form="add-expense-form"
+              disabled={createExpense.isPending}
+              className="w-full"
+              data-testid="add-expense-submit"
+            >
+              {createExpense.isPending ? t('common.loading') : t('common.save')}
+            </Button>
+          </>
+        }
       >
-        <form className="space-y-4" onSubmit={submit}>
+        <form id="add-expense-form" className="space-y-4" onSubmit={submit}>
           {/* Amount first — the amount is centered (sits above the title), the
               currency is pinned to the far right. */}
           <div className="relative flex items-end justify-center">
@@ -379,11 +445,10 @@ export function AddExpenseForm({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              disabled={splitType === 'EXACT'}
-              required={splitType !== 'EXACT'}
+              required
               aria-label={t('expense.amount')}
               data-testid="expense-amount-input"
-              className="w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 disabled:opacity-40 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+              className="w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600"
             />
             <select
               value={currency}
@@ -530,7 +595,6 @@ export function AddExpenseForm({
               label={t('expense.splitBetween')}
               value={t(SPLIT_LABELS[splitType])}
               open={splitOpen}
-              disabled={splitForced}
               onToggle={() => toggleRow('split')}
               testId="expense-split-row"
             >
@@ -561,7 +625,7 @@ export function AddExpenseForm({
                             inputMode="decimal"
                             aria-label={`${m.displayName} ${perMemberLabel}`}
                             placeholder={perMemberLabel}
-                            value={values[m.id] ?? ''}
+                            value={memberFieldValue(m.id)}
                             onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))}
                             data-testid={`member-value-${m.id}`}
                           />
@@ -691,22 +755,6 @@ export function AddExpenseForm({
             </button>
           </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="sticky bottom-0 -mx-5 border-t border-zinc-100 bg-white px-5 pb-1 pt-3 dark:border-zinc-800 dark:bg-zinc-900">
-            <Button
-              type="submit"
-              disabled={createExpense.isPending}
-              className="w-full"
-              data-testid="add-expense-submit"
-            >
-              {createExpense.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </div>
         </form>
       </Sheet>
 

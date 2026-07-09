@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 import { ServiceWorkerCleanup } from '@/components/service-worker';
 
 export const metadata: Metadata = {
-  title: 'EvenUp — dlužníček',
+  title: 'EvenUp',
   description: 'Open-source group expense splitter that minimizes debts.',
   manifest: '/manifest.webmanifest',
   applicationName: 'EvenUp',
