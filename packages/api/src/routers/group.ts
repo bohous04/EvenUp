@@ -1,10 +1,28 @@
 /** Group CRUD (PRD §4.2). */
 import { z } from 'zod';
 import { deriveInitials, colorForIndex } from '@evenup/core';
+import type { Locale } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { createGroupInput, updateGroupInput } from '../schemas.js';
 import { assertGroupAccess, assertGroupAdmin } from '../access.js';
 import { logActivity } from '../services/activity.js';
+
+/**
+ * Starter categories seeded into every new group, in the creator's locale.
+ * `iconName`s are semantic names from core's CUSTOM_CATEGORY_ICONS.
+ */
+const DEFAULT_CATEGORIES: Record<Locale, ReadonlyArray<{ name: string; iconName: string }>> = {
+  cs: [
+    { name: 'Jídlo', iconName: 'utensils' },
+    { name: 'Doprava', iconName: 'car' },
+    { name: 'Vstupné', iconName: 'ticket' },
+  ],
+  en: [
+    { name: 'Food', iconName: 'utensils' },
+    { name: 'Transport', iconName: 'car' },
+    { name: 'Entry fees', iconName: 'ticket' },
+  ],
+};
 
 export const groupRouter = router({
   create: protectedProcedure.input(createGroupInput).mutation(async ({ ctx, input }) => {
@@ -29,6 +47,11 @@ export const groupRouter = router({
         },
       },
       include: { members: true },
+    });
+    // Seed starter categories so a new group isn't empty (localized to creator).
+    const defaults = DEFAULT_CATEGORIES[ctx.locale] ?? DEFAULT_CATEGORIES.cs;
+    await ctx.prisma.groupCategory.createMany({
+      data: defaults.map((c) => ({ groupId: group.id, name: c.name, iconName: c.iconName })),
     });
     await logActivity(ctx.prisma, group.id, ctx.user.id, 'group.created', { name: group.name });
     return group;

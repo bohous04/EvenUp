@@ -9,7 +9,6 @@ import { Sheet } from '@/components/sheet';
 import { Fab } from '@/components/fab';
 import { Users } from '@/components/icons';
 
-const TEMPLATES = ['TRIP', 'HOUSEHOLD', 'COUPLE', 'EVENT', 'OTHER'] as const;
 const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN'] as const;
 
 export function GroupsDashboard() {
@@ -26,7 +25,6 @@ export function GroupsDashboard() {
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [template, setTemplate] = useState<(typeof TEMPLATES)[number]>('TRIP');
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('CZK');
 
   return (
@@ -77,7 +75,7 @@ export function GroupsDashboard() {
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            createGroup.mutate({ name, template, baseCurrency: currency });
+            createGroup.mutate({ name, baseCurrency: currency });
           }}
         >
           <div>
@@ -90,35 +88,19 @@ export function GroupsDashboard() {
               data-testid="group-name-input"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="g-template">{t('group.template')}</Label>
-              <Select
-                id="g-template"
-                value={template}
-                onChange={(e) => setTemplate(e.target.value as (typeof TEMPLATES)[number])}
-              >
-                {TEMPLATES.map((tpl) => (
-                  <option key={tpl} value={tpl}>
-                    {t(`group.template.${tpl.toLowerCase()}` as never)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="g-currency">{t('group.baseCurrency')}</Label>
-              <Select
-                id="g-currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as (typeof CURRENCIES)[number])}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </div>
+          <div>
+            <Label htmlFor="g-currency">{t('group.baseCurrency')}</Label>
+            <Select
+              id="g-currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as (typeof CURRENCIES)[number])}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
           </div>
           <Button
             type="submit"

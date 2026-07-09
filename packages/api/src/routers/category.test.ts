@@ -32,9 +32,8 @@ describe('category router', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
     await caller.category.update({ categoryId: created.id, name: 'Pivko' });
-    expect((await caller.category.list({ groupId: group.id }))[0]).toMatchObject({
-      name: 'Pivko',
-    });
+    const listed = await caller.category.list({ groupId: group.id });
+    expect(listed.find((c) => c.id === created.id)).toMatchObject({ name: 'Pivko' });
   });
 
   it('non-members cannot touch a group category', async () => {
@@ -72,7 +71,8 @@ describe('category router', () => {
     await caller.category.remove({ categoryId: cat.id });
     const tx = await testPrisma.transaction.findFirstOrThrow({ where: { groupId: group.id } });
     expect(tx.category).toBe('other');
-    expect(await caller.category.list({ groupId: group.id })).toHaveLength(0);
+    const remaining = await caller.category.list({ groupId: group.id });
+    expect(remaining.some((c) => c.id === cat.id)).toBe(false);
   });
 
   it('update rejects duplicate name with CONFLICT', async () => {
