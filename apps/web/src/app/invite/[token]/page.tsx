@@ -72,7 +72,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           data-testid="invite-join-new"
           onClick={() => claim.mutate({ token }, { onError: (e) => setError(e.message) })}
         >
-          {t('common.add')} — {t('member.add')}
+          {t('invite.joinAsNew')}
         </Button>
       </div>
     </Card>

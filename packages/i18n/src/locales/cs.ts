@@ -109,6 +109,7 @@ export const cs = {
   'invite.create': 'Vytvořit pozvánku',
   'invite.link': 'Odkaz na pozvánku',
   'invite.claim': 'Převzít profil člena',
+  'invite.joinAsNew': 'Nejsem v seznamu (Vytvořit nového uživatele)',
   'invite.expired': 'Pozvánka vypršela',
 
   'expense.add': 'Přidat výdaj',

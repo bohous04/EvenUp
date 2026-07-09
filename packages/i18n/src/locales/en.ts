@@ -109,6 +109,7 @@ export const en: Messages = {
   'invite.create': 'Create invite',
   'invite.link': 'Invite link',
   'invite.claim': 'Claim member profile',
+  'invite.joinAsNew': "I'm not on the list (Create a new user)",
   'invite.expired': 'Invite expired',
 
   'expense.add': 'Add expense',
