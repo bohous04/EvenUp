@@ -157,6 +157,7 @@ model Group {
 
   members      Member[]
   transactions Transaction[]
+  categories   GroupCategory[]
   invites      Invite[]
   receipts     Receipt[]
   activityLogs ActivityLog[]
@@ -187,6 +188,17 @@ model Member {
 
   @@index([groupId])
   @@index([userId])
+}
+
+model GroupCategory {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name      String
+  iconName  String // semantic lucide kebab-case name from core's CUSTOM_CATEGORY_ICONS
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, name])
 }
 
 model BankDetail {
