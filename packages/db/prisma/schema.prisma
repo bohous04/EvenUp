@@ -130,12 +130,14 @@ model Verification {
 }
 
 model TwoFactor {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   secret      String
   backupCodes String
+  verified    Boolean @default(true)
 
+  @@index([userId])
   @@map("twoFactor")
 }
 
