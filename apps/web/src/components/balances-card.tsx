@@ -22,11 +22,16 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
         {balances.data.balances.map((b) => {
           const positive = b.balanceMinorUnits > 0;
           const pct = (Math.abs(b.balanceMinorUnits) / max) * 50;
+          // Show up to 20 chars of the name; full name stays in the tooltip.
+          const label =
+            b.displayName.length > 20 ? `${b.displayName.slice(0, 20)}…` : b.displayName;
           return (
             <li key={b.memberId} className="flex items-center gap-2">
-              <span className="flex w-28 min-w-0 items-center gap-1.5">
+              <span className="flex w-44 min-w-0 items-center gap-1.5">
                 <MemberChip initials={b.initials} color={b.color} name={b.displayName} size="sm" />
-                <span className="truncate text-sm">{b.displayName}</span>
+                <span className="truncate text-sm" title={b.displayName}>
+                  {label}
+                </span>
               </span>
               <span
                 className="relative h-2 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
