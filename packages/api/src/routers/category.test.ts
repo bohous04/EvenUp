@@ -75,6 +75,23 @@ describe('category router', () => {
     expect(await caller.category.list({ groupId: group.id })).toHaveLength(0);
   });
 
+  it('update rejects duplicate name with CONFLICT', async () => {
+    const { caller, group } = await groupFor('cat-update-dup@example.com');
+    await caller.category.create({
+      groupId: group.id,
+      name: 'Pivo',
+      iconName: 'beer',
+    });
+    const catB = await caller.category.create({
+      groupId: group.id,
+      name: 'Kava',
+      iconName: 'coffee',
+    });
+    await expect(
+      caller.category.update({ categoryId: catB.id, name: 'Pivo' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
   it('createExpense rejects a custom key from another group; stats keep live customs', async () => {
     const a = await groupFor('cat4@example.com');
     const b = await groupFor('cat5@example.com');

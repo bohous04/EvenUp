@@ -43,10 +43,18 @@ export const categoryRouter = router({
       if (existing) {
         throw new TRPCError({ code: 'CONFLICT', message: 'Category name already exists' });
       }
-      const created = await ctx.prisma.groupCategory.create({
-        data: { groupId: input.groupId, name: input.name, iconName: input.iconName },
-        select: { id: true, name: true, iconName: true },
-      });
+      let created;
+      try {
+        created = await ctx.prisma.groupCategory.create({
+          data: { groupId: input.groupId, name: input.name, iconName: input.iconName },
+          select: { id: true, name: true, iconName: true },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Category name already exists' });
+        }
+        throw err;
+      }
       await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'category.created', {
         name: created.name,
       });
