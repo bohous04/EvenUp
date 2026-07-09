@@ -6,13 +6,11 @@ import { X } from '@/components/icons';
 import { lockBodyScroll } from '@/lib/scroll-lock';
 
 /**
- * Accessible modal built on the native `<dialog>` element — no dependency. Using
- * `showModal()` gives a focus trap, top-layer stacking, a `::backdrop`, Escape
- * handling, and focus-return-to-trigger for free. The dialog element is always
- * present so its ref is stable; the content mounts only while `open` (so the
- * form inside isn't in the DOM when closed).
+ * Accessible sheet on the native `<dialog>` element — the same mechanics as
+ * Modal (focus trap, top layer, Escape, backdrop-close) but presented as a
+ * bottom sheet on phones and a centered card from `sm` up.
  */
-export function Modal({
+export function Sheet({
   open,
   onClose,
   title,
@@ -65,12 +63,19 @@ export function Modal({
       onClick={(e) => {
         if (e.target === ref.current && pressedOnBackdrop.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/40 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      // sm+ restores the UA `inset: 0` (top/bottom 0) so `margin: auto` performs
+      // real dialog centering — `top/bottom: auto` would drop the dialog at its
+      // static (in-flow) position in Firefox, pushing it half off-screen.
+      className="bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >
       {open ? (
-        <div className="max-h-[85vh] overflow-y-auto p-5" data-testid={testId}>
+        <div
+          className="max-h-[92dvh] overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-h-[85vh]"
+          data-testid={testId}
+        >
+          <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-zinc-200 sm:hidden dark:bg-zinc-700" />
           <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 id={titleId} className="text-lg font-semibold">
+            <h2 id={titleId} className="text-lg font-bold tracking-tight">
               {title}
             </h2>
             <button
@@ -79,7 +84,7 @@ export function Modal({
               aria-label={t('common.cancel')}
               title={t('common.cancel')}
               className={iconButtonClass}
-              data-testid="modal-close"
+              data-testid="sheet-close"
             >
               <X size={18} aria-hidden />
             </button>

@@ -3,8 +3,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Button, Card, Input, Label, Select } from '@/components/ui';
-import { MemberChip } from '@/components/member-chip';
+import { Button, Card, EmptyState, Input, Label, Select } from '@/components/ui';
+import { AvatarStack } from '@/components/member-chip';
+import { Sheet } from '@/components/sheet';
+import { Fab } from '@/components/fab';
+import { Users } from '@/components/icons';
 
 const TEMPLATES = ['TRIP', 'HOUSEHOLD', 'COUPLE', 'EVENT', 'OTHER'] as const;
 const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN'] as const;
@@ -27,101 +30,31 @@ export function GroupsDashboard() {
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('CZK');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('nav.groups')}</h1>
-        <Button onClick={() => setOpen((v) => !v)} data-testid="new-group-btn">
-          {t('group.create')}
-        </Button>
-      </div>
-
-      {open ? (
-        <Card>
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              createGroup.mutate({ name, template, baseCurrency: currency });
-            }}
-          >
-            <div>
-              <Label htmlFor="g-name">{t('group.name')}</Label>
-              <Input
-                id="g-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                data-testid="group-name-input"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="g-template">{t('group.template')}</Label>
-                <Select
-                  id="g-template"
-                  value={template}
-                  onChange={(e) => setTemplate(e.target.value as (typeof TEMPLATES)[number])}
-                >
-                  {TEMPLATES.map((tpl) => (
-                    <option key={tpl} value={tpl}>
-                      {t(`group.template.${tpl.toLowerCase()}` as never)}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="g-currency">{t('group.baseCurrency')}</Label>
-                <Select
-                  id="g-currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as (typeof CURRENCIES)[number])}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-            <Button
-              type="submit"
-              disabled={createGroup.isPending}
-              data-testid="create-group-submit"
-            >
-              {createGroup.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </form>
-        </Card>
-      ) : null}
+    <div className="space-y-4 pb-24">
+      <h1 className="text-2xl font-extrabold tracking-tight">{t('nav.groups')}</h1>
 
       {groups.isLoading ? (
-        <p className="text-neutral-500">{t('common.loading')}</p>
+        <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>
       ) : groups.data && groups.data.length > 0 ? (
         <ul className="space-y-3">
           {groups.data.map((g) => (
             <li key={g.id}>
               <Link href={`/groups/${g.id}`} className="block">
-                <Card className="transition-shadow hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{g.name}</p>
-                      <p className="text-xs text-neutral-500">
-                        {g._count.transactions} · {g.baseCurrency}
-                      </p>
-                    </div>
-                    <div className="flex -space-x-2">
-                      {g.members.slice(0, 5).map((m) => (
-                        <MemberChip
-                          key={m.id}
-                          initials={m.initials}
-                          color={m.color}
-                          name={m.displayName}
-                          size="sm"
-                        />
-                      ))}
-                    </div>
+                <Card className="flex items-center gap-3 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold tracking-tight">{g.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {g._count.transactions} · {g.baseCurrency}
+                    </p>
                   </div>
+                  <AvatarStack
+                    members={g.members.map((m) => ({
+                      id: m.id,
+                      initials: m.initials,
+                      color: m.color,
+                      displayName: m.displayName,
+                    }))}
+                  />
                 </Card>
               </Link>
             </li>
@@ -129,9 +62,70 @@ export function GroupsDashboard() {
         </ul>
       ) : (
         <Card>
-          <p className="text-center text-neutral-500">{t('group.empty')}</p>
+          <EmptyState icon={<Users size={28} aria-hidden />} title={t('group.empty')} />
         </Card>
       )}
+
+      <Fab onClick={() => setOpen(true)} aria-label={t('group.create')} data-testid="new-group-btn" />
+
+      <Sheet open={open} onClose={() => setOpen(false)} title={t('group.create')}>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createGroup.mutate({ name, template, baseCurrency: currency });
+          }}
+        >
+          <div>
+            <Label htmlFor="g-name">{t('group.name')}</Label>
+            <Input
+              id="g-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              data-testid="group-name-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="g-template">{t('group.template')}</Label>
+              <Select
+                id="g-template"
+                value={template}
+                onChange={(e) => setTemplate(e.target.value as (typeof TEMPLATES)[number])}
+              >
+                {TEMPLATES.map((tpl) => (
+                  <option key={tpl} value={tpl}>
+                    {t(`group.template.${tpl.toLowerCase()}` as never)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="g-currency">{t('group.baseCurrency')}</Label>
+              <Select
+                id="g-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as (typeof CURRENCIES)[number])}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={createGroup.isPending}
+            data-testid="create-group-submit"
+          >
+            {createGroup.isPending ? t('common.loading') : t('common.save')}
+          </Button>
+        </form>
+      </Sheet>
     </div>
   );
 }

@@ -36,15 +36,15 @@ function ResetPasswordForm() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('auth.resetTitle')}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t('auth.resetTitle')}</h1>
       </div>
       <Card>
         {done ? (
           <div className="space-y-4 text-center">
-            <p data-testid="reset-done" className="text-sm text-neutral-700 dark:text-neutral-300">
+            <p data-testid="reset-done" className="text-sm text-zinc-700 dark:text-zinc-300">
               {t('auth.resetDone')}
             </p>
-            <Link href="/" className="text-sm text-blue-600 dark:text-blue-400">
+            <Link href="/" className="text-sm text-brand-600 dark:text-brand-100">
               {t('auth.signInBtn')}
             </Link>
           </div>

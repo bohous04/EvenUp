@@ -34,21 +34,23 @@ export function SignUp() {
   return (
     <div className="mx-auto max-w-md py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold">{t('app.name')}</h1>
-        <p className="mt-1 text-neutral-600 dark:text-neutral-400">{t('auth.signUpTitle')}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight" aria-label={t('app.name')}>
+          Even<span className="text-brand-600">Up</span>
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('auth.signUpTitle')}</p>
       </div>
       <Card>
         {sent ? (
           <div className="space-y-4 text-center">
             <p
               data-testid="signup-verify-sent"
-              className="text-sm text-neutral-700 dark:text-neutral-300"
+              className="text-sm text-zinc-700 dark:text-zinc-300"
             >
               {t('auth.verifySent')}
             </p>
             <Link
               href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
-              className="text-sm text-blue-600 dark:text-blue-400"
+              className="text-sm text-brand-600 dark:text-brand-100"
               data-testid="verify-email-link"
             >
               {t('auth.resend')}
@@ -111,7 +113,7 @@ export function SignUp() {
               </Button>
             </form>
             <div className="text-center text-sm">
-              <Link href="/" data-testid="signin-link" className="text-blue-600 dark:text-blue-400">
+              <Link href="/" data-testid="signin-link" className="text-brand-600 dark:text-brand-100">
                 {t('auth.haveAccount')}
               </Link>
             </div>

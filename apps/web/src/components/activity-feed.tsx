@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { MessageKey } from '@evenup/i18n';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Card, Select } from '@/components/ui';
+import { Select } from '@/components/ui';
 import { describeActivity } from '@/lib/activity-message';
 
 interface MemberLite {
@@ -43,8 +43,7 @@ export function ActivityFeed({
   });
 
   return (
-    <Card>
-      <h3 className="mb-3 font-semibold">{t('nav.activity')}</h3>
+    <div>
       <div className="mb-3 flex flex-wrap gap-2">
         <Select
           aria-label={t('group.members')}
@@ -75,7 +74,7 @@ export function ActivityFeed({
       </div>
       {query.data && query.data.items.length > 0 ? (
         <ul
-          className="divide-y divide-neutral-100 dark:divide-neutral-800"
+          className="divide-y divide-zinc-100 dark:divide-zinc-800"
           data-testid="activity-list"
         >
           {query.data.items.map((it) => (
@@ -89,13 +88,15 @@ export function ActivityFeed({
                   it.actorName,
                 )}
               </span>
-              <span className="text-xs text-neutral-500">{formatDate(it.createdAt)}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {formatDate(it.createdAt)}
+              </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-center text-sm text-neutral-500">—</p>
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">—</p>
       )}
-    </Card>
+    </div>
   );
 }
