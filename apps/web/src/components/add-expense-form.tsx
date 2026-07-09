@@ -369,8 +369,9 @@ export function AddExpenseForm({
         testId="add-expense-modal"
       >
         <form className="space-y-4" onSubmit={submit}>
-          {/* Amount first */}
-          <div className="flex items-end justify-center gap-2">
+          {/* Amount first — the amount is centered (sits above the title), the
+              currency is pinned to the far right. */}
+          <div className="relative flex items-end justify-center">
             <input
               id="e-amount"
               inputMode="decimal"
@@ -392,7 +393,7 @@ export function AddExpenseForm({
               }}
               aria-label={t('expense.currency')}
               data-testid="expense-currency-select"
-              className="mb-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
+              className="absolute bottom-1.5 right-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
             >
               {[baseCurrency, 'CZK', 'EUR', 'USD', 'GBP', 'PLN']
                 .filter((c, i, arr) => arr.indexOf(c) === i)
