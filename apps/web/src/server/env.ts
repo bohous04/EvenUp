@@ -29,6 +29,12 @@ function requiredSecret(name: string, devFallback: string): string {
   return devFallback;
 }
 
+/** A positive integer from the environment, or the default if absent/malformed. */
+function positiveIntOr(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const env = {
   databaseUrl: required('DATABASE_URL', 'postgresql://evenup:evenup@localhost:5432/evenup'),
   encryptionKey: requiredSecret(
@@ -93,7 +99,20 @@ export const env = {
     const n = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
     return Number.isFinite(n) ? n : 30;
   })(),
-  // Shared secret required by the receipt-cleanup scheduled task's HTTP endpoint.
+  // Shared secret required by the scheduled tasks' HTTP endpoints
+  // (receipt-cleanup and notifications).
   cronSecret: process.env.CRON_SECRET,
   fxProviderUrl: process.env.FX_PROVIDER_URL ?? 'https://api.frankfurter.app',
+  /**
+   * Notification cadence (FR-11.1). The cron runs often (hourly); these decide
+   * who is actually due. A malformed value falls back to the default rather
+   * than poisoning the schedule with NaN.
+   */
+  notifications: {
+    digestIntervalHours: positiveIntOr('DIGEST_INTERVAL_HOURS', 24),
+    reminderIntervalHours: positiveIntOr('REMINDER_INTERVAL_HOURS', 168),
+    // Debts under 50.00 in the group's base currency are not worth an email.
+    reminderThresholdMinorUnits: positiveIntOr('REMINDER_THRESHOLD_MINOR_UNITS', 5000),
+    maxAttempts: positiveIntOr('NOTIFICATION_MAX_ATTEMPTS', 3),
+  },
 };

@@ -17,6 +17,18 @@ export default function SettingsPage() {
   const [account, setAccount] = useState('');
   const [accountError, setAccountError] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
+  const [notificationsSaved, setNotificationsSaved] = useState(false);
+
+  const notificationSettings = trpc.notification.getSettings.useQuery(undefined, {
+    enabled: !!session?.user,
+  });
+  const setNotificationsEnabled = trpc.notification.setEnabled.useMutation({
+    onSuccess: () => {
+      void utils.notification.getSettings.invalidate();
+      setNotificationsSaved(true);
+      window.setTimeout(() => setNotificationsSaved(false), 2500);
+    },
+  });
 
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -189,6 +201,30 @@ export default function SettingsPage() {
             {t('profile.bankAccountHint')}
           </p>
         </div>
+      </Card>
+      <Card>
+        <SectionLabel className="mb-1">{t('settings.notifications.title')}</SectionLabel>
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-1 size-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 dark:border-zinc-600"
+            checked={notificationSettings.data?.notificationsEnabled ?? true}
+            disabled={notificationSettings.isPending || setNotificationsEnabled.isPending}
+            onChange={(e) => setNotificationsEnabled.mutate({ enabled: e.target.checked })}
+            data-testid="notifications-enabled"
+          />
+          <span>
+            <span className="font-medium">{t('settings.notifications.enabled')}</span>
+            <span className="mt-1 block text-sm text-zinc-500 dark:text-zinc-400">
+              {t('settings.notifications.hint')}
+            </span>
+          </span>
+        </label>
+        {notificationsSaved ? (
+          <p className="mt-2 flex items-center gap-1 text-sm text-green-700 dark:text-green-400">
+            <Check size={16} aria-hidden /> {t('settings.notifications.saved')}
+          </p>
+        ) : null}
       </Card>
       <Card>
         <SectionLabel className="mb-1">{t('settings.openRouterKey')}</SectionLabel>
