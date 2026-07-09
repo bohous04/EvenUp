@@ -263,4 +263,30 @@ export const en: Messages = {
   'profile.bankAccount': 'Bank account',
   'profile.bankAccountHint': 'Used for QR payments in all your groups.',
   'profile.bankAccountInvalid': 'Invalid account number. Check the 19-2000145399/0800 format.',
+
+  // Notifications (FR-11.1/FR-11.2)
+  'activityType.member.joined': 'Member joined',
+
+  'notify.cta.openGroup': 'Open group',
+  'notify.footer': "Don't want these emails? Turn them off in Settings.",
+  'notify.digest.subject': "What's new in {group}",
+  'notify.digest.title': "What's new in {group}",
+  'notify.digest.line': '{count}× {what}',
+  'notify.digest.youOwe': 'You currently owe {amount}.',
+  'notify.digest.youAreOwed': 'You are currently owed {amount}.',
+  'notify.digest.settled': "You're all settled up.",
+  'notify.reminder.subject': 'Debt reminder — {group}',
+  'notify.reminder.title': 'Outstanding debt in {group}',
+  'notify.reminder.body': 'You owe {amount} to {creditor}.',
+  'notify.reminder.qrHint': 'Open the group for a QR payment code.',
+  'notify.settlement.subject': '{payer} sent you a payment',
+  'notify.settlement.title': 'Settlement recorded',
+  'notify.settlement.body': '{payer} marked {amount} in {group} as paid to you.',
+
+  'settings.notifications.title': 'Notifications',
+  'settings.notifications.enabled': 'Send email notifications',
+  'settings.notifications.hint':
+    'An activity digest and reminders for unsettled debts. Turning this off silences everything.',
+  'settings.notifications.saved': 'Notification settings saved.',
+  'group.notifications.mute': 'Mute notifications for this group',
 };
