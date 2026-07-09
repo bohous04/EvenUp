@@ -120,6 +120,28 @@ export {
   parseExpensesCsv,
 } from './import/csv.js';
 
+// Notification scheduling (digest windows, reminder thresholds, idempotency keys)
+export {
+  type NotificationKind,
+  type DigestDueInput,
+  type ActivityEvent,
+  type DigestItem,
+  type CoalesceOptions,
+  type ReminderPayment,
+  NOTIFICATION_KINDS,
+  DEFAULT_DIGEST_INTERVAL_HOURS,
+  DEFAULT_REMINDER_INTERVAL_HOURS,
+  DEFAULT_REMINDER_THRESHOLD_MINOR_UNITS,
+  isDigestDue,
+  windowStart,
+  coalesceDigest,
+  reminderPayments,
+  digestIdempotencyKey,
+  reminderIdempotencyKey,
+  settlementIdempotencyKey,
+  groupAddedIdempotencyKey,
+} from './notification/notification.js';
+
 // On-device OCR receipt structuring (Apple Vision / ML Kit text → structured items)
 export {
   type OcrBox,
