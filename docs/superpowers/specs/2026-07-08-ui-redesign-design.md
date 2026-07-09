@@ -37,7 +37,7 @@ designed-first theme; dark mirrors it via `prefers-color-scheme` as today.
 | Card surface | `#ffffff` | `#18181b` (zinc-900) |
 | Hairline border | `#ececee` (~zinc-200) | `#27272a` (zinc-800) |
 | Text | `#18181b` (zinc-900) | `#f4f4f5` |
-| Muted text | `#a1a1aa` (zinc-400) | `#71717a` |
+| Muted text | `#71717a` (zinc-500) | `#a1a1aa` (zinc-400) |
 | Positive amount | `green-600` | `green-400` |
 | Negative amount | `red-600` | `red-400` |
 
