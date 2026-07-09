@@ -139,7 +139,6 @@ export {
   digestIdempotencyKey,
   reminderIdempotencyKey,
   settlementIdempotencyKey,
-  groupAddedIdempotencyKey,
 } from './notification/notification.js';
 
 // On-device OCR receipt structuring (Apple Vision / ML Kit text → structured items)

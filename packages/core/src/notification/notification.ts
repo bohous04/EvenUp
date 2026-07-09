@@ -16,12 +16,7 @@ export const DEFAULT_REMINDER_THRESHOLD_MINOR_UNITS = 5_000;
 
 const HOUR_MS = 3_600_000;
 
-export const NOTIFICATION_KINDS = [
-  'digest',
-  'reminder',
-  'settlement.received',
-  'group.added',
-] as const;
+export const NOTIFICATION_KINDS = ['digest', 'reminder', 'settlement.received'] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 function assertValidDate(date: Date, label: string): void {
@@ -165,12 +160,4 @@ export function reminderIdempotencyKey(
 /** One notification per settlement transaction, forever. */
 export function settlementIdempotencyKey(userId: string, transactionId: string): string {
   return `settlement.received:${userId}:${transactionId}`;
-}
-
-/**
- * Keyed on the member row, not the (user, group) pair: someone removed from a
- * group and re-added gets a fresh member row, and should be told again.
- */
-export function groupAddedIdempotencyKey(memberId: string): string {
-  return `group.added:${memberId}`;
 }

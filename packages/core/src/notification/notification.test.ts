@@ -6,7 +6,6 @@ import {
   DEFAULT_REMINDER_THRESHOLD_MINOR_UNITS,
   coalesceDigest,
   digestIdempotencyKey,
-  groupAddedIdempotencyKey,
   isDigestDue,
   reminderIdempotencyKey,
   reminderPayments,
@@ -53,17 +52,18 @@ describe('isDigestDue', () => {
 
   test('property: once due, staying later keeps it due', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 10_000_000 }), fc.integer({ min: 0, max: 1_000_000 }), (
-        elapsedMs,
-        extraMs,
-      ) => {
-        const lastDigestAt = d('2026-01-01T00:00:00Z');
-        const now = new Date(lastDigestAt.getTime() + elapsedMs);
-        const later = new Date(now.getTime() + extraMs);
-        if (isDigestDue({ lastDigestAt, now })) {
-          expect(isDigestDue({ lastDigestAt, now: later })).toBe(true);
-        }
-      }),
+      fc.property(
+        fc.integer({ min: 0, max: 10_000_000 }),
+        fc.integer({ min: 0, max: 1_000_000 }),
+        (elapsedMs, extraMs) => {
+          const lastDigestAt = d('2026-01-01T00:00:00Z');
+          const now = new Date(lastDigestAt.getTime() + elapsedMs);
+          const later = new Date(now.getTime() + extraMs);
+          if (isDigestDue({ lastDigestAt, now })) {
+            expect(isDigestDue({ lastDigestAt, now: later })).toBe(true);
+          }
+        },
+      ),
     );
   });
 
@@ -163,7 +163,12 @@ describe('reminderPayments', () => {
   });
 
   test('a zero threshold keeps everything except zero-amount payments', () => {
-    expect(reminderPayments([...payments, { fromMemberId: 'z', toMemberId: 'b', amountMinorUnits: 0 }], 0)).toHaveLength(3);
+    expect(
+      reminderPayments(
+        [...payments, { fromMemberId: 'z', toMemberId: 'b', amountMinorUnits: 0 }],
+        0,
+      ),
+    ).toHaveLength(3);
   });
 
   test('property: the result is a subset, all at or above threshold', () => {
@@ -195,8 +200,12 @@ describe('reminderPayments', () => {
 
 describe('windowStart', () => {
   test('floors to the interval bucket', () => {
-    expect(windowStart(d('2026-07-09T13:37:00Z'), 24).toISOString()).toBe('2026-07-09T00:00:00.000Z');
-    expect(windowStart(d('2026-07-09T13:37:00Z'), 6).toISOString()).toBe('2026-07-09T12:00:00.000Z');
+    expect(windowStart(d('2026-07-09T13:37:00Z'), 24).toISOString()).toBe(
+      '2026-07-09T00:00:00.000Z',
+    );
+    expect(windowStart(d('2026-07-09T13:37:00Z'), 6).toISOString()).toBe(
+      '2026-07-09T12:00:00.000Z',
+    );
   });
 
   test('is stable across the whole bucket', () => {
@@ -223,8 +232,12 @@ describe('idempotency keys', () => {
   });
 
   test('digest keys separate users and groups', () => {
-    expect(digestIdempotencyKey('u1', 'g1', at, 24)).not.toBe(digestIdempotencyKey('u2', 'g1', at, 24));
-    expect(digestIdempotencyKey('u1', 'g1', at, 24)).not.toBe(digestIdempotencyKey('u1', 'g2', at, 24));
+    expect(digestIdempotencyKey('u1', 'g1', at, 24)).not.toBe(
+      digestIdempotencyKey('u2', 'g1', at, 24),
+    );
+    expect(digestIdempotencyKey('u1', 'g1', at, 24)).not.toBe(
+      digestIdempotencyKey('u1', 'g2', at, 24),
+    );
   });
 
   test('reminder keys are per creditor per window', () => {
@@ -234,9 +247,9 @@ describe('idempotency keys', () => {
     expect(k1.startsWith('reminder:')).toBe(true);
   });
 
-  test('immediate keys are naturally unique and never collide across kinds', () => {
+  test('the settlement key is naturally unique — one notification per transaction, forever', () => {
     expect(settlementIdempotencyKey('u1', 'tx1')).toBe('settlement.received:u1:tx1');
-    expect(groupAddedIdempotencyKey('member-1')).toBe('group.added:member-1');
+    expect(settlementIdempotencyKey('u1', 'tx1')).not.toBe(settlementIdempotencyKey('u2', 'tx1'));
   });
 });
 
