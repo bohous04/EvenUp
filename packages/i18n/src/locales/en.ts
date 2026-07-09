@@ -178,6 +178,7 @@ export const en: Messages = {
   'ocr.uploading': 'Uploading…',
   'ocr.processing': 'Processing receipt…',
   'ocr.assignItems': 'Assign items to members',
+  'ocr.unassigned': 'Unassigned',
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
   'ocr.apiKeyRequired': 'Enter your OpenRouter API key to scan receipts',

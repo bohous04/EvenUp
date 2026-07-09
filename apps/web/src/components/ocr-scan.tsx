@@ -6,7 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { Button, Input, Select } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
-import { Camera, ImageIcon, Trash2, Plus } from '@/components/icons';
+import { Camera, ImageIcon, AlertCircle, Trash2, Plus } from '@/components/icons';
 
 interface MemberLite {
   id: string;
@@ -293,8 +293,18 @@ export function OcrScan({
         <div className="space-y-3" data-testid="ocr-items">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
 
-          {items.map((it, i) => (
-            <div key={i} className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          {items.map((it, i) => {
+            const unassigned = it.assigned.size === 0;
+            return (
+            <div
+              key={i}
+              className={`rounded-lg border p-3 transition-colors ${
+                unassigned
+                  ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-950/20'
+                  : 'border-zinc-200 dark:border-zinc-800'
+              }`}
+              data-testid={`ocr-item-${i}`}
+            >
               <div className="mb-2 flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <Input
@@ -326,7 +336,7 @@ export function OcrScan({
                   <Trash2 size={16} aria-hidden />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {members.map((m) => (
                   <MemberChip
                     key={m.id}
@@ -337,9 +347,16 @@ export function OcrScan({
                     onClick={() => toggleAssign(i, m.id)}
                   />
                 ))}
+                {unassigned ? (
+                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <AlertCircle size={13} aria-hidden />
+                    {t('ocr.unassigned')}
+                  </span>
+                ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <Button variant="ghost" onClick={addItem} data-testid="ocr-add-item">
             <Plus size={16} aria-hidden />
@@ -421,9 +438,13 @@ export function OcrScan({
       )}
 
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200"
+        >
+          <AlertCircle size={16} aria-hidden className="mt-0.5 shrink-0 text-red-500 dark:text-red-400" />
+          <span>{error}</span>
+        </div>
       ) : null}
     </div>
   );

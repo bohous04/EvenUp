@@ -179,6 +179,7 @@ export const cs = {
   'ocr.uploading': 'Nahrávání…',
   'ocr.processing': 'Zpracování účtenky…',
   'ocr.assignItems': 'Přiřaďte položky členům',
+  'ocr.unassigned': 'Nepřiřazeno',
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
   'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',
