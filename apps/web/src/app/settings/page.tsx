@@ -6,6 +6,7 @@ import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, Input, Label, SectionLabel } from '@/components/ui';
 import { Check } from '@/components/icons';
+import { SecurityCard } from '@/components/security/security-card';
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -190,6 +191,7 @@ export default function SettingsPage() {
           </p>
         </div>
       </Card>
+      <SecurityCard />
       <Card>
         <SectionLabel className="mb-1">{t('settings.openRouterKey')}</SectionLabel>
         <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.apiKeyRequired')}</p>
