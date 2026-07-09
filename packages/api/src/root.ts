@@ -13,6 +13,7 @@ import { statsRouter } from './routers/stats.js';
 import { activityRouter } from './routers/activity.js';
 import { adminRouter } from './routers/admin.js';
 import { categoryRouter } from './routers/category.js';
+import { notificationRouter } from './routers/notification.js';
 
 export const appRouter = router({
   group: groupRouter,
@@ -28,6 +29,7 @@ export const appRouter = router({
   activity: activityRouter,
   admin: adminRouter,
   category: categoryRouter,
+  notification: notificationRouter,
 });
 
 export type AppRouter = typeof appRouter;
