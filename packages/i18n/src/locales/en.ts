@@ -23,7 +23,11 @@ export const en: Messages = {
   'common.total': 'Total',
   'common.or': 'or',
   'common.showAll': 'Show all',
+  'common.language': 'Language',
   'transactions.showMore': 'Show more transactions',
+  'settings.openRouterKey': 'OpenRouter API key',
+  'settings.apiKey': 'API key',
+  'qr.alt': 'QR payment',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',

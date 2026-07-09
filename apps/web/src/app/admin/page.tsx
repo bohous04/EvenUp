@@ -88,7 +88,7 @@ function InstanceKeySection() {
           }}
         >
           <div>
-            <Label htmlFor="instance-key">API key</Label>
+            <Label htmlFor="instance-key">{t('settings.apiKey')}</Label>
             <Input
               id="instance-key"
               type="password"

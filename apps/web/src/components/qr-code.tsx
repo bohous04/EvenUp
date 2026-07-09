@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { useI18n } from '@/lib/i18n';
 
 /** Render a SPAYD string as a "QR Platba" code (client-side, PRD §16.1). */
 export function QrCode({ value }: { value: string }) {
+  const { t } = useI18n();
   const [src, setSrc] = useState('');
   useEffect(() => {
     let active = true;
@@ -20,6 +22,6 @@ export function QrCode({ value }: { value: string }) {
   if (!src) return null;
   // A data-URL QR image; next/image optimization is unnecessary here.
   return (
-    <img src={src} alt="QR Platba" width={220} height={220} className="rounded-lg bg-white p-2" />
+    <img src={src} alt={t('qr.alt')} width={220} height={220} className="rounded-lg bg-white p-2" />
   );
 }

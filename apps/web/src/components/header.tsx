@@ -25,7 +25,7 @@ export function Header() {
           <div
             className="flex overflow-hidden rounded-lg border border-zinc-200 text-xs dark:border-zinc-700"
             role="group"
-            aria-label="Language"
+            aria-label={t('common.language')}
           >
             {(['cs', 'en'] as const).map((l) => (
               <button

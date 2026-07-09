@@ -191,7 +191,7 @@ export default function SettingsPage() {
         </div>
       </Card>
       <Card>
-        <SectionLabel className="mb-1">OpenRouter API key</SectionLabel>
+        <SectionLabel className="mb-1">{t('settings.openRouterKey')}</SectionLabel>
         <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.apiKeyRequired')}</p>
         {me.data?.hasOpenRouterKey ? (
           <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ export default function SettingsPage() {
             }}
           >
             <div>
-              <Label htmlFor="or-key">API key</Label>
+              <Label htmlFor="or-key">{t('settings.apiKey')}</Label>
               <Input
                 id="or-key"
                 type="password"
