@@ -24,7 +24,9 @@ export function MemberChip({
   const dims =
     size === 'xs' ? 'h-5 w-5 text-[9px]' : size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm';
   const ring = selected ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white' : '';
-  const base = `inline-flex ${dims} items-center justify-center rounded-full font-semibold ${ring}`;
+  // shrink-0: inside tight flex rows (balances, settle) a long sibling name
+  // otherwise squeezes the circle into a pill.
+  const base = `inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-semibold ${ring}`;
   const style = { backgroundColor: color, color: readableTextColor(color) };
 
   if (onClick) {
