@@ -14,7 +14,6 @@
  * whether they are due.
  */
 import {
-  buildSpayd,
   coalesceDigest,
   digestIdempotencyKey,
   isDigestDue,
@@ -23,13 +22,13 @@ import {
   type ActivityEvent,
 } from '@evenup/core';
 import type { PrismaClient } from '@evenup/db';
-import type {
-  NotifiableUser,
-  NotificationChannel,
-  NotificationConfig,
+import {
+  toNotifiableUser,
+  type NotificationChannel,
+  type NotificationConfig,
 } from '../notifications/types.js';
 import type { SecretBox } from '../crypto/secret-box.js';
-import { getGroupBalances } from './balance-service.js';
+import { getGroupBalances, type GroupBalanceResult } from './balance-service.js';
 import { materializeRecurring } from './recurring-service.js';
 import { deliver, retryStalledDeliveries } from './notification-delivery.js';
 import { resolvePayee } from './payee.js';
@@ -55,19 +54,47 @@ interface ActiveGroup {
   readonly baseCurrency: string;
 }
 
-type LinkedMember = {
-  id: string;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    locale: string;
-    notificationsEnabled: boolean;
-  };
-};
+interface LinkedUser {
+  readonly id: string;
+  readonly email: string;
+  readonly name: string | null;
+  readonly locale: string;
+  readonly notificationsEnabled: boolean;
+}
 
-function toNotifiable(user: LinkedMember['user']): NotifiableUser {
-  return { id: user.id, email: user.email, name: user.name, locale: user.locale };
+interface LinkedMember {
+  readonly id: string;
+  readonly user: LinkedUser;
+}
+
+/**
+ * Members of this group that a notification could actually reach. `Member.user`
+ * is an optional relation, so Prisma types it nullable regardless of the
+ * `userId: { not: null }` filter — narrow with a guard rather than an `as` cast,
+ * so a future change to the filter or the select becomes a type error instead of
+ * a runtime one.
+ */
+async function loadLinkedMembers(prisma: PrismaClient, groupId: string): Promise<LinkedMember[]> {
+  const rows = await prisma.member.findMany({
+    where: { groupId, isActive: true, userId: { not: null } },
+    select: {
+      id: true,
+      user: {
+        select: { id: true, email: true, name: true, locale: true, notificationsEnabled: true },
+      },
+    },
+  });
+  return rows.filter((m): m is LinkedMember => m.user !== null);
+}
+
+/**
+ * `getGroupBalances` re-reads a group's entire transaction history. Both the
+ * digest and the reminder phase need it, and the digest needs it only if it ends
+ * up with something to say — so compute it at most once per group, on demand.
+ */
+function lazyBalances(prisma: PrismaClient, groupId: string): () => Promise<GroupBalanceResult> {
+  let pending: Promise<GroupBalanceResult> | null = null;
+  return () => (pending ??= getGroupBalances(prisma, groupId));
 }
 
 /** `transactionId` is stamped into the payload by every transaction-scoped activity. */
@@ -144,19 +171,13 @@ async function advanceWatermarks(
   });
 }
 
-async function digestGroup(args: RunNotificationsArgs, group: ActiveGroup): Promise<number> {
+async function digestGroup(
+  args: RunNotificationsArgs,
+  group: ActiveGroup,
+  members: readonly LinkedMember[],
+  balances: () => Promise<GroupBalanceResult>,
+): Promise<number> {
   const { prisma, now, config } = args;
-
-  const members = (await prisma.member.findMany({
-    where: { groupId: group.id, isActive: true, userId: { not: null } },
-    select: {
-      id: true,
-      user: {
-        select: { id: true, email: true, name: true, locale: true, notificationsEnabled: true },
-      },
-    },
-  })) as LinkedMember[];
-  if (members.length === 0) return 0;
 
   const prefs = await prisma.notificationPreference.findMany({
     where: { groupId: group.id, userId: { in: members.map((m) => m.user.id) } },
@@ -211,9 +232,17 @@ async function digestGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
     prisma,
     events.map((e) => transactionIdOf(e.payload)).filter((id): id is string => id !== null),
   );
-  const { balances } = await getGroupBalances(prisma, group.id);
-  const balanceByMember = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
 
+  let balanceByMember: Map<string, number> | null = null;
+  const netFor = async (memberId: string): Promise<number> => {
+    balanceByMember ??= new Map(
+      (await balances()).balances.map((b) => [b.memberId, b.balanceMinorUnits]),
+    );
+    return balanceByMember.get(memberId) ?? 0;
+  };
+
+  // Watermarks advance in one batched UPDATE at the end, not one per recipient.
+  const advanced: string[] = [];
   let sent = 0;
   for (const member of due) {
     const pref = prefByUser.get(member.user.id)!;
@@ -227,14 +256,14 @@ async function digestGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
     // `coalesceDigest` drops the recipient's own actions; system events survive.
     const items = coalesceDigest(mine, { excludeActorId: member.user.id });
     if (items.length === 0) {
-      await advanceWatermarks(prisma, group.id, [member.user.id], now);
+      advanced.push(member.user.id);
       continue;
     }
 
     const outcome = await deliver({
       prisma,
       channels: args.channels,
-      user: toNotifiable(member.user),
+      user: toNotifiableUser(member.user),
       payload: {
         kind: 'digest',
         groupId: group.id,
@@ -244,7 +273,7 @@ async function digestGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
           count: i.count,
           lastAt: i.lastAt.toISOString(),
         })),
-        netMinorUnits: balanceByMember.get(member.id) ?? 0,
+        netMinorUnits: await netFor(member.id),
         currency: group.baseCurrency,
       },
       idempotencyKey: digestIdempotencyKey(
@@ -260,42 +289,40 @@ async function digestGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
     // `duplicate` means an earlier run already sent it and crashed before
     // advancing the watermark. Advancing now is a repair, not a skip.
     if (outcome === 'sent' || outcome === 'duplicate') {
-      await advanceWatermarks(prisma, group.id, [member.user.id], now);
+      advanced.push(member.user.id);
       if (outcome === 'sent') sent++;
     }
   }
+  await advanceWatermarks(prisma, group.id, advanced, now);
   return sent;
 }
 
-function spaydFor(
+/**
+ * Whether the creditor can be paid by transfer, so the reminder can point at the
+ * in-app QR. Resolving the payee decrypts an IBAN, so the result is reduced to a
+ * boolean here and the IBAN is never carried into a persisted payload (§9.2).
+ */
+function hasPayableAccount(
   creditor: Parameters<typeof resolvePayee>[0],
   secretBox: SecretBox,
-  amountMinorUnits: number,
-  currency: string,
-  message: string,
-): string | null {
+): boolean {
   try {
-    const payee = resolvePayee(creditor, secretBox);
-    if (!payee) return null;
-    return buildSpayd({
-      iban: payee.iban,
-      amountMinorUnits,
-      currency,
-      message: message.slice(0, 60),
-      recipientName: payee.recipientName,
-      variableSymbol: payee.variableSymbol,
-    });
+    return resolvePayee(creditor, secretBox) !== null;
   } catch (err) {
     // A corrupt or non-CZ stored account must not take down the whole cron; the
-    // reminder is still worth sending without a QR code.
-    console.error('[notifications] could not build SPAYD for reminder', err);
-    return null;
+    // reminder is still worth sending without pointing at a QR code.
+    console.error('[notifications] could not resolve payee for reminder', err);
+    return false;
   }
 }
 
-async function remindGroup(args: RunNotificationsArgs, group: ActiveGroup): Promise<number> {
+async function remindGroup(
+  args: RunNotificationsArgs,
+  group: ActiveGroup,
+  balances: () => Promise<GroupBalanceResult>,
+): Promise<number> {
   const { prisma, now, config } = args;
-  const { payments } = await getGroupBalances(prisma, group.id);
+  const { payments } = await balances();
   const owed = reminderPayments(payments, config.reminderThresholdMinorUnits);
   if (owed.length === 0) return 0;
 
@@ -343,7 +370,7 @@ async function remindGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
     const outcome = await deliver({
       prisma,
       channels: args.channels,
-      user: toNotifiable(debtor.user),
+      user: toNotifiableUser(debtor.user),
       payload: {
         kind: 'reminder',
         groupId: group.id,
@@ -351,13 +378,7 @@ async function remindGroup(args: RunNotificationsArgs, group: ActiveGroup): Prom
         creditorName: creditor.displayName,
         amountMinorUnits: payment.amountMinorUnits,
         currency: group.baseCurrency,
-        spayd: spaydFor(
-          creditor,
-          args.secretBox,
-          payment.amountMinorUnits,
-          group.baseCurrency,
-          group.name,
-        ),
+        hasQrPayment: hasPayableAccount(creditor, args.secretBox),
       },
       idempotencyKey: reminderIdempotencyKey(
         debtor.user.id,
@@ -393,8 +414,14 @@ export async function runNotifications(args: RunNotificationsArgs): Promise<Noti
   let digestsSent = 0;
   let remindersSent = 0;
   for (const group of groups) {
-    digestsSent += await digestGroup(args, group);
-    remindersSent += await remindGroup(args, group);
+    // A group of purely virtual members has nobody to reach — neither phase can
+    // send anything, so skip both before paying for a balance computation.
+    const members = await loadLinkedMembers(args.prisma, group.id);
+    if (members.length === 0) continue;
+
+    const balances = lazyBalances(args.prisma, group.id);
+    digestsSent += await digestGroup(args, group, members, balances);
+    remindersSent += await remindGroup(args, group, balances);
   }
 
   return { materialized: created, retried, digestsSent, remindersSent };

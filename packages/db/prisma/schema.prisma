@@ -466,7 +466,12 @@ model NotificationDelivery {
   /// The rendered-but-unsent notification, so a retry re-sends exactly what the
   /// original attempt would have. Without it a failed digest could not be
   /// reconstructed: its watermark has not advanced, but its idempotency key is
-  /// already taken. Contains display names and amounts — never secrets.
+  /// already taken.
+  ///
+  /// Holds display names, group names and amounts only. Nothing that is
+  /// encrypted at rest may be serialized here — notably a reminder carries
+  /// `hasQrPayment: boolean`, never the SPAYD string, because SPAYD embeds the
+  /// creditor's IBAN (§9.2).
   payload Json
 
   createdAt DateTime @default(now())

@@ -310,8 +310,8 @@ describe('reminders', () => {
     expect(reminder!.payload.creditorName).toBe('Alice');
     expect(reminder!.payload.amountMinorUnits).toBe(5_000);
     expect(reminder!.payload.currency).toBe('CZK');
-    // Alice has saved no bank account, so there is no QR to show.
-    expect(reminder!.payload.spayd).toBeNull();
+    // Alice has saved no bank account, so there is no QR to point at.
+    expect(reminder!.payload.hasQrPayment).toBe(false);
   });
 
   test('debts below the threshold are not worth an email', async () => {
@@ -321,7 +321,7 @@ describe('reminders', () => {
     expect((await run(new FakeChannel())).remindersSent).toBe(0);
   });
 
-  test('carries a SPAYD payload when the creditor has a payable account', async () => {
+  test('flags a QR payment when the creditor has a payable account, without leaking the IBAN', async () => {
     const { group, alice, aliceM, bobM } = await seedGroup();
     await testPrisma.user.update({
       where: { id: alice.id },
@@ -333,8 +333,17 @@ describe('reminders', () => {
     await run(channel);
     const [reminder] = remindersOf(channel);
     if (reminder!.payload.kind !== 'reminder') throw new Error('unreachable');
-    expect(reminder!.payload.spayd).toMatch(/^SPD\*/);
-    expect(reminder!.payload.spayd).toContain('AM:50.00');
+    expect(reminder!.payload.hasQrPayment).toBe(true);
+
+    // The persisted payload must never carry the creditor's IBAN (§9.2): SPAYD
+    // embeds it, and delivery rows are stored in cleartext for retry replay.
+    const stored = await testPrisma.notificationDelivery.findFirstOrThrow({
+      where: { kind: 'reminder' },
+    });
+    const serialized = JSON.stringify(stored.payload);
+    expect(serialized).not.toMatch(/CZ\d{2}/); // an IBAN, not the "CZK" currency
+    expect(serialized).not.toContain('SPD*');
+    expect(serialized).not.toContain('2000145399');
   });
 
   test('sends at most one reminder per creditor per window', async () => {

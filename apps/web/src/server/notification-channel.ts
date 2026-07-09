@@ -12,7 +12,7 @@ import 'server-only';
 import type { NotifiableUser, NotificationChannel, NotificationPayload } from '@evenup/api';
 import { t, catalogs, formatCurrency, type Locale, type MessageKey } from '@evenup/i18n';
 import { isSupportedCurrency } from '@evenup/core';
-import { sendEmail, type EmailMessage } from './email.js';
+import { emailButton, emailShell, sendEmail, type EmailMessage } from './email.js';
 import { env } from './env.js';
 
 function localeOf(user: NotifiableUser): Locale {
@@ -45,17 +45,11 @@ function escapeHtml(value: string): string {
 }
 
 function shell(title: string, bodyHtml: string, ctaUrl: string, ctaLabel: string): string {
-  return `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#171717">
-  <div style="max-width:480px;margin:0 auto;padding:32px 20px">
-    <div style="background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:28px">
-      <div style="font-size:20px;font-weight:800;color:#4f46e5;text-align:center">EvenUp</div>
-      <h1 style="font-size:17px;margin:16px 0 12px">${escapeHtml(title)}</h1>
+  return emailShell(
+    `<h1 style="font-size:17px;margin:16px 0 12px">${escapeHtml(title)}</h1>
       ${bodyHtml}
-      <p style="text-align:center;margin-top:24px">
-        <a href="${ctaUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">${escapeHtml(ctaLabel)}</a>
-      </p>
-    </div>
-  </div></body></html>`;
+      <p style="text-align:center;margin-top:24px">${emailButton(ctaUrl, escapeHtml(ctaLabel))}</p>`,
+  );
 }
 
 interface Rendered {
@@ -95,7 +89,7 @@ function render(payload: NotificationPayload, locale: Locale): Rendered {
     case 'reminder': {
       const amount = money(payload.amountMinorUnits, payload.currency, locale);
       const lines = [t(locale, 'notify.reminder.body', { amount, creditor: payload.creditorName })];
-      if (payload.spayd) lines.push('', t(locale, 'notify.reminder.qrHint'));
+      if (payload.hasQrPayment) lines.push('', t(locale, 'notify.reminder.qrHint'));
       return {
         subject: t(locale, 'notify.reminder.subject', { group: payload.groupName }),
         title: t(locale, 'notify.reminder.title', { group: payload.groupName }),

@@ -31,6 +31,15 @@ export interface NotifiableUser {
   readonly locale: string;
 }
 
+/**
+ * Narrow a Prisma `User` selection to just what a channel needs. Every producer
+ * goes through this, so adding a field (a push token, say) is one edit rather
+ * than a hunt through three call sites.
+ */
+export function toNotifiableUser(user: NotifiableUser): NotifiableUser {
+  return { id: user.id, email: user.email, name: user.name, locale: user.locale };
+}
+
 /** "Here is what happened in this group since we last wrote to you." */
 export interface DigestNotification {
   readonly kind: 'digest';
@@ -50,8 +59,16 @@ export interface ReminderNotification {
   readonly creditorName: string;
   readonly amountMinorUnits: number;
   readonly currency: string;
-  /** SPAYD ("QR Platba") string when the creditor has a payable account (FR-7.1). */
-  readonly spayd: string | null;
+  /**
+   * Whether the creditor has a payable account, so the reminder can point at
+   * the in-app QR (FR-7.1).
+   *
+   * Deliberately a boolean and not the SPAYD string itself. SPAYD embeds the
+   * creditor's IBAN, payloads are persisted to `NotificationDelivery` for retry
+   * replay, and IBANs are encrypted at rest (§9.2) — serializing one here would
+   * write it back in cleartext. The email never rendered the string anyway.
+   */
+  readonly hasQrPayment: boolean;
 }
 
 /** "Petr marked 1 240 Kč as paid to you." Sent immediately, not digested. */
