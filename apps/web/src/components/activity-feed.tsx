@@ -14,6 +14,7 @@ interface MemberLite {
 const ACTION_OPTIONS = [
   'group.created',
   'member.added',
+  'member.joined',
   'member.updated',
   'expense.created',
   'expenses.imported',
