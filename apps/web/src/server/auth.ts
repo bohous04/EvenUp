@@ -100,6 +100,15 @@ export const auth = betterAuth({
   // the email. Apple and Google both send `email_verified`, so no
   // `trustedProviders` — that would force-link *unverified* emails.
   account: { accountLinking: { enabled: true } },
+  // Sign In with Apple returns its OAuth callback via a cross-site `form_post`
+  // POST from appleid.apple.com. Browsers do NOT send a `SameSite=Lax` cookie on
+  // a cross-site POST, so Better Auth's default `state` cookie never reaches the
+  // callback — the state check fails and Apple sign-in *and* account linking
+  // break (Google's GET-redirect callback is unaffected, which is why it works).
+  // `SameSite=None` (still Secure + HttpOnly, 5-min lifetime) lets the state
+  // cookie survive the POST. Scoped to the `state` cookie only — the session
+  // cookie stays Lax for CSRF safety.
+  advanced: { cookies: { state: { attributes: { sameSite: 'none' } } } },
   socialProviders,
   databaseHooks: {
     session: {

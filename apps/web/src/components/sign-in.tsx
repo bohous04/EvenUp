@@ -38,18 +38,7 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    // `onSuccess` is the only place the client types the 2FA-redirect payload
-    // (`ctx.data.twoFactorRedirect`) leniently enough to read without a cast —
-    // the awaited `res.data` below is typed strictly to the plain sign-in
-    // response and doesn't know about the two-factor plugin's extra shape.
-    const res = await signIn.email(
-      { email, password, callbackURL: safeCallback },
-      {
-        onSuccess: (ctx) => {
-          if (ctx.data?.twoFactorRedirect) setTwoFactor(true);
-        },
-      },
-    );
+    const res = await signIn.email({ email, password, callbackURL: safeCallback });
     setLoading(false);
     if (res.error) {
       const errCode = res.error.code;
@@ -58,6 +47,15 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
           ? t('auth.err.unverified')
           : t('auth.err.invalidCredentials'),
       );
+      return;
+    }
+    // When the account has 2FA, Better Auth creates no session and returns
+    // `{ twoFactorRedirect: true }` (a normal sign-in redirects via `callbackURL`
+    // instead). Read it off the awaited response — the strict sign-in type omits
+    // the two-factor plugin's extra field, so narrow with a cast. (The per-call
+    // `onSuccess` fetch callback did not fire reliably here.)
+    if ((res.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) {
+      setTwoFactor(true);
     }
   }
 
