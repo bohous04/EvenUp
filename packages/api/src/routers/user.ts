@@ -26,13 +26,22 @@ export const userRouter = router({
     });
     // Never expose the key or the raw account; just derived, non-sensitive facts.
     const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
+    let bankAccountMasked: string | null = null;
+    if (bankAccountEncrypted !== null) {
+      try {
+        const raw = ctx.secretBox.decrypt(bankAccountEncrypted);
+        const masked = maskCzAccount(raw);
+        // Fail closed: if masking couldn't parse the value (falls back to
+        // echoing the input), never let the raw account reach the client.
+        bankAccountMasked = masked !== raw ? masked : null;
+      } catch {
+        bankAccountMasked = null;
+      }
+    }
     return {
       ...rest,
       hasOpenRouterKey: openRouterKeyEncrypted !== null,
-      bankAccountMasked:
-        bankAccountEncrypted !== null
-          ? maskCzAccount(ctx.secretBox.decrypt(bankAccountEncrypted))
-          : null,
+      bankAccountMasked,
     };
   }),
 
@@ -42,7 +51,6 @@ export const userRouter = router({
         locale: z.enum(['cs', 'en']).optional(),
         defaultCurrency: currencyCode.optional(),
         ocrModel: z.string().max(120).optional(),
-        name: z.string().trim().max(120).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -127,6 +135,7 @@ export const userRouter = router({
           locale: true,
           defaultCurrency: true,
           createdAt: true,
+          bankAccountEncrypted: true,
         },
       }),
       ctx.prisma.group.findMany({
@@ -146,7 +155,16 @@ export const userRouter = router({
         select: { memberId: true, recipientName: true, variableSymbol: true },
       }),
     ]);
-    return { profile, groups, bankDetails };
+    const { bankAccountEncrypted, ...profileRest } = profile;
+    let bankAccount: string | null = null;
+    if (bankAccountEncrypted !== null) {
+      try {
+        bankAccount = ctx.secretBox.decrypt(bankAccountEncrypted);
+      } catch {
+        bankAccount = null;
+      }
+    }
+    return { profile: { ...profileRest, bankAccount }, groups, bankDetails };
   }),
 
   /** GDPR account deletion (FR-1.6): delete solo groups, unlink shared ones. */

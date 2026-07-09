@@ -94,4 +94,32 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
     expect(row.bankAccountEncrypted).toBeNull();
     expect((await caller.user.me()).bankAccountMasked).toBeNull();
   });
+
+  it('me() fails closed (masked null) when the ciphertext is corrupt, without throwing', async () => {
+    const user = await createTestUser('acct4@example.com');
+    const caller = makeCaller(user);
+    await caller.user.setBankAccount({ account: '19-2000145399/0800' });
+
+    await testPrisma.user.update({
+      where: { id: user.id },
+      data: { bankAccountEncrypted: 'not-encrypted' },
+    });
+
+    const me = await caller.user.me();
+    expect(me.bankAccountMasked).toBeNull();
+  });
+});
+
+describe('user.exportData', () => {
+  beforeEach(resetDb);
+
+  it('includes the decrypted bank account and never the encrypted column', async () => {
+    const user = await createTestUser('export@example.com');
+    const caller = makeCaller(user);
+    await caller.user.setBankAccount({ account: '19-2000145399/0800' });
+
+    const exported = await caller.user.exportData();
+    expect(exported.profile.bankAccount).toBe('19-2000145399/0800');
+    expect(JSON.stringify(exported)).not.toContain('bankAccountEncrypted');
+  });
 });
