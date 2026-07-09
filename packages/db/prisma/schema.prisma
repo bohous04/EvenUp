@@ -455,15 +455,22 @@ model NotificationDelivery {
   id             String    @id @default(cuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind           String // digest | reminder | settlement.received | group.added
+  kind           String // digest | reminder | settlement.received
   channel        String // email (push/webpush later)
   idempotencyKey String    @unique
   status         String    @default("pending") // pending | sent | failed
   attempts       Int       @default(0)
   sentAt         DateTime?
   error          String? // truncated provider error, never the message body
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+
+  /// The rendered-but-unsent notification, so a retry re-sends exactly what the
+  /// original attempt would have. Without it a failed digest could not be
+  /// reconstructed: its watermark has not advanced, but its idempotency key is
+  /// already taken. Contains display names and amounts — never secrets.
+  payload Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@index([status, attempts])

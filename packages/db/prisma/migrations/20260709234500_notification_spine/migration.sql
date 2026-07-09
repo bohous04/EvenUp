@@ -25,6 +25,7 @@ CREATE TABLE "NotificationDelivery" (
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "sentAt" TIMESTAMP(3),
     "error" TEXT,
+    "payload" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
