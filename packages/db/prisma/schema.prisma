@@ -41,6 +41,10 @@ model User {
   isVip      Boolean   @default(false) // may use the shared OCR key + store receipt photos
   disabledAt DateTime? // soft-disabled: sign-in is blocked while set
 
+  // Two-factor auth (TOTP, Better Auth `twoFactor` plugin)
+  twoFactorEnabled Boolean     @default(false)
+  twoFactor        TwoFactor[]
+
   sessions      Session[]
   accounts      Account[]
   members       Member[]
@@ -123,6 +127,16 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+model TwoFactor {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret      String
+  backupCodes String
+
+  @@map("twoFactor")
 }
 
 // ---------------------------------------------------------------------------

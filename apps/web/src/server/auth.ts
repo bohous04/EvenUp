@@ -3,7 +3,7 @@ import 'server-only';
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { bearer } from 'better-auth/plugins';
+import { bearer, twoFactor } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { expo } from '@better-auth/expo';
 import { prisma } from '@evenup/db';
@@ -70,6 +70,7 @@ const appleConfig = appleSecret ? { ...appleSecret, bundleId } : null;
 const socialProviders = buildSocialProviders(googleConfig, appleConfig);
 
 export const auth = betterAuth({
+  appName: 'EvenUp',
   baseURL: env.authUrl,
   secret: env.authSecret,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -122,6 +123,7 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    twoFactor({ issuer: 'EvenUp' }),
     // Native deep-link session handoff for the Expo app: appends the session
     // cookie to the evenup:// redirect after a native OAuth callback so the
     // client can store it (without this, the app bounces back to sign-in). FR-1.5.
