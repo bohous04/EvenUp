@@ -18,7 +18,7 @@ import {
   type Payment,
   type NextPayerCandidate,
 } from '@evenup/core';
-import { toMinor, type PrismaClient } from '@evenup/db';
+import { Prisma, toMinor, type PrismaClient } from '@evenup/db';
 
 function safeAllocate(base: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -73,16 +73,17 @@ async function loadBalanceTransactions(
 export async function getGroupBalances(
   prisma: PrismaClient,
   groupId: string,
+  group?: Prisma.GroupGetPayload<{ include: { members: true } }>,
 ): Promise<GroupBalanceResult> {
-  const group = await prisma.group.findUniqueOrThrow({
+  const loadedGroup = group ?? (await prisma.group.findUniqueOrThrow({
     where: { id: groupId },
     include: { members: true },
-  });
+  }));
   const balanceTxns = await loadBalanceTransactions(prisma, groupId);
   const rawBalances = computeNetBalances(balanceTxns);
   const byId = new Map(rawBalances.map((b) => [b.memberId, b.balanceMinorUnits]));
 
-  const balances: MemberBalance[] = group.members.map((m) => ({
+  const balances: MemberBalance[] = loadedGroup.members.map((m) => ({
     memberId: m.id,
     balanceMinorUnits: byId.get(m.id) ?? 0,
     displayName: m.displayName,
@@ -90,11 +91,11 @@ export async function getGroupBalances(
     color: m.color,
   }));
 
-  const payments = group.simplifyDebts
+  const payments = loadedGroup.simplifyDebts
     ? minimizeDebts(rawBalances)
     : computeDirectDebts(balanceTxns);
 
-  return { balances, payments, simplified: group.simplifyDebts };
+  return { balances, payments, simplified: loadedGroup.simplifyDebts };
 }
 
 /** Expenses inspected when estimating the group's typical round. */
@@ -153,7 +154,7 @@ export async function getNextRound(
     }
   }
 
-  const { balances } = await getGroupBalances(prisma, groupId);
+  const { balances } = await getGroupBalances(prisma, groupId, group);
   const byId = new Map(balances.map((b) => [b.memberId, b]));
 
   const candidates: NextPayerCandidate[] = activeMembers.map((m) => ({
