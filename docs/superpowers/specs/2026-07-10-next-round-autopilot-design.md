@@ -230,7 +230,8 @@ reads as part of the balances block rather than an advertisement above it.
 | Fewer than 3 `EXPENSE` transactions | Card absent |
 | Group archived (`archivedAt` set) | Card absent |
 | Fewer than 2 active members | Card absent |
-| Nobody qualifies | "You're all square — anyone can take the next one." |
+| Nobody owes anything (group settled) | "You're all square — anyone can take the next one." |
+| Debtors exist but nobody clears the gate | Card absent |
 | Exactly one qualifies | Card renders without the runner-up line |
 
 The card renders regardless of the group's `simplifyDebts` setting. Net balances exist either way;
