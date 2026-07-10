@@ -14,7 +14,13 @@ import { HandCoins } from '@/components/icons';
  * is the whole skip mechanism — if the named member will not pay, the table can
  * already see who is next, with no button and no persisted state.
  */
-export function NextRoundCard({ groupId, baseCurrency }: { groupId: string; baseCurrency: string }) {
+export function NextRoundCard({
+  groupId,
+  baseCurrency,
+}: {
+  groupId: string;
+  baseCurrency: string;
+}) {
   const { t, formatCurrency } = useI18n();
   const nextRound = trpc.balance.nextPayer.useQuery({ groupId });
 

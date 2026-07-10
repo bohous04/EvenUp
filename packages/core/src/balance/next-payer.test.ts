@@ -48,13 +48,20 @@ describe('suggestNextPayer — the gate', () => {
 
 describe('suggestNextPayer — ordering', () => {
   test('ranks the deepest debtor first', () => {
-    const r = suggestNextPayer([c('petr', -89_000), c('filip', -145_000), c('olivia', 234_000)], 180_000);
+    const r = suggestNextPayer(
+      [c('petr', -89_000), c('filip', -145_000), c('olivia', 234_000)],
+      180_000,
+    );
     expect(ids(r)).toEqual(['filip', 'petr']);
   });
 
   test('breaks exact balance ties by least recently paid, never-paid first', () => {
     const r = suggestNextPayer(
-      [c('recent', -180_000, 1, 5_000), c('never', -180_000, 1, null), c('old', -180_000, 1, 1_000)],
+      [
+        c('recent', -180_000, 1, 5_000),
+        c('never', -180_000, 1, null),
+        c('old', -180_000, 1, 1_000),
+      ],
       180_000,
     );
     expect(ids(r)).toEqual(['never', 'old', 'recent']);

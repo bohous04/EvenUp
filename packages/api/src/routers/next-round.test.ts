@@ -166,7 +166,11 @@ describe('balance.nextPayer', () => {
   test('hides itself for a group with fewer than two active members', async () => {
     const olivia = await createTestUser('solo@example.com');
     const caller = makeCaller(olivia);
-    const group = await caller.group.create({ name: 'Solo', template: 'OTHER', baseCurrency: 'CZK' });
+    const group = await caller.group.create({
+      name: 'Solo',
+      template: 'OTHER',
+      baseCurrency: 'CZK',
+    });
     const me = group.members[0]!;
     for (const [i, day] of ['2026-06-20', '2026-06-21', '2026-06-22'].entries()) {
       await caller.transaction.createExpense({

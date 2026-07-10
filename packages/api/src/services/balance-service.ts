@@ -77,10 +77,12 @@ export async function getGroupBalances(
   // would silently compute balances against the wrong group's members.
   group?: Prisma.GroupGetPayload<{ include: { members: true } }>,
 ): Promise<GroupBalanceResult> {
-  const loadedGroup = group ?? (await prisma.group.findUniqueOrThrow({
-    where: { id: groupId },
-    include: { members: true },
-  }));
+  const loadedGroup =
+    group ??
+    (await prisma.group.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { members: true },
+    }));
   const balanceTxns = await loadBalanceTransactions(prisma, groupId);
   const rawBalances = computeNetBalances(balanceTxns);
   const byId = new Map(rawBalances.map((b) => [b.memberId, b.balanceMinorUnits]));
@@ -169,7 +171,9 @@ export async function getNextRound(
   // Safe: `ranked` is a subset of `candidates`, which is built from `activeMembers`,
   // and `byId` is built from `balances`, which covers every member (including
   // inactive ones) -- so every ranked memberId is guaranteed to be a key.
-  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map((c) => byId.get(c.memberId)!);
+  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map(
+    (c) => byId.get(c.memberId)!,
+  );
   if (ranked.length === 0) {
     // An empty ranking has two different causes that must not be conflated: the
     // group is truly settled (no debtors), or debtors exist but every one of them

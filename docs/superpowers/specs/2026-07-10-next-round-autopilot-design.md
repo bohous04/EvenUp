@@ -7,7 +7,7 @@
 
 ## Problem
 
-EvenUp minimizes the number of settlement payments *after* the spending is done. So does every
+EvenUp minimizes the number of settlement payments _after_ the spending is done. So does every
 competitor: Splitwise and Settle Up both treat settlement as a post-hoc chore, hand you a list of
 payments at the end of the trip, and optimize how short that list is.
 
@@ -31,8 +31,8 @@ recorded, any schema change, any promise about the amount of the next expense.
 
 ### Why the group screen and not the expense form
 
-Inside the expense form the amount is known, so the app could solve the true problem: *which payer
-minimizes the settlements remaining afterward?* That is strictly better math. It is also strictly too
+Inside the expense form the amount is known, so the app could solve the true problem: _which payer
+minimizes the settlements remaining afterward?_ That is strictly better math. It is also strictly too
 late — by the time you are filling in the form, somebody has already paid. The card has to appear
 before the money moves, which means it must work from balances alone and must accept that it is
 ranking, not optimizing.
@@ -167,7 +167,7 @@ balance.nextPayer({ groupId })
 One `findMany` serves both derived values. `lastPaidAt` cannot be a `groupBy` aggregate: Prisma's
 `groupBy` only aggregates scalar columns of the model being grouped, and `TransactionPayer` holds no
 date — the date lives on `Transaction`. Since the rows are already ordered by `date` descending, the
-first row in which a member appears as a payer *is* their `lastPaidAt`, so a single pass computes it
+first row in which a member appears as a payer _is_ their `lastPaidAt`, so a single pass computes it
 with no extra query.
 
 `candidates` covers **active members only** (`isActive: true`). `getGroupBalances` returns every
@@ -184,9 +184,9 @@ beneath them.
 ```ts
 export interface NextPayerCandidate {
   readonly memberId: string;
-  readonly balanceMinorUnits: number;  // negative = owes
-  readonly shareWeight: number;        // Member.defaultShare, ≥ 1
-  readonly lastPaidAt: number | null;  // epoch ms; null = never paid a round
+  readonly balanceMinorUnits: number; // negative = owes
+  readonly shareWeight: number; // Member.defaultShare, ≥ 1
+  readonly lastPaidAt: number | null; // epoch ms; null = never paid a round
 }
 
 /**
@@ -225,17 +225,17 @@ reads as part of the balances block rather than an advertisement above it.
 
 ### When the card hides
 
-| Condition | Behavior |
-|---|---|
-| Fewer than 3 `EXPENSE` transactions | Card absent |
-| Group archived (`archivedAt` set) | Card absent |
-| Fewer than 2 active members | Card absent |
-| Nobody owes anything (group settled) | "You're all square — anyone can take the next one." |
-| Debtors exist but nobody clears the gate | Card absent |
-| Exactly one qualifies | Card renders without the runner-up line |
+| Condition                                | Behavior                                            |
+| ---------------------------------------- | --------------------------------------------------- |
+| Fewer than 3 `EXPENSE` transactions      | Card absent                                         |
+| Group archived (`archivedAt` set)        | Card absent                                         |
+| Fewer than 2 active members              | Card absent                                         |
+| Nobody owes anything (group settled)     | "You're all square — anyone can take the next one." |
+| Debtors exist but nobody clears the gate | Card absent                                         |
+| Exactly one qualifies                    | Card renders without the runner-up line             |
 
 The card renders regardless of the group's `simplifyDebts` setting. Net balances exist either way;
-only the *settlement* view depends on that toggle.
+only the _settlement_ view depends on that toggle.
 
 ## Error handling
 
@@ -249,12 +249,12 @@ settling up, which remains reachable through the existing settlements UI.
 Czech is the default (FR-10.1). Strings live in `packages/i18n`; no user-facing text is hard-coded
 (FR-10.4). Amounts format per locale (FR-10.3).
 
-| Key | Placeholders | CS | EN |
-|---|---|---|---|
-| `nextRound.title` | `{name}` | Rundu platí {name} | Next one's on {name} |
-| `nextRound.reason` | `{amount}` | Skluz {amount} | Behind by {amount} |
-| `nextRound.runnerUp` | `{name}`, `{amount}` | Pak {name} ({amount}) | Then {name} ({amount}) |
-| `nextRound.square` | — | Jste vyrovnaní — další rundu může vzít kdokoli. | You're all square — anyone can take the next one. |
+| Key                  | Placeholders         | CS                                              | EN                                                |
+| -------------------- | -------------------- | ----------------------------------------------- | ------------------------------------------------- |
+| `nextRound.title`    | `{name}`             | Rundu platí {name}                              | Next one's on {name}                              |
+| `nextRound.reason`   | `{amount}`           | Skluz {amount}                                  | Behind by {amount}                                |
+| `nextRound.runnerUp` | `{name}`, `{amount}` | Pak {name} ({amount})                           | Then {name} ({amount})                            |
+| `nextRound.square`   | —                    | Jste vyrovnaní — další rundu může vzít kdokoli. | You're all square — anyone can take the next one. |
 
 Each key takes the same placeholders in both languages, so the catalogs stay mechanically checkable.
 
