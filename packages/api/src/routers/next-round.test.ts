@@ -104,6 +104,65 @@ describe('balance.nextPayer', () => {
     expect(await caller.balance.nextPayer({ groupId: group.id })).toEqual({ state: 'square' });
   });
 
+  test('hides itself when debts exist but nobody clears the gate', async () => {
+    const { caller, group, members, expense } = await seedGroup();
+    // Three equal rounds, all paid by Olivia: E = 90_000, W = 3, w = 1, so the gate
+    // is b <= -30_000. Before settling: Olivia +180_000, Petr -90_000, Jana -90_000.
+    await expense('Chata', members.olivia.id, 90_000, '2026-06-20');
+    await expense('Vlek', members.olivia.id, 90_000, '2026-06-21');
+    await expense('Kava', members.olivia.id, 90_000, '2026-06-22');
+
+    // Partial settlements are TRANSFERs, not EXPENSEs: they move balances without
+    // touching the median or lastPaidAt.
+    await caller.transaction.recordTransfer({
+      groupId: group.id,
+      fromMemberId: members.petr.id,
+      toMemberId: members.olivia.id,
+      amountMinorUnits: 65_000,
+      currency: 'CZK',
+    });
+    await caller.transaction.recordTransfer({
+      groupId: group.id,
+      fromMemberId: members.jana.id,
+      toMemberId: members.olivia.id,
+      amountMinorUnits: 65_000,
+      currency: 'CZK',
+    });
+    // Final: Olivia +50_000, Petr -25_000, Jana -25_000 (sums to zero). Both debtors
+    // are shallower than the -30_000 gate, so nobody qualifies -- but the group is
+    // not settled either, so the card must not claim "you're all square".
+    expect(await caller.balance.nextPayer({ groupId: group.id })).toEqual({ state: 'hidden' });
+  });
+
+  test('slices to the 10 most recent expenses for the median', async () => {
+    const { caller, group, members, expense } = await seedGroup();
+    const dates = [
+      '2026-06-10', // oldest -- amount 100_000, must fall outside the window
+      '2026-06-11',
+      '2026-06-12',
+      '2026-06-13',
+      '2026-06-14',
+      '2026-06-15',
+      '2026-06-16',
+      '2026-06-17',
+      '2026-06-18',
+      '2026-06-19',
+      '2026-06-20', // most recent
+    ];
+    // An outlier old enough to fall outside MEDIAN_WINDOW: if the slice were
+    // removed (or widened past 10), it would pull the median from 5_000 to 6_000.
+    await expense('Outlier', members.olivia.id, 100_000, dates[0]!);
+    for (const [i, day] of dates.slice(1).entries()) {
+      await expense(`Round ${i + 1}`, members.olivia.id, (i + 1) * 1_000, day);
+    }
+
+    const result = await caller.balance.nextPayer({ groupId: group.id });
+    expect(result.state).toBe('suggested');
+    if (result.state !== 'suggested') throw new Error('unreachable');
+    // Lower median of the 10 most recent [1_000, 2_000, ..., 10_000] is 5_000.
+    expect(result.typicalExpenseMinorUnits).toBe(5_000);
+  });
+
   test('hides itself for a group with fewer than two active members', async () => {
     const olivia = await createTestUser('solo@example.com');
     const caller = makeCaller(olivia);

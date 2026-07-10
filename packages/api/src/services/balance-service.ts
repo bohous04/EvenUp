@@ -73,6 +73,8 @@ async function loadBalanceTransactions(
 export async function getGroupBalances(
   prisma: PrismaClient,
   groupId: string,
+  // Caller-supplied `group` must satisfy `group.id === groupId`; a mismatched pair
+  // would silently compute balances against the wrong group's members.
   group?: Prisma.GroupGetPayload<{ include: { members: true } }>,
 ): Promise<GroupBalanceResult> {
   const loadedGroup = group ?? (await prisma.group.findUniqueOrThrow({
@@ -164,8 +166,21 @@ export async function getNextRound(
     lastPaidAt: lastPaidAt.get(m.id) ?? null,
   }));
 
+  // Safe: `ranked` is a subset of `candidates`, which is built from `activeMembers`,
+  // and `byId` is built from `balances`, which covers every member (including
+  // inactive ones) -- so every ranked memberId is guaranteed to be a key.
   const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map((c) => byId.get(c.memberId)!);
-  if (ranked.length === 0) return { state: 'square' };
+  if (ranked.length === 0) {
+    // An empty ranking has two different causes that must not be conflated: the
+    // group is truly settled (no debtors), or debtors exist but every one of them
+    // is shallower than the gate, so paying a typical round would not help any of
+    // them. The card's contract is to name who should pay; when nobody should, it
+    // has nothing true to say -- and the balances list right below it already
+    // shows who owes what -- so only the truly-settled case gets the "square"
+    // message, and the debts-but-nobody-qualifies case hides the card instead.
+    const anyDebtor = candidates.some((c) => c.balanceMinorUnits < 0);
+    return anyDebtor ? { state: 'hidden' } : { state: 'square' };
+  }
 
   return { state: 'suggested', typicalExpenseMinorUnits, ranked };
 }
