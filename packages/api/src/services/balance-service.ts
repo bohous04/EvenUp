@@ -18,7 +18,7 @@ import {
   type Payment,
   type NextPayerCandidate,
 } from '@evenup/core';
-import { Prisma, toMinor, type PrismaClient } from '@evenup/db';
+import { toMinor, type Prisma, type PrismaClient } from '@evenup/db';
 
 function safeAllocate(base: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
