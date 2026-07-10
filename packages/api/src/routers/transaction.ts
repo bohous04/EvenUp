@@ -1,6 +1,6 @@
 /** Expenses, income, and transfers (PRD §4.3, §4.7). */
 import { z } from 'zod';
-import { Prisma } from '@evenup/db';
+import { Prisma, type PrismaClient } from '@evenup/db';
 import { fromMinor } from '@evenup/db';
 import {
   RECURRENCE_INTERVALS,
@@ -8,10 +8,17 @@ import {
   splitEqually,
   isExpenseCategory,
   isCustomCategoryKey,
+  type SplitShare,
 } from '@evenup/core';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
-import { createExpenseInput, recordTransferInput } from '../schemas.js';
+import {
+  createExpenseInput,
+  recordTransferInput,
+  updateExpenseInput,
+  updateTransferInput,
+  type SplitConfig,
+} from '../schemas.js';
 import { assertGroupAccess } from '../access.js';
 import { planExpense } from '../services/transaction-service.js';
 import { resolveRateDecimal, convertToBase } from '../services/fx-service.js';
@@ -26,15 +33,71 @@ const transactionInclude = {
   receipt: { select: { id: true, storageKey: true } },
 } satisfies Prisma.TransactionInclude;
 
-type TransactionWithReceipt = { receipt: { id: string; storageKey: string } | null };
+type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactionInclude }>;
 
 /**
  * Surface whether a receipt image is available to view (FR-5.8/5.9) without
- * leaking the internal storageKey (object-store path) to the client.
+ * leaking the internal storageKey (object-store path) to the client, and hand
+ * the client a plain-number `percentage` (a Prisma Decimal doesn't survive
+ * superjson intact) so an edit can read back the original percentage split.
  */
-function shapeTransaction<T extends TransactionWithReceipt>(tx: T) {
-  const { receipt, ...rest } = tx;
-  return { ...rest, receiptId: receipt?.id ?? null, hasReceiptImage: !!receipt?.storageKey };
+function shapeTransaction(tx: FullTransaction) {
+  const { receipt, splits, ...rest } = tx;
+  return {
+    ...rest,
+    splits: splits.map((s) => ({
+      ...s,
+      percentage: s.percentage === null ? null : Number(s.percentage),
+    })),
+    receiptId: receipt?.id ?? null,
+    hasReceiptImage: !!receipt?.storageKey,
+  };
+}
+
+/**
+ * Reject any member id that isn't active-or-inactive *in this group* — blocks a
+ * caller with access to one group from referencing a member of another group as
+ * a payer/beneficiary/transfer endpoint (Prisma's FK only checks existence).
+ */
+async function assertMembersInGroup(
+  prisma: PrismaClient,
+  groupId: string,
+  memberIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(memberIds)];
+  if (ids.length === 0) return;
+  const inGroup = await prisma.member.count({ where: { groupId, id: { in: ids } } });
+  if (inGroup !== ids.length) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'A referenced member does not belong to this group',
+    });
+  }
+}
+
+/**
+ * Build the split rows, persisting the RAW per-member input (weight / exact /
+ * percentage) next to the computed amount so an edit can restore the exact split
+ * — its type and ratios — rather than falling back to bare amounts.
+ */
+function splitCreateData(split: SplitConfig, shares: SplitShare[], sign: number) {
+  const weight = new Map<string, number>();
+  const exact = new Map<string, number>();
+  const pct = new Map<string, number>();
+  if (split.type === 'SHARES') for (const m of split.members) weight.set(m.memberId, m.weight);
+  else if (split.type === 'PERCENTAGE')
+    for (const m of split.members) pct.set(m.memberId, m.percentage);
+  else if (split.type === 'EXACT')
+    for (const m of split.members) exact.set(m.memberId, m.exactMinorUnits);
+  else if (split.type === 'EQUAL')
+    for (const m of split.members) if (m.weight != null) weight.set(m.memberId, m.weight);
+  return shares.map((s) => ({
+    memberId: s.memberId,
+    computedMinorUnits: fromMinor(sign * s.computedMinorUnits),
+    shareWeight: weight.get(s.memberId) ?? null,
+    exactMinorUnits: exact.has(s.memberId) ? fromMinor(sign * exact.get(s.memberId)!) : null,
+    percentage: pct.has(s.memberId) ? new Prisma.Decimal(pct.get(s.memberId)!) : null,
+  }));
 }
 
 /** Pass the injected FX fetch (tests only) so createExpense/recordTransfer can auto-fetch a missing rate. */
@@ -63,6 +126,10 @@ export const transactionRouter = router({
     }
 
     const plan = planExpense(input);
+    await assertMembersInGroup(ctx.prisma, input.groupId, [
+      ...input.payers.map((p) => p.memberId),
+      ...plan.shares.map((s) => s.memberId),
+    ]);
     const { rateDecimal, overridden } = await resolveRateDecimal(
       ctx.prisma,
       input.currency,
@@ -99,10 +166,7 @@ export const transactionRouter = router({
           })),
         },
         splits: {
-          create: plan.shares.map((s) => ({
-            memberId: s.memberId,
-            computedMinorUnits: fromMinor(sign * s.computedMinorUnits),
-          })),
+          create: splitCreateData(input.split, plan.shares, sign),
         },
       },
       include: transactionInclude,
@@ -119,6 +183,7 @@ export const transactionRouter = router({
   recordTransfer: protectedProcedure.input(recordTransferInput).mutation(async ({ ctx, input }) => {
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
     const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: input.groupId } });
+    await assertMembersInGroup(ctx.prisma, input.groupId, [input.fromMemberId, input.toMemberId]);
     const date = input.date ?? new Date();
     const { rateDecimal } = await resolveRateDecimal(
       ctx.prisma,
@@ -177,6 +242,157 @@ export const transactionRouter = router({
       channels: ctx.notificationChannels ?? [],
       transactionId: transaction.id,
       now: new Date(),
+    });
+    return shapeTransaction(transaction);
+  }),
+
+  /** Edit an existing expense/income in place (FR-4.x). Recomputes splits + FX. */
+  updateExpense: protectedProcedure.input(updateExpenseInput).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.prisma.transaction.findUniqueOrThrow({
+      where: { id: input.transactionId },
+      select: { groupId: true, type: true },
+    });
+    await assertGroupAccess(ctx.prisma, ctx.user, existing.groupId);
+    if (existing.type === 'TRANSFER') {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Settlements are edited via updateTransfer',
+      });
+    }
+    const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: existing.groupId } });
+
+    if (input.category && isCustomCategoryKey(input.category)) {
+      const exists = await ctx.prisma.groupCategory.findFirst({
+        where: { id: input.category.slice('custom:'.length), groupId: existing.groupId },
+        select: { id: true },
+      });
+      if (!exists) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Unknown category' });
+      }
+    }
+
+    const plan = planExpense(input);
+    await assertMembersInGroup(ctx.prisma, existing.groupId, [
+      ...input.payers.map((p) => p.memberId),
+      ...plan.shares.map((s) => s.memberId),
+    ]);
+    const { rateDecimal, overridden } = await resolveRateDecimal(
+      ctx.prisma,
+      input.currency,
+      group.baseCurrency,
+      input.date,
+      input.exchangeRateToBase,
+      group.fxLockedRate,
+      fxArgs(ctx),
+    );
+    const sign = input.type === 'INCOME' ? -1 : 1;
+    const baseTotal =
+      sign * convertToBase(plan.totalMinorUnits, input.currency, group.baseCurrency, rateDecimal);
+
+    const transaction = await ctx.prisma.transaction.update({
+      where: { id: input.transactionId },
+      data: {
+        type: input.type,
+        title: input.title,
+        note: input.note,
+        currency: input.currency,
+        totalMinorUnits: fromMinor(sign * plan.totalMinorUnits),
+        baseMinorUnits: fromMinor(baseTotal),
+        exchangeRateToBase: new Prisma.Decimal(rateDecimal),
+        fxRateOverridden: overridden,
+        date: input.date,
+        category: input.category ?? null,
+        splitType: plan.splitType,
+        receiptId: input.receiptId,
+        // Replace the per-member rows wholesale — the simplest correct way to
+        // re-key payers/splits when the amount, split, or membership changed.
+        payers: {
+          deleteMany: {},
+          create: input.payers.map((p) => ({
+            memberId: p.memberId,
+            amountMinorUnits: fromMinor(sign * p.amountMinorUnits),
+          })),
+        },
+        splits: {
+          deleteMany: {},
+          create: splitCreateData(input.split, plan.shares, sign),
+        },
+      },
+      include: transactionInclude,
+    });
+    await logActivity(ctx.prisma, existing.groupId, ctx.user.id, 'transaction.updated', {
+      title: input.title,
+      transactionId: transaction.id,
+    });
+    return shapeTransaction(transaction);
+  }),
+
+  /** Edit an existing settlement/transfer in place. */
+  updateTransfer: protectedProcedure.input(updateTransferInput).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.prisma.transaction.findUniqueOrThrow({
+      where: { id: input.transactionId },
+      select: { groupId: true, type: true, date: true },
+    });
+    await assertGroupAccess(ctx.prisma, ctx.user, existing.groupId);
+    if (existing.type !== 'TRANSFER') {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Only settlements are edited via updateTransfer',
+      });
+    }
+    const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: existing.groupId } });
+    await assertMembersInGroup(ctx.prisma, existing.groupId, [
+      input.fromMemberId,
+      input.toMemberId,
+    ]);
+    const date = input.date ?? existing.date;
+    const { rateDecimal } = await resolveRateDecimal(
+      ctx.prisma,
+      input.currency,
+      group.baseCurrency,
+      date,
+      undefined,
+      undefined,
+      fxArgs(ctx),
+    );
+    const baseAmount = convertToBase(
+      input.amountMinorUnits,
+      input.currency,
+      group.baseCurrency,
+      rateDecimal,
+    );
+
+    const transaction = await ctx.prisma.transaction.update({
+      where: { id: input.transactionId },
+      data: {
+        title: input.note ?? 'Settlement',
+        currency: input.currency,
+        totalMinorUnits: fromMinor(input.amountMinorUnits),
+        baseMinorUnits: fromMinor(baseAmount),
+        exchangeRateToBase: new Prisma.Decimal(rateDecimal),
+        date,
+        fromMemberId: input.fromMemberId,
+        toMemberId: input.toMemberId,
+        method: input.method,
+        settledAt: date,
+        payers: {
+          deleteMany: {},
+          create: [
+            { memberId: input.fromMemberId, amountMinorUnits: fromMinor(input.amountMinorUnits) },
+          ],
+        },
+        splits: {
+          deleteMany: {},
+          create: [
+            { memberId: input.toMemberId, computedMinorUnits: fromMinor(input.amountMinorUnits) },
+          ],
+        },
+      },
+      include: transactionInclude,
+    });
+    await logActivity(ctx.prisma, existing.groupId, ctx.user.id, 'transaction.updated', {
+      title: transaction.title,
+      transactionId: transaction.id,
     });
     return shapeTransaction(transaction);
   }),

@@ -9,7 +9,8 @@ import {
   RECURRENCE_INTERVALS,
 } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { clampAmountDecimals } from '@/lib/amount-input';
 import type { MessageKey } from '@evenup/i18n';
 import { Button, Input, Label, SectionLabel } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
@@ -44,11 +45,18 @@ const SPLIT_LABELS: Record<SplitType, MessageKey> = {
 type RecurrenceValue = 'none' | (typeof RECURRENCE_INTERVALS)[number];
 const RECURRENCE_VALUES: RecurrenceValue[] = ['none', ...RECURRENCE_INTERVALS];
 
-/** Local calendar date as YYYY-MM-DD (toISOString would give the UTC date). */
-function todayLocalIso(): string {
-  const d = new Date();
+/** A `Date` as a local YYYY-MM-DD string (toISOString would give the UTC date). */
+function localIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** Today as a local YYYY-MM-DD string. */
+function todayLocalIso(): string {
+  return localIso(new Date());
+}
+
+/** A transaction as returned by `transaction.list` — the shape we edit in place. */
+type EditableTransaction = RouterOutputs['transaction']['list'][number];
 
 /**
  * Parse YYYY-MM-DD as LOCAL noon — stays on the picked day in every timezone.
@@ -155,15 +163,26 @@ export function AddExpenseForm({
   members,
   baseCurrency,
   customCategories,
+  editing = null,
+  onClose,
 }: {
   groupId: string;
   members: MemberLite[];
   baseCurrency: string;
   customCategories: CustomCategoryLite[];
+  /** When set, the sheet edits this transaction in place instead of adding one. */
+  editing?: EditableTransaction | null;
+  /** Called to close the sheet in edit mode (the parent controls visibility). */
+  onClose?: () => void;
 }) {
   const { t, formatDate } = useI18n();
   const utils = trpc.useUtils();
+  const isEdit = editing != null;
   const [open, setOpen] = useState(false);
+  // In edit mode the parent mounts us only while editing, so the sheet is open;
+  // in add mode we own the open state (toggled by the FAB).
+  const sheetOpen = isEdit ? true : open;
+  const closeSheet = () => (isEdit ? onClose?.() : setOpen(false));
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(baseCurrency);
@@ -185,6 +204,13 @@ export function AddExpenseForm({
   const selectedMembers = members.filter((m) => isSelected(m.id));
 
   const setRecurrenceMutation = trpc.transaction.setRecurrence.useMutation();
+  const invalidateGroup = () => {
+    void utils.transaction.list.invalidate({ groupId });
+    void utils.balance.get.invalidate({ groupId });
+    void utils.balance.nextPayer.invalidate({ groupId });
+    void utils.stats.byCategory.invalidate({ groupId });
+    void utils.activity.list.invalidate({ groupId });
+  };
   const createExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: (created) => {
       if (recurrence !== 'none') {
@@ -207,13 +233,79 @@ export function AddExpenseForm({
       setDate(todayLocalIso());
       setError(null);
       setOpen(false);
-      void utils.transaction.list.invalidate({ groupId });
-      void utils.balance.get.invalidate({ groupId });
-      void utils.stats.byCategory.invalidate({ groupId });
-      void utils.activity.list.invalidate({ groupId });
+      invalidateGroup();
     },
     onError: (e) => setError(e.message),
   });
+
+  const updateExpense = trpc.transaction.updateExpense.useMutation({
+    onSuccess: () => {
+      invalidateGroup();
+      onClose?.();
+    },
+    onError: (e) => setError(e.message),
+  });
+  const deleteTransaction = trpc.transaction.delete.useMutation({
+    onSuccess: () => {
+      invalidateGroup();
+      onClose?.();
+    },
+    onError: (e) => setError(e.message),
+  });
+  const isSaving = createExpense.isPending || updateExpense.isPending;
+
+  // Seed the form from the transaction being edited — only when a *different*
+  // transaction is opened, so re-renders never clobber the user's in-progress edits.
+  useEffect(() => {
+    if (!editing) return;
+    setTitle(editing.title);
+    setCurrency(editing.currency);
+    setAmount(minorToDecimalString(Math.abs(Number(editing.totalMinorUnits)), editing.currency));
+    setCategory(editing.category ?? 'other');
+    setDate(localIso(new Date(editing.date)));
+    setPayerId(editing.payers[0]?.memberId ?? '');
+    const splitMembers = new Set(editing.splits.map((s) => s.memberId));
+    setDeselected(new Set(members.filter((m) => !splitMembers.has(m.id)).map((m) => m.id)));
+    // Restore the exact split from the raw per-member input we persisted, so a
+    // SHARES/PERCENTAGE expense keeps its type and ratios — not just its amounts.
+    const st = editing.splitType;
+    if (st === 'SHARES') {
+      setSplitType('SHARES');
+      setValues(
+        Object.fromEntries(editing.splits.map((s) => [s.memberId, String(s.shareWeight ?? 1)])),
+      );
+    } else if (st === 'PERCENTAGE') {
+      setSplitType('PERCENTAGE');
+      setValues(
+        Object.fromEntries(editing.splits.map((s) => [s.memberId, String(s.percentage ?? 0)])),
+      );
+    } else if (st === 'EQUAL') {
+      setSplitType('EQUAL');
+      setValues({});
+    } else {
+      // EXACT — or anything the form can't represent (ITEMIZED) — edits as exact
+      // amounts. `exactMinorUnits` is only set on EXACT rows; others fall back to
+      // the computed share, so this one branch covers both.
+      setSplitType('EXACT');
+      setValues(
+        Object.fromEntries(
+          editing.splits.map((s) => [
+            s.memberId,
+            minorToDecimalString(
+              Math.abs(Number(s.exactMinorUnits ?? s.computedMinorUnits)),
+              editing.currency,
+            ),
+          ]),
+        ),
+      );
+    }
+    setFxRate('');
+    setRecurrence('none');
+    setOpenRow(null);
+    setError(null);
+    // Depends only on the transaction id: re-seed when a *different* transaction
+    // is opened, never on every re-render (which would clobber in-progress edits).
+  }, [editing?.id]);
 
   const fxResolve = trpc.fx.resolve.useQuery(
     { base: baseCurrency, quote: currency },
@@ -250,7 +342,10 @@ export function AddExpenseForm({
         return 0;
       }
     };
-    const isLocked = (id: string) => (values[id] ?? '').trim() !== '';
+    // "Locked" = the user has touched this field at all (a key exists in
+    // `values`), even if they cleared it back to empty. An empty locked field
+    // contributes 0 and is NOT auto-refilled — see the note in memberFieldValue.
+    const isLocked = (id: string) => values[id] !== undefined;
     const result = new Map<string, number>();
     const total = toMinor(amount || '0');
     let lockedSum = 0;
@@ -288,6 +383,13 @@ export function AddExpenseForm({
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
     };
 
+    // Same payload either way; in edit mode it carries the transaction id and
+    // updates in place, otherwise it creates a new expense.
+    const runMutation = (payload: Parameters<typeof createExpense.mutate>[0]) => {
+      if (isEdit && editing) updateExpense.mutate({ transactionId: editing.id, ...payload });
+      else createExpense.mutate(payload);
+    };
+
     try {
       if (splitType === 'EXACT') {
         // Locked members keep their typed value; untouched ones share the
@@ -299,7 +401,7 @@ export function AddExpenseForm({
         }));
         const total = exact.reduce((a, x) => a + x.exactMinorUnits, 0);
         if (total <= 0) throw new Error('zero');
-        createExpense.mutate({
+        runMutation({
           ...common,
           payers: [{ memberId: payerId, amountMinorUnits: total }],
           split: { type: 'EXACT', members: exact },
@@ -312,13 +414,13 @@ export function AddExpenseForm({
       const payers = [{ memberId: payerId, amountMinorUnits: total }];
 
       if (splitType === 'EQUAL') {
-        createExpense.mutate({
+        runMutation({
           ...common,
           payers,
           split: { type: 'EQUAL', members: selectedMembers.map((m) => ({ memberId: m.id })) },
         });
       } else if (splitType === 'SHARES') {
-        createExpense.mutate({
+        runMutation({
           ...common,
           payers,
           split: {
@@ -330,7 +432,7 @@ export function AddExpenseForm({
           },
         });
       } else {
-        createExpense.mutate({
+        runMutation({
           ...common,
           payers,
           split: {
@@ -381,8 +483,12 @@ export function AddExpenseForm({
   // otherwise the live auto-balanced share (blank while there's nothing to share).
   const memberFieldValue = (id: string): string => {
     if (splitType !== 'EXACT') return values[id] ?? '';
+    // Once the user has touched a field we show EXACTLY what they typed — even an
+    // empty string — and never snap it back to the auto-balanced share. That's
+    // what lets them clear a field and type a fresh number without the value (and
+    // caret) jumping back mid-edit. Untouched fields still preview their share.
     const typed = values[id];
-    if (typed != null && typed.trim() !== '') return typed;
+    if (typed !== undefined) return typed;
     const minor = exactAmounts?.get(id) ?? 0;
     return minor > 0 ? minorToDecimalString(minor, currency) : '';
   };
@@ -404,16 +510,18 @@ export function AddExpenseForm({
 
   return (
     <>
-      <Fab
-        onClick={() => setOpen(true)}
-        aria-label={t('expense.add')}
-        data-testid="add-expense-open"
-      />
+      {!isEdit ? (
+        <Fab
+          onClick={() => setOpen(true)}
+          aria-label={t('expense.add')}
+          data-testid="add-expense-open"
+        />
+      ) : null}
 
       <Sheet
-        open={open}
-        onClose={() => setOpen(false)}
-        title={t('expense.add')}
+        open={sheetOpen}
+        onClose={closeSheet}
+        title={isEdit ? t('expense.edit') : t('expense.add')}
         testId="add-expense-modal"
       >
         <form className="space-y-4" onSubmit={submit}>
@@ -425,7 +533,7 @@ export function AddExpenseForm({
               inputMode="decimal"
               autoFocus
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => setAmount(clampAmountDecimals(e.target.value, currency))}
               placeholder="0"
               required
               aria-label={t('expense.amount')}
@@ -608,7 +716,15 @@ export function AddExpenseForm({
                             aria-label={`${m.displayName} ${perMemberLabel}`}
                             placeholder={perMemberLabel}
                             value={memberFieldValue(m.id)}
-                            onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))}
+                            onChange={(e) =>
+                              setValues((v) => ({
+                                ...v,
+                                [m.id]:
+                                  splitType === 'EXACT'
+                                    ? clampAmountDecimals(e.target.value, currency)
+                                    : e.target.value,
+                              }))
+                            }
                             data-testid={`member-value-${m.id}`}
                           />
                         </div>
@@ -747,12 +863,28 @@ export function AddExpenseForm({
               bottom padding scrolls it clear of the mobile browser toolbar. */}
           <Button
             type="submit"
-            disabled={createExpense.isPending}
+            disabled={isSaving}
             className="w-full"
             data-testid="add-expense-submit"
           >
-            {createExpense.isPending ? t('common.loading') : t('common.save')}
+            {isSaving ? t('common.loading') : t('common.save')}
           </Button>
+
+          {editing ? (
+            <Button
+              type="button"
+              variant="danger"
+              className="w-full"
+              disabled={deleteTransaction.isPending}
+              onClick={() => {
+                if (window.confirm(t('expense.deleteConfirm')))
+                  deleteTransaction.mutate({ transactionId: editing.id });
+              }}
+              data-testid="edit-expense-delete"
+            >
+              {t('expense.delete')}
+            </Button>
+          ) : null}
         </form>
       </Sheet>
 

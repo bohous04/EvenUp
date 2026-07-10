@@ -18,7 +18,7 @@ import {
   type Payment,
   type NextPayerCandidate,
 } from '@evenup/core';
-import { Prisma, toMinor, type PrismaClient } from '@evenup/db';
+import { toMinor, type Prisma, type PrismaClient } from '@evenup/db';
 
 function safeAllocate(base: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -75,10 +75,12 @@ export async function getGroupBalances(
   groupId: string,
   group?: Prisma.GroupGetPayload<{ include: { members: true } }>,
 ): Promise<GroupBalanceResult> {
-  const loadedGroup = group ?? (await prisma.group.findUniqueOrThrow({
-    where: { id: groupId },
-    include: { members: true },
-  }));
+  const loadedGroup =
+    group ??
+    (await prisma.group.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { members: true },
+    }));
   const balanceTxns = await loadBalanceTransactions(prisma, groupId);
   const rawBalances = computeNetBalances(balanceTxns);
   const byId = new Map(rawBalances.map((b) => [b.memberId, b.balanceMinorUnits]));
@@ -164,7 +166,9 @@ export async function getNextRound(
     lastPaidAt: lastPaidAt.get(m.id) ?? null,
   }));
 
-  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map((c) => byId.get(c.memberId)!);
+  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map(
+    (c) => byId.get(c.memberId)!,
+  );
   if (ranked.length === 0) return { state: 'square' };
 
   return { state: 'suggested', typicalExpenseMinorUnits, ranked };

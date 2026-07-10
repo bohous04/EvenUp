@@ -102,7 +102,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByRole('link', { name: /settings|nastavení/i }).click();
     await page.getByTestId('bank-account-input').fill('19-2000145399/0800');
     await page.getByTestId('bank-account-save').click();
-    await expect(page.getByTestId('bank-account-masked')).toHaveText('…5399/0800');
+    await expect(page.getByTestId('bank-account-value')).toHaveText('19-2000145399/0800');
     await page.goBack();
 
     // The per-group bank sheet is gone from the ⋯ menu.

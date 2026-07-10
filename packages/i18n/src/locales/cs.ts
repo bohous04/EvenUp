@@ -130,6 +130,11 @@ export const cs = {
   'group.archived': 'Archivováno',
   'group.empty': 'Zatím žádné skupiny. Vytvořte první!',
   'group.categories': 'Kategorie',
+  // Plural forms for the transaction count on the group card (Intl.PluralRules).
+  'group.transactions.one': '{count} transakce',
+  'group.transactions.few': '{count} transakce',
+  'group.transactions.many': '{count} transakce',
+  'group.transactions.other': '{count} transakcí',
 
   'member.add': 'Přidat člena',
   'member.name': 'Jméno',
@@ -146,6 +151,11 @@ export const cs = {
   'invite.expired': 'Pozvánka vypršela',
 
   'expense.add': 'Přidat výdaj',
+  'expense.edit': 'Upravit výdaj',
+  'expense.delete': 'Smazat výdaj',
+  'expense.deleteConfirm': 'Opravdu smazat tuto transakci?',
+  'transfer.edit': 'Upravit platbu',
+  'transfer.delete': 'Smazat platbu',
   'expense.title': 'Název',
   'expense.amount': 'Částka',
   'expense.currency': 'Měna',
@@ -246,6 +256,7 @@ export const cs = {
   'activityType.expense.created': 'Výdaj přidán',
   'activityType.expenses.imported': 'Výdaje importovány',
   'activityType.settlement.recorded': 'Platba zaznamenána',
+  'activityType.transaction.updated': 'Transakce upravena',
   'activityType.transaction.deleted': 'Transakce smazána',
   'activityType.group.updated': 'Skupina upravena',
   'activityType.group.archived': 'Skupina archivována',

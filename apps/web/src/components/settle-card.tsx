@@ -86,6 +86,7 @@ function SettleRow({
     onSuccess: () => {
       setOpen(false);
       void utils.balance.get.invalidate({ groupId });
+      void utils.balance.nextPayer.invalidate({ groupId });
       void utils.transaction.list.invalidate({ groupId });
       void utils.activity.list.invalidate({ groupId });
     },

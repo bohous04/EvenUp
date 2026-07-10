@@ -19,6 +19,7 @@ const ACTION_OPTIONS = [
   'expense.created',
   'expenses.imported',
   'settlement.recorded',
+  'transaction.updated',
   'transaction.deleted',
   'group.updated',
   'group.archived',

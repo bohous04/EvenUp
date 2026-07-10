@@ -7,7 +7,7 @@
  */
 import { cs, type MessageKey } from './locales/cs.js';
 import { en } from './locales/en.js';
-import type { Locale } from './format.js';
+import { pluralCategory, type Locale } from './format.js';
 
 export const DEFAULT_LOCALE: Locale = 'cs';
 export const LOCALES = ['cs', 'en'] as const;
@@ -27,6 +27,25 @@ export function t(locale: Locale, key: MessageKey, values: InterpolationValues =
   const catalog = catalogs[locale] ?? catalogs[DEFAULT_LOCALE];
   const template = catalog[key] ?? catalogs[DEFAULT_LOCALE][key];
   return interpolate(template, values);
+}
+
+/**
+ * Translate a pluralized message: picks `<base>.<category>` for `count` via CLDR
+ * plural rules (e.g. `group.transactions` → `.one`/`.few`/`.other`), falling back
+ * to `<base>.other`. `count` is exposed to the template as `{count}`.
+ */
+export function plural(
+  locale: Locale,
+  base: string,
+  count: number,
+  values: InterpolationValues = {},
+): string {
+  const catalog = catalogs[locale] ?? catalogs[DEFAULT_LOCALE];
+  const lookup = (k: string): string | undefined =>
+    catalog[k as MessageKey] ?? catalogs[DEFAULT_LOCALE][k as MessageKey];
+  const template =
+    lookup(`${base}.${pluralCategory(count, locale)}`) ?? lookup(`${base}.other`) ?? base;
+  return interpolate(template, { count, ...values });
 }
 
 /** Bind a locale to produce a `(key, values) => string` translator. */

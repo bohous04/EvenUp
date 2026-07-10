@@ -12,6 +12,10 @@ export default function SettingsPage() {
   const { t } = useI18n();
   const { data: session, isPending } = useSession();
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
+  // The full account is fetched only here (settings), not in the app-wide `me`.
+  const bankAccount = trpc.user.getBankAccount.useQuery(undefined, {
+    enabled: !!session?.user && !!me.data?.hasBankAccount,
+  });
   const utils = trpc.useUtils();
   const [apiKey, setApiKey] = useState('');
   const [name, setName] = useState('');
@@ -44,11 +48,15 @@ export default function SettingsPage() {
       setAccount('');
       setAccountError(false);
       void utils.user.me.invalidate();
+      void utils.user.getBankAccount.invalidate();
     },
     onError: () => setAccountError(true),
   });
   const clearBankAccount = trpc.user.clearBankAccount.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
+    onSuccess: () => {
+      void utils.user.me.invalidate();
+      void utils.user.getBankAccount.invalidate();
+    },
   });
 
   const setKey = trpc.user.setOpenRouterKey.useMutation({
@@ -145,13 +153,10 @@ export default function SettingsPage() {
 
         <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
           <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
-          {me.data?.bankAccountMasked ? (
+          {me.data?.hasBankAccount ? (
             <div className="flex items-center justify-between">
-              <span
-                className="text-sm font-semibold tabular-nums"
-                data-testid="bank-account-masked"
-              >
-                {me.data.bankAccountMasked}
+              <span className="text-sm font-semibold tabular-nums" data-testid="bank-account-value">
+                {bankAccount.data?.account ?? '…'}
               </span>
               <Button
                 variant="danger"

@@ -12,7 +12,7 @@ import { Users } from '@/components/icons';
 const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN'] as const;
 
 export function GroupsDashboard() {
-  const { t } = useI18n();
+  const { t, plural } = useI18n();
   const utils = trpc.useUtils();
   const groups = trpc.group.list.useQuery();
   const createGroup = trpc.group.create.useMutation({
@@ -42,7 +42,7 @@ export function GroupsDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold tracking-tight">{g.name}</p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {g._count.transactions} · {g.baseCurrency}
+                      {plural('group.transactions', g._count.transactions)} · {g.baseCurrency}
                     </p>
                   </div>
                   <AvatarStack

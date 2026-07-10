@@ -26,20 +26,20 @@
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `packages/core/src/balance/next-payer.ts` | **Create.** Pure ranking function + its types. No I/O. |
-| `packages/core/src/balance/next-payer.test.ts` | **Create.** Unit + fast-check property tests. |
-| `packages/core/src/index.ts` | **Modify.** Re-export the function and its types. |
+| File                                           | Responsibility                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------------- |
+| `packages/core/src/balance/next-payer.ts`      | **Create.** Pure ranking function + its types. No I/O.              |
+| `packages/core/src/balance/next-payer.test.ts` | **Create.** Unit + fast-check property tests.                       |
+| `packages/core/src/index.ts`                   | **Modify.** Re-export the function and its types.                   |
 | `packages/api/src/services/balance-service.ts` | **Modify.** `getNextRound()`: load inputs, call core, shape result. |
-| `packages/api/src/routers/balance.ts` | **Modify.** Add the `nextPayer` query. |
-| `packages/api/src/routers/next-round.test.ts` | **Create.** Integration tests against ephemeral Postgres. |
-| `packages/i18n/src/locales/cs.ts` | **Modify.** Four `nextRound.*` keys. |
-| `packages/i18n/src/locales/en.ts` | **Modify.** The same four keys. |
-| `apps/web/src/components/icons.tsx` | **Modify.** Import + re-export `HandCoins`. |
-| `apps/web/src/components/next-round-card.tsx` | **Create.** The card. Renders; no math. |
-| `apps/web/src/components/group-detail.tsx` | **Modify.** Mount the card above `<BalancesCard>`. |
-| `apps/web/e2e/next-round.spec.ts` | **Create.** Playwright: hidden under 3 expenses, then names Jana. |
+| `packages/api/src/routers/balance.ts`          | **Modify.** Add the `nextPayer` query.                              |
+| `packages/api/src/routers/next-round.test.ts`  | **Create.** Integration tests against ephemeral Postgres.           |
+| `packages/i18n/src/locales/cs.ts`              | **Modify.** Four `nextRound.*` keys.                                |
+| `packages/i18n/src/locales/en.ts`              | **Modify.** The same four keys.                                     |
+| `apps/web/src/components/icons.tsx`            | **Modify.** Import + re-export `HandCoins`.                         |
+| `apps/web/src/components/next-round-card.tsx`  | **Create.** The card. Renders; no math.                             |
+| `apps/web/src/components/group-detail.tsx`     | **Modify.** Mount the card above `<BalancesCard>`.                  |
+| `apps/web/e2e/next-round.spec.ts`              | **Create.** Playwright: hidden under 3 expenses, then names Jana.   |
 
 ### One deviation from the spec, adopted deliberately
 
@@ -50,11 +50,13 @@ The spec sketched the service returning `{ typicalExpenseMinorUnits, ranked: Mem
 ### Task 1: Core ranking function
 
 **Files:**
+
 - Create: `packages/core/src/balance/next-payer.ts`
 - Test: `packages/core/src/balance/next-payer.test.ts`
 - Modify: `packages/core/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `interface NextPayerCandidate { readonly memberId: string; readonly balanceMinorUnits: number; readonly shareWeight: number; readonly lastPaidAt: number | null }`
@@ -117,13 +119,20 @@ describe('suggestNextPayer — the gate', () => {
 
 describe('suggestNextPayer — ordering', () => {
   test('ranks the deepest debtor first', () => {
-    const r = suggestNextPayer([c('petr', -89_000), c('filip', -145_000), c('olivia', 234_000)], 180_000);
+    const r = suggestNextPayer(
+      [c('petr', -89_000), c('filip', -145_000), c('olivia', 234_000)],
+      180_000,
+    );
     expect(ids(r)).toEqual(['filip', 'petr']);
   });
 
   test('breaks exact balance ties by least recently paid, never-paid first', () => {
     const r = suggestNextPayer(
-      [c('recent', -180_000, 1, 5_000), c('never', -180_000, 1, null), c('old', -180_000, 1, 1_000)],
+      [
+        c('recent', -180_000, 1, 5_000),
+        c('never', -180_000, 1, null),
+        c('old', -180_000, 1, 1_000),
+      ],
       180_000,
     );
     expect(ids(r)).toEqual(['never', 'old', 'recent']);
@@ -312,11 +321,13 @@ git commit -m "feat(core): suggestNextPayer — integer gate + deterministic ran
 ### Task 2: API service and query
 
 **Files:**
+
 - Modify: `packages/api/src/services/balance-service.ts`
 - Modify: `packages/api/src/routers/balance.ts`
 - Test: `packages/api/src/routers/next-round.test.ts`
 
 **Interfaces:**
+
 - Consumes: `suggestNextPayer`, `NextPayerCandidate` from `@evenup/core`; `getGroupBalances`, `MemberBalance` from `./balance-service.js`.
 - Produces:
   - `type NextRoundResult = { state: 'hidden' } | { state: 'square' } | { state: 'suggested'; typicalExpenseMinorUnits: number; ranked: MemberBalance[] }`
@@ -325,7 +336,7 @@ git commit -m "feat(core): suggestNextPayer — integer gate + deterministic ran
 
 **Requires a database.** The harness reads `process.env.DATABASE_URL` (`packages/api/src/test/harness.ts`) and expects a migrated Postgres. Bring one up with `docker compose up -d db` and apply migrations with `pnpm --filter @evenup/db exec prisma migrate deploy` before running these tests.
 
-**Why one query, not two:** `lastPaidAt` cannot be a Prisma `groupBy` aggregate — `groupBy` only aggregates scalar columns of the model being grouped, and `TransactionPayer` has no date column. Ordering the expenses by `date desc` once means the *first* row in which a member appears as a payer is their `lastPaidAt`, so a single `findMany` yields both the median and the recency map.
+**Why one query, not two:** `lastPaidAt` cannot be a Prisma `groupBy` aggregate — `groupBy` only aggregates scalar columns of the model being grouped, and `TransactionPayer` has no date column. Ordering the expenses by `date desc` once means the _first_ row in which a member appears as a payer is their `lastPaidAt`, so a single `findMany` yields both the median and the recency map.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -441,7 +452,11 @@ describe('balance.nextPayer', () => {
   test('hides itself for a group with fewer than two active members', async () => {
     const olivia = await createTestUser('solo@example.com');
     const caller = makeCaller(olivia);
-    const group = await caller.group.create({ name: 'Solo', template: 'OTHER', baseCurrency: 'CZK' });
+    const group = await caller.group.create({
+      name: 'Solo',
+      template: 'OTHER',
+      baseCurrency: 'CZK',
+    });
     const me = group.members[0]!;
     for (const [i, day] of ['2026-06-20', '2026-06-21', '2026-06-22'].entries()) {
       await caller.transaction.createExpense({
@@ -548,7 +563,9 @@ export async function getNextRound(
     lastPaidAt: lastPaidAt.get(m.id) ?? null,
   }));
 
-  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map((c) => byId.get(c.memberId)!);
+  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map(
+    (c) => byId.get(c.memberId)!,
+  );
   if (ranked.length === 0) return { state: 'square' };
 
   return { state: 'suggested', typicalExpenseMinorUnits, ranked };
@@ -609,10 +626,12 @@ git commit -m "feat(api): balance.nextPayer query backing the Next Round card"
 ### Task 3: Message catalogs
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts`
 - Modify: `packages/i18n/src/locales/en.ts`
 
 **Interfaces:**
+
 - Produces: message keys `nextRound.title`, `nextRound.reason`, `nextRound.runnerUp`, `nextRound.square`, consumed by Task 4.
 
 `nextRound.reason` carries no name and no pronoun. The name sits in the title directly above it, and a pronoun would force the string to know the member's gender — which EvenUp does not store and which Czech would need in order to inflect.
@@ -667,12 +686,14 @@ git commit -m "i18n: Next Round card strings (cs + en)"
 ### Task 4: The card
 
 **Files:**
+
 - Modify: `apps/web/src/components/icons.tsx`
 - Create: `apps/web/src/components/next-round-card.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx:144`
 - Test: `apps/web/e2e/next-round.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `trpc.balance.nextPayer` (Task 2), the four `nextRound.*` keys (Task 3), `HandCoins` from `@/components/icons`.
 - Produces: `<NextRoundCard groupId={string} baseCurrency={string} />`; test ids `next-round-card`, `next-round-payer`, `next-round-runner-up`.
 
@@ -773,7 +794,13 @@ import { HandCoins } from '@/components/icons';
  * is the whole skip mechanism — if the named member will not pay, the table can
  * already see who is next, with no button and no persisted state.
  */
-export function NextRoundCard({ groupId, baseCurrency }: { groupId: string; baseCurrency: string }) {
+export function NextRoundCard({
+  groupId,
+  baseCurrency,
+}: {
+  groupId: string;
+  baseCurrency: string;
+}) {
   const { t, formatCurrency } = useI18n();
   const nextRound = trpc.balance.nextPayer.useQuery({ groupId });
 
