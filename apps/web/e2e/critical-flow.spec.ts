@@ -110,9 +110,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('menu-bank')).toHaveCount(0);
     await page.getByTestId('sheet-close').click();
 
-    // Exact split: creator pays, Petr owes 100.
+    // Exact split: creator pays, Petr owes 100. The top amount is the target
+    // total (required for EXACT — untouched members balance against it).
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('expense-amount-input').fill('100');
     await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     const inputs = page.getByTestId('per-member-inputs').locator('input');
@@ -230,8 +232,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
 
     // The itemized expense was created with the edited total (75.10 CZK).
     await expect(page.getByTestId('ocr-items')).toBeHidden();
-    // Scoped to the transactions list: the activity feed also mentions "Receipt".
-    await expect(page.getByTestId('transactions-list').getByText('Receipt')).toBeVisible();
+    // OCR names the expense after the detected merchant (the mock returns "Albert").
+    await expect(page.getByTestId('transactions-list').getByText('Albert')).toBeVisible();
     await expect(page.getByText(/75[.,]10/).first()).toBeVisible();
 
     // The receipt-backed expense surfaces a "View receipt" link (FR-5.8/5.9)
@@ -356,11 +358,13 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // toggle is disabled so the required inputs can't be collapsed out of reach.
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('expense-amount-input').fill('100');
     await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     await expect(page.getByTestId('per-member-inputs')).toBeVisible();
-    // A non-EQUAL split forces the split row open — its toggle is disabled.
-    await expect(page.getByTestId('expense-split-row')).toBeDisabled();
+    // The split row is collapsible now (users asked to be able to close it), so
+    // its toggle stays enabled even for a non-EQUAL split.
+    await expect(page.getByTestId('expense-split-row')).toBeEnabled();
 
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0');
@@ -585,7 +589,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('expense-amount-input').fill('240');
     await page.getByTestId('expense-title-input').fill('Bečka');
     await page.getByTestId('expense-category-row').click();
-    await page.getByTestId(/^category-chip-custom:/).click();
+    // New groups seed default categories, so pick the "Pivo" chip specifically.
+    await page
+      .getByTestId(/^category-chip-custom:/)
+      .filter({ hasText: 'Pivo' })
+      .click();
     await page.getByTestId('add-expense-submit').click();
 
     // Stats show the custom name.
@@ -593,11 +601,16 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('spend-stats').getByText('Pivo')).toBeVisible();
     await closeSheet(page);
 
-    // Delete → the amount folds into the built-in Other bucket.
+    // Delete Pivo → its amount folds into the built-in Other bucket. (Seeded
+    // default categories remain, so target Pivo's row and assert it's gone.)
     await openGroupSheet(page, 'categories');
     page.once('dialog', (d) => void d.accept());
-    await page.getByTestId(/^category-delete-/).click();
-    await expect(page.getByTestId(/^category-row-/)).toHaveCount(0);
+    await page
+      .getByTestId(/^category-row-/)
+      .filter({ hasText: 'Pivo' })
+      .getByTestId(/^category-delete-/)
+      .click();
+    await expect(page.getByTestId(/^category-row-/).filter({ hasText: 'Pivo' })).toHaveCount(0);
     await closeSheet(page);
 
     await openGroupSheet(page, 'stats');
