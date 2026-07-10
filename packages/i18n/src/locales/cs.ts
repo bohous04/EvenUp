@@ -198,6 +198,10 @@ export const cs = {
   'balance.isOwed': '{member} má dostat {amount}',
   'balance.settledUp': 'Všechno je vyrovnáno',
   'balance.suggestedPayments': 'Navrhované platby',
+  'nextRound.title': 'Rundu platí {name}',
+  'nextRound.reason': 'Skluz {amount}',
+  'nextRound.runnerUp': 'Pak {name} ({amount})',
+  'nextRound.square': 'Jste vyrovnaní — další rundu může vzít kdokoli.',
 
   'settle.title': 'Vyrovnat',
   'settle.markPaid': 'Označit jako zaplaceno',

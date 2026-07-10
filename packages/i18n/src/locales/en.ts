@@ -196,6 +196,10 @@ export const en: Messages = {
   'balance.isOwed': '{member} is owed {amount}',
   'balance.settledUp': 'Everyone is settled up',
   'balance.suggestedPayments': 'Suggested payments',
+  'nextRound.title': "Next one's on {name}",
+  'nextRound.reason': 'Behind by {amount}',
+  'nextRound.runnerUp': 'Then {name} ({amount})',
+  'nextRound.square': "You're all square — anyone can take the next one.",
 
   'settle.title': 'Settle up',
   'settle.markPaid': 'Mark as paid',
