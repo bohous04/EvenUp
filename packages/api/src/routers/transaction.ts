@@ -3,9 +3,7 @@ import { z } from 'zod';
 import { Prisma } from '@evenup/db';
 import { fromMinor } from '@evenup/db';
 import {
-  dueOccurrences,
   RECURRENCE_INTERVALS,
-  type RecurrenceInterval,
   parseExpensesCsv,
   splitEqually,
   isExpenseCategory,
@@ -18,6 +16,8 @@ import { assertGroupAccess } from '../access.js';
 import { planExpense } from '../services/transaction-service.js';
 import { resolveRateDecimal, convertToBase } from '../services/fx-service.js';
 import { logActivity } from '../services/activity.js';
+import { materializeRecurring } from '../services/recurring-service.js';
+import { notifySettlementRecorded } from '../services/notify.js';
 import type { Context } from '../context.js';
 
 const transactionInclude = {
@@ -107,8 +107,11 @@ export const transactionRouter = router({
       },
       include: transactionInclude,
     });
+    // `transactionId` lets the digest resolve "does this affect me" later, by
+    // joining payers + splits, without fanning out recipients on this hot path.
     await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'expense.created', {
       title: input.title,
+      transactionId: transaction.id,
     });
     return shapeTransaction(transaction);
   }),
@@ -165,6 +168,15 @@ export const transactionRouter = router({
     await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'settlement.recorded', {
       amount: input.amountMinorUnits,
       method: input.method,
+      transactionId: transaction.id,
+    });
+    // Immediate lane (FR-11.1): the payee hears about this now, not tomorrow.
+    // Never throws — a failed email must not undo a recorded settlement.
+    await notifySettlementRecorded({
+      prisma: ctx.prisma,
+      channels: ctx.notificationChannels ?? [],
+      transactionId: transaction.id,
+      now: new Date(),
     });
     return shapeTransaction(transaction);
   }),
@@ -207,69 +219,17 @@ export const transactionRouter = router({
       });
     }),
 
-  /** Materialize all due occurrences of the group's recurring templates. */
+  /**
+   * Materialize this group's due recurring occurrences on demand.
+   *
+   * The scheduled `/api/cron/notifications` job does this for every group; this
+   * procedure remains so a client can force a group to catch up immediately.
+   */
   materializeDue: protectedProcedure
     .input(z.object({ groupId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
-      const templates = await ctx.prisma.transaction.findMany({
-        where: { groupId: input.groupId, recurrenceInterval: { not: null } },
-        include: { payers: true, splits: true },
-      });
-      const now = new Date();
-      let created = 0;
-
-      for (const tmpl of templates) {
-        const due = dueOccurrences({
-          anchor: tmpl.date,
-          interval: tmpl.recurrenceInterval as RecurrenceInterval,
-          lastRun: tmpl.recurrenceLastRun,
-          now,
-        });
-        for (const date of due) {
-          await ctx.prisma.transaction.create({
-            data: {
-              groupId: tmpl.groupId,
-              type: tmpl.type,
-              title: tmpl.title,
-              note: tmpl.note,
-              currency: tmpl.currency,
-              totalMinorUnits: tmpl.totalMinorUnits,
-              baseMinorUnits: tmpl.baseMinorUnits,
-              exchangeRateToBase: tmpl.exchangeRateToBase,
-              date,
-              category: tmpl.category,
-              splitType: tmpl.splitType,
-              createdById: tmpl.createdById,
-              recurringFromId: tmpl.id,
-              payers: {
-                create: tmpl.payers.map((p) => ({
-                  memberId: p.memberId,
-                  amountMinorUnits: p.amountMinorUnits,
-                })),
-              },
-              splits: {
-                create: tmpl.splits.map((s) => ({
-                  memberId: s.memberId,
-                  shareWeight: s.shareWeight,
-                  exactMinorUnits: s.exactMinorUnits,
-                  percentage: s.percentage,
-                  computedMinorUnits: s.computedMinorUnits,
-                })),
-              },
-            },
-          });
-          created++;
-        }
-        const last = due[due.length - 1];
-        if (last) {
-          await ctx.prisma.transaction.update({
-            where: { id: tmpl.id },
-            data: { recurrenceLastRun: last },
-          });
-        }
-      }
-      return { created };
+      return materializeRecurring({ prisma: ctx.prisma, now: new Date(), groupId: input.groupId });
     }),
 
   /** Import expenses from a CSV export (Phase 4). Equal split among all members. */

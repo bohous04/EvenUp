@@ -1,10 +1,7 @@
 import type { MessageKey } from '@evenup/i18n';
 
 /** Map a Better Auth error code to a localized message key + translate it. */
-export function authErrorMessage(
-  code: string | undefined,
-  t: (key: MessageKey) => string,
-): string {
+export function authErrorMessage(code: string | undefined, t: (key: MessageKey) => string): string {
   switch (code) {
     case 'INVALID_PASSWORD':
     case 'CREDENTIAL_ACCOUNT_NOT_FOUND':

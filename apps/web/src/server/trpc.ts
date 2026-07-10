@@ -5,6 +5,7 @@ import { createContext, type Context } from '@evenup/api';
 import { createSecretBox } from '@evenup/api';
 import { auth } from './auth.js';
 import { env } from './env.js';
+import { emailChannel } from './notification-channel.js';
 import { getObjectStore } from './object-store.js';
 import { ocrRateLimit } from './rate-limit.js';
 
@@ -26,5 +27,8 @@ export async function createTrpcContext(headers: Headers): Promise<Context> {
     objectStore: getObjectStore(),
     fxFetch: fetch, // global fetch enables on-demand FX; tests inject a fake
     ocrRateLimit,
+    // Powers the immediate lane (settlement recorded). A send failure here can
+    // never fail the mutation; the cron's retry sweep picks it up.
+    notificationChannels: [emailChannel],
   });
 }

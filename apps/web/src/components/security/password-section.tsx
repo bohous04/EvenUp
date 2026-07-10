@@ -9,13 +9,7 @@ import { Button, Label, PasswordInput, SectionLabel } from '@/components/ui';
  * Change-password form for users who already have a password, or a
  * "send a set-password link" action for OAuth-only users who don't.
  */
-export function PasswordSection({
-  hasPassword,
-  email,
-}: {
-  hasPassword: boolean;
-  email: string;
-}) {
+export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; email: string }) {
   const { t } = useI18n();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -37,7 +31,10 @@ export function PasswordSection({
           onClick={async () => {
             setBusy(true);
             setErr(null);
-            const res = await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' });
+            const res = await authClient.requestPasswordReset({
+              email,
+              redirectTo: '/reset-password',
+            });
             setBusy(false);
             if (res.error) setErr(authErrorMessage(res.error.code, t));
             else setMsg(t('security.password.setLinkSent'));

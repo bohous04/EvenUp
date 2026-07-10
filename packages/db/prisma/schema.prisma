@@ -41,16 +41,22 @@ model User {
   isVip      Boolean   @default(false) // may use the shared OCR key + store receipt photos
   disabledAt DateTime? // soft-disabled: sign-in is blocked while set
 
-  // Two-factor auth (TOTP, Better Auth `twoFactor` plugin)
-  twoFactorEnabled Boolean     @default(false)
-  twoFactor        TwoFactor[]
+  // Global notification opt-out (FR-11.2). Per-group mute lives on
+  // NotificationPreference; this switch overrides every one of them.
+  notificationsEnabled Boolean @default(true)
 
-  sessions      Session[]
-  accounts      Account[]
-  members       Member[]
-  createdGroups Group[]       @relation("GroupCreatedBy")
-  activityLogs  ActivityLog[]
-  errorLogs     ErrorLog[]
+  // Two-factor auth (TOTP, Better Auth `twoFactor` plugin)
+  twoFactorEnabled Boolean @default(false)
+
+  sessions                Session[]
+  accounts                Account[]
+  members                 Member[]
+  createdGroups           Group[]                  @relation("GroupCreatedBy")
+  activityLogs            ActivityLog[]
+  errorLogs               ErrorLog[]
+  notificationPreferences NotificationPreference[]
+  notificationDeliveries  NotificationDelivery[]
+  twoFactor               TwoFactor[]
 }
 
 // ---------------------------------------------------------------------------
@@ -171,12 +177,13 @@ model Group {
   updatedAt     DateTime      @updatedAt
   archivedAt    DateTime?
 
-  members      Member[]
-  transactions Transaction[]
-  categories   GroupCategory[]
-  invites      Invite[]
-  receipts     Receipt[]
-  activityLogs ActivityLog[]
+  members                 Member[]
+  transactions            Transaction[]
+  categories              GroupCategory[]
+  invites                 Invite[]
+  receipts                Receipt[]
+  activityLogs            ActivityLog[]
+  notificationPreferences NotificationPreference[]
 
   @@index([createdById])
 }
@@ -424,4 +431,68 @@ model ActivityLog {
 
   @@index([groupId])
   @@index([createdAt])
+  // The digest reads "this group's activity since my watermark" on every cron
+  // pass; without the composite index that degrades to a groupId scan + filter.
+  @@index([groupId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (PRD §4.11, FR-11.1/FR-11.2). ActivityLog is the event source
+// of truth; these two tables hold *preferences* and *delivery records* only.
+// ---------------------------------------------------------------------------
+
+/// Per-(user, group) notification settings. Rows are created lazily — absence
+/// means "unmuted, never digested yet".
+model NotificationPreference {
+  id      String  @id @default(cuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId String
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  muted   Boolean @default(false) // per-group mute (FR-11.2)
+
+  /// Digest watermark: activity strictly after this instant is unsent. Advanced
+  /// only after a successful send, so a failed digest is retried, not skipped.
+  lastDigestAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+}
+
+/// One row per (notification, recipient, channel). `idempotencyKey` carries the
+/// at-most-once guarantee: it is inserted BEFORE the send is attempted, so a
+/// crashed-and-retried cron run collides on the unique index instead of
+/// double-sending. Rows are also the retry queue — `pending` and `failed` rows
+/// with `attempts < 3` are swept by the next cron pass.
+model NotificationDelivery {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           String // digest | reminder | settlement.received
+  channel        String // email (push/webpush later)
+  idempotencyKey String    @unique
+  status         String    @default("pending") // pending | sent | failed
+  attempts       Int       @default(0)
+  sentAt         DateTime?
+  error          String? // truncated provider error, never the message body
+
+  /// The rendered-but-unsent notification, so a retry re-sends exactly what the
+  /// original attempt would have. Without it a failed digest could not be
+  /// reconstructed: its watermark has not advanced, but its idempotency key is
+  /// already taken.
+  ///
+  /// Holds display names, group names and amounts only. Nothing that is
+  /// encrypted at rest may be serialized here — notably a reminder carries
+  /// `hasQrPayment: boolean`, never the SPAYD string, because SPAYD embeds the
+  /// creditor's IBAN (§9.2).
+  payload Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, attempts])
 }

@@ -266,6 +266,32 @@ export const cs = {
   'profile.bankAccountHint': 'Použije se pro QR platby ve všech vašich skupinách.',
   'profile.bankAccountInvalid': 'Neplatné číslo účtu. Zkontrolujte formát 19-2000145399/0800.',
 
+  // Notifications (FR-11.1/FR-11.2)
+  'activityType.member.joined': 'Člen se připojil',
+
+  'notify.cta.openGroup': 'Otevřít skupinu',
+  'notify.footer': 'Nechcete tyto e-maily? Vypněte je v Nastavení.',
+  'notify.digest.subject': 'Novinky ve skupině {group}',
+  'notify.digest.title': 'Co je nového ve skupině {group}',
+  'notify.digest.line': '{count}× {what}',
+  'notify.digest.youOwe': 'Aktuálně dlužíte {amount}.',
+  'notify.digest.youAreOwed': 'Aktuálně vám dluží {amount}.',
+  'notify.digest.settled': 'Máte vyrovnáno.',
+  'notify.reminder.subject': 'Připomínka dluhu — {group}',
+  'notify.reminder.title': 'Nevyrovnaný dluh ve skupině {group}',
+  'notify.reminder.body': 'Dlužíte {amount} — {creditor}.',
+  'notify.reminder.qrHint': 'Ve skupině najdete QR platbu pro rychlé zaplacení.',
+  'notify.settlement.subject': '{payer} vám poslal(a) platbu',
+  'notify.settlement.title': 'Platba zaznamenána',
+  'notify.settlement.body': '{payer} označil(a) platbu {amount} ve skupině {group} jako odeslanou.',
+
+  'settings.notifications.title': 'Oznámení',
+  'settings.notifications.enabled': 'Posílat e-mailová oznámení',
+  'settings.notifications.hint':
+    'Souhrn aktivity a připomínky nevyrovnaných dluhů. Vypnutím umlčíte vše.',
+  'settings.notifications.saved': 'Nastavení oznámení uloženo.',
+  'group.notifications.mute': 'Ztlumit oznámení pro tuto skupinu',
+
   // Security settings
   'security.title': 'Zabezpečení',
   'security.password.title': 'Heslo',

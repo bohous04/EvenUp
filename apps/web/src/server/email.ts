@@ -73,18 +73,44 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
   );
 }
 
-/** Shared branded HTML shell for a single-button transactional email. */
-function brandedButton(url: string, intro: string, cta: string): string {
+export const EMAIL_BRAND_COLOR = '#4f46e5';
+
+/** The primary call-to-action button, styled once for every transactional email. */
+export function emailButton(url: string, label: string): string {
+  return `<a href="${url}" style="display:inline-block;background:${EMAIL_BRAND_COLOR};color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">${label}</a>`;
+}
+
+/**
+ * The branded page chrome every EvenUp email shares: grey page, centred white
+ * card, wordmark. `cardStyle` lets a caller centre its content; `belowCard` is
+ * for fine print that sits outside the card.
+ */
+export function emailShell(
+  innerHtml: string,
+  opts: { cardStyle?: string; belowCard?: string } = {},
+): string {
+  const extra = opts.cardStyle ? `;${opts.cardStyle}` : '';
   return `<!doctype html><html><body style="margin:0;background:#f5f5f5;font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#171717">
   <div style="max-width:480px;margin:0 auto;padding:32px 20px">
-    <div style="background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:28px;text-align:center">
-      <div style="font-size:20px;font-weight:800;color:#4f46e5">EvenUp</div>
-      <p style="color:#525252;margin:8px 0 24px">${intro}</p>
-      <a href="${url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px">${cta}</a>
-      <p style="color:#737373;font-size:12px;margin-top:24px;word-break:break-all">${url}</p>
-    </div>
-    <p style="color:#a3a3a3;font-size:12px;text-align:center;margin-top:16px">Odkaz brzy vyprší. Pokud jste o přihlášení nežádali, e-mail ignorujte.<br/>This link expires shortly. If you didn't request it, ignore this email.</p>
+    <div style="background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:28px${extra}">
+      <div style="font-size:20px;font-weight:800;color:${EMAIL_BRAND_COLOR}">EvenUp</div>
+      ${innerHtml}
+    </div>${opts.belowCard ?? ''}
   </div></body></html>`;
+}
+
+/** Shared branded HTML shell for a single-button transactional email. */
+function brandedButton(url: string, intro: string, cta: string): string {
+  return emailShell(
+    `<p style="color:#525252;margin:8px 0 24px">${intro}</p>
+      ${emailButton(url, cta)}
+      <p style="color:#737373;font-size:12px;margin-top:24px;word-break:break-all">${url}</p>`,
+    {
+      cardStyle: 'text-align:center',
+      belowCard: `
+    <p style="color:#a3a3a3;font-size:12px;text-align:center;margin-top:16px">Odkaz brzy vyprší. Pokud jste o přihlášení nežádali, e-mail ignorujte.<br/>This link expires shortly. If you didn't request it, ignore this email.</p>`,
+    },
+  );
 }
 
 /** Branded bilingual (CZ/EN) password-reset email. */

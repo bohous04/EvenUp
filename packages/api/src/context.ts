@@ -7,6 +7,7 @@ import type { PrismaClient } from '@evenup/db';
 import type { Locale } from '@evenup/i18n';
 import type { SecretBox } from './crypto/secret-box.js';
 import type { FetchLike } from './ocr/openrouter-adapter.js';
+import type { NotificationChannel } from './notifications/types.js';
 import type { ObjectStore } from './storage/object-store.js';
 
 /** Minimal rate-limiter shape (implemented in packages/api/src/rate-limit.ts). */
@@ -34,6 +35,11 @@ export interface Context {
   readonly fxFetch?: FetchLike;
   /** Per-user rate limiter for OCR (fake in tests; unset disables limiting). */
   readonly ocrRateLimit?: RateLimiter;
+  /**
+   * Transports for the immediate notification lane (fake in tests). Empty or
+   * unset simply means nothing is sent — the mutation still succeeds.
+   */
+  readonly notificationChannels?: readonly NotificationChannel[];
 }
 
 export interface CreateContextOptions {
@@ -45,6 +51,7 @@ export interface CreateContextOptions {
   readonly objectStore?: ObjectStore;
   readonly fxFetch?: FetchLike;
   readonly ocrRateLimit?: RateLimiter;
+  readonly notificationChannels?: readonly NotificationChannel[];
 }
 
 /** Build a context (used by both the HTTP handler and integration tests). */
@@ -58,5 +65,6 @@ export function createContext(opts: CreateContextOptions): Context {
     objectStore: opts.objectStore,
     fxFetch: opts.fxFetch,
     ocrRateLimit: opts.ocrRateLimit,
+    notificationChannels: opts.notificationChannels ?? [],
   };
 }

@@ -5,6 +5,7 @@ import { deriveInitials, colorForIndex } from '@evenup/core';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { assertGroupAdmin } from '../access.js';
+import { logActivity } from '../services/activity.js';
 
 export const inviteRouter = router({
   create: protectedProcedure
@@ -113,6 +114,12 @@ export const inviteRouter = router({
         return claimed;
       });
 
+      // Claiming an invite is the only way a Member ever gains a userId, and it
+      // left no trace in the activity log (FR-9.1). The group's other members
+      // learn about it in their next digest.
+      await logActivity(ctx.prisma, invite.groupId, ctx.user.id, 'member.joined', {
+        name: member.displayName,
+      });
       return member;
     }),
 });

@@ -10,6 +10,7 @@ import { createContext, type AuthUser, type RateLimiter } from '../context.js';
 import { createCallerFactory } from '../trpc.js';
 import { createSecretBox } from '../crypto/secret-box.js';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
+import type { NotificationChannel } from '../notifications/types.js';
 import type { ObjectStore } from '../storage/object-store.js';
 
 // Deterministic 32-byte (64 hex) key — test-only.
@@ -28,6 +29,7 @@ export function makeCaller(
     objectStore?: ObjectStore;
     fxFetch?: FetchLike;
     ocrRateLimit?: RateLimiter;
+    notificationChannels?: readonly NotificationChannel[];
   } = {},
 ): Caller {
   return callerFactory(
@@ -39,6 +41,7 @@ export function makeCaller(
       objectStore: opts.objectStore,
       fxFetch: opts.fxFetch,
       ocrRateLimit: opts.ocrRateLimit,
+      notificationChannels: opts.notificationChannels,
     }),
   );
 }
@@ -54,6 +57,8 @@ export async function createTestUser(email = 'olivia@example.com'): Promise<Auth
 
 /** Wipe all data between tests (children cascade from groups/users). */
 export async function resetDb(): Promise<void> {
+  await testPrisma.notificationDelivery.deleteMany();
+  await testPrisma.notificationPreference.deleteMany();
   await testPrisma.errorLog.deleteMany();
   await testPrisma.instanceConfig.deleteMany();
   await testPrisma.activityLog.deleteMany();
