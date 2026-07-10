@@ -1,9 +1,15 @@
 # Next Round — design
 
 **Date:** 2026-07-10
-**Status:** approved
+**Status:** approved, partly superseded
 **Requirements:** PRD §1.2 (vision: minimize debts), FR-6.1 (net balances), FR-6.5 (visualize debts),
 §5 (debt minimization), §14 (success metric: % of group debts that get marked settled)
+
+> **Partly superseded by [`2026-07-10-next-round-tied-payers-design.md`](./2026-07-10-next-round-tied-payers-design.md).**
+> The gate no longer decides _whether_ the card speaks, only _how_ it words itself, and every member
+> tied at the deepest debt is named rather than one being crowned. The sections marked **superseded**
+> below describe the original behavior. The gate's derivation, its numeric-safety analysis, `E`, and
+> the structural hides are all unchanged and still authoritative.
 
 ## Problem
 
@@ -95,6 +101,10 @@ There is no tuning constant. The gate is the algebraic statement of "don't make 
 the part of this feature that a competitor's afternoon-project version does not have: it is what
 refuses to send a member 1 450 Kč in debt to pay for a 4 000 Kč cabin and land them 1 150 Kč in
 credit.
+
+> **Superseded.** Selection no longer consults the gate, and tied members are named together rather
+> than one being crowned. See the tied-payers spec. The derivation above still stands — the gate now
+> decides the card's _wording_, not its _silence_.
 
 Among qualifying members, the card names the one **furthest in debt** (most negative `b`). Exact ties
 break by **least recently paid**, then by `memberId` — the same stable-by-id convention as
@@ -224,6 +234,10 @@ Amounts and the member's initials/color chip reuse the existing balance-row form
 reads as part of the balances block rather than an advertisement above it.
 
 ### When the card hides
+
+> **Superseded.** The last two rows no longer hold. Debtors who clear no gate are now named with the
+> soft wording instead of hiding the card, and tied payers suppress the runner-up line. See the
+> tied-payers spec for the current table. The three structural hides are unchanged.
 
 | Condition                                | Behavior                                            |
 | ---------------------------------------- | --------------------------------------------------- |
