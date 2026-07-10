@@ -97,7 +97,7 @@ model TwoFactor {
 Run (requires a local Postgres — see the E2E recipe, Postgres on 55433):
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:55433/evenup \
+DATABASE_URL=postgresql://evenup:pass@localhost:55433/evenup \
   pnpm --filter @evenup/db exec prisma migrate dev --name two_factor
 pnpm --filter @evenup/db generate
 ```

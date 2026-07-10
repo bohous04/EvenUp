@@ -22,6 +22,7 @@ export const userRouter = router({
         bankAccountEncrypted: true,
         isAdmin: true,
         isVip: true,
+        twoFactorEnabled: true,
       },
     });
     // Never expose the key or the raw account; just derived, non-sensitive facts.

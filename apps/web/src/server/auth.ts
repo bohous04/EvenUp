@@ -3,7 +3,7 @@ import 'server-only';
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { bearer } from 'better-auth/plugins';
+import { bearer, twoFactor } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { expo } from '@better-auth/expo';
 import { prisma } from '@evenup/db';
@@ -70,6 +70,7 @@ const appleConfig = appleSecret ? { ...appleSecret, bundleId } : null;
 const socialProviders = buildSocialProviders(googleConfig, appleConfig);
 
 export const auth = betterAuth({
+  appName: 'EvenUp',
   baseURL: env.authUrl,
   secret: env.authSecret,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -98,7 +99,28 @@ export const auth = betterAuth({
   // Link a social account into an existing user when the provider vouches for
   // the email. Apple and Google both send `email_verified`, so no
   // `trustedProviders` — that would force-link *unverified* emails.
-  account: { accountLinking: { enabled: true } },
+  //
+  // `allowDifferentEmails` lets a signed-in user link a provider whose email
+  // differs from their account email. Sign In with Apple routinely returns a
+  // different address than the account's — a `@privaterelay.appleid.com` relay
+  // when "Hide My Email" is on, a different primary Apple email, or no email at
+  // all on re-authorization — and Better Auth's link callback otherwise rejects
+  // it with `email_doesn't_match` (silently: that branch logs nothing, so the
+  // link just "does nothing"). This flag is read ONLY on the explicit,
+  // session-authenticated link paths (link-social + the OAuth link callback);
+  // it does NOT touch auto-linking on sign-in, which stays gated by
+  // `email_verified`. The user proves control of both accounts, so there's no
+  // takeover vector.
+  account: { accountLinking: { enabled: true, allowDifferentEmails: true } },
+  // Sign In with Apple returns its OAuth callback via a cross-site `form_post`
+  // POST from appleid.apple.com. Browsers do NOT send a `SameSite=Lax` cookie on
+  // a cross-site POST, so Better Auth's default `state` cookie never reaches the
+  // callback — the state check fails and Apple sign-in *and* account linking
+  // break (Google's GET-redirect callback is unaffected, which is why it works).
+  // `SameSite=None` (still Secure + HttpOnly, 5-min lifetime) lets the state
+  // cookie survive the POST. Scoped to the `state` cookie only — the session
+  // cookie stays Lax for CSRF safety.
+  advanced: { cookies: { state: { attributes: { sameSite: 'none' } } } },
   socialProviders,
   databaseHooks: {
     session: {
@@ -122,6 +144,7 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    twoFactor({ issuer: 'EvenUp' }),
     // Native deep-link session handoff for the Expo app: appends the session
     // cookie to the evenup:// redirect after a native OAuth callback so the
     // client can store it (without this, the app bounces back to sign-in). FR-1.5.

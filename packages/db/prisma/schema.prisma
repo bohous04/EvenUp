@@ -45,14 +45,18 @@ model User {
   // NotificationPreference; this switch overrides every one of them.
   notificationsEnabled Boolean @default(true)
 
+  // Two-factor auth (TOTP, Better Auth `twoFactor` plugin)
+  twoFactorEnabled Boolean @default(false)
+
   sessions                Session[]
   accounts                Account[]
   members                 Member[]
-  createdGroups           Group[]                 @relation("GroupCreatedBy")
+  createdGroups           Group[]                  @relation("GroupCreatedBy")
   activityLogs            ActivityLog[]
   errorLogs               ErrorLog[]
   notificationPreferences NotificationPreference[]
   notificationDeliveries  NotificationDelivery[]
+  twoFactor               TwoFactor[]
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +133,18 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+model TwoFactor {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret      String
+  backupCodes String
+  verified    Boolean @default(true)
+
+  @@index([userId])
+  @@map("twoFactor")
 }
 
 // ---------------------------------------------------------------------------

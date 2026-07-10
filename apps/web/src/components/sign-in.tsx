@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
-import { signIn } from '@/lib/auth-client';
+import { signIn, authClient } from '@/lib/auth-client';
+import { authErrorMessage } from '@/lib/auth-errors';
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 import { AppleLogo, GoogleLogo } from '@/components/icons';
 
@@ -23,6 +24,15 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // 2FA step: shown in place of the email/password form when the account
+  // requires a second factor. Navigation after a successful verify is the
+  // same as the normal path below — the session atom updates reactively and
+  // the parent page (e.g. `app/page.tsx`) swaps away from `<SignIn>` itself,
+  // so no explicit redirect is needed here either.
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [code, setCode] = useState('');
+  const [useBackup, setUseBackup] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,11 +41,33 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
     const res = await signIn.email({ email, password, callbackURL: safeCallback });
     setLoading(false);
     if (res.error) {
-      const code = res.error.code;
+      const errCode = res.error.code;
       setError(
-        code === 'EMAIL_NOT_VERIFIED' ? t('auth.err.unverified') : t('auth.err.invalidCredentials'),
+        errCode === 'EMAIL_NOT_VERIFIED'
+          ? t('auth.err.unverified')
+          : t('auth.err.invalidCredentials'),
       );
+      return;
     }
+    // When the account has 2FA, Better Auth creates no session and returns
+    // `{ twoFactorRedirect: true }` (a normal sign-in redirects via `callbackURL`
+    // instead). Read it off the awaited response — the strict sign-in type omits
+    // the two-factor plugin's extra field, so narrow with a cast. (The per-call
+    // `onSuccess` fetch callback did not fire reliably here.)
+    if ((res.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) {
+      setTwoFactor(true);
+    }
+  }
+
+  async function submitTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const res = useBackup
+      ? await authClient.twoFactor.verifyBackupCode({ code })
+      : await authClient.twoFactor.verifyTotp({ code, trustDevice });
+    setLoading(false);
+    if (res.error) setError(authErrorMessage(res.error.code, t));
   }
 
   return (
@@ -47,96 +79,154 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('app.tagline')}</p>
       </div>
       <Card>
-        <div className="space-y-4">
-          <form onSubmit={submit} className="space-y-4">
+        {twoFactor ? (
+          <form onSubmit={submitTwoFactor} className="space-y-4">
             <div>
-              <Label htmlFor="email">{t('auth.email')}</Label>
+              <Label htmlFor="signin-2fa">
+                {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
+              </Label>
               <Input
-                id="email"
-                type="email"
+                id="signin-2fa"
+                inputMode={useBackup ? 'text' : 'numeric'}
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoFocus
+                data-testid="signin-2fa-code"
               />
             </div>
-            <div>
-              <Label htmlFor="password">{t('auth.password')}</Label>
-              <PasswordInput
-                id="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                data-testid="password-input"
-                showLabel={t('auth.showPassword')}
-                hideLabel={t('auth.hidePassword')}
-              />
-            </div>
+            {!useBackup ? (
+              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={trustDevice}
+                  onChange={(e) => setTrustDevice(e.target.checked)}
+                />
+                {t('security.2fa.trustDevice')}
+              </label>
+            ) : null}
             {error ? (
               <p role="alert" className="text-sm text-red-700 dark:text-red-400">
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={loading} className="w-full" data-testid="signin-submit">
-              {loading ? t('common.loading') : t('auth.signInBtn')}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full"
+              data-testid="signin-2fa-submit"
+            >
+              {loading ? t('common.loading') : t('security.2fa.confirm')}
             </Button>
+            <button
+              type="button"
+              className="block text-sm text-brand-600 dark:text-brand-100"
+              onClick={() => {
+                setUseBackup(!useBackup);
+                setCode('');
+                setError(null);
+              }}
+            >
+              {useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
+            </button>
           </form>
-          <div className="flex items-center justify-between text-sm">
-            <Link
-              href="/forgot-password"
-              data-testid="forgot-link"
-              className="text-brand-600 dark:text-brand-100"
-            >
-              {t('auth.forgotLink')}
-            </Link>
-            <Link
-              href={
-                safeCallback === '/'
-                  ? '/sign-up'
-                  : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
-              }
-              data-testid="signup-link"
-              className="text-brand-600 dark:text-brand-100"
-            >
-              {t('auth.signUpLink')}
-            </Link>
-          </div>
-          {googleEnabled || appleEnabled ? (
-            <>
-              <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
-                {t('common.or')}
-                <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+        ) : (
+          <div className="space-y-4">
+            <form onSubmit={submit} className="space-y-4">
+              <div>
+                <Label htmlFor="email">{t('auth.email')}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
               </div>
-              {googleEnabled ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex w-full items-center justify-center gap-2"
-                  onClick={() => signIn.social({ provider: 'google', callbackURL: safeCallback })}
-                  data-testid="google-signin"
-                >
-                  <GoogleLogo size={16} />
-                  {t('auth.continueGoogle')}
-                </Button>
+              <div>
+                <Label htmlFor="password">{t('auth.password')}</Label>
+                <PasswordInput
+                  id="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  data-testid="password-input"
+                  showLabel={t('auth.showPassword')}
+                  hideLabel={t('auth.hidePassword')}
+                />
+              </div>
+              {error ? (
+                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+                  {error}
+                </p>
               ) : null}
-              {appleEnabled ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex w-full items-center justify-center gap-2"
-                  onClick={() => signIn.social({ provider: 'apple', callbackURL: safeCallback })}
-                  data-testid="apple-signin"
-                >
-                  <AppleLogo size={16} />
-                  {t('auth.continueApple')}
-                </Button>
-              ) : null}
-            </>
-          ) : null}
-        </div>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full"
+                data-testid="signin-submit"
+              >
+                {loading ? t('common.loading') : t('auth.signInBtn')}
+              </Button>
+            </form>
+            <div className="flex items-center justify-between text-sm">
+              <Link
+                href="/forgot-password"
+                data-testid="forgot-link"
+                className="text-brand-600 dark:text-brand-100"
+              >
+                {t('auth.forgotLink')}
+              </Link>
+              <Link
+                href={
+                  safeCallback === '/'
+                    ? '/sign-up'
+                    : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
+                }
+                data-testid="signup-link"
+                className="text-brand-600 dark:text-brand-100"
+              >
+                {t('auth.signUpLink')}
+              </Link>
+            </div>
+            {googleEnabled || appleEnabled ? (
+              <>
+                <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+                  {t('common.or')}
+                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
+                </div>
+                {googleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="flex w-full items-center justify-center gap-2"
+                    onClick={() => signIn.social({ provider: 'google', callbackURL: safeCallback })}
+                    data-testid="google-signin"
+                  >
+                    <GoogleLogo size={16} />
+                    {t('auth.continueGoogle')}
+                  </Button>
+                ) : null}
+                {appleEnabled ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="flex w-full items-center justify-center gap-2"
+                    onClick={() => signIn.social({ provider: 'apple', callbackURL: safeCallback })}
+                    data-testid="apple-signin"
+                  >
+                    <AppleLogo size={16} />
+                    {t('auth.continueApple')}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        )}
       </Card>
     </div>
   );
