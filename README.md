@@ -29,7 +29,7 @@ Android aplikace. Zdarma, bez reklam._
   people by tapping **colored initial chips**. Manual entry is always available.
 - **SPAYD QR ("QR Platba")** — generate a Czech bank-transfer QR for a
   suggested payment, then mark it settled.
-- **Multi-currency** with daily FX rates (override + per-trip lock).
+- **Multi-currency** with daily FX rates and a manual per-expense override.
 - **Bilingual** CZ/EN, accessible (WCAG 2.1 AA), installable PWA.
 
 See [`docs/PRD.md`](docs/PRD.md) for the full product spec.
