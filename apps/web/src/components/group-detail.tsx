@@ -11,6 +11,7 @@ import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { SettleCard } from '@/components/settle-card';
 import { BalancesCard } from '@/components/balances-card';
+import { NextRoundCard } from '@/components/next-round-card';
 import { SpendStats } from '@/components/spend-stats';
 import { CsvImport } from '@/components/csv-import';
 import { ActivityFeed } from '@/components/activity-feed';
@@ -141,6 +142,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </button>
       </div>
 
+      <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
       <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 
       {/* Recent transactions */}

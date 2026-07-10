@@ -209,6 +209,7 @@ export function AddExpenseForm({
       setOpen(false);
       void utils.transaction.list.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
+      void utils.balance.nextPayer.invalidate({ groupId });
       void utils.stats.byCategory.invalidate({ groupId });
       void utils.activity.list.invalidate({ groupId });
     },

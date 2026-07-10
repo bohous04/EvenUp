@@ -44,6 +44,7 @@ import {
   Baby,
   Gamepad2,
   Beer,
+  HandCoins,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -145,5 +146,6 @@ export {
   ChevronRight,
   ChevronLeft,
   LogOut,
+  HandCoins,
 };
 export type { LucideIcon };
