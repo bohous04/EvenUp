@@ -61,6 +61,7 @@ export {
   computeDirectDebts,
   settle,
 } from './balance/balance.js';
+export { suggestNextPayer, type NextPayerCandidate } from './balance/next-payer.js';
 
 // SPAYD / QR Platba
 export {
