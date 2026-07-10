@@ -11,7 +11,7 @@ export {
   type MessageKey,
   type InterpolationValues,
 } from './translate.js';
-export { formatCurrency, formatNumber, formatDate, type Locale } from './format.js';
+export { formatCurrency, formatNumber, formatDate, formatNameList, type Locale } from './format.js';
 export { cs } from './locales/cs.js';
 export { en } from './locales/en.js';
 export type { Messages } from './locales/cs.js';
