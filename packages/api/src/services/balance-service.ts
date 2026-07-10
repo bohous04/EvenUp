@@ -12,7 +12,7 @@ import {
   computeNetBalances,
   minimizeDebts,
   computeDirectDebts,
-  suggestNextPayer,
+  rankNextRound,
   type Balance,
   type BalanceTransaction,
   type Payment,
@@ -113,7 +113,9 @@ export type NextRoundResult =
   | {
       readonly state: 'suggested';
       readonly typicalExpenseMinorUnits: number;
-      readonly ranked: MemberBalance[];
+      readonly clearsGate: boolean;
+      readonly payers: MemberBalance[];
+      readonly runnerUp: MemberBalance[];
     };
 
 /** Lower median: integer, deterministic, no averaging of two middles. */
@@ -168,23 +170,19 @@ export async function getNextRound(
     lastPaidAt: lastPaidAt.get(m.id) ?? null,
   }));
 
-  // Safe: `ranked` is a subset of `candidates`, which is built from `activeMembers`,
-  // and `byId` is built from `balances`, which covers every member (including
-  // inactive ones) -- so every ranked memberId is guaranteed to be a key.
-  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map(
-    (c) => byId.get(c.memberId)!,
-  );
-  if (ranked.length === 0) {
-    // An empty ranking has two different causes that must not be conflated: the
-    // group is truly settled (no debtors), or debtors exist but every one of them
-    // is shallower than the gate, so paying a typical round would not help any of
-    // them. The card's contract is to name who should pay; when nobody should, it
-    // has nothing true to say -- and the balances list right below it already
-    // shows who owes what -- so only the truly-settled case gets the "square"
-    // message, and the debts-but-nobody-qualifies case hides the card instead.
-    const anyDebtor = candidates.some((c) => c.balanceMinorUnits < 0);
-    return anyDebtor ? { state: 'hidden' } : { state: 'square' };
-  }
+  const ranking = rankNextRound(candidates, typicalExpenseMinorUnits);
+  // An empty ranking now means exactly one thing: nobody owes anything.
+  if (!ranking) return { state: 'square' };
 
-  return { state: 'suggested', typicalExpenseMinorUnits, ranked };
+  // Safe: every ranked memberId comes from `candidates`, built from `activeMembers`,
+  // and `byId` is built from `balances`, which covers every member of the group.
+  const toBalances = (cs: readonly NextPayerCandidate[]) => cs.map((c) => byId.get(c.memberId)!);
+
+  return {
+    state: 'suggested',
+    typicalExpenseMinorUnits,
+    clearsGate: ranking.clearsGate,
+    payers: toBalances(ranking.payers),
+    runnerUp: toBalances(ranking.runnerUp),
+  };
 }
