@@ -18,6 +18,8 @@ export const ocrRouter = router({
         z.object({
           groupId: z.string(),
           imageDataUrl: z.string().startsWith('data:image/').max(MAX_PAGE_DATA_URL_CHARS),
+          // UI language to translate item names into (best-effort).
+          lang: z.string().max(5).optional(),
         }),
         z.object({
           groupId: z.string(),
@@ -30,6 +32,7 @@ export const ocrRouter = router({
             )
             .min(1)
             .max(MAX_PAGES),
+          lang: z.string().max(5).optional(),
         }),
       ]),
     )
@@ -88,6 +91,7 @@ export const ocrRouter = router({
           fallbackCurrency: group.baseCurrency,
           fetchImpl: ctx.ocrFetch,
           pdfEngine: process.env.OCR_PDF_ENGINE || undefined,
+          targetLang: input.lang,
         });
 
         // Best-effort image storage (FR-5.8): a storage failure must never block

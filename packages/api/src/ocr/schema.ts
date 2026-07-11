@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 export const receiptItemSchema = z.object({
   name: z.string(),
+  nameTranslated: z.string().nullable().optional(),
   quantity: z.number(),
   unitPrice: z.number().nullable().optional(),
   totalPrice: z.number(),
@@ -47,6 +48,11 @@ export const RECEIPT_JSON_SCHEMA = {
           required: ['name', 'quantity', 'totalPrice'],
           properties: {
             name: { type: 'string' },
+            nameTranslated: {
+              type: ['string', 'null'],
+              description:
+                'The item name translated into the requested language, if one was asked for',
+            },
             quantity: { type: 'number' },
             unitPrice: { type: ['number', 'null'] },
             totalPrice: { type: 'number' },

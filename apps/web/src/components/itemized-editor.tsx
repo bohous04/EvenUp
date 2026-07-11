@@ -11,6 +11,9 @@ export interface EditorItem {
   /** Price as an editable decimal string in the group's base currency. */
   priceText: string;
   assigned: Set<string>;
+  /** Original (pre-translation) receipt wording, shown under the (translated)
+   * name as a hint. Only set on the OCR path when a translation was applied. */
+  originalName?: string;
 }
 
 interface MemberLite {
@@ -146,6 +149,15 @@ export function ItemizedEditor({
                 <Trash2 size={16} aria-hidden />
               </button>
             </div>
+            {it.originalName ? (
+              <p
+                className="-mt-1 mb-2 truncate px-1 text-xs text-zinc-400 dark:text-zinc-500"
+                title={it.originalName}
+                data-testid={`ocr-item-original-${i}`}
+              >
+                {it.originalName}
+              </p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               {members.map((m) => (
                 <MemberChip

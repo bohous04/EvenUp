@@ -51,6 +51,9 @@ export class OcrError extends Error {
 
 export interface OcrItem {
   readonly name: string;
+  /** The item name translated into the requested language, or null if none was
+   * requested / the model omitted it. */
+  readonly nameTranslated: string | null;
   readonly quantity: number;
   readonly unitPriceMinorUnits: number | null;
   readonly totalMinorUnits: number;
@@ -93,17 +96,34 @@ export interface ExtractReceiptArgs {
   /** Currency to use when the model returns an unrecognized/symbol currency. */
   readonly fallbackCurrency?: string;
   readonly pdfEngine?: string;
+  /** UI language code (e.g. 'cs', 'en') to translate item names into. When set
+   * and recognized, the model is asked to also return `nameTranslated`. */
+  readonly targetLang?: string;
 }
 
-const PROMPT =
+const BASE_PROMPT =
   'Extract the receipt as structured JSON. Czech receipts use comma decimals and "Kč". ' +
   'Return every line item with its name, quantity and total price. Amounts are major units (e.g. 24.90). ' +
   'The "currency" MUST be a 3-letter ISO 4217 code (e.g. CZK for Kč, EUR for €), never a symbol.' +
   ' The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once.';
 
+// Language codes we can name for the model. Unknown codes skip translation.
+const LANGUAGE_NAMES: Record<string, string> = { cs: 'Czech', en: 'English' };
+
+/** Prompt text, optionally asking the model to translate each item name. */
+function buildPrompt(targetLang?: string): string {
+  const langName = targetLang ? LANGUAGE_NAMES[targetLang] : undefined;
+  if (!langName) return BASE_PROMPT;
+  return (
+    BASE_PROMPT +
+    ` Also translate each item's name into ${langName} and return it in "nameTranslated";` +
+    ` keep the original receipt wording in "name". If a name is already in ${langName}, repeat it.`
+  );
+}
+
 const isPdf = (dataUrl: string) => dataUrl.startsWith('data:application/pdf');
 
-function buildBody(pages: string[], model: string, pdfEngine: string) {
+function buildBody(pages: string[], model: string, pdfEngine: string, targetLang?: string) {
   const parts = pages.map((p) =>
     isPdf(p)
       ? { type: 'file', file: { filename: 'receipt.pdf', file_data: p } }
@@ -111,7 +131,9 @@ function buildBody(pages: string[], model: string, pdfEngine: string) {
   );
   const body: Record<string, unknown> = {
     model,
-    messages: [{ role: 'user', content: [{ type: 'text', text: PROMPT }, ...parts] }],
+    messages: [
+      { role: 'user', content: [{ type: 'text', text: buildPrompt(targetLang) }, ...parts] },
+    ],
     response_format: { type: 'json_schema', json_schema: RECEIPT_JSON_SCHEMA },
   };
   if (pages.some(isPdf)) {
@@ -130,6 +152,7 @@ function normalize(raw: RawReceipt, fallbackCurrency: string): OcrResult {
   const currency = normalizeCurrencyCode(raw.currency, fallbackCurrency);
   const items: OcrItem[] = raw.items.map((it) => ({
     name: it.name,
+    nameTranslated: it.nameTranslated ?? null,
     quantity: it.quantity,
     unitPriceMinorUnits:
       it.unitPrice === null || it.unitPrice === undefined ? null : toMinor(it.unitPrice, currency),
@@ -161,6 +184,7 @@ async function callOnce(
   args: Required<Pick<ExtractReceiptArgs, 'apiKey' | 'model' | 'baseUrl' | 'timeoutMs'>> & {
     pages: string[];
     pdfEngine: string;
+    targetLang?: string;
   },
   fetchImpl: FetchLike,
 ): Promise<{ content: string; usage?: OcrUsage }> {
@@ -174,7 +198,7 @@ async function callOnce(
         Authorization: `Bearer ${args.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(buildBody(args.pages, args.model, args.pdfEngine)),
+      body: JSON.stringify(buildBody(args.pages, args.model, args.pdfEngine, args.targetLang)),
       signal: controller.signal,
     });
   } catch (err) {
@@ -216,6 +240,7 @@ export async function extractReceipt(args: ExtractReceiptArgs): Promise<OcrResul
     baseUrl: args.baseUrl ?? OPENROUTER_URL,
     timeoutMs: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     pdfEngine: args.pdfEngine ?? DEFAULT_PDF_ENGINE,
+    targetLang: args.targetLang,
   };
 
   const fallbackCurrency = args.fallbackCurrency ?? 'USD';

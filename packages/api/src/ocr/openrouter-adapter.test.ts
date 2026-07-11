@@ -95,6 +95,7 @@ describe('extractReceipt — happy path', () => {
     expect(result.items).toEqual([
       {
         name: 'Mléko',
+        nameTranslated: null,
         quantity: 1,
         unitPriceMinorUnits: 2490,
         totalMinorUnits: 2490,
@@ -102,6 +103,7 @@ describe('extractReceipt — happy path', () => {
       },
       {
         name: 'Chléb',
+        nameTranslated: null,
         quantity: 2,
         unitPriceMinorUnits: 1950,
         totalMinorUnits: 3900,
@@ -201,6 +203,48 @@ describe('extractReceipt — robustness (§6.4)', () => {
     await expect(extractReceipt({ ...baseArgs, fetchImpl })).rejects.toThrow(
       /502.*upstream model error/,
     );
+  });
+});
+
+describe('extractReceipt — item name translation', () => {
+  test('threads a returned translated name into the item, keeping the original', async () => {
+    const withTranslation = JSON.stringify({
+      currency: 'EUR',
+      items: [{ name: 'Milch', nameTranslated: 'Mléko', quantity: 1, totalPrice: 1.5 }],
+      total: 1.5,
+      confidence: 0.9,
+    });
+    const result = await extractReceipt({
+      ...baseArgs,
+      fetchImpl: fakeFetch(withTranslation),
+      targetLang: 'cs',
+    });
+    expect(result.items[0]!.name).toBe('Milch');
+    expect(result.items[0]!.nameTranslated).toBe('Mléko');
+  });
+
+  test('leaves nameTranslated null when the model omits it', async () => {
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(HAPPY) });
+    expect(result.items[0]!.nameTranslated).toBeNull();
+  });
+
+  test('asks the model to translate into the target language when given one', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({ ...baseArgs, fetchImpl, targetLang: 'cs' });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const prompt = body.messages[0].content[0].text;
+    expect(prompt).toMatch(/translate/i);
+    expect(prompt).toMatch(/Czech/);
+  });
+
+  test('adds no translation instruction without a target language', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({ ...baseArgs, fetchImpl });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const prompt = body.messages[0].content[0].text;
+    expect(prompt).not.toMatch(/nameTranslated/);
   });
 });
 

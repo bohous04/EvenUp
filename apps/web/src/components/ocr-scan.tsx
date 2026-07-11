@@ -81,7 +81,7 @@ export function OcrScan({
   baseCurrency: string;
   onSaved?: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const utils = trpc.useUtils();
   const me = trpc.user.me.useQuery();
   // Receipt OCR needs either VIP access (shared instance key) or the user's own
@@ -106,11 +106,23 @@ export function OcrScan({
 
   const scan = trpc.ocr.scan.useMutation({
     onSuccess: (res) => {
-      // Expand a line's whole quantity into that many rows (e.g. "3× Čokoláda")
+      // Prefer the translated name for display, keeping the receipt's original
+      // wording as a hint underneath (only when it actually differs). Then
+      // expand a line's whole quantity into that many rows (e.g. "3× Čokoláda")
       // so each unit can be assigned to a different person in the split below.
+      const resolved = res.result.items.map((it) => {
+        const translated = it.nameTranslated?.trim();
+        return {
+          name: translated || it.name,
+          originalName: translated && translated !== it.name ? it.name : undefined,
+          quantity: it.quantity,
+          totalMinorUnits: it.totalMinorUnits,
+        };
+      });
       setItems(
-        expandItemQuantities(res.result.items).map((it) => ({
+        expandItemQuantities(resolved).map((it) => ({
           name: it.name,
+          originalName: it.originalName,
           priceText: minorToDecimalString(it.totalMinorUnits, baseCurrency),
           assigned: new Set<string>(),
         })),
@@ -146,7 +158,7 @@ export function OcrScan({
     setError(null);
     try {
       const dataUrl = await downscaleImage(file);
-      scan.mutate({ groupId, imageDataUrl: dataUrl });
+      scan.mutate({ groupId, imageDataUrl: dataUrl, lang: locale });
     } catch {
       setError(t('ocr.failed'));
     }
@@ -197,7 +209,7 @@ export function OcrScan({
   /** Send the queued pages (in their current order) to `ocr.scan`. */
   function scanPages() {
     if (pages.length === 0) return;
-    scan.mutate({ groupId, pages: pages.map((p) => p.dataUrl) });
+    scan.mutate({ groupId, pages: pages.map((p) => p.dataUrl), lang: locale });
   }
 
   function save() {

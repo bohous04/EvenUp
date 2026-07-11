@@ -39,6 +39,17 @@ describe('expandItemQuantities', () => {
     expect(out).toEqual([{ name: 'Šroub', totalMinorUnits: 50000 }]);
   });
 
+  it('carries an original (pre-translation) name onto every expanded row', () => {
+    expect(
+      expandItemQuantities([
+        { name: 'Chocolate', originalName: 'Čokoláda', quantity: 2, totalMinorUnits: 5000 },
+      ]),
+    ).toEqual([
+      { name: 'Chocolate', originalName: 'Čokoláda', totalMinorUnits: 2500 },
+      { name: 'Chocolate', originalName: 'Čokoláda', totalMinorUnits: 2500 },
+    ]);
+  });
+
   it('preserves item order when expanding a mix', () => {
     expect(
       expandItemQuantities([

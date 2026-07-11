@@ -15,12 +15,15 @@ const MAX_EXPAND = 50;
 
 export interface QuantityItem {
   name: string;
+  /** Original (e.g. pre-translation) name, carried through onto every row. */
+  originalName?: string;
   quantity: number;
   totalMinorUnits: number;
 }
 
 export interface ExpandedItem {
   name: string;
+  originalName?: string;
   totalMinorUnits: number;
 }
 
@@ -34,10 +37,18 @@ export function expandItemQuantities(items: readonly QuantityItem[]): ExpandedIt
       const base = Math.trunc(it.totalMinorUnits / n);
       const remainder = it.totalMinorUnits - base * n;
       for (let i = 0; i < n; i++) {
-        out.push({ name: it.name, totalMinorUnits: base + (i < remainder ? 1 : 0) });
+        out.push({
+          name: it.name,
+          originalName: it.originalName,
+          totalMinorUnits: base + (i < remainder ? 1 : 0),
+        });
       }
     } else {
-      out.push({ name: it.name, totalMinorUnits: it.totalMinorUnits });
+      out.push({
+        name: it.name,
+        originalName: it.originalName,
+        totalMinorUnits: it.totalMinorUnits,
+      });
     }
   }
   return out;
