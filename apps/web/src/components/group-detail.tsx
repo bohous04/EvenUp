@@ -210,7 +210,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         className="ml-11 text-xs text-brand-600 underline"
                         data-testid="view-receipt"
                       >
-                        {t('receipt.view')}
+                        {(tx.receiptPageCount ?? 0) > 1
+                          ? t('receipt.viewCount', { count: tx.receiptPageCount })
+                          : t('receipt.view')}
                       </a>
                     ) : null}
                   </li>
