@@ -391,7 +391,10 @@ export function AddExpenseForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!payerId || selectedMembers.length === 0) {
+    // ITEMIZED assigns members per item (validated in that branch below) rather
+    // than via the "for whom" picker, so it only requires a payer — not a
+    // non-empty member selection.
+    if (!payerId || (splitType !== 'ITEMIZED' && selectedMembers.length === 0)) {
       setError(t('split.sumMismatch'));
       return;
     }
@@ -403,9 +406,24 @@ export function AddExpenseForm({
       else createExpense.mutate(payload);
     };
 
+    // Common fields incl. multi-currency (FR-8.x): a non-base currency carries
+    // an exchange rate to base; the API converts the stored base amount.
+    const common = {
+      groupId,
+      title,
+      currency,
+      category,
+      date: parseLocalDate(date),
+      exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
+    };
+
     if (splitType === 'ITEMIZED') {
-      // Mirrors the validation `ocr-scan.tsx`'s save() uses: every item needs a
-      // valid positive price and at least one assignee.
+      // Mirrors the validation `ocr-scan.tsx`'s save() uses: at least one item
+      // row, each with a valid positive price and at least one assignee.
+      if (itemRows.length === 0) {
+        setError(t('split.sumMismatch'));
+        return;
+      }
       const parsed = itemRows.map((it) => ({
         name: it.name.trim() || undefined,
         minor: itemPriceToMinor(it.priceText, currency),
@@ -426,27 +444,13 @@ export function AddExpenseForm({
       }));
       const total = items.reduce((a, it) => a + it.totalMinorUnits, 0);
       runMutation({
-        groupId,
+        ...common,
         title: title.trim() || t('expense.title'),
-        currency,
-        date: new Date(date),
-        category,
         payers: [{ memberId: payerId, amountMinorUnits: total }],
         split: { type: 'ITEMIZED', items },
       });
       return;
     }
-
-    // Common fields incl. multi-currency (FR-8.x): a non-base currency carries
-    // an exchange rate to base; the API converts the stored base amount.
-    const common = {
-      groupId,
-      title,
-      currency,
-      category,
-      date: parseLocalDate(date),
-      exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
-    };
 
     try {
       if (splitType === 'EXACT') {
