@@ -245,6 +245,59 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     expect(res.headers()['content-type']).toContain('image/');
   });
 
+  test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('ocrmulti', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+
+    // Receipt-photo storage is VIP-only (FR-5.8); grant VIP via the dev hook.
+    const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
+    expect(vipRes.ok()).toBeTruthy();
+
+    // Save a (mock) OpenRouter key in settings.
+    await page.getByRole('link', { name: /settings|nastavení/i }).click();
+    await page.getByTestId('api-key-input').fill('sk-or-test-key');
+    await page.getByTestId('save-key-btn').click();
+    await expect(page.getByTestId('key-status')).toBeVisible();
+
+    // New group + a second member.
+    await page.goto('/');
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Nákup');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Nákup').click();
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    // Reuse the same tiny 1x1 PNG the single-image OCR test uses.
+    const tinyPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+      'base64',
+    );
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-receipt-row').click();
+
+    // Select two pages, confirm both preview rows appear, then remove one
+    // before scanning — the mocked backend returns a fixed receipt regardless
+    // of how many pages are actually sent.
+    await page.getByTestId('ocr-files-input').setInputFiles([
+      { name: 'p1.png', mimeType: 'image/png', buffer: tinyPng },
+      { name: 'p2.png', mimeType: 'image/png', buffer: tinyPng },
+    ]);
+    await expect(page.getByTestId('ocr-page-0')).toBeVisible();
+    await expect(page.getByTestId('ocr-page-1')).toBeVisible();
+    await page.getByTestId('ocr-page-remove-1').click();
+    await expect(page.getByTestId('ocr-page-1')).toHaveCount(0);
+
+    await page.getByTestId('ocr-scan-pages-btn').click();
+    await expect(page.getByTestId('ocr-items')).toBeVisible();
+    await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
+  });
+
   test('foreign-currency expense converts to base via an FX rate (FR-8.x)', async ({
     page,
   }, testInfo) => {
