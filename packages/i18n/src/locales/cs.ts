@@ -238,7 +238,6 @@ export const cs = {
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',
-  'ocr.addScreenshots': 'Přidat screenshoty',
   'ocr.importPdf': 'Importovat PDF',
   'ocr.pagesSelected': 'Vybrané stránky',
   'ocr.removePage': 'Odebrat stránku',
