@@ -26,6 +26,7 @@
 Pure refactor + data-preserving migration. Behavior is unchanged (still ≤1 key stored); it only widens the column and every reader to an array, so later tasks can store N pages.
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma` (Receipt model, ~line 357)
 - Create: `packages/db/prisma/migrations/<generated>_receipt_storage_keys/migration.sql`
 - Modify: `packages/api/src/routers/ocr.ts:74-119`
@@ -35,6 +36,7 @@ Pure refactor + data-preserving migration. Behavior is unchanged (still ≤1 key
 - Test: `packages/api/src/services/receipt-cleanup.test.ts`, `packages/api/src/routers/integration.test.ts` (update existing storage assertions)
 
 **Interfaces:**
+
 - Produces: `Receipt.storageKeys: string[]` (Prisma). `shapeTransaction` output gains `receiptPageCount: number` and keeps `hasReceiptImage: boolean`, `receiptId: string | null`.
 
 - [ ] **Step 1: Change the schema**
@@ -74,46 +76,46 @@ Expected: migration applies; `Receipt.storageKeys` is typed `string[]`.
 In `packages/api/src/routers/ocr.ts`, replace the storage block (lines ~74-91) and the two `receipt.create` calls so they use an array. Replace:
 
 ```ts
-        let storageKey = '';
-        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
-        if (ctx.objectStore && user.isVip) {
-          try {
-            const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
-            const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
-            await ctx.objectStore.putReceipt(key, bytes, contentType);
-            storageKey = key;
-            if (retentionDays === 0) {
-              await ctx.objectStore.deleteObject(key);
-              storageKey = '';
-            }
-          } catch (err) {
-            console.warn('[ocr] receipt storage failed (best-effort)', err);
-            storageKey = ''; // storage is best-effort
-          }
-        }
+let storageKey = '';
+const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
+if (ctx.objectStore && user.isVip) {
+  try {
+    const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
+    const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
+    await ctx.objectStore.putReceipt(key, bytes, contentType);
+    storageKey = key;
+    if (retentionDays === 0) {
+      await ctx.objectStore.deleteObject(key);
+      storageKey = '';
+    }
+  } catch (err) {
+    console.warn('[ocr] receipt storage failed (best-effort)', err);
+    storageKey = ''; // storage is best-effort
+  }
+}
 ```
 
 with:
 
 ```ts
-        const storageKeys: string[] = [];
-        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
-        if (ctx.objectStore && user.isVip) {
-          try {
-            const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
-            const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
-            await ctx.objectStore.putReceipt(key, bytes, contentType);
-            if (retentionDays === 0) {
-              await ctx.objectStore.deleteObject(key); // retention 0: store nothing
-            } else {
-              storageKeys.push(key);
-            }
-          } catch (err) {
-            console.warn('[ocr] receipt storage failed (best-effort)', err);
-          }
-        }
+const storageKeys: string[] = [];
+const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
+if (ctx.objectStore && user.isVip) {
+  try {
+    const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
+    const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
+    await ctx.objectStore.putReceipt(key, bytes, contentType);
+    if (retentionDays === 0) {
+      await ctx.objectStore.deleteObject(key); // retention 0: store nothing
+    } else {
+      storageKeys.push(key);
+    }
+  } catch (err) {
+    console.warn('[ocr] receipt storage failed (best-effort)', err);
+  }
+}
 ```
 
 In the success `receipt.create`, change `storageKey,` to `storageKeys,`. In the FAILED-path `receipt.create` (line ~115), change `storageKey: '',` to `storageKeys: [],`.
@@ -139,24 +141,24 @@ and in `shapeTransaction` (lines 52-53) replace the receipt fields:
 In `packages/api/src/services/receipt-cleanup.ts`, replace the query + loop:
 
 ```ts
-  const expired = await args.prisma.receipt.findMany({
-    where: { createdAt: { lt: cutoff }, storageKeys: { isEmpty: false } },
-    select: { id: true, storageKeys: true },
-  });
-  let deleted = 0;
-  for (const r of expired) {
-    try {
-      for (const key of r.storageKeys) {
-        await args.objectStore.deleteObject(key);
-      }
-    } catch (err) {
-      // Delete failed: do NOT clear storageKeys, so the next daily run retries.
-      console.warn(`[receipt-cleanup] delete failed for ${r.id}, will retry`, err);
-      continue;
+const expired = await args.prisma.receipt.findMany({
+  where: { createdAt: { lt: cutoff }, storageKeys: { isEmpty: false } },
+  select: { id: true, storageKeys: true },
+});
+let deleted = 0;
+for (const r of expired) {
+  try {
+    for (const key of r.storageKeys) {
+      await args.objectStore.deleteObject(key);
     }
-    await args.prisma.receipt.update({ where: { id: r.id }, data: { storageKeys: [] } });
-    deleted++;
+  } catch (err) {
+    // Delete failed: do NOT clear storageKeys, so the next daily run retries.
+    console.warn(`[receipt-cleanup] delete failed for ${r.id}, will retry`, err);
+    continue;
   }
+  await args.prisma.receipt.update({ where: { id: r.id }, data: { storageKeys: [] } });
+  deleted++;
+}
 ```
 
 - [ ] **Step 7: Update the serve route (still serves page 0)**
@@ -186,11 +188,13 @@ git commit -m "refactor(receipts): store receipt pages as storageKeys array"
 ### Task 2: Adapter — accept `pages[]`, PDF part, and the file-parser plugin
 
 **Files:**
+
 - Modify: `packages/api/src/ocr/openrouter-adapter.ts`
 - Modify: `packages/api/src/routers/ocr.ts` (call site only)
 - Test: `packages/api/src/ocr/openrouter-adapter.test.ts`
 
 **Interfaces:**
+
 - Consumes: `RECEIPT_JSON_SCHEMA`, `receiptSchema` (unchanged).
 - Produces: `extractReceipt(args: { pages: string[]; apiKey; model?; baseUrl?; timeoutMs?; fetchImpl?; fallbackCurrency?; pdfEngine? }): Promise<OcrResult>`. `DEFAULT_PDF_ENGINE = 'pdf-text'`. `OcrResult` shape unchanged.
 
@@ -304,12 +308,14 @@ git commit -m "feat(ocr): adapter accepts multiple pages and native PDF input"
 ### Task 3: Router — `pages[]` input (backward-compatible), multi-page storage, `parseDataUrl`
 
 **Files:**
+
 - Modify: `packages/api/src/storage/object-store.ts` (rename + generalize `parseImageDataUrl`)
 - Modify: `packages/api/src/storage/object-store.test.ts`
 - Modify: `packages/api/src/routers/ocr.ts`
 - Test: `packages/api/src/routers/integration.test.ts`
 
 **Interfaces:**
+
 - Consumes: `extractReceipt({ pages, ..., pdfEngine })` (Task 2).
 - Produces: `parseDataUrl(dataUrl: string): { bytes: Buffer; contentType: string; ext: string }` (accepts `image/*` and `application/pdf`). `ocr.scan` input: `{ groupId, imageDataUrl }` **or** `{ groupId, pages: string[] }`.
 
@@ -318,12 +324,12 @@ git commit -m "feat(ocr): adapter accepts multiple pages and native PDF input"
 In `packages/api/src/storage/object-store.test.ts`, change the import `parseImageDataUrl` → `parseDataUrl`, rename the `describe('parseImageDataUrl'…)` to `parseDataUrl`, update its calls, and add:
 
 ```ts
-  it('decodes an application/pdf data URL with a pdf ext', () => {
-    const b64 = Buffer.from('%PDF-1.4').toString('base64');
-    const { contentType, ext } = parseDataUrl(`data:application/pdf;base64,${b64}`);
-    expect(contentType).toBe('application/pdf');
-    expect(ext).toBe('pdf');
-  });
+it('decodes an application/pdf data URL with a pdf ext', () => {
+  const b64 = Buffer.from('%PDF-1.4').toString('base64');
+  const { contentType, ext } = parseDataUrl(`data:application/pdf;base64,${b64}`);
+  expect(contentType).toBe('application/pdf');
+  expect(ext).toBe('pdf');
+});
 ```
 
 The existing negative case stays: `expect(() => parseDataUrl('data:text/plain;base64,aGk=')).toThrow();`
@@ -354,50 +360,57 @@ export function parseDataUrl(dataUrl: string): { bytes: Buffer; contentType: str
 In `packages/api/src/routers/integration.test.ts`, inside the OCR describe, add (uses the existing `RECEIPT_PNG_BASE64` and `makeOcrFetch`):
 
 ```ts
-  test('scan accepts multiple pages and stores every page for a VIP', async () => {
-    const puts: string[] = [];
-    const store = {
-      async putReceipt(key: string) { puts.push(key); },
-      async deleteObject() {},
-      async getObject() { return null; },
-    };
-    const olivia = await createTestUser('olivia@example.com');
-    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
-    const group = await caller.group.create({ name: 'M', baseCurrency: 'CZK' });
-    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+test('scan accepts multiple pages and stores every page for a VIP', async () => {
+  const puts: string[] = [];
+  const store = {
+    async putReceipt(key: string) {
+      puts.push(key);
+    },
+    async deleteObject() {},
+    async getObject() {
+      return null;
+    },
+  };
+  const olivia = await createTestUser('olivia@example.com');
+  const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+  const group = await caller.group.create({ name: 'M', baseCurrency: 'CZK' });
+  await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+  await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
 
-    const res = await caller.ocr.scan({
-      groupId: group.id,
-      pages: [
-        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
-        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
-      ],
-    });
-    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKeys).toHaveLength(2);
-    expect(puts).toHaveLength(2);
+  const res = await caller.ocr.scan({
+    groupId: group.id,
+    pages: [
+      `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+    ],
   });
+  const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+  expect(receipt.storageKeys).toHaveLength(2);
+  expect(puts).toHaveLength(2);
+});
 
-  test('scan rejects more than 10 pages', async () => {
-    const olivia = await createTestUser('olivia@example.com');
-    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
-    const group = await caller.group.create({ name: 'X', baseCurrency: 'CZK' });
-    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
-    const pages = Array.from({ length: 11 }, () => 'data:image/png;base64,AAAA');
-    await expect(caller.ocr.scan({ groupId: group.id, pages })).rejects.toThrow();
-  });
+test('scan rejects more than 10 pages', async () => {
+  const olivia = await createTestUser('olivia@example.com');
+  const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+  const group = await caller.group.create({ name: 'X', baseCurrency: 'CZK' });
+  await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+  const pages = Array.from({ length: 11 }, () => 'data:image/png;base64,AAAA');
+  await expect(caller.ocr.scan({ groupId: group.id, pages })).rejects.toThrow();
+});
 
-  test('scan sends the file-parser plugin when a page is a PDF', async () => {
-    const fetchImpl = makeOcrFetch();
-    const olivia = await createTestUser('olivia@example.com');
-    const caller = makeCaller(olivia, { ocrFetch: fetchImpl });
-    const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
-    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
-    await caller.ocr.scan({ groupId: group.id, pages: ['data:application/pdf;base64,JVBERi0='] });
-    const body = JSON.parse((fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1].body as string);
-    expect(body.plugins?.[0]?.id).toBe('file-parser');
-  });
+test('scan sends the file-parser plugin when a page is a PDF', async () => {
+  const fetchImpl = makeOcrFetch();
+  const olivia = await createTestUser('olivia@example.com');
+  const caller = makeCaller(olivia, { ocrFetch: fetchImpl });
+  const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
+  await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+  await caller.ocr.scan({ groupId: group.id, pages: ['data:application/pdf;base64,JVBERi0='] });
+  const body = JSON.parse(
+    (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1]
+      .body as string,
+  );
+  expect(body.plugins?.[0]?.id).toBe('file-parser');
+});
 ```
 
 - [ ] **Step 5: Run to verify it fails**
@@ -434,8 +447,8 @@ Replace the `.input(...)`:
 At the top of the mutation body, normalize:
 
 ```ts
-      const groupId = input.groupId;
-      const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
+const groupId = input.groupId;
+const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
 ```
 
 Replace all remaining `input.groupId` with `groupId`. Change the `extractReceipt` call `pages: [input.imageDataUrl],` → `pages,` and add `pdfEngine: process.env.OCR_PDF_ENGINE || undefined,`.
@@ -443,25 +456,25 @@ Replace all remaining `input.groupId` with `groupId`. Change the `extractReceipt
 Replace the storage block from Task 1 with a per-page loop:
 
 ```ts
-        const storageKeys: string[] = [];
-        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
-        if (ctx.objectStore && user.isVip) {
-          for (const page of pages) {
-            try {
-              const { bytes, contentType, ext } = parseDataUrl(page);
-              const key = `receipts/${groupId}/${crypto.randomUUID()}.${ext}`;
-              await ctx.objectStore.putReceipt(key, bytes, contentType);
-              if (retentionDays === 0) {
-                await ctx.objectStore.deleteObject(key);
-              } else {
-                storageKeys.push(key);
-              }
-            } catch (err) {
-              console.warn('[ocr] receipt storage failed (best-effort)', err);
-            }
-          }
-        }
+const storageKeys: string[] = [];
+const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
+const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
+if (ctx.objectStore && user.isVip) {
+  for (const page of pages) {
+    try {
+      const { bytes, contentType, ext } = parseDataUrl(page);
+      const key = `receipts/${groupId}/${crypto.randomUUID()}.${ext}`;
+      await ctx.objectStore.putReceipt(key, bytes, contentType);
+      if (retentionDays === 0) {
+        await ctx.objectStore.deleteObject(key);
+      } else {
+        storageKeys.push(key);
+      }
+    } catch (err) {
+      console.warn('[ocr] receipt storage failed (best-effort)', err);
+    }
+  }
+}
 ```
 
 (The `receipt.create` calls already use `storageKeys` from Task 1.)
@@ -483,11 +496,13 @@ git commit -m "feat(ocr): accept pages[] input with multi-page storage, keep ima
 ### Task 4: Serve route — `?page=N` + PDF content type
 
 **Files:**
+
 - Create: `apps/web/src/lib/receipt-page.ts`
 - Create: `apps/web/src/lib/receipt-page.test.ts`
 - Modify: `apps/web/src/app/api/receipts/[id]/route.ts`
 
 **Interfaces:**
+
 - Produces: `resolveReceiptPage(pageCount: number, raw: string | null): number` — clamped index in `[0, pageCount-1]`.
 
 - [ ] **Step 1: Write the failing helper test**
@@ -538,26 +553,29 @@ In `apps/web/src/app/api/receipts/[id]/route.ts`, import the helper: `import { r
 After the access check, replace the single-object fetch (`const obj = await getObjectStore().getObject(receipt.storageKeys[0]!);`) with:
 
 ```ts
-  const page = resolveReceiptPage(receipt.storageKeys.length, new URL(req.url).searchParams.get('page'));
-  const obj = await getObjectStore().getObject(receipt.storageKeys[page]!);
-  if (!obj) return new Response('Not found', { status: 404 });
+const page = resolveReceiptPage(
+  receipt.storageKeys.length,
+  new URL(req.url).searchParams.get('page'),
+);
+const obj = await getObjectStore().getObject(receipt.storageKeys[page]!);
+if (!obj) return new Response('Not found', { status: 404 });
 ```
 
 Replace the content-type resolution so PDF is allowed inline (keep the raster whitelist + hardened headers):
 
 ```ts
-  // PDFs are served inline under the existing sandbox CSP + nosniff (see headers
-  // below); everything else must be a known-safe raster type or it's neutered to
-  // octet-stream (blocks stored XSS via SVG etc.). Conservative alternative for
-  // PDF: add `Content-Disposition: attachment` to force download instead.
-  let contentType: string;
-  if (obj.contentType === 'application/pdf') {
-    contentType = 'application/pdf';
-  } else if (SAFE_IMAGE_TYPES.has(obj.contentType)) {
-    contentType = obj.contentType;
-  } else {
-    contentType = 'application/octet-stream';
-  }
+// PDFs are served inline under the existing sandbox CSP + nosniff (see headers
+// below); everything else must be a known-safe raster type or it's neutered to
+// octet-stream (blocks stored XSS via SVG etc.). Conservative alternative for
+// PDF: add `Content-Disposition: attachment` to force download instead.
+let contentType: string;
+if (obj.contentType === 'application/pdf') {
+  contentType = 'application/pdf';
+} else if (SAFE_IMAGE_TYPES.has(obj.contentType)) {
+  contentType = obj.contentType;
+} else {
+  contentType = 'application/octet-stream';
+}
 ```
 
 - [ ] **Step 5: Run tests + typecheck**
@@ -577,6 +595,7 @@ git commit -m "feat(receipts): serve any page via ?page=N and allow PDF inline"
 ### Task 5: Web UI — multi-image + PDF picker with reorder/remove preview
 
 **Files:**
+
 - Create: `apps/web/src/lib/move-item.ts`
 - Create: `apps/web/src/lib/move-item.test.ts`
 - Modify: `apps/web/src/components/ocr-scan.tsx`
@@ -584,6 +603,7 @@ git commit -m "feat(receipts): serve any page via ?page=N and allow PDF inline"
 - Modify: `packages/i18n/src/locales/cs.ts`, `packages/i18n/src/locales/en.ts`
 
 **Interfaces:**
+
 - Consumes: `trpc.ocr.scan` with `{ groupId, pages: string[] }`; `resolveReceiptPage`-backed route; `receiptPageCount` from `shapeTransaction`.
 - Produces: `moveItem<T>(arr: T[], from: number, to: number): T[]`.
 
@@ -669,41 +689,56 @@ In `apps/web/src/components/ocr-scan.tsx`:
 Add a page-preview type and state, keeping the existing `items`/save flow. Add above the component body’s return:
 
 ```tsx
-  type PagePreview = { id: string; kind: 'image' | 'pdf'; label: string; preview?: string; dataUrl: string };
-  const [pages, setPages] = useState<PagePreview[]>([]);
-  const MAX_PAGES = 10;
-  const filesRef = useRef<HTMLInputElement>(null);
-  const pdfRef = useRef<HTMLInputElement>(null);
+type PagePreview = {
+  id: string;
+  kind: 'image' | 'pdf';
+  label: string;
+  preview?: string;
+  dataUrl: string;
+};
+const [pages, setPages] = useState<PagePreview[]>([]);
+const MAX_PAGES = 10;
+const filesRef = useRef<HTMLInputElement>(null);
+const pdfRef = useRef<HTMLInputElement>(null);
 
-  async function addImageFiles(files: FileList) {
-    const room = MAX_PAGES - pages.length;
-    if (room <= 0) { setError(t('ocr.tooManyPages')); return; }
-    const picked = Array.from(files).slice(0, room);
-    const next: PagePreview[] = [];
-    for (const f of picked) {
-      const dataUrl = await downscaleImage(f);
-      next.push({ id: crypto.randomUUID(), kind: 'image', label: f.name, preview: dataUrl, dataUrl });
-    }
-    setPages((p) => [...p, ...next]);
+async function addImageFiles(files: FileList) {
+  const room = MAX_PAGES - pages.length;
+  if (room <= 0) {
+    setError(t('ocr.tooManyPages'));
+    return;
+  }
+  const picked = Array.from(files).slice(0, room);
+  const next: PagePreview[] = [];
+  for (const f of picked) {
+    const dataUrl = await downscaleImage(f);
+    next.push({ id: crypto.randomUUID(), kind: 'image', label: f.name, preview: dataUrl, dataUrl });
+  }
+  setPages((p) => [...p, ...next]);
+  setError(null);
+}
+
+function addPdf(file: File) {
+  if (pages.length >= MAX_PAGES) {
+    setError(t('ocr.tooManyPages'));
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    setError(t('ocr.pdfTooLarge'));
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result);
+    setPages((p) => [...p, { id: crypto.randomUUID(), kind: 'pdf', label: file.name, dataUrl }]);
     setError(null);
-  }
+  };
+  reader.readAsDataURL(file);
+}
 
-  function addPdf(file: File) {
-    if (pages.length >= MAX_PAGES) { setError(t('ocr.tooManyPages')); return; }
-    if (file.size > 10 * 1024 * 1024) { setError(t('ocr.pdfTooLarge')); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      setPages((p) => [...p, { id: crypto.randomUUID(), kind: 'pdf', label: file.name, dataUrl }]);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function scanPages() {
-    if (pages.length === 0) return;
-    scan.mutate({ groupId, pages: pages.map((p) => p.dataUrl) });
-  }
+function scanPages() {
+  if (pages.length === 0) return;
+  scan.mutate({ groupId, pages: pages.map((p) => p.dataUrl) });
+}
 ```
 
 Add two hidden inputs next to the existing camera/gallery inputs:
@@ -740,30 +775,54 @@ In the `!items` branch (the upload buttons block), when `!lacksOcrAccess`, add b
 ```
 
 ```tsx
-          {pages.length > 0 ? (
-            <div className="mt-3 space-y-2" data-testid="ocr-pages">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
-              {pages.map((p, i) => (
-                <div key={p.id} className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800" data-testid={`ocr-page-${i}`}>
-                  {p.preview ? (
-                    <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
-                  ) : (
-                    <FileText size={20} aria-hidden />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
-                  <button type="button" aria-label={t('ocr.moveUp')} disabled={i === 0}
-                    onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}><ChevronUp size={16} aria-hidden /></button>
-                  <button type="button" aria-label={t('ocr.moveDown')} disabled={i === pages.length - 1}
-                    onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}><ChevronDown size={16} aria-hidden /></button>
-                  <button type="button" aria-label={t('ocr.removePage')} data-testid={`ocr-page-remove-${i}`}
-                    onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}><Trash2 size={16} aria-hidden /></button>
-                </div>
-              ))}
-              <Button onClick={scanPages} disabled={scan.isPending} data-testid="ocr-scan-pages-btn">
-                {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
-              </Button>
-            </div>
-          ) : null}
+{
+  pages.length > 0 ? (
+    <div className="mt-3 space-y-2" data-testid="ocr-pages">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
+      {pages.map((p, i) => (
+        <div
+          key={p.id}
+          className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
+          data-testid={`ocr-page-${i}`}
+        >
+          {p.preview ? (
+            <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
+          ) : (
+            <FileText size={20} aria-hidden />
+          )}
+          <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
+          <button
+            type="button"
+            aria-label={t('ocr.moveUp')}
+            disabled={i === 0}
+            onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
+          >
+            <ChevronUp size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('ocr.moveDown')}
+            disabled={i === pages.length - 1}
+            onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
+          >
+            <ChevronDown size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('ocr.removePage')}
+            data-testid={`ocr-page-remove-${i}`}
+            onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
+          >
+            <Trash2 size={16} aria-hidden />
+          </button>
+        </div>
+      ))}
+      <Button onClick={scanPages} disabled={scan.isPending} data-testid="ocr-scan-pages-btn">
+        {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
+      </Button>
+    </div>
+  ) : null;
+}
 ```
 
 On `scan.onSuccess`, also clear pages: add `setPages([]);` next to `setItems(...)`. Import the icons you referenced: add `FileText, ChevronUp, ChevronDown` to the existing `@/components/icons` import, and `moveItem` from `@/lib/move-item`. Verify each icon exists in `@/components/icons`; if `FileText`/`ChevronUp`/`ChevronDown` are missing, add them there as small SVG components mirroring the existing icon style (never emoji).
@@ -773,9 +832,11 @@ On `scan.onSuccess`, also clear pages: add `setPages([]);` next to `setItems(...
 In `apps/web/src/components/group-detail.tsx` (lines ~205-215), change the link content to reflect the count. Replace `{t('receipt.view')}` with:
 
 ```tsx
-                        {(tx.receiptPageCount ?? 0) > 1
-                          ? t('receipt.viewCount', { count: tx.receiptPageCount })
-                          : t('receipt.view')}
+{
+  (tx.receiptPageCount ?? 0) > 1
+    ? t('receipt.viewCount', { count: tx.receiptPageCount })
+    : t('receipt.view');
+}
 ```
 
 (Confirm the `t()` helper supports `{count}` interpolation as used elsewhere; if not, fall back to `` `${t('receipt.view')} (${tx.receiptPageCount})` ``.)
@@ -797,6 +858,7 @@ git commit -m "feat(web): multi-screenshot + PDF receipt import with reorder pre
 ### Task 6: Docs, env, and end-to-end verification
 
 **Files:**
+
 - Modify: `.env.example`
 - Modify: `docs/SELF_HOSTING.md`
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
@@ -818,7 +880,9 @@ In `docs/SELF_HOSTING.md`, add a line documenting `OCR_PDF_ENGINE` (default `pdf
 In `apps/web/e2e/critical-flow.spec.ts`, add a test mirroring the existing OCR test but selecting **two** files on the multi-image input, then reordering and removing one before scanning:
 
 ```ts
-test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)', async ({ page }, testInfo) => {
+test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)', async ({
+  page,
+}, testInfo) => {
   // ... reuse the existing setup up to opening the OCR panel (expense-receipt-row) ...
   await page.getByTestId('ocr-files-input').setInputFiles([
     { name: 'p1.png', mimeType: 'image/png', buffer: Buffer.from(PNG_BASE64, 'base64') },

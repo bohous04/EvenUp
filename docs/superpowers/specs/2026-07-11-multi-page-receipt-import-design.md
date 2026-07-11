@@ -34,7 +34,7 @@ Both feed the existing OCR flow and produce a **single** itemized expense. Today
   - `data:image/*` → `{ type: 'image_url', image_url: { url } }`
   - `data:application/pdf` → `{ type: 'file', file: { filename: 'receipt.pdf', file_data: url } }` (the adapter only receives data URLs, so `filename` is a constant — OpenRouter just needs some name)
 - When **any** page is a PDF, add `plugins: [{ id: 'file-parser', pdf: { engine: OCR_PDF_ENGINE } }]`. Default engine **`pdf-text`** (free, text-layer digital receipts); overridable via env `OCR_PDF_ENGINE` (e.g. `mistral-ocr` for scanned PDFs, paid). No `plugins` field when there is no PDF.
-- Prompt gains: *"The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once."*
+- Prompt gains: _"The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once."_
 - Everything downstream is unchanged: zod validation, retry-once, decimal→minor conversion, and reconciliation (`itemsSumMinorUnits` vs `totalMinorUnits`) still yield **one** `OcrResult`.
 - `callOnce`/timeout/retry loop unchanged except it now carries the assembled body.
 
