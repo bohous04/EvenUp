@@ -22,10 +22,12 @@
 ### Task 1: Persist + return itemized line-items (API)
 
 **Files:**
+
 - Modify: `packages/api/src/routers/transaction.ts` (`transactionInclude` ~30-34, `shapeTransaction` ~44-55, `createExpense` ~147-181, `updateExpense` ~294-328)
 - Test: `packages/api/src/routers/integration.test.ts`
 
 **Interfaces:**
+
 - Produces: `shapeTransaction` output gains `items: { name: string; totalMinorUnits: number; memberIds: string[] }[]` (empty when none). This flows into `RouterOutputs['transaction']['list'][number]` and thus the web `EditableTransaction`.
 
 - [ ] **Step 1: Write the failing integration tests**
@@ -55,7 +57,11 @@ describe('itemized expense line-items', () => {
     expect(tx.items).toHaveLength(2);
     expect(tx.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'Mléko', totalMinorUnits: 2000, memberIds: [members.olivia.id] }),
+        expect.objectContaining({
+          name: 'Mléko',
+          totalMinorUnits: 2000,
+          memberIds: [members.olivia.id],
+        }),
         expect.objectContaining({ name: 'Chléb', totalMinorUnits: 4000 }),
       ]),
     );
@@ -66,28 +72,48 @@ describe('itemized expense line-items', () => {
   it('replaces items on update and drops them when switching to a non-itemized split', async () => {
     const { caller, group, members } = await seedGroupWithMembers();
     const created = await caller.transaction.createExpense({
-      groupId: group.id, title: 'R', currency: 'CZK', date: new Date('2026-07-11'),
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
       payers: [{ memberId: members.olivia.id, amountMinorUnits: 3000 }],
-      split: { type: 'ITEMIZED', items: [{ name: 'A', totalMinorUnits: 3000, memberIds: [members.olivia.id] }] },
+      split: {
+        type: 'ITEMIZED',
+        items: [{ name: 'A', totalMinorUnits: 3000, memberIds: [members.olivia.id] }],
+      },
     });
     // Edit the items.
     await caller.transaction.updateExpense({
       transactionId: created.id,
-      groupId: group.id, title: 'R', currency: 'CZK', date: new Date('2026-07-11'),
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
       payers: [{ memberId: members.olivia.id, amountMinorUnits: 5000 }],
-      split: { type: 'ITEMIZED', items: [
-        { name: 'B', totalMinorUnits: 2000, memberIds: [members.olivia.id] },
-        { name: 'C', totalMinorUnits: 3000, memberIds: [members.petr.id] },
-      ] },
+      split: {
+        type: 'ITEMIZED',
+        items: [
+          { name: 'B', totalMinorUnits: 2000, memberIds: [members.olivia.id] },
+          { name: 'C', totalMinorUnits: 3000, memberIds: [members.petr.id] },
+        ],
+      },
     });
-    let tx = (await caller.transaction.list({ groupId: group.id })).find((t) => t.id === created.id)!;
+    let tx = (await caller.transaction.list({ groupId: group.id })).find(
+      (t) => t.id === created.id,
+    )!;
     expect(tx.items.map((i) => i.name).sort()).toEqual(['B', 'C']);
     // Switch to EQUAL — items must be gone.
     await caller.transaction.updateExpense({
       transactionId: created.id,
-      groupId: group.id, title: 'R', currency: 'CZK', date: new Date('2026-07-11'),
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
       payers: [{ memberId: members.olivia.id, amountMinorUnits: 5000 }],
-      split: { type: 'EQUAL', members: [{ memberId: members.olivia.id }, { memberId: members.petr.id }] },
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: members.olivia.id }, { memberId: members.petr.id }],
+      },
     });
     tx = (await caller.transaction.list({ groupId: group.id })).find((t) => t.id === created.id)!;
     expect(tx.items).toEqual([]);
@@ -179,27 +205,34 @@ git commit -m "feat(api): persist and return itemized expense line-items"
 ### Task 2: Extract shared `ItemizedEditor` (web refactor, OCR unchanged)
 
 **Files:**
+
 - Create: `apps/web/src/components/itemized-editor.tsx`
 - Modify: `apps/web/src/components/ocr-scan.tsx`
 
 **Interfaces:**
+
 - Produces: `ItemizedEditor` React component, an exported item type, and an exported price parser:
 
 ```ts
-export interface EditorItem { name: string; priceText: string; assigned: Set<string> }
+export interface EditorItem {
+  name: string;
+  priceText: string;
+  assigned: Set<string>;
+}
 /** Parse an item's price text to minor units, or null if invalid/non-positive. */
-export function itemPriceToMinor(priceText: string, currency: string): number | null
+export function itemPriceToMinor(priceText: string, currency: string): number | null;
 export function ItemizedEditor(props: {
   items: EditorItem[];
   onChange: (next: EditorItem[]) => void;
   members: { id: string; displayName: string; initials: string; color: string }[];
   baseCurrency: string;
-}): JSX.Element
+}): JSX.Element;
 ```
 
 - [ ] **Step 1: Create `itemized-editor.tsx`**
 
 Move the post-scan item UI out of `ocr-scan.tsx` into a new presentational component. It renders, for `items`:
+
 - one row per item: a name `Input` (`data-testid="ocr-item-name-{i}"`), a price `Input` (`data-testid="ocr-item-price-{i}"`, `inputMode="decimal"`, right-aligned), a remove button (`data-testid="ocr-item-remove-{i}"`), and the member `MemberChip`s toggling assignment; the unassigned amber styling and `ocr.unassigned` badge;
 - an "add item" ghost button (`data-testid="ocr-add-item"`, `ocr.addItem`);
 - the running total row (`AmountText` `data-testid="ocr-total"`) — sum of `priceToMinor(priceText)`;
@@ -212,11 +245,11 @@ Move `priceToMinor` from `ocr-scan.tsx` into this file and **export it as `itemP
 In `ocr-scan.tsx`: keep `ScanItem`/`items` state but rename its type usage to `EditorItem` (identical shape) or import `EditorItem`. Replace the inline item-list JSX (the `data-testid="ocr-items"` block) with:
 
 ```tsx
-        <div className="space-y-3" data-testid="ocr-items">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
-          <ItemizedEditor items={items} onChange={setItems} members={members} baseCurrency={baseCurrency} />
-          {/* payer select + save/cancel buttons stay here, unchanged */}
-        </div>
+<div className="space-y-3" data-testid="ocr-items">
+  <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
+  <ItemizedEditor items={items} onChange={setItems} members={members} baseCurrency={baseCurrency} />
+  {/* payer select + save/cancel buttons stay here, unchanged */}
+</div>
 ```
 
 Remove the now-duplicated helpers/JSX that moved into `ItemizedEditor` (`priceToMinor` if unused elsewhere, `patchItem`, `toggleAssign`, `removeItem`, `addItem`, the `perMember`/`runningTotal` blocks, and their imports if no longer used). Keep the `save()` logic (it reads `items`); keep `payerId` select and Save/Cancel. Do not change the pre-scan picker or scan flow.
@@ -225,10 +258,12 @@ Remove the now-duplicated helpers/JSX that moved into `ItemizedEditor` (`priceTo
 
 Run: `pnpm -w typecheck && pnpm --filter @evenup/web test`
 Then rebuild + run the OCR e2e (production bundle; e2e Postgres on 55433 already up):
+
 ```
 DATABASE_URL="postgresql://evenup:pass@localhost:55433/evenup" BETTER_AUTH_SECRET=e2e-secret-000000000000000000000000 ENCRYPTION_KEY=0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0 pnpm --filter @evenup/web build
 pnpm --filter @evenup/web exec playwright test --project=chromium critical-flow
 ```
+
 Expected: PASS (both OCR tests — single-image and multi-screenshot — still green, proving the extraction preserved behavior).
 
 - [ ] **Step 4: Format + commit**
@@ -244,15 +279,18 @@ git commit -m "refactor(web): extract shared ItemizedEditor from OcrScan"
 ### Task 3: Itemized editing in the edit form
 
 **Files:**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx`
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `ItemizedEditor`/`EditorItem` (Task 2); `editing.items` (Task 1).
 
 - [ ] **Step 1: Add ITEMIZED to the form's split handling**
 
 In `add-expense-form.tsx`:
+
 - Change `type SplitType = 'EQUAL' | 'EXACT' | 'SHARES' | 'PERCENTAGE';` to include `'ITEMIZED'`, and add `ITEMIZED: 'split.itemized'` to `SPLIT_LABELS`. (Add the `split.itemized` key to `cs.ts` + `en.ts` — cs: `'Po položkách'`, en: `'By items'`.)
 - Add state: `const [itemRows, setItemRows] = useState<EditorItem[]>([]);` and import `ItemizedEditor`, `itemPriceToMinor`, `type EditorItem` from `@/components/itemized-editor`.
 
@@ -261,21 +299,21 @@ In `add-expense-form.tsx`:
 In the `editing` effect (~260-308), before the `SHARES/PERCENTAGE/EQUAL/else` chain, add:
 
 ```ts
-    if (editing.splitType === 'ITEMIZED' && editing.items && editing.items.length > 0) {
-      setSplitType('ITEMIZED');
-      setItemRows(
-        editing.items.map((it) => ({
-          name: it.name,
-          priceText: minorToDecimalString(Math.abs(it.totalMinorUnits), editing.currency),
-          assigned: new Set(it.memberIds),
-        })),
-      );
-      setFxRate('');
-      setRecurrence('none');
-      setOpenRow(null);
-      setError(null);
-      return; // handled — skip the EXACT fallback
-    }
+if (editing.splitType === 'ITEMIZED' && editing.items && editing.items.length > 0) {
+  setSplitType('ITEMIZED');
+  setItemRows(
+    editing.items.map((it) => ({
+      name: it.name,
+      priceText: minorToDecimalString(Math.abs(it.totalMinorUnits), editing.currency),
+      assigned: new Set(it.memberIds),
+    })),
+  );
+  setFxRate('');
+  setRecurrence('none');
+  setOpenRow(null);
+  setError(null);
+  return; // handled — skip the EXACT fallback
+}
 ```
 
 Leave the existing chain intact so a legacy itemized row (no `items`) still falls through to the `EXACT` fallback.
@@ -289,21 +327,35 @@ In the form body, when `splitType === 'ITEMIZED'`, render `<ItemizedEditor items
 In `submit`/the payload branches (~394-440), add an `if (splitType === 'ITEMIZED')` branch that builds:
 
 ```ts
-      const parsed = itemRows.map((it) => ({
-        name: it.name.trim() || undefined,
-        minor: itemPriceToMinor(it.priceText, currency),
-        memberIds: [...it.assigned],
-      }));
-      if (parsed.some((it) => it.minor == null)) { setError(t('split.sumMismatch')); return; }
-      if (parsed.some((it) => it.memberIds.length === 0)) { setError(t('ocr.assignItems')); return; }
-      const items = parsed.map((it) => ({ name: it.name, totalMinorUnits: it.minor!, memberIds: it.memberIds }));
-      const total = items.reduce((a, it) => a + it.totalMinorUnits, 0);
-      runMutation({
-        groupId, title: title.trim() || t('expense.title'), currency, date: new Date(date),
-        category, payers: [{ memberId: payerId, amountMinorUnits: total }],
-        split: { type: 'ITEMIZED', items },
-      });
-      return;
+const parsed = itemRows.map((it) => ({
+  name: it.name.trim() || undefined,
+  minor: itemPriceToMinor(it.priceText, currency),
+  memberIds: [...it.assigned],
+}));
+if (parsed.some((it) => it.minor == null)) {
+  setError(t('split.sumMismatch'));
+  return;
+}
+if (parsed.some((it) => it.memberIds.length === 0)) {
+  setError(t('ocr.assignItems'));
+  return;
+}
+const items = parsed.map((it) => ({
+  name: it.name,
+  totalMinorUnits: it.minor!,
+  memberIds: it.memberIds,
+}));
+const total = items.reduce((a, it) => a + it.totalMinorUnits, 0);
+runMutation({
+  groupId,
+  title: title.trim() || t('expense.title'),
+  currency,
+  date: new Date(date),
+  category,
+  payers: [{ memberId: payerId, amountMinorUnits: total }],
+  split: { type: 'ITEMIZED', items },
+});
+return;
 ```
 
 (Mirror the exact validation `ocr-scan.tsx` `save()` uses. `runMutation` already routes to `updateExpense` in edit mode.)
@@ -327,12 +379,14 @@ git commit -m "feat(web): edit itemized expenses with the shared ItemizedEditor"
 ### Task 4: Multi-page receipt lightbox viewer
 
 **Files:**
+
 - Create: `apps/web/src/components/receipt-viewer.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx` (receipt link ~205-215)
 - Modify: `packages/i18n/src/locales/cs.ts`, `packages/i18n/src/locales/en.ts`
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `receiptId: string`, `pageCount: number`, the serve route `/api/receipts/{id}?page=N`.
 
 - [ ] **Step 1: Build `ReceiptViewer`**
@@ -342,6 +396,7 @@ Create `apps/web/src/components/receipt-viewer.tsx`: a modal/lightbox (reuse the
 - [ ] **Step 2: Wire it into the transactions list**
 
 In `group-detail.tsx`, replace the receipt link block so:
+
 - `tx.receiptPageCount > 1`: a `<button data-testid="view-receipt">` (keep the testid) that opens `<ReceiptViewer receiptId={tx.receiptId} pageCount={tx.receiptPageCount} onClose={...} />` (local state for which tx's viewer is open).
 - `tx.receiptPageCount === 1` (or the `hasReceiptImage` single case): keep the existing `<a href="/api/receipts/{id}" target="_blank">` link (works for one image and for a PDF).
 
@@ -370,12 +425,14 @@ git commit -m "feat(web): page through multi-page receipts in a lightbox"
 - [ ] **Step 1: Whole-suite regression**
 
 Run (DB envs as above):
+
 ```
 pnpm -w typecheck
 pnpm exec turbo run test      # @evenup/api (DATABASE_URL 55434), core, i18n, web unit
 pnpm format:check             # CI gate — must be clean
 pnpm --filter @evenup/web build && pnpm --filter @evenup/web exec playwright test --project=chromium
 ```
+
 Expected: all green (full critical-flow + transaction-edit e2e). Fix any fallout in the owning task's files.
 
 - [ ] **Step 2: Manual verification (human)**
