@@ -14,7 +14,8 @@ import {
   ChevronDown,
 } from '@/components/icons';
 import { moveItem } from '@/lib/move-item';
-import { EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
+import { expandItemQuantities } from '@/lib/expand-items';
+import { type EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
 
 interface MemberLite {
   id: string;
@@ -105,8 +106,10 @@ export function OcrScan({
 
   const scan = trpc.ocr.scan.useMutation({
     onSuccess: (res) => {
+      // Expand a line's whole quantity into that many rows (e.g. "3× Čokoláda")
+      // so each unit can be assigned to a different person in the split below.
       setItems(
-        res.result.items.map((it) => ({
+        expandItemQuantities(res.result.items).map((it) => ({
           name: it.name,
           priceText: minorToDecimalString(it.totalMinorUnits, baseCurrency),
           assigned: new Set<string>(),
