@@ -512,7 +512,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
     await caller.ocr.scan({ groupId: group.id, pages: ['data:application/pdf;base64,JVBERi0='] });
-    const body = JSON.parse((fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1].body as string);
+    const body = JSON.parse(
+      (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1]
+        .body as string,
+    );
     expect(body.plugins?.[0]?.id).toBe('file-parser');
   });
 

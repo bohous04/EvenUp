@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parseDataUrl,
-  createNoopObjectStore,
-  createInMemoryObjectStore,
-} from './object-store.js';
+import { parseDataUrl, createNoopObjectStore, createInMemoryObjectStore } from './object-store.js';
 
 describe('parseDataUrl', () => {
   it('decodes a base64 png data URL to bytes + content type + ext', () => {

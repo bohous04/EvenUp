@@ -17,7 +17,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     where: { id },
     select: { storageKeys: true, groupId: true },
   });
-  if (!receipt || receipt.storageKeys.length === 0) return new Response('Not found', { status: 404 });
+  if (!receipt || receipt.storageKeys.length === 0)
+    return new Response('Not found', { status: 404 });
 
   const group = await prisma.group.findUnique({
     where: { id: receipt.groupId },
@@ -29,7 +30,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const allowed = group && (group.createdById === session.user.id || group.members.length > 0);
   if (!allowed) return new Response('Forbidden', { status: 403 });
 
-  const page = resolveReceiptPage(receipt.storageKeys.length, new URL(req.url).searchParams.get('page'));
+  const page = resolveReceiptPage(
+    receipt.storageKeys.length,
+    new URL(req.url).searchParams.get('page'),
+  );
   const obj = await getObjectStore().getObject(receipt.storageKeys[page]!);
   if (!obj) return new Response('Not found', { status: 404 });
 
