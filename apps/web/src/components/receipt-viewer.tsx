@@ -89,9 +89,9 @@ export function ReceiptViewer({
             if (e.target === e.currentTarget) onClose();
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- the receipt
-              serve route streams private, session-gated bytes; next/image's
-              remote-loader model doesn't fit an authenticated same-origin API. */}
+          {/* Raw <img> (not next/image) is intentional: the receipt serve route
+              streams private, session-gated bytes; next/image's remote-loader
+              model doesn't fit an authenticated same-origin API. */}
           <img
             src={src}
             alt={label}

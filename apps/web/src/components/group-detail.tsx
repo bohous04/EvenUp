@@ -62,8 +62,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
   // Native share sheet where available (mobile); otherwise the copy button and
   // the visible link are the fallback. Guarded for SSR (no `navigator`).
-  const canShare =
-    typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const copyInvite = async () => {
     if (!inviteUrl) return;
     try {

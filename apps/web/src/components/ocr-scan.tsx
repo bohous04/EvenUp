@@ -257,8 +257,7 @@ export function OcrScan({
     // proportional balancing line for the difference — deposits, rounding, or an
     // un-itemized discount the model couldn't attribute. A negative difference
     // (items over-count) is handled by core's abs-weighted allocation.
-    const diff =
-      reconcile && receiptTotalMinor != null ? receiptTotalMinor - itemsTotal : 0;
+    const diff = reconcile && receiptTotalMinor != null ? receiptTotalMinor - itemsTotal : 0;
     const total = itemsTotal + diff;
     // Prefer the receipt's own date (parsed as local noon so it can't shift a
     // day across timezones); fall back to now for a missing/malformed one.
