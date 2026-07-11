@@ -37,6 +37,7 @@ function normalizeCurrencyCode(raw: string, fallback: string): string {
 }
 
 export const DEFAULT_OCR_MODEL = 'google/gemini-2.5-flash';
+export const DEFAULT_PDF_ENGINE = 'pdf-text';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const LOW_CONFIDENCE_THRESHOLD = 0.5;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -83,7 +84,7 @@ export interface OcrResult {
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface ExtractReceiptArgs {
-  readonly imageDataUrl: string;
+  readonly pages: string[];
   readonly apiKey: string;
   readonly model?: string;
   readonly baseUrl?: string;
@@ -91,27 +92,32 @@ export interface ExtractReceiptArgs {
   readonly fetchImpl?: FetchLike;
   /** Currency to use when the model returns an unrecognized/symbol currency. */
   readonly fallbackCurrency?: string;
+  readonly pdfEngine?: string;
 }
 
 const PROMPT =
   'Extract the receipt as structured JSON. Czech receipts use comma decimals and "Kč". ' +
   'Return every line item with its name, quantity and total price. Amounts are major units (e.g. 24.90). ' +
-  'The "currency" MUST be a 3-letter ISO 4217 code (e.g. CZK for Kč, EUR for €), never a symbol.';
+  'The "currency" MUST be a 3-letter ISO 4217 code (e.g. CZK for Kč, EUR for €), never a symbol.' +
+  ' The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once.';
 
-function buildBody(imageDataUrl: string, model: string) {
-  return {
+const isPdf = (dataUrl: string) => dataUrl.startsWith('data:application/pdf');
+
+function buildBody(pages: string[], model: string, pdfEngine: string) {
+  const parts = pages.map((p) =>
+    isPdf(p)
+      ? { type: 'file', file: { filename: 'receipt.pdf', file_data: p } }
+      : { type: 'image_url', image_url: { url: p } },
+  );
+  const body: Record<string, unknown> = {
     model,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: PROMPT },
-          { type: 'image_url', image_url: { url: imageDataUrl } },
-        ],
-      },
-    ],
+    messages: [{ role: 'user', content: [{ type: 'text', text: PROMPT }, ...parts] }],
     response_format: { type: 'json_schema', json_schema: RECEIPT_JSON_SCHEMA },
   };
+  if (pages.some(isPdf)) {
+    body.plugins = [{ id: 'file-parser', pdf: { engine: pdfEngine } }];
+  }
+  return body;
 }
 
 /** Convert a decimal major-unit number to integer minor units for the currency. */
@@ -152,9 +158,10 @@ function normalize(raw: RawReceipt, fallbackCurrency: string): OcrResult {
 }
 
 async function callOnce(
-  args: Required<
-    Pick<ExtractReceiptArgs, 'imageDataUrl' | 'apiKey' | 'model' | 'baseUrl' | 'timeoutMs'>
-  >,
+  args: Required<Pick<ExtractReceiptArgs, 'apiKey' | 'model' | 'baseUrl' | 'timeoutMs'>> & {
+    pages: string[];
+    pdfEngine: string;
+  },
   fetchImpl: FetchLike,
 ): Promise<{ content: string; usage?: OcrUsage }> {
   const controller = new AbortController();
@@ -167,7 +174,7 @@ async function callOnce(
         Authorization: `Bearer ${args.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(buildBody(args.imageDataUrl, args.model)),
+      body: JSON.stringify(buildBody(args.pages, args.model, args.pdfEngine)),
       signal: controller.signal,
     });
   } catch (err) {
@@ -203,11 +210,12 @@ export async function extractReceipt(args: ExtractReceiptArgs): Promise<OcrResul
     throw new OcrError('No fetch implementation available');
   }
   const resolved = {
-    imageDataUrl: args.imageDataUrl,
+    pages: args.pages,
     apiKey: args.apiKey,
     model: args.model ?? DEFAULT_OCR_MODEL,
     baseUrl: args.baseUrl ?? OPENROUTER_URL,
     timeoutMs: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    pdfEngine: args.pdfEngine ?? DEFAULT_PDF_ENGINE,
   };
 
   const fallbackCurrency = args.fallbackCurrency ?? 'USD';

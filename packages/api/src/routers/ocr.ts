@@ -61,7 +61,7 @@ export const ocrRouter = router({
 
       try {
         const result = await extractReceipt({
-          imageDataUrl: input.imageDataUrl,
+          pages: [input.imageDataUrl],
           apiKey,
           model,
           baseUrl: process.env.OPENROUTER_BASE_URL || undefined,
