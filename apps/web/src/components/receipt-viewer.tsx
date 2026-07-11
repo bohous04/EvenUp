@@ -31,9 +31,6 @@ export function ReceiptViewer({
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
-  // Only treat a click as a backdrop dismissal when the press *started* on the
-  // backdrop too — otherwise a drag that ends on the backdrop wouldn't feel right.
-  const pressedOnBackdrop = useRef(false);
   const titleId = useId();
   const lastPage = Math.max(pageCount - 1, 0);
   const [page, setPage] = useState(0);
@@ -65,12 +62,6 @@ export function ReceiptViewer({
       }}
       // Self-heal if the dialog is ever closed by a path we didn't drive.
       onClose={onClose}
-      onMouseDown={(e) => {
-        pressedOnBackdrop.current = e.target === ref.current;
-      }}
-      onClick={(e) => {
-        if (e.target === ref.current && pressedOnBackdrop.current) onClose();
-      }}
       className="m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-black/95 p-0 backdrop:bg-black/70"
     >
       <div className="flex h-full flex-col text-white">
@@ -90,7 +81,14 @@ export function ReceiptViewer({
           </button>
         </div>
 
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4">
+        <div
+          className="relative flex flex-1 items-center justify-center overflow-hidden px-4"
+          // Dismiss only when the click lands on this stage background itself
+          // (not the image, prev/next controls, or anything else nested in it).
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- the receipt
               serve route streams private, session-gated bytes; next/image's
               remote-loader model doesn't fit an authenticated same-origin API. */}

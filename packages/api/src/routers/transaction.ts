@@ -32,7 +32,7 @@ const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
   receipt: { select: { id: true, storageKeys: true } },
-  receiptItems: { include: { assignments: true } },
+  receiptItems: { orderBy: { id: 'asc' }, include: { assignments: true } },
 } satisfies Prisma.TransactionInclude;
 
 type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactionInclude }>;
@@ -116,7 +116,7 @@ function itemizedReceiptItemsCreate(split: CreateExpenseInput['split']) {
   return split.items.map((it) => ({
     name: it.name ?? '',
     totalMinorUnits: fromMinor(it.totalMinorUnits),
-    assignments: { create: it.memberIds.map((memberId) => ({ memberId })) },
+    assignments: { create: [...new Set(it.memberIds)].map((memberId) => ({ memberId })) },
   }));
 }
 

@@ -999,11 +999,36 @@ describe('itemized expense line-items', () => {
           totalMinorUnits: 2000,
           memberIds: [members.olivia.id],
         }),
-        expect.objectContaining({ name: 'Chléb', totalMinorUnits: 4000 }),
+        expect.objectContaining({
+          name: 'Chléb',
+          totalMinorUnits: 4000,
+          memberIds: expect.arrayContaining([members.olivia.id, members.petr.id]),
+        }),
       ]),
     );
+    const chleb = tx.items.find((i) => i.name === 'Chléb')!;
+    expect(chleb.memberIds).toHaveLength(2);
     // Balances still computed from splits, unchanged: 2000 to olivia alone + 4000 split 2 ways.
     expect(tx.splitType).toBe('ITEMIZED');
+  });
+
+  it('defaults a nameless item to an empty string', async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Nameless',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 1500 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [{ totalMinorUnits: 1500, memberIds: [members.olivia.id] }],
+      },
+    });
+    const list = await caller.transaction.list({ groupId: group.id });
+    const tx = list.find((t) => t.title === 'Nameless')!;
+    expect(tx.items).toHaveLength(1);
+    expect(tx.items[0]).toMatchObject({ name: '', totalMinorUnits: 1500 });
   });
 
   it('replaces items on update and drops them when switching to a non-itemized split', async () => {
