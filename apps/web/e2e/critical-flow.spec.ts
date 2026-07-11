@@ -245,6 +245,28 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const res = await page.request.get(new URL(href!, page.url()).toString());
     expect(res.status()).toBe(200);
     expect(res.headers()['content-type']).toContain('image/');
+
+    // Re-opening the saved itemized expense edits it with the same shared
+    // ItemizedEditor (Task 3): the split row shows both persisted items.
+    await page.getByTestId('transaction-row').first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByTestId('expense-split-row').click();
+    await expect(page.getByTestId('split-type-ITEMIZED')).toHaveAttribute('aria-checked', 'true');
+    // Item order isn't persisted, so match either of the two known names rather
+    // than assuming a position — the point is the items round-trip and display.
+    await expect(page.getByTestId('ocr-item-name-0')).toHaveValue(/Mléko|Chléb/);
+    await expect(page.getByTestId('ocr-item-name-1')).toHaveValue(/Mléko|Chléb/);
+
+    // Bump one item's price by 10 -> whichever item it is, the total moves by
+    // the same +10 (75.10 -> 85.10).
+    const priceInput = page.getByTestId('ocr-item-price-0');
+    const before = Number((await priceInput.inputValue()).replace(',', '.'));
+    await priceInput.fill(String(before + 10));
+    await page.getByTestId('add-expense-submit').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    // The change persisted — the transaction list shows the new total.
+    await expect(page.getByText(/85[.,]10/).first()).toBeVisible();
   });
 
   test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)', async ({

@@ -19,6 +19,7 @@ import { Sheet } from '@/components/sheet';
 import { Fab } from '@/components/fab';
 import { OcrScan } from '@/components/ocr-scan';
 import { CategoryIcon, Camera, ChevronDown } from '@/components/icons';
+import { ItemizedEditor, itemPriceToMinor, type EditorItem } from '@/components/itemized-editor';
 
 interface MemberLite {
   id: string;
@@ -33,13 +34,14 @@ interface CustomCategoryLite {
   iconName: string;
 }
 
-type SplitType = 'EQUAL' | 'EXACT' | 'SHARES' | 'PERCENTAGE';
+type SplitType = 'EQUAL' | 'EXACT' | 'SHARES' | 'PERCENTAGE' | 'ITEMIZED';
 
 const SPLIT_LABELS: Record<SplitType, MessageKey> = {
   EQUAL: 'split.equal',
   EXACT: 'split.exact',
   SHARES: 'split.shares',
   PERCENTAGE: 'split.percentage',
+  ITEMIZED: 'split.itemized',
 };
 
 type RecurrenceValue = 'none' | (typeof RECURRENCE_INTERVALS)[number];
@@ -194,6 +196,8 @@ export function AddExpenseForm({
   const [deselected, setDeselected] = useState<Set<string>>(new Set());
   // Per-member values for shares / exact amounts / percentages, keyed by member id.
   const [values, setValues] = useState<Record<string, string>>({});
+  // Items for the ITEMIZED split (shared editor state — name/price/assignees).
+  const [itemRows, setItemRows] = useState<EditorItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<Row>(null);
   const [ocrOpen, setOcrOpen] = useState(false);
@@ -227,6 +231,7 @@ export function AddExpenseForm({
       setCurrency(baseCurrency);
       setCategory('other');
       setSplitType('EQUAL');
+      setItemRows([]);
       setPayerId('');
       setDeselected(new Set());
       setOpenRow(null);
@@ -258,6 +263,10 @@ export function AddExpenseForm({
   // transaction is opened, so re-renders never clobber the user's in-progress edits.
   useEffect(() => {
     if (!editing) return;
+    // Cleared upfront; the ITEMIZED branch below re-fills it when applicable —
+    // otherwise a previously edited itemized expense's rows would linger if the
+    // user manually switches this expense's split type to ITEMIZED.
+    setItemRows([]);
     setTitle(editing.title);
     setCurrency(editing.currency);
     setAmount(minorToDecimalString(Math.abs(Number(editing.totalMinorUnits)), editing.currency));
@@ -266,6 +275,21 @@ export function AddExpenseForm({
     setPayerId(editing.payers[0]?.memberId ?? '');
     const splitMembers = new Set(editing.splits.map((s) => s.memberId));
     setDeselected(new Set(members.filter((m) => !splitMembers.has(m.id)).map((m) => m.id)));
+    if (editing.splitType === 'ITEMIZED' && editing.items && editing.items.length > 0) {
+      setSplitType('ITEMIZED');
+      setItemRows(
+        editing.items.map((it) => ({
+          name: it.name,
+          priceText: minorToDecimalString(Math.abs(it.totalMinorUnits), editing.currency),
+          assigned: new Set(it.memberIds),
+        })),
+      );
+      setFxRate('');
+      setRecurrence('none');
+      setOpenRow(null);
+      setError(null);
+      return; // handled — skip the EXACT fallback
+    }
     // Restore the exact split from the raw per-member input we persisted, so a
     // SHARES/PERCENTAGE expense keeps its type and ratios — not just its amounts.
     const st = editing.splitType;
@@ -372,6 +396,47 @@ export function AddExpenseForm({
       return;
     }
 
+    // Same payload either way; in edit mode it carries the transaction id and
+    // updates in place, otherwise it creates a new expense.
+    const runMutation = (payload: Parameters<typeof createExpense.mutate>[0]) => {
+      if (isEdit && editing) updateExpense.mutate({ transactionId: editing.id, ...payload });
+      else createExpense.mutate(payload);
+    };
+
+    if (splitType === 'ITEMIZED') {
+      // Mirrors the validation `ocr-scan.tsx`'s save() uses: every item needs a
+      // valid positive price and at least one assignee.
+      const parsed = itemRows.map((it) => ({
+        name: it.name.trim() || undefined,
+        minor: itemPriceToMinor(it.priceText, currency),
+        memberIds: [...it.assigned],
+      }));
+      if (parsed.some((it) => it.minor == null)) {
+        setError(t('split.sumMismatch'));
+        return;
+      }
+      if (parsed.some((it) => it.memberIds.length === 0)) {
+        setError(t('ocr.assignItems'));
+        return;
+      }
+      const items = parsed.map((it) => ({
+        name: it.name,
+        totalMinorUnits: it.minor!,
+        memberIds: it.memberIds,
+      }));
+      const total = items.reduce((a, it) => a + it.totalMinorUnits, 0);
+      runMutation({
+        groupId,
+        title: title.trim() || t('expense.title'),
+        currency,
+        date: new Date(date),
+        category,
+        payers: [{ memberId: payerId, amountMinorUnits: total }],
+        split: { type: 'ITEMIZED', items },
+      });
+      return;
+    }
+
     // Common fields incl. multi-currency (FR-8.x): a non-base currency carries
     // an exchange rate to base; the API converts the stored base amount.
     const common = {
@@ -381,13 +446,6 @@ export function AddExpenseForm({
       category,
       date: parseLocalDate(date),
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
-    };
-
-    // Same payload either way; in edit mode it carries the transaction id and
-    // updates in place, otherwise it creates a new expense.
-    const runMutation = (payload: Parameters<typeof createExpense.mutate>[0]) => {
-      if (isEdit && editing) updateExpense.mutate({ transactionId: editing.id, ...payload });
-      else createExpense.mutate(payload);
     };
 
     try {
@@ -493,6 +551,15 @@ export function AddExpenseForm({
     return minor > 0 ? minorToDecimalString(minor, currency) : '';
   };
 
+  // ITEMIZED's top amount is derived (read-only), not typed — it's the live sum
+  // of the item rows, in the same shape `minorToDecimalString` expects.
+  const itemizedTotalMinor = itemRows.reduce(
+    (s, it) => s + (itemPriceToMinor(it.priceText, currency) ?? 0),
+    0,
+  );
+  const displayAmount =
+    splitType === 'ITEMIZED' ? minorToDecimalString(itemizedTotalMinor, currency) : amount;
+
   const toggleRow = (row: Exclude<Row, null>) => setOpenRow((r) => (r === row ? null : row));
 
   // Resolve the selected category's label + icon. A `custom:<id>` value shows the
@@ -531,14 +598,20 @@ export function AddExpenseForm({
             <input
               id="e-amount"
               inputMode="decimal"
-              autoFocus
-              value={amount}
-              onChange={(e) => setAmount(clampAmountDecimals(e.target.value, currency))}
+              autoFocus={splitType !== 'ITEMIZED'}
+              value={displayAmount}
+              onChange={(e) => {
+                if (splitType !== 'ITEMIZED')
+                  setAmount(clampAmountDecimals(e.target.value, currency));
+              }}
+              readOnly={splitType === 'ITEMIZED'}
               placeholder="0"
               required
               aria-label={t('expense.amount')}
               data-testid="expense-amount-input"
-              className="w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+              className={`w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
+                splitType === 'ITEMIZED' ? 'cursor-default' : ''
+              }`}
             />
             <select
               value={currency}
@@ -637,47 +710,51 @@ export function AddExpenseForm({
             </div>
           </div>
 
-          {/* For whom — toggle chips with a live equal-share preview */}
-          <div>
-            <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
-            <div
-              className="flex flex-wrap justify-center gap-2"
-              role="group"
-              aria-label={t('expense.splitBetween')}
-            >
-              {members.map((m) => {
-                const selected = isSelected(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => toggle(m.id)}
-                    className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
-                      selected
-                        ? 'border-brand-600 bg-brand-50 font-medium text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
-                        : 'border-zinc-200 opacity-60 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
-                    }`}
-                  >
-                    <MemberChip
-                      initials={m.initials}
-                      color={m.color}
-                      name={m.displayName}
-                      size="sm"
-                    />
-                    {m.displayName}
-                    {selected && shares[m.id] != null ? (
-                      <AmountText
-                        minorUnits={shares[m.id]!}
-                        currency={currency}
-                        className="text-xs text-zinc-500 dark:text-zinc-400"
+          {/* For whom — toggle chips with a live equal-share preview. ITEMIZED
+              assigns members per item instead (see ItemizedEditor below), so the
+              blanket member-picker doesn't apply in that mode. */}
+          {splitType !== 'ITEMIZED' ? (
+            <div>
+              <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
+              <div
+                className="flex flex-wrap justify-center gap-2"
+                role="group"
+                aria-label={t('expense.splitBetween')}
+              >
+                {members.map((m) => {
+                  const selected = isSelected(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggle(m.id)}
+                      className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 ${
+                        selected
+                          ? 'border-brand-600 bg-brand-50 font-medium text-brand-700 dark:bg-brand-600/20 dark:text-brand-100'
+                          : 'border-zinc-200 opacity-60 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800'
+                      }`}
+                    >
+                      <MemberChip
+                        initials={m.initials}
+                        color={m.color}
+                        name={m.displayName}
+                        size="sm"
                       />
-                    ) : null}
-                  </button>
-                );
-              })}
+                      {m.displayName}
+                      {selected && shares[m.id] != null ? (
+                        <AmountText
+                          minorUnits={shares[m.id]!}
+                          currency={currency}
+                          className="text-xs text-zinc-500 dark:text-zinc-400"
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {/* Collapsed settings rows */}
           <div className="border-t border-zinc-100 dark:border-zinc-800">
@@ -699,7 +776,14 @@ export function AddExpenseForm({
                     label: t(SPLIT_LABELS[st]),
                   }))}
                 />
-                {splitType !== 'EQUAL' ? (
+                {splitType === 'ITEMIZED' ? (
+                  <ItemizedEditor
+                    items={itemRows}
+                    onChange={setItemRows}
+                    members={members}
+                    baseCurrency={currency}
+                  />
+                ) : splitType !== 'EQUAL' ? (
                   <div className="space-y-2" data-testid="per-member-inputs">
                     {selectedMembers.map((m) => (
                       <div key={m.id} className="flex items-center gap-2">
