@@ -245,6 +245,28 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const res = await page.request.get(new URL(href!, page.url()).toString());
     expect(res.status()).toBe(200);
     expect(res.headers()['content-type']).toContain('image/');
+
+    // Re-opening the saved itemized expense edits it with the same shared
+    // ItemizedEditor (Task 3): the split row shows both persisted items.
+    await page.getByTestId('transaction-row').first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByTestId('expense-split-row').click();
+    await expect(page.getByTestId('split-type-ITEMIZED')).toHaveAttribute('aria-checked', 'true');
+    // Item order isn't persisted, so match either of the two known names rather
+    // than assuming a position — the point is the items round-trip and display.
+    await expect(page.getByTestId('ocr-item-name-0')).toHaveValue(/Mléko|Chléb/);
+    await expect(page.getByTestId('ocr-item-name-1')).toHaveValue(/Mléko|Chléb/);
+
+    // Bump one item's price by 10 -> whichever item it is, the total moves by
+    // the same +10 (75.10 -> 85.10).
+    const priceInput = page.getByTestId('ocr-item-price-0');
+    const before = Number((await priceInput.inputValue()).replace(',', '.'));
+    await priceInput.fill(String(before + 10));
+    await page.getByTestId('add-expense-submit').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+
+    // The change persisted — the transaction list shows the new total.
+    await expect(page.getByText(/85[.,]10/).first()).toBeVisible();
   });
 
   test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)', async ({
@@ -283,21 +305,44 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-receipt-row').click();
 
-    // Select two pages, confirm both preview rows appear, then remove one
-    // before scanning — the mocked backend returns a fixed receipt regardless
-    // of how many pages are actually sent.
+    // Select two pages and confirm both preview rows appear. Unlike the
+    // single-image test, BOTH pages are kept through to saving (not removed) so
+    // the saved receipt has receiptPageCount === 2 and the multi-page lightbox
+    // (Task 4) has something to page through — the mocked backend returns a
+    // fixed receipt regardless of how many pages are actually sent.
     await page.getByTestId('ocr-file-input').setInputFiles([
       { name: 'p1.png', mimeType: 'image/png', buffer: tinyPng },
       { name: 'p2.png', mimeType: 'image/png', buffer: tinyPng },
     ]);
     await expect(page.getByTestId('ocr-page-0')).toBeVisible();
     await expect(page.getByTestId('ocr-page-1')).toBeVisible();
-    await page.getByTestId('ocr-page-remove-1').click();
-    await expect(page.getByTestId('ocr-page-1')).toHaveCount(0);
 
     await page.getByTestId('ocr-scan-pages-btn').click();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
+
+    // Assign every item to Petr (required before saving) and save.
+    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
+    for (const chip of await petrChips.all()) await chip.click();
+    await page.getByTestId('ocr-save-btn').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    // The saved expense has a 2-page receipt, so "view receipt" opens the
+    // in-app lightbox rather than linking straight to page 0 (Task 4).
+    const viewReceipt = page.getByTestId('view-receipt');
+    await expect(viewReceipt).toBeVisible();
+    await expect(viewReceipt).not.toHaveAttribute('href', /.+/);
+    await viewReceipt.click();
+
+    await expect(page.getByTestId('receipt-viewer-img')).toBeVisible();
+    await expect(page.getByTestId('receipt-counter')).toHaveText('Stránka 1 z 2');
+
+    await page.getByTestId('receipt-next').click();
+    await expect(page.getByTestId('receipt-counter')).toHaveText('Stránka 2 z 2');
+    await expect(page.getByTestId('receipt-viewer-img')).toHaveAttribute('src', /page=1/);
+
+    await page.getByTestId('receipt-close').click();
+    await expect(page.getByTestId('receipt-viewer-img')).toBeHidden();
   });
 
   test('foreign-currency expense converts to base via an FX rate (FR-8.x)', async ({

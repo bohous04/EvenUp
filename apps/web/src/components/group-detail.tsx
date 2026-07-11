@@ -19,6 +19,7 @@ import { ActivityFeed } from '@/components/activity-feed';
 import { CategoryManager } from '@/components/category-manager';
 import { Sheet } from '@/components/sheet';
 import { MenuSheet } from '@/components/menu-sheet';
+import { ReceiptViewer } from '@/components/receipt-viewer';
 import {
   Users,
   Mail,
@@ -45,6 +46,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [showAll, setShowAll] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [viewingReceiptTx, setViewingReceiptTx] = useState<Transaction | null>(null);
 
   const createInvite = trpc.invite.create.useMutation({
     onSuccess: (invite) => {
@@ -202,18 +204,32 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         ) : null}
                       </div>
                     </button>
-                    {tx.hasReceiptImage ? (
-                      <a
-                        href={`/api/receipts/${tx.receiptId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ml-11 text-xs text-brand-600 underline"
-                        data-testid="view-receipt"
-                      >
-                        {(tx.receiptPageCount ?? 0) > 1
-                          ? t('receipt.viewCount', { count: tx.receiptPageCount })
-                          : t('receipt.view')}
-                      </a>
+                    {tx.hasReceiptImage && tx.receiptId ? (
+                      (tx.receiptPageCount ?? 0) > 1 ? (
+                        // Multiple pages: open the in-app lightbox so all pages
+                        // are reachable, rather than a link that only ever
+                        // resolves page 0.
+                        <button
+                          type="button"
+                          onClick={() => setViewingReceiptTx(tx)}
+                          className="ml-11 text-xs text-brand-600 underline"
+                          data-testid="view-receipt"
+                        >
+                          {t('receipt.viewCount', { count: tx.receiptPageCount })}
+                        </button>
+                      ) : (
+                        // A single page (one image, or a PDF) — the plain link
+                        // works for both; no lightbox needed.
+                        <a
+                          href={`/api/receipts/${tx.receiptId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-11 text-xs text-brand-600 underline"
+                          data-testid="view-receipt"
+                        >
+                          {t('receipt.view')}
+                        </a>
+                      )
                     ) : null}
                   </li>
                 );
@@ -266,6 +282,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           transaction={editingTx}
           members={memberLite}
           onClose={() => setEditingTx(null)}
+        />
+      ) : null}
+
+      {viewingReceiptTx && viewingReceiptTx.receiptId ? (
+        <ReceiptViewer
+          key={viewingReceiptTx.id}
+          receiptId={viewingReceiptTx.receiptId}
+          pageCount={viewingReceiptTx.receiptPageCount ?? 0}
+          onClose={() => setViewingReceiptTx(null)}
         />
       ) : null}
 

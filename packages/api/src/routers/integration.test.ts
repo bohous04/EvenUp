@@ -971,3 +971,114 @@ describe('access control', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('itemized expense line-items', () => {
+  it('persists ReceiptItems + assignments on create and returns them', async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Albert',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 6000 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [
+          { name: 'Mléko', totalMinorUnits: 2000, memberIds: [members.olivia.id] },
+          { name: 'Chléb', totalMinorUnits: 4000, memberIds: [members.olivia.id, members.petr.id] },
+        ],
+      },
+    });
+    const list = await caller.transaction.list({ groupId: group.id });
+    const tx = list.find((t) => t.title === 'Albert')!;
+    expect(tx.items).toHaveLength(2);
+    expect(tx.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Mléko',
+          totalMinorUnits: 2000,
+          memberIds: [members.olivia.id],
+        }),
+        expect.objectContaining({
+          name: 'Chléb',
+          totalMinorUnits: 4000,
+          memberIds: expect.arrayContaining([members.olivia.id, members.petr.id]),
+        }),
+      ]),
+    );
+    const chleb = tx.items.find((i) => i.name === 'Chléb')!;
+    expect(chleb.memberIds).toHaveLength(2);
+    // Balances still computed from splits, unchanged: 2000 to olivia alone + 4000 split 2 ways.
+    expect(tx.splitType).toBe('ITEMIZED');
+  });
+
+  it('defaults a nameless item to an empty string', async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Nameless',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 1500 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [{ totalMinorUnits: 1500, memberIds: [members.olivia.id] }],
+      },
+    });
+    const list = await caller.transaction.list({ groupId: group.id });
+    const tx = list.find((t) => t.title === 'Nameless')!;
+    expect(tx.items).toHaveLength(1);
+    expect(tx.items[0]).toMatchObject({ name: '', totalMinorUnits: 1500 });
+  });
+
+  it('replaces items on update and drops them when switching to a non-itemized split', async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    const created = await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 3000 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [{ name: 'A', totalMinorUnits: 3000, memberIds: [members.olivia.id] }],
+      },
+    });
+    // Edit the items.
+    await caller.transaction.updateExpense({
+      transactionId: created.id,
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 5000 }],
+      split: {
+        type: 'ITEMIZED',
+        items: [
+          { name: 'B', totalMinorUnits: 2000, memberIds: [members.olivia.id] },
+          { name: 'C', totalMinorUnits: 3000, memberIds: [members.petr.id] },
+        ],
+      },
+    });
+    let tx = (await caller.transaction.list({ groupId: group.id })).find(
+      (t) => t.id === created.id,
+    )!;
+    expect(tx.items.map((i) => i.name).sort()).toEqual(['B', 'C']);
+    // Switch to EQUAL — items must be gone.
+    await caller.transaction.updateExpense({
+      transactionId: created.id,
+      groupId: group.id,
+      title: 'R',
+      currency: 'CZK',
+      date: new Date('2026-07-11'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 5000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: members.olivia.id }, { memberId: members.petr.id }],
+      },
+    });
+    tx = (await caller.transaction.list({ groupId: group.id })).find((t) => t.id === created.id)!;
+    expect(tx.items).toEqual([]);
+    expect(tx.splitType).toBe('EQUAL');
+  });
+});

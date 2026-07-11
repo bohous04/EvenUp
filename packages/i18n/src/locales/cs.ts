@@ -249,6 +249,11 @@ export const cs = {
 
   'receipt.view': 'Zobrazit účtenku',
   'receipt.viewCount': 'Zobrazit účtenku ({count})',
+  'receipt.prev': 'Předchozí',
+  'receipt.next': 'Další',
+  'receipt.openOriginal': 'Otevřít originál',
+  'receipt.pageOf': 'Stránka {n} z {total}',
+  'receipt.close': 'Zavřít',
 
   'fx.rate': 'Směnný kurz',
   'fx.override': 'Vlastní kurz',

@@ -18,6 +18,7 @@ import {
   updateExpenseInput,
   updateTransferInput,
   type SplitConfig,
+  type CreateExpenseInput,
 } from '../schemas.js';
 import { assertGroupAccess } from '../access.js';
 import { planExpense } from '../services/transaction-service.js';
@@ -31,6 +32,7 @@ const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
   receipt: { select: { id: true, storageKeys: true } },
+  receiptItems: { orderBy: { id: 'asc' }, include: { assignments: true } },
 } satisfies Prisma.TransactionInclude;
 
 type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactionInclude }>;
@@ -42,7 +44,7 @@ type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactio
  * superjson intact) so an edit can read back the original percentage split.
  */
 function shapeTransaction(tx: FullTransaction) {
-  const { receipt, splits, ...rest } = tx;
+  const { receipt, splits, receiptItems, ...rest } = tx;
   return {
     ...rest,
     splits: splits.map((s) => ({
@@ -52,6 +54,11 @@ function shapeTransaction(tx: FullTransaction) {
     receiptId: receipt?.id ?? null,
     hasReceiptImage: (receipt?.storageKeys.length ?? 0) > 0,
     receiptPageCount: receipt?.storageKeys.length ?? 0,
+    items: receiptItems.map((ri) => ({
+      name: ri.name,
+      totalMinorUnits: Number(ri.totalMinorUnits),
+      memberIds: ri.assignments.map((a) => a.memberId),
+    })),
   };
 }
 
@@ -101,6 +108,18 @@ function splitCreateData(split: SplitConfig, shares: SplitShare[], sign: number)
   }));
 }
 
+/** Nested `receiptItems` create for an ITEMIZED split — persists the item detail
+ *  alongside the per-member splits (balances are unaffected). `undefined` for
+ *  non-itemized splits so callers can drop items instead. */
+function itemizedReceiptItemsCreate(split: CreateExpenseInput['split']) {
+  if (split.type !== 'ITEMIZED') return undefined;
+  return split.items.map((it) => ({
+    name: it.name ?? '',
+    totalMinorUnits: fromMinor(it.totalMinorUnits),
+    assignments: { create: [...new Set(it.memberIds)].map((memberId) => ({ memberId })) },
+  }));
+}
+
 /** Pass the injected FX fetch (tests only) so createExpense/recordTransfer can auto-fetch a missing rate. */
 function fxArgs(ctx: Context) {
   return ctx.fxFetch
@@ -143,6 +162,7 @@ export const transactionRouter = router({
     const sign = input.type === 'INCOME' ? -1 : 1;
     const baseTotal =
       sign * convertToBase(plan.totalMinorUnits, input.currency, group.baseCurrency, rateDecimal);
+    const receiptItemsCreate = itemizedReceiptItemsCreate(input.split);
 
     const transaction = await ctx.prisma.transaction.create({
       data: {
@@ -169,6 +189,7 @@ export const transactionRouter = router({
         splits: {
           create: splitCreateData(input.split, plan.shares, sign),
         },
+        ...(receiptItemsCreate ? { receiptItems: { create: receiptItemsCreate } } : {}),
       },
       include: transactionInclude,
     });
@@ -289,6 +310,7 @@ export const transactionRouter = router({
     const sign = input.type === 'INCOME' ? -1 : 1;
     const baseTotal =
       sign * convertToBase(plan.totalMinorUnits, input.currency, group.baseCurrency, rateDecimal);
+    const receiptItemsCreate = itemizedReceiptItemsCreate(input.split);
 
     const transaction = await ctx.prisma.transaction.update({
       where: { id: input.transactionId },
@@ -317,6 +339,10 @@ export const transactionRouter = router({
         splits: {
           deleteMany: {},
           create: splitCreateData(input.split, plan.shares, sign),
+        },
+        receiptItems: {
+          deleteMany: {},
+          ...(receiptItemsCreate ? { create: receiptItemsCreate } : {}),
         },
       },
       include: transactionInclude,
