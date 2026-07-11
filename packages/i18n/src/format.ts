@@ -50,3 +50,29 @@ export function formatDate(date: string | Date, locale: Locale): string {
     day: 'numeric',
   }).format(d);
 }
+
+/**
+ * Join display names for a sentence. Up to `max` names are joined with
+ * `Intl.ListFormat`; beyond that the list is truncated and the remainder is shown
+ * as a `+N` chip.
+ *
+ * `disjunction` ("Petr nebo Jana") is an instruction — one of you pays.
+ * `conjunction` ("Petr a Jana") is a statement of fact.
+ *
+ * The truncated branch joins with a plain `', '` on purpose. Czech
+ * `Intl.ListFormat(type: 'unit')` renders `Petr, Jana a Filip`, inserting "a"
+ * before the last visible name — which is wrong when the list continues — and
+ * `style: 'narrow'` drops the commas entirely. No `Intl` list type produces a
+ * correctly truncated list.
+ */
+export function formatNameList(
+  names: readonly string[],
+  locale: Locale,
+  type: 'conjunction' | 'disjunction',
+  max = 3,
+): string {
+  if (names.length <= max) {
+    return new Intl.ListFormat(INTL_LOCALE[locale], { style: 'long', type }).format(names);
+  }
+  return `${names.slice(0, max).join(', ')} +${names.length - max}`;
+}

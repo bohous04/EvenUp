@@ -12,7 +12,7 @@ import {
   computeNetBalances,
   minimizeDebts,
   computeDirectDebts,
-  suggestNextPayer,
+  rankNextRound,
   type Balance,
   type BalanceTransaction,
   type Payment,
@@ -73,6 +73,8 @@ async function loadBalanceTransactions(
 export async function getGroupBalances(
   prisma: PrismaClient,
   groupId: string,
+  // Caller-supplied `group` must satisfy `group.id === groupId`; a mismatched pair
+  // would silently compute balances against the wrong group's members.
   group?: Prisma.GroupGetPayload<{ include: { members: true } }>,
 ): Promise<GroupBalanceResult> {
   const loadedGroup =
@@ -111,7 +113,9 @@ export type NextRoundResult =
   | {
       readonly state: 'suggested';
       readonly typicalExpenseMinorUnits: number;
-      readonly ranked: MemberBalance[];
+      readonly clearsGate: boolean;
+      readonly payers: MemberBalance[];
+      readonly runnerUp: MemberBalance[];
     };
 
 /** Lower median: integer, deterministic, no averaging of two middles. */
@@ -166,10 +170,19 @@ export async function getNextRound(
     lastPaidAt: lastPaidAt.get(m.id) ?? null,
   }));
 
-  const ranked = suggestNextPayer(candidates, typicalExpenseMinorUnits).map(
-    (c) => byId.get(c.memberId)!,
-  );
-  if (ranked.length === 0) return { state: 'square' };
+  const ranking = rankNextRound(candidates, typicalExpenseMinorUnits);
+  // An empty ranking now means exactly one thing: nobody owes anything.
+  if (!ranking) return { state: 'square' };
 
-  return { state: 'suggested', typicalExpenseMinorUnits, ranked };
+  // Safe: every ranked memberId comes from `candidates`, built from `activeMembers`,
+  // and `byId` is built from `balances`, which covers every member of the group.
+  const toBalances = (cs: readonly NextPayerCandidate[]) => cs.map((c) => byId.get(c.memberId)!);
+
+  return {
+    state: 'suggested',
+    typicalExpenseMinorUnits,
+    clearsGate: ranking.clearsGate,
+    payers: toBalances(ranking.payers),
+    runnerUp: toBalances(ranking.runnerUp),
+  };
 }

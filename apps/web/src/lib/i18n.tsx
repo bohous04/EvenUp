@@ -6,6 +6,7 @@ import {
   plural as pluralize,
   formatCurrency as fmtCurrency,
   formatDate as fmtDate,
+  formatNameList as fmtNameList,
   type Locale,
   type MessageKey,
   type InterpolationValues,
@@ -18,6 +19,7 @@ interface I18nValue {
   plural: (base: string, count: number, values?: InterpolationValues) => string;
   formatCurrency: (minor: number, currency: string) => string;
   formatDate: (date: string | Date) => string;
+  formatNameList: (names: readonly string[], type: 'conjunction' | 'disjunction') => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -46,6 +48,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       plural: (base, count, values) => pluralize(locale, base, count, values),
       formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
       formatDate: (date) => fmtDate(date, locale),
+      formatNameList: (names, type) => fmtNameList(names, locale, type),
     };
   }, [locale, setLocale]);
 

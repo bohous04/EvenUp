@@ -10,7 +10,7 @@
  *   median of [90_000, 90_000, 30_000] = 90_000 = E
  *   gate (w=1, W=3):  2b*3 + 90_000*2 <= 0  =>  b <= -30_000
  *   Jana (-70_000) and Petr (-40_000) qualify; Olivia does not.
- *   ranked = [Jana, Petr]
+ *   payers = [Jana], runnerUp = [Petr], clearsGate = true
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { makeCaller, createTestUser, resetDb, testPrisma } from '../test/harness.js';
@@ -65,7 +65,7 @@ describe('balance.nextPayer', () => {
     expect(await caller.balance.nextPayer({ groupId: group.id })).toEqual({ state: 'hidden' });
   });
 
-  test('ranks the qualifying debtors deepest-first and reports the median expense', async () => {
+  test('names the deepest debtor, with the next level as runner-up', async () => {
     const { caller, group, members, expense } = await seedGroup();
     await expense('Chata', members.olivia.id, 90_000, '2026-06-20');
     await expense('Vlek', members.olivia.id, 90_000, '2026-06-21');
@@ -76,9 +76,12 @@ describe('balance.nextPayer', () => {
     if (result.state !== 'suggested') throw new Error('unreachable');
 
     expect(result.typicalExpenseMinorUnits).toBe(90_000);
-    expect(result.ranked.map((m) => m.displayName)).toEqual(['Jana Dvořáková', 'Petr Svoboda']);
-    expect(result.ranked[0]!.balanceMinorUnits).toBe(-70_000);
-    expect(result.ranked[0]!.color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(result.clearsGate).toBe(true);
+    expect(result.payers.map((m) => m.displayName)).toEqual(['Jana Dvořáková']);
+    expect(result.payers[0]!.balanceMinorUnits).toBe(-70_000);
+    expect(result.payers[0]!.color).toMatch(/^#[0-9a-f]{6}$/);
+    expect(result.runnerUp.map((m) => m.displayName)).toEqual(['Petr Svoboda']);
+    expect(result.runnerUp[0]!.balanceMinorUnits).toBe(-40_000);
   });
 
   test('never names a deactivated member', async () => {
@@ -91,7 +94,8 @@ describe('balance.nextPayer', () => {
     const result = await caller.balance.nextPayer({ groupId: group.id });
     expect(result.state).toBe('suggested');
     if (result.state !== 'suggested') throw new Error('unreachable');
-    expect(result.ranked.map((m) => m.memberId)).not.toContain(members.jana.id);
+    expect(result.payers.map((m) => m.memberId)).not.toContain(members.jana.id);
+    expect(result.runnerUp.map((m) => m.memberId)).not.toContain(members.jana.id);
   });
 
   test('reports a square group rather than naming anyone', async () => {
@@ -102,6 +106,70 @@ describe('balance.nextPayer', () => {
     await expense('C', members.jana.id, 90_000, '2026-06-22');
 
     expect(await caller.balance.nextPayer({ groupId: group.id })).toEqual({ state: 'square' });
+  });
+
+  test('names the tied debtors without claiming it evens them up', async () => {
+    const { caller, group, members, expense } = await seedGroup();
+    // Three equal rounds, all paid by Olivia: E = 90_000, W = 3, w = 1, so the gate
+    // is b <= -30_000. Before settling: Olivia +180_000, Petr -90_000, Jana -90_000.
+    await expense('Chata', members.olivia.id, 90_000, '2026-06-20');
+    await expense('Vlek', members.olivia.id, 90_000, '2026-06-21');
+    await expense('Kava', members.olivia.id, 90_000, '2026-06-22');
+
+    // Partial settlements are TRANSFERs, not EXPENSEs: they move balances without
+    // touching the median or lastPaidAt.
+    for (const from of [members.petr, members.jana]) {
+      await caller.transaction.recordTransfer({
+        groupId: group.id,
+        fromMemberId: from.id,
+        toMemberId: members.olivia.id,
+        amountMinorUnits: 65_000,
+        currency: 'CZK',
+      });
+    }
+
+    // Final: Olivia +50_000, Petr -25_000, Jana -25_000 (sums to zero). Both debtors
+    // are shallower than the -30_000 gate, so the card names them but makes no promise.
+    const result = await caller.balance.nextPayer({ groupId: group.id });
+    expect(result.state).toBe('suggested');
+    if (result.state !== 'suggested') throw new Error('unreachable');
+
+    expect(result.clearsGate).toBe(false);
+    expect(result.payers.map((m) => m.displayName).sort()).toEqual([
+      'Jana Dvořáková',
+      'Petr Svoboda',
+    ]);
+    expect(result.payers.every((m) => m.balanceMinorUnits === -25_000)).toBe(true);
+    expect(result.runnerUp).toEqual([]);
+  });
+
+  test('slices to the 10 most recent expenses for the median', async () => {
+    const { caller, group, members, expense } = await seedGroup();
+    const dates = [
+      '2026-06-10', // oldest -- amount 100_000, must fall outside the window
+      '2026-06-11',
+      '2026-06-12',
+      '2026-06-13',
+      '2026-06-14',
+      '2026-06-15',
+      '2026-06-16',
+      '2026-06-17',
+      '2026-06-18',
+      '2026-06-19',
+      '2026-06-20', // most recent
+    ];
+    // An outlier old enough to fall outside MEDIAN_WINDOW: if the slice were
+    // removed (or widened past 10), it would pull the median from 5_000 to 6_000.
+    await expense('Outlier', members.olivia.id, 100_000, dates[0]!);
+    for (const [i, day] of dates.slice(1).entries()) {
+      await expense(`Round ${i + 1}`, members.olivia.id, (i + 1) * 1_000, day);
+    }
+
+    const result = await caller.balance.nextPayer({ groupId: group.id });
+    expect(result.state).toBe('suggested');
+    if (result.state !== 'suggested') throw new Error('unreachable');
+    // Lower median of the 10 most recent [1_000, 2_000, ..., 10_000] is 5_000.
+    expect(result.typicalExpenseMinorUnits).toBe(5_000);
   });
 
   test('hides itself for a group with fewer than two active members', async () => {

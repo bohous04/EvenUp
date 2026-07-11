@@ -6,6 +6,7 @@ import {
   formatCurrency,
   formatNumber,
   formatDate,
+  formatNameList,
   catalogs,
   LOCALES,
   DEFAULT_LOCALE,
@@ -143,5 +144,52 @@ describe('formatDate', () => {
 
   test('throws on an invalid date', () => {
     expect(() => formatDate('not-a-date', 'en')).toThrow();
+  });
+});
+
+describe('formatNameList', () => {
+  test('joins two names as a disjunction (one of you pays)', () => {
+    expect(formatNameList(['Petr', 'Jana'], 'cs', 'disjunction')).toBe('Petr nebo Jana');
+    expect(formatNameList(['Petr', 'Jana'], 'en', 'disjunction')).toBe('Petr or Jana');
+  });
+
+  test('joins two names as a conjunction (a statement of fact)', () => {
+    expect(formatNameList(['Petr', 'Jana'], 'cs', 'conjunction')).toBe('Petr a Jana');
+    expect(formatNameList(['Petr', 'Jana'], 'en', 'conjunction')).toBe('Petr and Jana');
+  });
+
+  test('joins three names', () => {
+    expect(formatNameList(['Petr', 'Jana', 'Filip'], 'cs', 'disjunction')).toBe(
+      'Petr, Jana nebo Filip',
+    );
+    expect(formatNameList(['Petr', 'Jana', 'Filip'], 'en', 'disjunction')).toBe(
+      'Petr, Jana, or Filip',
+    );
+  });
+
+  test('truncates beyond three names and appends a +N chip', () => {
+    expect(formatNameList(['Petr', 'Jana', 'Filip', 'Zoe'], 'cs', 'disjunction')).toBe(
+      'Petr, Jana, Filip +1',
+    );
+    expect(formatNameList(['Petr', 'Jana', 'Filip', 'Zoe', 'Adam'], 'en', 'conjunction')).toBe(
+      'Petr, Jana, Filip +2',
+    );
+  });
+
+  test('the truncated branch never inserts a conjunction word', () => {
+    // Czech Intl.ListFormat(type:'unit') would render "Petr, Jana a Filip" — a lie
+    // when the list continues. The truncated branch must join with a plain comma.
+    expect(formatNameList(['Petr', 'Jana', 'Filip', 'Zoe'], 'cs', 'conjunction')).not.toContain(
+      ' a Filip',
+    );
+  });
+
+  test('a single name is returned as-is', () => {
+    expect(formatNameList(['Jana'], 'cs', 'disjunction')).toBe('Jana');
+    expect(formatNameList(['Jana'], 'en', 'conjunction')).toBe('Jana');
+  });
+
+  test('respects a custom max', () => {
+    expect(formatNameList(['Petr', 'Jana', 'Filip'], 'en', 'conjunction', 2)).toBe('Petr, Jana +1');
   });
 });

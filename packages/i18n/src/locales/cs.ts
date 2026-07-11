@@ -208,9 +208,11 @@ export const cs = {
   'balance.isOwed': '{member} má dostat {amount}',
   'balance.settledUp': 'Všechno je vyrovnáno',
   'balance.suggestedPayments': 'Navrhované platby',
-  'nextRound.title': 'Rundu platí {name}',
+  'nextRound.title': 'Rundu platí {names}',
+  'nextRound.titleBehind': 'Nejvíc pozadu: {names}',
   'nextRound.reason': 'Skluz {amount}',
-  'nextRound.runnerUp': 'Pak {name} ({amount})',
+  'nextRound.reasonEach': 'Skluz {amount} každý',
+  'nextRound.runnerUp': 'Pak {names} ({amount})',
   'nextRound.square': 'Jste vyrovnaní — další rundu může vzít kdokoli.',
 
   'settle.title': 'Vyrovnat',

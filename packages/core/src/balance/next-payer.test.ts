@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as fc from 'fast-check';
-import { suggestNextPayer, type NextPayerCandidate } from './next-payer.js';
+import { rankNextRound, type NextPayerCandidate } from './next-payer.js';
 
-/** Three equal-weight members; E = 180_000 puts the gate at exactly -60_000. */
 const c = (
   memberId: string,
   balanceMinorUnits: number,
@@ -12,51 +11,55 @@ const c = (
 
 const ids = (r: readonly NextPayerCandidate[]) => r.map((x) => x.memberId);
 
-describe('suggestNextPayer — the gate', () => {
-  test('admits a member exactly on the boundary and rejects one koruna short', () => {
-    const onBoundary = [c('a', -60_000), c('b', 30_000), c('c', 30_000)];
-    expect(ids(suggestNextPayer(onBoundary, 180_000))).toEqual(['a']);
-
-    const shortOfBoundary = [c('a', -59_999), c('b', 30_000), c('c', 29_999)];
-    expect(ids(suggestNextPayer(shortOfBoundary, 180_000))).toEqual([]);
-  });
-
-  test('never names a creditor or a square member', () => {
-    const r = suggestNextPayer([c('rich', 234_000), c('square', 0), c('poor', -145_000)], 180_000);
-    expect(ids(r)).toEqual(['poor']);
-  });
-
-  test('a larger share qualifies at a shallower debt', () => {
-    // W = 4. Gate = -E(W-w)/2W  =>  w=2 -> -45_000,  w=1 -> -67_500.
-    const heavy = [c('heavy', -45_000, 2), c('x', 1, 1), c('y', 1, 1)];
-    expect(ids(suggestNextPayer(heavy, 180_000))).toEqual(['heavy']);
-
-    const light = [c('light', -45_000, 1), c('x', 1, 2), c('y', 1, 1)];
-    expect(ids(suggestNextPayer(light, 180_000))).toEqual([]);
-  });
-
-  test('returns empty when the typical expense or total weight is not positive', () => {
-    expect(suggestNextPayer([c('a', -100_000)], 0)).toEqual([]);
-    expect(suggestNextPayer([c('a', -100_000)], -1)).toEqual([]);
-    expect(suggestNextPayer([c('a', -100_000, 0)], 180_000)).toEqual([]);
-  });
-
-  test('is empty when every member is square', () => {
-    expect(suggestNextPayer([c('a', 0), c('b', 0)], 180_000)).toEqual([]);
-  });
-});
-
-describe('suggestNextPayer — ordering', () => {
-  test('ranks the deepest debtor first', () => {
-    const r = suggestNextPayer(
+describe('rankNextRound — selection', () => {
+  test('names the single deepest debtor, with the next level as runner-up', () => {
+    const r = rankNextRound(
       [c('petr', -89_000), c('filip', -145_000), c('olivia', 234_000)],
       180_000,
     );
-    expect(ids(r)).toEqual(['filip', 'petr']);
+    expect(r).not.toBeNull();
+    expect(ids(r!.payers)).toEqual(['filip']);
+    expect(ids(r!.runnerUp)).toEqual(['petr']);
   });
 
-  test('breaks exact balance ties by least recently paid, never-paid first', () => {
-    const r = suggestNextPayer(
+  test('names every debtor tied at the deepest debt and suppresses the runner-up', () => {
+    const r = rankNextRound([c('petr', -25_000), c('jana', -25_000), c('olivia', 50_000)], 90_000);
+    expect(ids(r!.payers)).toEqual(['jana', 'petr']); // never-paid: ordered by memberId
+    expect(r!.runnerUp).toEqual([]);
+  });
+
+  test('the runner-up is the next distinct level only, not every shallower debtor', () => {
+    const r = rankNextRound(
+      [c('deep', -90_000), c('mid', -60_000), c('shallow', -30_000), c('rich', 180_000)],
+      90_000,
+    );
+    expect(ids(r!.payers)).toEqual(['deep']);
+    expect(ids(r!.runnerUp)).toEqual(['mid']);
+  });
+
+  test('a tied next level is named together in the runner-up', () => {
+    const r = rankNextRound(
+      [c('deep', -90_000), c('midA', -60_000), c('midB', -60_000), c('rich', 210_000)],
+      90_000,
+    );
+    expect(ids(r!.payers)).toEqual(['deep']);
+    expect(ids(r!.runnerUp)).toEqual(['midA', 'midB']);
+  });
+
+  test('a creditor is never a payer, even beside a single debtor', () => {
+    const r = rankNextRound([c('rich', 100_000), c('poor', -100_000)], 90_000);
+    expect(ids(r!.payers)).toEqual(['poor']);
+    expect(r!.runnerUp).toEqual([]);
+  });
+
+  test('returns null when nobody owes anything', () => {
+    expect(rankNextRound([c('a', 0), c('b', 0)], 90_000)).toBeNull();
+  });
+});
+
+describe('rankNextRound — ordering', () => {
+  test('tied payers order by least recently paid, never-paid first', () => {
+    const r = rankNextRound(
       [
         c('recent', -180_000, 1, 5_000),
         c('never', -180_000, 1, null),
@@ -64,16 +67,65 @@ describe('suggestNextPayer — ordering', () => {
       ],
       180_000,
     );
-    expect(ids(r)).toEqual(['never', 'old', 'recent']);
+    expect(ids(r!.payers)).toEqual(['never', 'old', 'recent']);
   });
 
-  test('breaks a total tie by memberId, deterministically', () => {
-    const r = suggestNextPayer([c('b', -180_000), c('a', -180_000)], 180_000);
-    expect(ids(r)).toEqual(['a', 'b']);
+  test('a total tie falls back to memberId, deterministically', () => {
+    const r = rankNextRound([c('b', -180_000), c('a', -180_000)], 180_000);
+    expect(ids(r!.payers)).toEqual(['a', 'b']);
   });
 });
 
-describe('suggestNextPayer — properties', () => {
+describe('rankNextRound — clearsGate', () => {
+  test('true when every tied payer clears the gate', () => {
+    // W = 3, E = 180_000 -> gate is b <= -60_000. Both payers sit exactly on it.
+    const r = rankNextRound(
+      [c('petr', -60_000), c('jana', -60_000), c('olivia', 120_000)],
+      180_000,
+    );
+    expect(ids(r!.payers)).toEqual(['jana', 'petr']);
+    expect(r!.clearsGate).toBe(true);
+  });
+
+  test('false when a tied payer one koruna short of the gate is present', () => {
+    const r = rankNextRound(
+      [c('petr', -59_999), c('jana', -59_999), c('olivia', 119_998)],
+      180_000,
+    );
+    expect(r!.clearsGate).toBe(false);
+  });
+
+  test('false when one tied payer clears the gate and another does not', () => {
+    // W = 4, E = 180_000. Gate = -E(W-w)/2W: w=2 -> -45_000, w=1 -> -67_500.
+    // Both sit at -45_000: the heavy-share member clears it, the light one does not.
+    const r = rankNextRound(
+      [c('heavy', -45_000, 2), c('light', -45_000, 1), c('rich', 90_000, 1)],
+      180_000,
+    );
+    expect(ids(r!.payers)).toEqual(['heavy', 'light']);
+    expect(r!.clearsGate).toBe(false);
+  });
+
+  test('false when the deepest debtor is shallower than the gate', () => {
+    const r = rankNextRound([c('petr', -25_000), c('jana', -25_000), c('olivia', 50_000)], 90_000);
+    expect(r!.clearsGate).toBe(false);
+  });
+
+  test('false when the typical expense or total weight is unknowable, but payers still stand', () => {
+    const zeroE = rankNextRound([c('a', -100_000), c('b', 100_000)], 0);
+    expect(ids(zeroE!.payers)).toEqual(['a']);
+    expect(zeroE!.clearsGate).toBe(false);
+
+    const negE = rankNextRound([c('a', -100_000), c('b', 100_000)], -1);
+    expect(negE!.clearsGate).toBe(false);
+
+    const zeroW = rankNextRound([c('a', -100_000, 0), c('b', 100_000, 0)], 180_000);
+    expect(ids(zeroW!.payers)).toEqual(['a']);
+    expect(zeroW!.clearsGate).toBe(false);
+  });
+});
+
+describe('rankNextRound — properties', () => {
   const candidateArb = fc.record({
     memberId: fc.string({ minLength: 1, maxLength: 6 }),
     balanceMinorUnits: fc.integer({ min: -1_000_000, max: 1_000_000 }),
@@ -87,32 +139,45 @@ describe('suggestNextPayer — properties', () => {
 
   const positiveE = fc.integer({ min: 1, max: 1_000_000 });
 
-  test('never returns a member with balance >= 0', () => {
+  test('a payer is always a debtor', () => {
     fc.assert(
       fc.property(uniqueCandidates, positiveE, (cs, E) => {
-        for (const r of suggestNextPayer(cs, E)) expect(r.balanceMinorUnits).toBeLessThan(0);
+        const r = rankNextRound(cs, E);
+        for (const p of r?.payers ?? []) expect(p.balanceMinorUnits).toBeLessThan(0);
       }),
     );
   });
 
-  test('every named member is moved no further from zero by paying', () => {
+  test('every payer holds the minimum balance among all candidates', () => {
     fc.assert(
       fc.property(uniqueCandidates, positiveE, (cs, E) => {
-        const W = cs.reduce((s, x) => s + x.shareWeight, 0);
-        for (const r of suggestNextPayer(cs, E)) {
-          const projected = r.balanceMinorUnits + E * (1 - r.shareWeight / W);
-          expect(Math.abs(projected)).toBeLessThanOrEqual(Math.abs(r.balanceMinorUnits) + 1e-9);
+        const r = rankNextRound(cs, E);
+        if (!r) return;
+        const min = cs.reduce((m, x) => Math.min(m, x.balanceMinorUnits), Infinity);
+        for (const p of r.payers) expect(p.balanceMinorUnits).toBe(min);
+      }),
+    );
+  });
+
+  test('null exactly when there is no debtor', () => {
+    fc.assert(
+      fc.property(uniqueCandidates, positiveE, (cs, E) => {
+        const hasDebtor = cs.some((x) => x.balanceMinorUnits < 0);
+        expect(rankNextRound(cs, E) === null).toBe(!hasDebtor);
+      }),
+    );
+  });
+
+  test('a runner-up is strictly shallower than a payer, and only exists for a lone payer', () => {
+    fc.assert(
+      fc.property(uniqueCandidates, positiveE, (cs, E) => {
+        const r = rankNextRound(cs, E);
+        if (!r || r.runnerUp.length === 0) return;
+        expect(r.payers).toHaveLength(1);
+        for (const u of r.runnerUp) {
+          expect(u.balanceMinorUnits).toBeGreaterThan(r.payers[0]!.balanceMinorUnits);
+          expect(u.balanceMinorUnits).toBeLessThan(0);
         }
-      }),
-    );
-  });
-
-  test('result is sorted by balance ascending', () => {
-    fc.assert(
-      fc.property(uniqueCandidates, positiveE, (cs, E) => {
-        const r = suggestNextPayer(cs, E);
-        for (let i = 1; i < r.length; i++)
-          expect(r[i - 1]!.balanceMinorUnits).toBeLessThanOrEqual(r[i]!.balanceMinorUnits);
       }),
     );
   });
@@ -120,9 +185,13 @@ describe('suggestNextPayer — properties', () => {
   test('is invariant under permutation of its input', () => {
     fc.assert(
       fc.property(uniqueCandidates, positiveE, (cs, E) => {
-        const forward = ids(suggestNextPayer(cs, E));
-        const backward = ids(suggestNextPayer([...cs].reverse(), E));
-        expect(backward).toEqual(forward);
+        const forward = rankNextRound(cs, E);
+        const backward = rankNextRound([...cs].reverse(), E);
+        expect(backward === null).toBe(forward === null);
+        if (!forward || !backward) return;
+        expect(ids(backward.payers)).toEqual(ids(forward.payers));
+        expect(ids(backward.runnerUp)).toEqual(ids(forward.runnerUp));
+        expect(backward.clearsGate).toBe(forward.clearsGate);
       }),
     );
   });
