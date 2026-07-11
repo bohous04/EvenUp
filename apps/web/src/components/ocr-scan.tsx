@@ -109,7 +109,6 @@ export function OcrScan({
   const lacksOcrAccess = me.data ? !me.data.isVip && !me.data.hasOpenRouterKey : false;
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const filesRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
@@ -325,26 +324,16 @@ export function OcrScan({
           if (f) void onFile(f);
         }}
       />
+      {/* Gallery picker: 1 or more screenshots, queued into `pages` for a single
+          review-then-scan step (reorder/remove before scanning). Combined with any
+          PDF pages, up to MAX_PAGES total. */}
       <input
         ref={galleryRef}
         type="file"
         accept="image/*"
-        className="hidden"
-        data-testid="ocr-file-input"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void onFile(f);
-        }}
-      />
-      {/* Multi-page picker: any mix of screenshots and PDF pages, up to MAX_PAGES
-          total, queued into `pages` for a single review-then-scan step. */}
-      <input
-        ref={filesRef}
-        type="file"
-        accept="image/*"
         multiple
         className="hidden"
-        data-testid="ocr-files-input"
+        data-testid="ocr-file-input"
         onChange={(e) => {
           if (e.target.files?.length) void addImageFiles(e.target.files);
         }}
@@ -395,15 +384,6 @@ export function OcrScan({
             </div>
 
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => filesRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-add-files-btn"
-              >
-                <ImageIcon size={16} aria-hidden /> {t('ocr.addScreenshots')}
-              </Button>
               <Button
                 variant="secondary"
                 onClick={() => pdfRef.current?.click()}

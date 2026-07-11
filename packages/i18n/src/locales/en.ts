@@ -235,7 +235,6 @@ export const en: Messages = {
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',
-  'ocr.addScreenshots': 'Add screenshots',
   'ocr.importPdf': 'Import PDF',
   'ocr.pagesSelected': 'Selected pages',
   'ocr.removePage': 'Remove page',

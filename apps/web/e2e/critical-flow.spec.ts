@@ -202,6 +202,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
       mimeType: 'image/png',
       buffer: tinyPng,
     });
+    // The gallery picker queues into the review list; scan the queued page(s).
+    await page.getByTestId('ocr-scan-pages-btn').click();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     // Items are editable inputs pre-filled from the mock extraction.
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
@@ -284,7 +286,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Select two pages, confirm both preview rows appear, then remove one
     // before scanning — the mocked backend returns a fixed receipt regardless
     // of how many pages are actually sent.
-    await page.getByTestId('ocr-files-input').setInputFiles([
+    await page.getByTestId('ocr-file-input').setInputFiles([
       { name: 'p1.png', mimeType: 'image/png', buffer: tinyPng },
       { name: 'p2.png', mimeType: 'image/png', buffer: tinyPng },
     ]);
