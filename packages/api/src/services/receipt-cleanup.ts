@@ -11,21 +11,21 @@ export async function cleanupExpiredReceipts(args: {
   if (args.retentionDays <= 0) return { deleted: 0 };
   const cutoff = new Date(args.now.getTime() - args.retentionDays * 86_400_000);
   const expired = await args.prisma.receipt.findMany({
-    where: { createdAt: { lt: cutoff }, NOT: { storageKey: '' } },
-    select: { id: true, storageKey: true },
+    where: { createdAt: { lt: cutoff }, storageKeys: { isEmpty: false } },
+    select: { id: true, storageKeys: true },
   });
   let deleted = 0;
   for (const r of expired) {
     try {
-      await args.objectStore.deleteObject(r.storageKey);
+      for (const key of r.storageKeys) {
+        await args.objectStore.deleteObject(key);
+      }
     } catch (err) {
-      // Delete failed: do NOT clear storageKey, so the next daily run retries.
-      // A genuinely-missing object won't throw (S3 delete is idempotent), so
-      // this only fires for real failures worth retrying.
-      console.warn(`[receipt-cleanup] delete failed for ${r.storageKey}, will retry`, err);
+      // Delete failed: do NOT clear storageKeys, so the next daily run retries.
+      console.warn(`[receipt-cleanup] delete failed for ${r.id}, will retry`, err);
       continue;
     }
-    await args.prisma.receipt.update({ where: { id: r.id }, data: { storageKey: '' } });
+    await args.prisma.receipt.update({ where: { id: r.id }, data: { storageKeys: [] } });
     deleted++;
   }
   return { deleted };

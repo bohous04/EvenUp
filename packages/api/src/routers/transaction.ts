@@ -30,7 +30,7 @@ import type { Context } from '../context.js';
 const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
-  receipt: { select: { id: true, storageKey: true } },
+  receipt: { select: { id: true, storageKeys: true } },
 } satisfies Prisma.TransactionInclude;
 
 type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactionInclude }>;
@@ -50,7 +50,8 @@ function shapeTransaction(tx: FullTransaction) {
       percentage: s.percentage === null ? null : Number(s.percentage),
     })),
     receiptId: receipt?.id ?? null,
-    hasReceiptImage: !!receipt?.storageKey,
+    hasReceiptImage: (receipt?.storageKeys.length ?? 0) > 0,
+    receiptPageCount: receipt?.storageKeys.length ?? 0,
   };
 }
 

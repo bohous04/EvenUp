@@ -71,7 +71,7 @@ export const ocrRouter = router({
 
         // Best-effort image storage (FR-5.8): a storage failure must never block
         // OCR. Storing the receipt photo is a VIP-only privilege.
-        let storageKey = '';
+        const storageKeys: string[] = [];
         const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
         const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
         if (ctx.objectStore && user.isVip) {
@@ -79,21 +79,20 @@ export const ocrRouter = router({
             const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
             const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
             await ctx.objectStore.putReceipt(key, bytes, contentType);
-            storageKey = key;
             if (retentionDays === 0) {
-              await ctx.objectStore.deleteObject(key);
-              storageKey = '';
+              await ctx.objectStore.deleteObject(key); // retention 0: store nothing
+            } else {
+              storageKeys.push(key);
             }
           } catch (err) {
             console.warn('[ocr] receipt storage failed (best-effort)', err);
-            storageKey = ''; // storage is best-effort
           }
         }
 
         const receipt = await ctx.prisma.receipt.create({
           data: {
             groupId: input.groupId,
-            storageKey,
+            storageKeys,
             ocrModel: model,
             status: 'COMPLETED',
             rawJson: result as unknown as object,
@@ -112,7 +111,7 @@ export const ocrRouter = router({
         await ctx.prisma.receipt.create({
           data: {
             groupId: input.groupId,
-            storageKey: '',
+            storageKeys: [],
             ocrModel: model,
             status: 'FAILED',
           },

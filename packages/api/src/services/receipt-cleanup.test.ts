@@ -59,7 +59,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const oldReceipt = await testPrisma.receipt.create({
       data: {
         groupId: group.id,
-        storageKey: 'receipts/old.png',
+        storageKeys: ['receipts/old.png'],
         status: 'COMPLETED',
         createdAt: fortyDaysAgo,
       },
@@ -67,7 +67,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const recentReceipt = await testPrisma.receipt.create({
       data: {
         groupId: group.id,
-        storageKey: 'receipts/recent.png',
+        storageKeys: ['receipts/recent.png'],
         status: 'COMPLETED',
         createdAt: now,
       },
@@ -90,12 +90,12 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     expect(objects.has('receipts/recent.png')).toBe(true);
 
     const oldAfter = await testPrisma.receipt.findUniqueOrThrow({ where: { id: oldReceipt.id } });
-    expect(oldAfter.storageKey).toBe('');
+    expect(oldAfter.storageKeys).toEqual([]);
 
     const recentAfter = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: recentReceipt.id },
     });
-    expect(recentAfter.storageKey).toBe('receipts/recent.png');
+    expect(recentAfter.storageKeys).toEqual(['receipts/recent.png']);
   });
 
   it('leaves storageKey untouched and does not count the row when deleteObject throws, so the next run retries', async () => {
@@ -106,7 +106,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const oldReceipt = await testPrisma.receipt.create({
       data: {
         groupId: group.id,
-        storageKey: 'receipts/flaky.png',
+        storageKeys: ['receipts/flaky.png'],
         status: 'COMPLETED',
         createdAt: fortyDaysAgo,
       },
@@ -123,7 +123,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
 
     expect(result.deleted).toBe(0);
     const after = await testPrisma.receipt.findUniqueOrThrow({ where: { id: oldReceipt.id } });
-    expect(after.storageKey).toBe('receipts/flaky.png');
+    expect(after.storageKeys).toEqual(['receipts/flaky.png']);
   });
 
   it('clears the key on a later run once the store recovers', async () => {
@@ -134,7 +134,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const oldReceipt = await testPrisma.receipt.create({
       data: {
         groupId: group.id,
-        storageKey: 'receipts/recovering.png',
+        storageKeys: ['receipts/recovering.png'],
         status: 'COMPLETED',
         createdAt: fortyDaysAgo,
       },
@@ -154,7 +154,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const afterFirstRun = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: oldReceipt.id },
     });
-    expect(afterFirstRun.storageKey).toBe('receipts/recovering.png');
+    expect(afterFirstRun.storageKeys).toEqual(['receipts/recovering.png']);
 
     // Store recovers (e.g. transient network issue resolved) before the next daily run.
     failing.clear();
@@ -170,6 +170,6 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     const afterSecondRun = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: oldReceipt.id },
     });
-    expect(afterSecondRun.storageKey).toBe('');
+    expect(afterSecondRun.storageKeys).toEqual([]);
   });
 });

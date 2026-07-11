@@ -364,7 +364,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       );
       expect(deletes).toEqual([puts[0]!.key]); // deleted immediately (retention=0)
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toBe(''); // cleared after immediate delete
+      expect(receipt.storageKeys).toEqual([]); // cleared after immediate delete
     } finally {
       if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
       else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
@@ -408,8 +408,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       );
       expect(deletes).toEqual([]); // retained
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toMatch(/^receipts\//);
-      expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
+      expect(receipt.storageKeys[0]!).toMatch(/^receipts\//);
+      expect(receipt.storageKeys[0]!).toContain(`receipts/${group.id}/`);
     } finally {
       if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
       else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
@@ -441,7 +441,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     expect(res.result).toBeDefined();
     expect(res.receiptId).toBeDefined();
     const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toBe('');
+    expect(receipt.storageKeys).toEqual([]);
     expect(receipt.status).toBe('COMPLETED');
   });
 
@@ -505,7 +505,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     expect(res.result).toBeDefined();
     expect(puts).toHaveLength(0); // non-VIP -> no receipt photo stored
     const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toBe('');
+    expect(receipt.storageKeys).toEqual([]);
   });
 
   test('a failed OCR scan is recorded in the error log', async () => {
@@ -565,7 +565,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const receipt = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: scanRes.receiptId },
     });
-    expect(receipt.storageKey).toMatch(/^receipts\//);
+    expect(receipt.storageKeys[0]!).toMatch(/^receipts\//);
 
     await caller.transaction.createExpense({
       groupId: group.id,

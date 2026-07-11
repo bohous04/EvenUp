@@ -358,7 +358,7 @@ model Receipt {
   id                      String        @id @default(cuid())
   groupId                 String
   group                   Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  storageKey              String
+  storageKeys             String[]      @default([])
   ocrModel                String?
   status                  ReceiptStatus @default(PENDING)
   rawJson                 Json?

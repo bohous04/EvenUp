@@ -14,9 +14,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const receipt = await prisma.receipt.findUnique({
     where: { id },
-    select: { storageKey: true, groupId: true },
+    select: { storageKeys: true, groupId: true },
   });
-  if (!receipt || !receipt.storageKey) return new Response('Not found', { status: 404 });
+  if (!receipt || receipt.storageKeys.length === 0) return new Response('Not found', { status: 404 });
 
   const group = await prisma.group.findUnique({
     where: { id: receipt.groupId },
@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const allowed = group && (group.createdById === session.user.id || group.members.length > 0);
   if (!allowed) return new Response('Forbidden', { status: 403 });
 
-  const obj = await getObjectStore().getObject(receipt.storageKey);
+  const obj = await getObjectStore().getObject(receipt.storageKeys[0]!);
   if (!obj) return new Response('Not found', { status: 404 });
 
   // Only ever serve a known-safe raster content type. This blocks stored XSS
