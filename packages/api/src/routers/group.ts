@@ -24,6 +24,19 @@ const DEFAULT_CATEGORIES: Record<Locale, ReadonlyArray<{ name: string; iconName:
   ],
 };
 
+/**
+ * The linked-user fields for a member avatar: the image + the hide-photo
+ * preference to resolve it (see `visibleAvatar`). Used everywhere a chip renders.
+ */
+const memberAvatarSelect = { image: true, hideProfilePhoto: true } as const;
+
+/**
+ * The roster view (`get`) also needs the linked account's email to show who is
+ * connected — but that email is PII, so `get` only surfaces it to group admins
+ * (and to the owning member); see the admin gate there.
+ */
+const memberUserSelect = { ...memberAvatarSelect, email: true } as const;
+
 export const groupRouter = router({
   create: protectedProcedure.input(createGroupInput).mutation(async ({ ctx, input }) => {
     // Prefer the name entered at sign-up; fall back to the email local-part.
@@ -64,7 +77,7 @@ export const groupRouter = router({
       },
       orderBy: { createdAt: 'desc' },
       include: {
-        members: { include: { user: { select: { image: true } } } },
+        members: { include: { user: { select: memberAvatarSelect } } },
         _count: { select: { transactions: true } },
       },
     });
@@ -72,15 +85,29 @@ export const groupRouter = router({
 
   get: protectedProcedure.input(z.object({ groupId: z.string() })).query(async ({ ctx, input }) => {
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
-    return ctx.prisma.group.findUniqueOrThrow({
+    const group = await ctx.prisma.group.findUniqueOrThrow({
       where: { id: input.groupId },
       include: {
         members: {
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: { image: true } } },
+          include: { user: { select: memberUserSelect } },
         },
       },
     });
+    // A linked account's email is PII: expose it only to group admins (and to the
+    // member who owns it). Everyone else still sees that a member is connected
+    // (via `user` being non-null), just not the address.
+    const viewerIsAdmin = group.members.some(
+      (m) => m.userId === ctx.user.id && m.role === 'ADMIN',
+    );
+    return {
+      ...group,
+      members: group.members.map((m) =>
+        m.user && !viewerIsAdmin && m.userId !== ctx.user.id
+          ? { ...m, user: { ...m.user, email: null } }
+          : m,
+      ),
+    };
   }),
 
   update: protectedProcedure.input(updateGroupInput).mutation(async ({ ctx, input }) => {

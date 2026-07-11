@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/header';
-import { ServiceWorkerCleanup } from '@/components/service-worker';
+import { ServiceWorker } from '@/components/service-worker';
 
 const siteUrl = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
 
@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Header />
           <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
-          <ServiceWorkerCleanup />
+          <ServiceWorker />
         </Providers>
       </body>
     </html>

@@ -35,6 +35,7 @@ model User {
   openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
   bankAccountEncrypted   String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
   ocrModel               String?
+  hideProfilePhoto       Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
 
   // Operator/tier fields (hosted-instance management dashboard).
   isAdmin    Boolean   @default(false) // may access /admin (seeded from ADMIN_EMAILS)

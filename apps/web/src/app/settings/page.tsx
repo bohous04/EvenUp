@@ -88,6 +88,9 @@ export default function SettingsPage() {
   const clearAvatar = trpc.user.clearAvatar.useMutation({
     onSuccess: () => void utils.user.me.invalidate(),
   });
+  const updateSettings = trpc.user.updateSettings.useMutation({
+    onSuccess: () => void utils.user.me.invalidate(),
+  });
 
   async function handleAvatarFile(file: File) {
     setAvatarError(false);
@@ -186,7 +189,7 @@ export default function SettingsPage() {
               />
             ) : (
               <span
-                className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-400 dark:text-zinc-500"
+                className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-600 dark:text-zinc-300"
                 data-testid="avatar-monogram"
               >
                 {me.data?.name ? deriveInitials(me.data.name) : ''}
@@ -242,6 +245,23 @@ export default function SettingsPage() {
             ) : null}
           </div>
         </div>
+
+        <label className="mb-5 flex items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-1 size-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 dark:border-zinc-600"
+            checked={me.data?.hideProfilePhoto ?? false}
+            disabled={me.isLoading || updateSettings.isPending}
+            onChange={(e) => updateSettings.mutate({ hideProfilePhoto: e.target.checked })}
+            data-testid="hide-photo-toggle"
+          />
+          <span>
+            <span className="font-medium">{t('profile.hidePhoto')}</span>
+            <span className="mt-1 block text-sm text-zinc-500 dark:text-zinc-400">
+              {t('profile.hidePhotoHint')}
+            </span>
+          </span>
+        </label>
 
         <form
           className="space-y-2"

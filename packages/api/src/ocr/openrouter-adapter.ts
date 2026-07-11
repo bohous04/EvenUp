@@ -8,7 +8,12 @@
  * `fetchImpl` is injectable so the adapter is tested against recorded fixtures
  * with **no live API calls** in CI.
  */
-import { currencyExponent, decimalStringToMinor, isSupportedCurrency } from '@evenup/core';
+import {
+  currencyExponent,
+  decimalStringToMinor,
+  isSupportedCurrency,
+  isExpenseCategory,
+} from '@evenup/core';
 import { receiptSchema, RECEIPT_JSON_SCHEMA, type RawReceipt } from './schema.js';
 
 /** Map currency symbols / local strings the model may return to ISO 4217 codes. */
@@ -69,6 +74,8 @@ export interface OcrUsage {
 export interface OcrResult {
   readonly merchant: string | null;
   readonly date: string | null;
+  /** Overall expense category key (a valid EXPENSE_CATEGORIES key), or null. */
+  readonly category: string | null;
   readonly currency: string;
   readonly items: OcrItem[];
   readonly subtotalMinorUnits: number | null;
@@ -105,6 +112,10 @@ const BASE_PROMPT =
   'Extract the receipt as structured JSON. Czech receipts use comma decimals and "Kč". ' +
   'Return every line item with its name, quantity and total price. Amounts are major units (e.g. 24.90). ' +
   'The "currency" MUST be a 3-letter ISO 4217 code (e.g. CZK for Kč, EUR for €), never a symbol.' +
+  ' Set "date" to the purchase date in ISO 8601 (YYYY-MM-DD) when the receipt shows one.' +
+  ' Set "total" to the printed grand total; it need not equal the item sum (deposits, rounding, discounts).' +
+  ' Classify the whole receipt into "category" — exactly one of: groceries, restaurant, transport,' +
+  ' accommodation, entertainment, shopping, utilities, health, travel, other.' +
   ' The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once.';
 
 // Language codes we can name for the model. Unknown codes skip translation.
@@ -165,6 +176,9 @@ function normalize(raw: RawReceipt, fallbackCurrency: string): OcrResult {
   return {
     merchant: raw.merchant ?? null,
     date: raw.date ?? null,
+    // Trust only a category the app actually knows; anything else → null so the
+    // UI falls back to its default rather than persisting a bogus key.
+    category: raw.category && isExpenseCategory(raw.category) ? raw.category : null,
     currency,
     items,
     subtotalMinorUnits: raw.subtotal == null ? null : toMinor(raw.subtotal, currency),

@@ -73,6 +73,19 @@ export function readableTextColor(backgroundHex: string): '#0a0a0a' | '#ffffff' 
   return contrastWithBlack >= contrastWithWhite ? '#0a0a0a' : '#ffffff';
 }
 
+/**
+ * The avatar image to actually render for a linked user, honoring their
+ * "use my initials + color instead of my photo" preference (FR-2.2). Returns
+ * null when the user opted out or has no photo, so callers fall back to the
+ * monogram. Resolving this in one place stops the preference from silently
+ * leaking through a call site that forgot the check.
+ */
+export function visibleAvatar(
+  user: { image?: string | null; hideProfilePhoto?: boolean | null } | null | undefined,
+): string | null {
+  return (user?.hideProfilePhoto ? null : user?.image) ?? null;
+}
+
 /** Pick a deterministic palette color from an arbitrary string key. */
 export function colorForKey(key: string): MemberColor {
   let hash = 0;

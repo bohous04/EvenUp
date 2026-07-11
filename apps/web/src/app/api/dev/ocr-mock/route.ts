@@ -8,6 +8,7 @@ import { env } from '@/server/env';
 const RECEIPT = {
   merchant: 'Albert',
   date: '2026-06-22',
+  category: 'groceries',
   currency: 'CZK',
   items: [
     { name: 'Mléko', quantity: 1, unitPrice: 24.9, totalPrice: 24.9 },

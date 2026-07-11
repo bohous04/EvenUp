@@ -278,6 +278,30 @@ describe('invite claim (FR-1.3, FR-2.5)', () => {
     });
     expect(claimed.userId).toBe(petrUser.id);
   });
+
+  test("group.get exposes a linked member's email only to admins and its owner", async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    // Link Petr's virtual member to a real, non-admin user.
+    const invite = await caller.invite.create({ groupId: group.id });
+    const petrUser = await createTestUser('petr@example.com');
+    await makeCaller(petrUser).invite.claim({ token: invite.token, memberId: members.petr.id });
+
+    // The admin (creator) sees every linked email.
+    const asAdmin = await caller.group.get({ groupId: group.id });
+    const petrForAdmin = asAdmin.members.find((m) => m.id === members.petr.id)!;
+    const oliviaForAdmin = asAdmin.members.find((m) => m.id === members.olivia.id)!;
+    expect(petrForAdmin.user?.email).toBe('petr@example.com');
+    expect(oliviaForAdmin.user?.email).toBe('olivia@example.com');
+
+    // A non-admin member sees their OWN email but not another member's — while the
+    // other member is still marked connected (its `user` stays non-null).
+    const asPetr = await makeCaller(petrUser).group.get({ groupId: group.id });
+    const petrForPetr = asPetr.members.find((m) => m.id === members.petr.id)!;
+    const oliviaForPetr = asPetr.members.find((m) => m.id === members.olivia.id)!;
+    expect(petrForPetr.user?.email).toBe('petr@example.com');
+    expect(oliviaForPetr.user).not.toBeNull();
+    expect(oliviaForPetr.user?.email).toBeNull();
+  });
 });
 
 describe('OCR (mocked OpenRouter, no live calls)', () => {

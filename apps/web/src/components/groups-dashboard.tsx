@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { visibleAvatar } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, EmptyState, Input, Label, Select } from '@/components/ui';
@@ -50,7 +51,7 @@ export function GroupsDashboard() {
                       initials: m.initials,
                       color: m.color,
                       displayName: m.displayName,
-                      image: m.user?.image ?? null,
+                      image: visibleAvatar(m.user),
                     }))}
                   />
                 </Card>

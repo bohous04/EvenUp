@@ -17,6 +17,8 @@ export const receiptItemSchema = z.object({
 export const receiptSchema = z.object({
   merchant: z.string().nullable().optional(),
   date: z.string().nullable().optional(),
+  /** Overall expense category key (validated against EXPENSE_CATEGORIES). */
+  category: z.string().nullable().optional(),
   currency: z.string(),
   items: z.array(receiptItemSchema),
   subtotal: z.number().nullable().optional(),
@@ -38,7 +40,12 @@ export const RECEIPT_JSON_SCHEMA = {
     required: ['currency', 'items', 'total', 'confidence'],
     properties: {
       merchant: { type: ['string', 'null'] },
-      date: { type: ['string', 'null'], description: 'ISO 8601 if present' },
+      date: { type: ['string', 'null'], description: 'ISO 8601 (YYYY-MM-DD) if present' },
+      category: {
+        type: ['string', 'null'],
+        description:
+          "The receipt's overall expense category — exactly one of: groceries, restaurant, transport, accommodation, entertainment, shopping, utilities, health, travel, other",
+      },
       currency: { type: 'string', description: 'ISO 4217, e.g. CZK' },
       items: {
         type: 'array',

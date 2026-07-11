@@ -20,12 +20,18 @@ export function MemberChip({
   name?: string;
   selected?: boolean;
   onClick?: () => void;
-  size?: 'xs' | 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Profile picture; when set it replaces the monogram (falls back to it). */
   imageUrl?: string | null;
 }) {
   const dims =
-    size === 'xs' ? 'h-5 w-5 text-[9px]' : size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm';
+    size === 'xs'
+      ? 'h-5 w-5 text-[9px]'
+      : size === 'sm'
+        ? 'h-7 w-7 text-xs'
+        : size === 'lg'
+          ? 'h-11 w-11 text-base'
+          : 'h-9 w-9 text-sm';
   const ring = selected ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white' : '';
   // shrink-0: inside tight flex rows (balances, settle) a long sibling name
   // otherwise squeezes the circle into a pill. overflow-hidden clips the photo
@@ -55,7 +61,11 @@ export function MemberChip({
         aria-pressed={selected}
         aria-label={name ? `${name}${selected ? ' (selected)' : ''}` : initials}
         title={name}
-        className={`${base} transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600`}
+        // `touch-manipulation` drops the 300 ms tap delay / double-tap-zoom, and
+        // press feedback is a transient `active:` scale — a `hover:` scale sticks
+        // on touch devices (hover latches until the next tap), leaving an enlarged
+        // chip overlapping its neighbours and stealing their tap targets.
+        className={`${base} touch-manipulation transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600`}
         style={style}
       >
         {inner}

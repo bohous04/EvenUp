@@ -4,7 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Input, iconButtonClass } from '@/components/ui';
 import { MemberChip } from '@/components/member-chip';
-import { Pencil, Check, X } from '@/components/icons';
+import { Pencil, Check, X, Mail } from '@/components/icons';
 
 interface MemberLite {
   id: string;
@@ -12,6 +12,12 @@ interface MemberLite {
   initials: string;
   color: string;
   imageUrl?: string | null;
+  /** Whether a user account is linked to this member. */
+  connected?: boolean;
+  /** Email of the linked account — only present for group admins (and the owner);
+   *  null otherwise even when connected, so gate the email display on it, not on
+   *  the connection. */
+  linkedEmail?: string | null;
 }
 
 const iconButton = `${iconButtonClass} disabled:cursor-not-allowed disabled:opacity-40`;
@@ -108,7 +114,23 @@ export function MemberList({ groupId, members }: { groupId: string; members: Mem
               </>
             ) : (
               <>
-                <span className="flex-1 truncate text-sm">{m.displayName}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-sm">{m.displayName}</span>
+                  {m.linkedEmail ? (
+                    <span
+                      className="flex items-center gap-1 truncate text-xs text-zinc-500 dark:text-zinc-400"
+                      title={m.linkedEmail}
+                      data-testid={`member-email-${m.id}`}
+                    >
+                      <Mail size={11} aria-hidden className="shrink-0" />
+                      <span className="truncate">{m.linkedEmail}</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                      {m.connected ? t('member.connected') : t('member.notConnected')}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => startEdit(m)}

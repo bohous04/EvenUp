@@ -28,7 +28,7 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
             b.displayName.length > 20 ? `${b.displayName.slice(0, 20)}…` : b.displayName;
           return (
             <li key={b.memberId} className="flex items-center gap-2">
-              <span className="flex w-44 min-w-0 items-center gap-1.5">
+              <span className="flex w-28 min-w-0 shrink-0 items-center gap-1.5">
                 <MemberChip
                   initials={b.initials}
                   color={b.color}
@@ -41,7 +41,7 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
                 </span>
               </span>
               <span
-                className="relative h-2 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
+                className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
                 aria-hidden
               >
                 <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-200 dark:bg-zinc-700" />
@@ -54,11 +54,14 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
                   />
                 ) : null}
               </span>
+              {/* Amount never shrinks below its content, so large 4-digit balances
+                  (e.g. "1 761,05 Kč") render in full instead of clipping the
+                  thousands digit; the min width keeps the bars' right edge aligned. */}
               <AmountText
                 minorUnits={b.balanceMinorUnits}
                 currency={baseCurrency}
                 colored
-                className="w-24 text-right text-sm font-semibold"
+                className="min-w-[7rem] shrink-0 text-right text-sm font-semibold"
                 testId={`balance-${b.memberId}`}
               />
             </li>

@@ -11,9 +11,6 @@ export interface EditorItem {
   /** Price as an editable decimal string in the group's base currency. */
   priceText: string;
   assigned: Set<string>;
-  /** Original (pre-translation) receipt wording, shown under the (translated)
-   * name as a hint. Only set on the OCR path when a translation was applied. */
-  originalName?: string;
 }
 
 interface MemberLite {
@@ -73,17 +70,17 @@ export function ItemizedEditor({
     onChange([...items, { name: '', priceText: '', assigned: new Set<string>() }]);
   }
 
-  const runningTotal = items.reduce(
-    (sum, it) => sum + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0),
-    0,
-  );
+  // Parse each item's price once per render and reuse it for the total, the
+  // per-person breakdown, and the per-row "needs a price" flag below.
+  const priceMinors = items.map((it) => itemPriceToMinor(it.priceText, baseCurrency));
+  const runningTotal = priceMinors.reduce<number>((sum, minor) => sum + (minor ?? 0), 0);
 
   // Live per-person breakdown, computed with the same core logic used on save
   // (each item split evenly among its assignees).
   const perMember = new Map<string, number>();
   const assignedItems = items
-    .map((it) => ({
-      minor: itemPriceToMinor(it.priceText, baseCurrency),
+    .map((it, i) => ({
+      minor: priceMinors[i] ?? null,
       memberIds: [...it.assigned],
     }))
     .filter(
@@ -109,11 +106,16 @@ export function ItemizedEditor({
     <>
       {items.map((it, i) => {
         const unassigned = it.assigned.size === 0;
+        // A blank/unparseable/zero price silently blocked "Save" with a confusing
+        // "sum must match total" — now the offending row is flagged in place so
+        // the fix is obvious instead of a rescan-everything dead end.
+        const noPrice = priceMinors[i] === null;
+        const incomplete = unassigned || noPrice;
         return (
           <div
             key={i}
             className={`rounded-lg border p-3 transition-colors ${
-              unassigned
+              incomplete
                 ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-950/20'
                 : 'border-zinc-200 dark:border-zinc-800'
             }`}
@@ -137,7 +139,9 @@ export function ItemizedEditor({
                   placeholder="0"
                   aria-label={t('expense.amount')}
                   data-testid={`ocr-item-price-${i}`}
-                  className="text-right"
+                  className={`text-right ${
+                    noPrice ? 'ring-1 ring-amber-400 dark:ring-amber-500/60' : ''
+                  }`}
                 />
               </div>
               <button
@@ -150,16 +154,10 @@ export function ItemizedEditor({
                 <Trash2 size={16} aria-hidden />
               </button>
             </div>
-            {it.originalName ? (
-              <p
-                className="-mt-1 mb-2 truncate px-1 text-xs text-zinc-400 dark:text-zinc-500"
-                title={it.originalName}
-                data-testid={`ocr-item-original-${i}`}
-              >
-                {it.originalName}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Assignment targets are `lg` (44 px) with generous spacing — the
+                tap area used to be a cramped 36 px circle, so quick multi-member
+                tagging kept landing on the wrong chip. */}
+            <div className="flex flex-wrap items-center gap-3">
               {members.map((m) => (
                 <MemberChip
                   key={m.id}
@@ -169,12 +167,13 @@ export function ItemizedEditor({
                   imageUrl={m.imageUrl}
                   selected={it.assigned.has(m.id)}
                   onClick={() => toggleAssign(i, m.id)}
+                  size="lg"
                 />
               ))}
-              {unassigned ? (
+              {incomplete ? (
                 <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
                   <AlertCircle size={13} aria-hidden />
-                  {t('ocr.unassigned')}
+                  {noPrice ? t('ocr.itemNeedsPrice') : t('ocr.unassigned')}
                 </span>
               ) : null}
             </div>

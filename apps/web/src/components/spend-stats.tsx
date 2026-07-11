@@ -30,10 +30,12 @@ export function SpendStats({
   }
 
   const max = Math.max(...stats.data.map((s) => Math.abs(s.totalMinorUnits)), 1);
+  const grandTotal = stats.data.reduce((a, s) => a + Math.abs(s.totalMinorUnits), 0) || 1;
 
   return (
-    <ul className="space-y-2" data-testid="spend-stats">
+    <ul className="space-y-3" data-testid="spend-stats">
       {stats.data.map((s) => {
+        const share = Math.round((Math.abs(s.totalMinorUnits) / grandTotal) * 100);
         // A `custom:<id>` bucket shows the custom category's own name/icon; a
         // dangling custom key (folded server-side, shouldn't surface here) falls
         // back to the built-in "other" label/icon.
@@ -51,13 +53,18 @@ export function SpendStats({
                 <CategoryIcon name={iconName} />
                 {label}
               </span>
-              <AmountText
-                minorUnits={s.totalMinorUnits}
-                currency={baseCurrency}
-                className="font-medium"
-              />
+              <span className="flex items-baseline gap-2">
+                <span className="text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
+                  {share}%
+                </span>
+                <AmountText
+                  minorUnits={s.totalMinorUnits}
+                  currency={baseCurrency}
+                  className="font-medium"
+                />
+              </span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+            <div className="h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
                 className="h-full rounded-full bg-brand-500"
                 style={{ width: `${Math.max(2, (Math.abs(s.totalMinorUnits) / max) * 100)}%` }}

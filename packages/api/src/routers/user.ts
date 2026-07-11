@@ -19,6 +19,7 @@ export const userRouter = router({
         locale: true,
         defaultCurrency: true,
         ocrModel: true,
+        hideProfilePhoto: true,
         openRouterKeyEncrypted: true,
         bankAccountEncrypted: true,
         isAdmin: true,
@@ -62,6 +63,7 @@ export const userRouter = router({
         locale: z.enum(['cs', 'en']).optional(),
         defaultCurrency: currencyCode.optional(),
         ocrModel: z.string().max(120).optional(),
+        hideProfilePhoto: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

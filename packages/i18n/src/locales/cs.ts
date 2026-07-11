@@ -143,12 +143,17 @@ export const cs = {
   'member.role.member': 'Člen',
   'member.deactivate': 'Deaktivovat',
   'member.iban': 'IBAN (pro QR platbu)',
+  'member.connected': 'Připojeno',
+  'member.notConnected': 'Zatím bez účtu',
 
   'invite.create': 'Vytvořit pozvánku',
   'invite.link': 'Odkaz na pozvánku',
   'invite.claim': 'Převzít profil člena',
   'invite.joinAsNew': 'Nejsem v seznamu (Vytvořit nového uživatele)',
   'invite.expired': 'Pozvánka vypršela',
+  'invite.copy': 'Kopírovat odkaz',
+  'invite.copied': 'Zkopírováno',
+  'invite.share': 'Sdílet',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',
@@ -164,6 +169,8 @@ export const cs = {
   'expense.note': 'Poznámka',
   'expense.paidBy': 'Zaplatil(a)',
   'expense.splitBetween': 'Rozdělit mezi',
+  'expense.selectAll': 'Vybrat vše',
+  'expense.selectNone': 'Zrušit výběr',
   'expense.income': 'Příjem',
   'expense.transfer': 'Převod',
 
@@ -246,6 +253,12 @@ export const cs = {
   'ocr.scanPages': 'Rozpoznat účtenku',
   'ocr.pdfTooLarge': 'PDF je příliš velké (max 10 MB).',
   'ocr.tooManyPages': 'Maximálně 10 stránek.',
+  'ocr.receiptTotal': 'Celkem na účtence',
+  'ocr.totalMismatch': 'Položky nesedí na celkovou částku z účtenky.',
+  'ocr.difference': 'Rozdíl',
+  'ocr.reconcile': 'Dorovnat na částku z účtenky',
+  'ocr.reconcileItem': 'Dorovnání',
+  'ocr.itemNeedsPrice': 'Každá položka musí mít cenu — doplňte ji u zvýrazněných.',
 
   'receipt.view': 'Zobrazit účtenku',
   'receipt.viewCount': 'Zobrazit účtenku ({count})',
@@ -301,6 +314,9 @@ export const cs = {
   'profile.uploadPhoto': 'Nahrát fotku',
   'profile.removePhoto': 'Odebrat fotku',
   'profile.photoTooLarge': 'Obrázek je příliš velký. Zkuste menší.',
+  'profile.hidePhoto': 'Používat barvu místo fotky',
+  'profile.hidePhotoHint':
+    'Všude se místo profilové fotky zobrazí vaše iniciály na barevném pozadí.',
 
   // Notifications (FR-11.1/FR-11.2)
   'activityType.member.joined': 'Člen se připojil',

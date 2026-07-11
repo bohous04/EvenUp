@@ -141,12 +141,17 @@ export const en: Messages = {
   'member.role.member': 'Member',
   'member.deactivate': 'Deactivate',
   'member.iban': 'IBAN (for QR payment)',
+  'member.connected': 'Connected',
+  'member.notConnected': 'No account yet',
 
   'invite.create': 'Create invite',
   'invite.link': 'Invite link',
   'invite.claim': 'Claim member profile',
   'invite.joinAsNew': "I'm not on the list (Create a new user)",
   'invite.expired': 'Invite expired',
+  'invite.copy': 'Copy link',
+  'invite.copied': 'Copied',
+  'invite.share': 'Share',
 
   'expense.add': 'Add expense',
   'expense.edit': 'Edit expense',
@@ -162,6 +167,8 @@ export const en: Messages = {
   'expense.note': 'Note',
   'expense.paidBy': 'Paid by',
   'expense.splitBetween': 'Split between',
+  'expense.selectAll': 'Select all',
+  'expense.selectNone': 'Clear selection',
   'expense.income': 'Income',
   'expense.transfer': 'Transfer',
 
@@ -243,6 +250,12 @@ export const en: Messages = {
   'ocr.scanPages': 'Scan receipt',
   'ocr.pdfTooLarge': 'PDF is too large (max 10 MB).',
   'ocr.tooManyPages': 'At most 10 pages.',
+  'ocr.receiptTotal': 'Receipt total',
+  'ocr.totalMismatch': "The items don't add up to the receipt total.",
+  'ocr.difference': 'Difference',
+  'ocr.reconcile': 'Balance to the receipt total',
+  'ocr.reconcileItem': 'Adjustment',
+  'ocr.itemNeedsPrice': 'Every item needs a price — fill in the highlighted ones.',
 
   'receipt.view': 'View receipt',
   'receipt.viewCount': 'View receipt ({count})',
@@ -298,6 +311,9 @@ export const en: Messages = {
   'profile.uploadPhoto': 'Upload photo',
   'profile.removePhoto': 'Remove photo',
   'profile.photoTooLarge': 'That image is too large. Try a smaller one.',
+  'profile.hidePhoto': 'Use color instead of photo',
+  'profile.hidePhotoHint':
+    'Show your initials on a colored background instead of your profile photo everywhere.',
 
   // Notifications (FR-11.1/FR-11.2)
   'activityType.member.joined': 'Member joined',

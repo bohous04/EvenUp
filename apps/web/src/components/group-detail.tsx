@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { visibleAvatar } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Button, Card, SectionLabel, iconButtonClass } from '@/components/ui';
@@ -29,6 +30,9 @@ import {
   Tags,
   MoreHorizontal,
   ChevronLeft,
+  Copy,
+  Check,
+  Share2,
 } from '@/components/icons';
 
 type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
@@ -45,14 +49,40 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [showAll, setShowAll] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [viewingReceiptTx, setViewingReceiptTx] = useState<Transaction | null>(null);
 
   const createInvite = trpc.invite.create.useMutation({
     onSuccess: (invite) => {
       setInviteUrl(`${window.location.origin}/invite/${invite.token}`);
+      setCopied(false);
     },
   });
+
+  // Native share sheet where available (mobile); otherwise the copy button and
+  // the visible link are the fallback. Guarded for SSR (no `navigator`).
+  const canShare =
+    typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const copyInvite = async () => {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (insecure context / permissions) — the link stays
+      // visible for manual copy, so this is a non-fatal best-effort.
+    }
+  };
+  const shareInvite = async () => {
+    if (!inviteUrl || !canShare) return;
+    try {
+      await navigator.share({ title: group.data?.name, url: inviteUrl });
+    } catch {
+      // User dismissed the share sheet — nothing to do.
+    }
+  };
 
   if (group.isLoading)
     return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
@@ -73,11 +103,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     displayName: m.displayName,
     initials: m.initials,
     color: m.color,
-    imageUrl: m.user?.image ?? null,
+    // `visibleAvatar` honors the member's "hide my photo" preference everywhere.
+    imageUrl: visibleAvatar(m.user),
+    // Whether a user account is linked, and (admin-gated server-side) its email —
+    // so the roster shows who is connected and, for admins, with which address.
+    connected: m.userId != null,
+    linkedEmail: m.user?.email ?? null,
   }));
   // Payer chips on transaction rows use the raw member (incl. inactive), so map
   // memberId → profile picture separately from the active-only memberLite.
-  const imageByMemberId = new Map(group.data.members.map((m) => [m.id, m.user?.image ?? null]));
+  const imageByMemberId = new Map(group.data.members.map((m) => [m.id, visibleAvatar(m.user)]));
   const totalSpent = (stats.data ?? []).reduce((a, s) => a + Math.abs(s.totalMinorUnits), 0);
   const txs = transactions.data ?? [];
   const visibleTxs = showAll ? txs : txs.slice(0, 5);
@@ -322,11 +357,36 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             {createInvite.isPending ? t('common.loading') : t('invite.create')}
           </Button>
           {inviteUrl ? (
-            <div>
-              <p className="mb-1 text-sm font-medium">{t('invite.link')}</p>
-              <code className="break-all text-xs text-brand-600" data-testid="invite-url">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t('invite.link')}</p>
+              <code
+                className="block truncate rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-2 text-xs text-brand-600 dark:border-zinc-800 dark:bg-zinc-800/50"
+                data-testid="invite-url"
+              >
                 {inviteUrl}
               </code>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={copyInvite}
+                  data-testid="invite-copy-btn"
+                >
+                  {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
+                  {copied ? t('invite.copied') : t('invite.copy')}
+                </Button>
+                {canShare ? (
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={shareInvite}
+                    data-testid="invite-share-btn"
+                  >
+                    <Share2 size={16} aria-hidden />
+                    {t('invite.share')}
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

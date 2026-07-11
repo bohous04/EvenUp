@@ -4,6 +4,7 @@ import { minorToDecimalString } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Select } from '@/components/ui';
+import { AmountText } from '@/components/amount-text';
 import {
   Camera,
   ImageIcon,
@@ -14,6 +15,7 @@ import {
   ChevronDown,
 } from '@/components/icons';
 import { moveItem } from '@/lib/move-item';
+import { parseLocalDate } from '@/lib/local-date';
 import { expandItemQuantities } from '@/lib/expand-items';
 import { type EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
 
@@ -98,6 +100,16 @@ export function OcrScan({
   // Detected shop name — used as the saved expense title so it reads naturally
   // (e.g. "Albert") instead of a hardcoded English "Receipt".
   const [merchant, setMerchant] = useState<string | null>(null);
+  // Detected purchase date + printed grand total + category, carried from OCR
+  // onto the saved expense so the user doesn't re-key what the receipt shows.
+  const [receiptDate, setReceiptDate] = useState<string | null>(null);
+  const [receiptTotalMinor, setReceiptTotalMinor] = useState<number | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  // When the extracted items don't sum to the receipt's printed total, offer to
+  // add a proportional balancing line so the expense total matches the receipt.
+  // Defaults on only when OCR itself couldn't reconcile — a user who then edits
+  // prices is overriding, so their item sum wins unless they opt back in.
+  const [reconcile, setReconcile] = useState(false);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
   // Multi-page picker preview (FR-5.4/5.9): screenshots + a PDF collected here,
@@ -105,31 +117,42 @@ export function OcrScan({
   const [pages, setPages] = useState<PagePreview[]>([]);
   const MAX_PAGES = 10;
 
+  /** Clear the review state back to the pre-scan screen (after save or cancel). */
+  function resetScan() {
+    setItems(null);
+    setReceiptId(null);
+    setMerchant(null);
+    setReceiptDate(null);
+    setReceiptTotalMinor(null);
+    setCategory(null);
+    setReconcile(false);
+  }
+
   const scan = trpc.ocr.scan.useMutation({
     onSuccess: (res) => {
-      // Prefer the translated name for display, keeping the receipt's original
-      // wording as a hint underneath (only when it actually differs). Then
-      // expand a line's whole quantity into that many rows (e.g. "3× Čokoláda")
-      // so each unit can be assigned to a different person in the split below.
-      const resolved = res.result.items.map((it) => {
-        const translated = it.nameTranslated?.trim();
-        return {
-          name: translated || it.name,
-          originalName: translated && translated !== it.name ? it.name : undefined,
-          quantity: it.quantity,
-          totalMinorUnits: it.totalMinorUnits,
-        };
-      });
+      // Prefer the model's readable name (e.g. "Pepsi XXL Oreo 45g") over the
+      // receipt's cryptic printed abbreviation (e.g. "Nafe LPPXXL0reo45g"); the
+      // raw wording is unhelpful, so we don't surface it. Then expand a line's
+      // whole quantity into that many rows (e.g. "3× Čokoláda") so each unit can
+      // be assigned to a different person in the split below.
+      const resolved = res.result.items.map((it) => ({
+        name: it.nameTranslated?.trim() || it.name,
+        quantity: it.quantity,
+        totalMinorUnits: it.totalMinorUnits,
+      }));
       setItems(
         expandItemQuantities(resolved).map((it) => ({
           name: it.name,
-          originalName: it.originalName,
           priceText: minorToDecimalString(it.totalMinorUnits, baseCurrency),
           assigned: new Set<string>(),
         })),
       );
       setReceiptId(res.receiptId);
       setMerchant(res.result.merchant);
+      setReceiptDate(res.result.date);
+      setReceiptTotalMinor(res.result.totalMinorUnits > 0 ? res.result.totalMinorUnits : null);
+      setCategory(res.result.category);
+      setReconcile(!res.result.reconciliation.matchesTotal);
       setPages([]);
       setError(null);
     },
@@ -142,9 +165,7 @@ export function OcrScan({
 
   const createExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: () => {
-      setItems(null);
-      setReceiptId(null);
-      setMerchant(null);
+      resetScan();
       void utils.transaction.list.invalidate({ groupId });
       void utils.balance.get.invalidate({ groupId });
       void utils.balance.nextPayer.invalidate({ groupId });
@@ -224,19 +245,30 @@ export function OcrScan({
       memberIds: [...it.assigned],
     }));
     if (prepared.some((it) => it.minor === null)) {
-      setError(t('split.sumMismatch'));
+      setError(t('ocr.itemNeedsPrice'));
       return;
     }
     if (prepared.some((it) => it.memberIds.length === 0)) {
       setError(t('ocr.assignItems'));
       return;
     }
-    const total = prepared.reduce((a, it) => a + (it.minor ?? 0), 0);
+    const itemsTotal = prepared.reduce((a, it) => a + (it.minor ?? 0), 0);
+    // Reconcile to the receipt's printed total (when asked) by adding a single
+    // proportional balancing line for the difference — deposits, rounding, or an
+    // un-itemized discount the model couldn't attribute. A negative difference
+    // (items over-count) is handled by core's abs-weighted allocation.
+    const diff =
+      reconcile && receiptTotalMinor != null ? receiptTotalMinor - itemsTotal : 0;
+    const total = itemsTotal + diff;
+    // Prefer the receipt's own date (parsed as local noon so it can't shift a
+    // day across timezones); fall back to now for a missing/malformed one.
+    const date = receiptDate ? parseLocalDate(receiptDate) : new Date();
     createExpense.mutate({
       groupId,
       title: merchant?.trim() || t('ocr.receiptTitle'),
       currency: baseCurrency,
-      date: new Date(),
+      date,
+      category: category ?? undefined,
       payers: [{ memberId: payerId, amountMinorUnits: total }],
       receiptId: receiptId ?? undefined,
       split: {
@@ -246,9 +278,30 @@ export function OcrScan({
           totalMinorUnits: it.minor!,
           memberIds: it.memberIds,
         })),
+        ...(diff !== 0
+          ? {
+              extraCharges: [
+                {
+                  label: t('ocr.reconcileItem'),
+                  amountMinorUnits: diff,
+                  allocation: { kind: 'proportional' as const },
+                },
+              ],
+            }
+          : {}),
       },
     });
   }
+
+  // Live discrepancy between the edited item rows and the receipt's printed
+  // total; drives the reconcile banner shown above the payer picker. Only summed
+  // when a receipt total exists — otherwise there's no discrepancy to show.
+  const itemsSumMinor =
+    receiptTotalMinor != null
+      ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
+      : 0;
+  const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
+  const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
 
   return (
     <div>
@@ -404,6 +457,54 @@ export function OcrScan({
             baseCurrency={baseCurrency}
           />
 
+          {showReconcile ? (
+            <div
+              className="rounded-lg border border-amber-300 bg-amber-50/70 p-3 dark:border-amber-500/40 dark:bg-amber-950/20"
+              data-testid="ocr-total-mismatch"
+            >
+              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+                <AlertCircle size={14} aria-hidden />
+                {t('ocr.totalMismatch')}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-amber-700 dark:text-amber-300">
+                <span>
+                  {t('ocr.receiptTotal')}:{' '}
+                  <AmountText
+                    minorUnits={receiptTotalMinor!}
+                    currency={baseCurrency}
+                    className="font-semibold"
+                  />
+                </span>
+                <span>
+                  {t('common.total')}:{' '}
+                  <AmountText
+                    minorUnits={itemsSumMinor}
+                    currency={baseCurrency}
+                    className="font-semibold"
+                  />
+                </span>
+                <span>
+                  {t('ocr.difference')}:{' '}
+                  <AmountText
+                    minorUnits={totalDiffMinor}
+                    currency={baseCurrency}
+                    className="font-semibold"
+                  />
+                </span>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+                <input
+                  type="checkbox"
+                  checked={reconcile}
+                  onChange={(e) => setReconcile(e.target.checked)}
+                  data-testid="ocr-reconcile-toggle"
+                  className="h-4 w-4 rounded border-amber-400 text-brand-600 focus-visible:ring-brand-600"
+                />
+                {t('ocr.reconcile')}
+              </label>
+            </div>
+          ) : null}
+
           <div>
             <Select
               value={payerId}
@@ -423,14 +524,7 @@ export function OcrScan({
             <Button onClick={save} disabled={createExpense.isPending} data-testid="ocr-save-btn">
               {t('common.save')}
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setItems(null);
-                setReceiptId(null);
-                setMerchant(null);
-              }}
-            >
+            <Button variant="ghost" onClick={resetScan}>
               {t('common.cancel')}
             </Button>
           </div>

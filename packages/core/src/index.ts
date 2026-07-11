@@ -92,6 +92,7 @@ export {
   colorForIndex,
   colorForKey,
   readableTextColor,
+  visibleAvatar,
 } from './member/identity.js';
 
 // Expense categories + spend stats

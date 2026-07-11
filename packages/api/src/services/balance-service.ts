@@ -13,6 +13,7 @@ import {
   minimizeDebts,
   computeDirectDebts,
   rankNextRound,
+  visibleAvatar,
   type Balance,
   type BalanceTransaction,
   type Payment,
@@ -95,9 +96,9 @@ export async function getGroupBalances(
     (
       await prisma.member.findMany({
         where: { groupId },
-        select: { id: true, user: { select: { image: true } } },
+        select: { id: true, user: { select: { image: true, hideProfilePhoto: true } } },
       })
-    ).map((m) => [m.id, m.user?.image ?? null]),
+    ).map((m) => [m.id, visibleAvatar(m.user)]),
   );
 
   const balances: MemberBalance[] = loadedGroup.members.map((m) => ({

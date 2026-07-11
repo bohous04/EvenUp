@@ -48,6 +48,8 @@ import {
   Beer,
   HandCoins,
   Sparkles,
+  Copy,
+  Share2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -153,5 +155,7 @@ export {
   LogOut,
   HandCoins,
   Sparkles,
+  Copy,
+  Share2,
 };
 export type { LucideIcon };

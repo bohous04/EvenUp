@@ -11,6 +11,7 @@ import {
 import { useI18n } from '@/lib/i18n';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { clampAmountDecimals } from '@/lib/amount-input';
+import { parseLocalDate, todayLocalIso, localIso } from '@/lib/local-date';
 import type { MessageKey } from '@evenup/i18n';
 import { Button, Input, Label, SectionLabel } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
@@ -49,29 +50,8 @@ const SPLIT_LABELS: Record<SplitType, MessageKey> = {
 type RecurrenceValue = 'none' | (typeof RECURRENCE_INTERVALS)[number];
 const RECURRENCE_VALUES: RecurrenceValue[] = ['none', ...RECURRENCE_INTERVALS];
 
-/** A `Date` as a local YYYY-MM-DD string (toISOString would give the UTC date). */
-function localIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** Today as a local YYYY-MM-DD string. */
-function todayLocalIso(): string {
-  return localIso(new Date());
-}
-
 /** A transaction as returned by `transaction.list` — the shape we edit in place. */
 type EditableTransaction = RouterOutputs['transaction']['list'][number];
-
-/**
- * Parse YYYY-MM-DD as LOCAL noon — stays on the picked day in every timezone.
- * Falls back to "now" for a malformed/empty input rather than feeding
- * `Number`'s NaN-tolerant parsing bogus year/month/day parts downstream.
- */
-function parseLocalDate(iso: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date();
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12, 0, 0);
-}
 
 /** A radio-style segmented control (one selected value from a small set). */
 function Segmented({
@@ -208,6 +188,7 @@ export function AddExpenseForm({
   const payerId = members.some((m) => m.id === payerIdRaw) ? payerIdRaw : (members[0]?.id ?? '');
   const isSelected = (id: string) => !deselected.has(id);
   const selectedMembers = members.filter((m) => isSelected(m.id));
+  const allSelected = members.length > 0 && selectedMembers.length === members.length;
 
   const setRecurrenceMutation = trpc.transaction.setRecurrence.useMutation();
   const invalidateGroup = () => {
@@ -217,6 +198,30 @@ export function AddExpenseForm({
     void utils.stats.byCategory.invalidate({ groupId });
     void utils.activity.list.invalidate({ groupId });
   };
+
+  /**
+   * Reset every field back to the add-expense defaults (does not touch the
+   * open/close state). Runs both after a successful save AND when the FAB
+   * re-opens the sheet, so a draft abandoned by closing without saving never
+   * carries its old title/amount into the next expense.
+   */
+  const resetForm = () => {
+    setTitle('');
+    setAmount('');
+    setValues({});
+    setFxRate('');
+    setRecurrence('none');
+    setCurrency(baseCurrency);
+    setCategory('other');
+    setSplitType('EQUAL');
+    setItemRows([]);
+    setPayerId('');
+    setDeselected(new Set());
+    setOpenRow(null);
+    setDate(todayLocalIso());
+    setError(null);
+  };
+
   const createExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: (created) => {
       if (recurrence !== 'none') {
@@ -225,20 +230,7 @@ export function AddExpenseForm({
       // Reset the whole form so the next expense starts from clean defaults —
       // otherwise a persisted currency/split would silently carry over (and keep
       // the FX query running while the modal is closed).
-      setTitle('');
-      setAmount('');
-      setValues({});
-      setFxRate('');
-      setRecurrence('none');
-      setCurrency(baseCurrency);
-      setCategory('other');
-      setSplitType('EQUAL');
-      setItemRows([]);
-      setPayerId('');
-      setDeselected(new Set());
-      setOpenRow(null);
-      setDate(todayLocalIso());
-      setError(null);
+      resetForm();
       setOpen(false);
       invalidateGroup();
     },
@@ -432,7 +424,7 @@ export function AddExpenseForm({
         memberIds: [...it.assigned],
       }));
       if (parsed.some((it) => it.minor == null)) {
-        setError(t('split.sumMismatch'));
+        setError(t('ocr.itemNeedsPrice'));
         return;
       }
       if (parsed.some((it) => it.memberIds.length === 0)) {
@@ -585,7 +577,12 @@ export function AddExpenseForm({
     <>
       {!isEdit ? (
         <Fab
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            // Start every new expense from clean defaults — a draft left behind
+            // by closing the sheet without saving must not reappear here.
+            resetForm();
+            setOpen(true);
+          }}
           aria-label={t('expense.add')}
           data-testid="add-expense-open"
         />
@@ -722,7 +719,19 @@ export function AddExpenseForm({
               blanket member-picker doesn't apply in that mode. */}
           {splitType !== 'ITEMIZED' ? (
             <div>
-              <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
+              <div className="flex items-center justify-between">
+                <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeselected(allSelected ? new Set(members.map((m) => m.id)) : new Set())
+                  }
+                  className="text-xs font-medium text-brand-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-brand-100"
+                  data-testid="split-select-all"
+                >
+                  {allSelected ? t('expense.selectNone') : t('expense.selectAll')}
+                </button>
+              </div>
               <div
                 className="flex flex-wrap justify-center gap-2"
                 role="group"
