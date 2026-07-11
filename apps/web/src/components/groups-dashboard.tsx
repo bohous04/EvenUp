@@ -8,8 +8,7 @@ import { AvatarStack } from '@/components/member-chip';
 import { Sheet } from '@/components/sheet';
 import { Fab } from '@/components/fab';
 import { Users } from '@/components/icons';
-
-const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN'] as const;
+import { COMMON_CURRENCIES } from '@/lib/currencies';
 
 export function GroupsDashboard() {
   const { t, plural } = useI18n();
@@ -25,7 +24,7 @@ export function GroupsDashboard() {
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
-  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('CZK');
+  const [currency, setCurrency] = useState<(typeof COMMON_CURRENCIES)[number]>('CZK');
 
   return (
     <div className="space-y-4 pb-24">
@@ -93,9 +92,9 @@ export function GroupsDashboard() {
             <Select
               id="g-currency"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as (typeof CURRENCIES)[number])}
+              onChange={(e) => setCurrency(e.target.value as (typeof COMMON_CURRENCIES)[number])}
             >
-              {CURRENCIES.map((c) => (
+              {COMMON_CURRENCIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

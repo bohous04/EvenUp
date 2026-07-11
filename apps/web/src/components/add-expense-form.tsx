@@ -20,6 +20,7 @@ import { Fab } from '@/components/fab';
 import { OcrScan } from '@/components/ocr-scan';
 import { CategoryIcon, Camera, ChevronDown } from '@/components/icons';
 import { ItemizedEditor, itemPriceToMinor, type EditorItem } from '@/components/itemized-editor';
+import { COMMON_CURRENCIES } from '@/lib/currencies';
 
 interface MemberLite {
   id: string;
@@ -627,7 +628,7 @@ export function AddExpenseForm({
               data-testid="expense-currency-select"
               className="absolute bottom-1.5 right-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
             >
-              {[baseCurrency, 'CZK', 'EUR', 'USD', 'GBP', 'PLN']
+              {[baseCurrency, ...COMMON_CURRENCIES]
                 .filter((c, i, arr) => arr.indexOf(c) === i)
                 .map((c) => (
                   <option key={c} value={c}>
