@@ -305,21 +305,44 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-receipt-row').click();
 
-    // Select two pages, confirm both preview rows appear, then remove one
-    // before scanning — the mocked backend returns a fixed receipt regardless
-    // of how many pages are actually sent.
+    // Select two pages and confirm both preview rows appear. Unlike the
+    // single-image test, BOTH pages are kept through to saving (not removed) so
+    // the saved receipt has receiptPageCount === 2 and the multi-page lightbox
+    // (Task 4) has something to page through — the mocked backend returns a
+    // fixed receipt regardless of how many pages are actually sent.
     await page.getByTestId('ocr-file-input').setInputFiles([
       { name: 'p1.png', mimeType: 'image/png', buffer: tinyPng },
       { name: 'p2.png', mimeType: 'image/png', buffer: tinyPng },
     ]);
     await expect(page.getByTestId('ocr-page-0')).toBeVisible();
     await expect(page.getByTestId('ocr-page-1')).toBeVisible();
-    await page.getByTestId('ocr-page-remove-1').click();
-    await expect(page.getByTestId('ocr-page-1')).toHaveCount(0);
 
     await page.getByTestId('ocr-scan-pages-btn').click();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
+
+    // Assign every item to Petr (required before saving) and save.
+    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
+    for (const chip of await petrChips.all()) await chip.click();
+    await page.getByTestId('ocr-save-btn').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    // The saved expense has a 2-page receipt, so "view receipt" opens the
+    // in-app lightbox rather than linking straight to page 0 (Task 4).
+    const viewReceipt = page.getByTestId('view-receipt');
+    await expect(viewReceipt).toBeVisible();
+    await expect(viewReceipt).not.toHaveAttribute('href', /.+/);
+    await viewReceipt.click();
+
+    await expect(page.getByTestId('receipt-viewer-img')).toBeVisible();
+    await expect(page.getByTestId('receipt-counter')).toHaveText('Stránka 1 z 2');
+
+    await page.getByTestId('receipt-next').click();
+    await expect(page.getByTestId('receipt-counter')).toHaveText('Stránka 2 z 2');
+    await expect(page.getByTestId('receipt-viewer-img')).toHaveAttribute('src', /page=1/);
+
+    await page.getByTestId('receipt-close').click();
+    await expect(page.getByTestId('receipt-viewer-img')).toBeHidden();
   });
 
   test('foreign-currency expense converts to base via an FX rate (FR-8.x)', async ({

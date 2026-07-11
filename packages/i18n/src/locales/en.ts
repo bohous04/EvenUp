@@ -246,6 +246,11 @@ export const en: Messages = {
 
   'receipt.view': 'View receipt',
   'receipt.viewCount': 'View receipt ({count})',
+  'receipt.prev': 'Previous',
+  'receipt.next': 'Next',
+  'receipt.openOriginal': 'Open original',
+  'receipt.pageOf': 'Page {n} of {total}',
+  'receipt.close': 'Close',
 
   'fx.rate': 'Exchange rate',
   'fx.override': 'Custom rate',
