@@ -14,6 +14,7 @@ interface MemberLite {
   displayName: string;
   initials: string;
   color: string;
+  imageUrl?: string | null;
 }
 
 /** The group's lead card: minimal settlement payments, each row opening a settle sheet. */
@@ -113,10 +114,22 @@ function SettleRow({
         data-testid="settle-btn"
         className="flex w-full items-center gap-2 rounded-xl px-2 py-2.5 text-left text-sm font-semibold transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
       >
-        <MemberChip initials={from.initials} color={from.color} name={from.displayName} size="sm" />
+        <MemberChip
+          initials={from.initials}
+          color={from.color}
+          name={from.displayName}
+          imageUrl={from.imageUrl}
+          size="sm"
+        />
         <span className="min-w-0 truncate">{from.displayName}</span>
         <ArrowRight size={14} aria-hidden className="shrink-0 text-zinc-300 dark:text-zinc-600" />
-        <MemberChip initials={to.initials} color={to.color} name={to.displayName} size="sm" />
+        <MemberChip
+          initials={to.initials}
+          color={to.color}
+          name={to.displayName}
+          imageUrl={to.imageUrl}
+          size="sm"
+        />
         <span className="min-w-0 truncate">{to.displayName}</span>
         <AmountText
           minorUnits={amount}
@@ -138,11 +151,18 @@ function SettleRow({
               initials={from.initials}
               color={from.color}
               name={from.displayName}
+              imageUrl={from.imageUrl}
               size="sm"
             />
             {from.displayName}
             <ArrowRight size={14} aria-hidden className="text-zinc-300 dark:text-zinc-600" />
-            <MemberChip initials={to.initials} color={to.color} name={to.displayName} size="sm" />
+            <MemberChip
+              initials={to.initials}
+              color={to.color}
+              name={to.displayName}
+              imageUrl={to.imageUrl}
+              size="sm"
+            />
             {to.displayName}
           </div>
           <AmountText

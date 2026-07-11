@@ -50,6 +50,7 @@ export function GroupsDashboard() {
                       initials: m.initials,
                       color: m.color,
                       displayName: m.displayName,
+                      image: m.user?.image ?? null,
                     }))}
                   />
                 </Card>

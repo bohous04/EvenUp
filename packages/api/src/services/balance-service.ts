@@ -36,6 +36,8 @@ export interface MemberBalance extends Balance {
   readonly displayName: string;
   readonly initials: string;
   readonly color: string;
+  /** The member's user profile picture (data/URL), or null → show the monogram. */
+  readonly image: string | null;
 }
 
 export interface GroupBalanceResult {
@@ -87,12 +89,24 @@ export async function getGroupBalances(
   const rawBalances = computeNetBalances(balanceTxns);
   const byId = new Map(rawBalances.map((b) => [b.memberId, b.balanceMinorUnits]));
 
+  // Profile pictures live on the linked User (a member may be a userless ghost),
+  // fetched separately so the optional `group` param's type stays as-is.
+  const imageByMember = new Map(
+    (
+      await prisma.member.findMany({
+        where: { groupId },
+        select: { id: true, user: { select: { image: true } } },
+      })
+    ).map((m) => [m.id, m.user?.image ?? null]),
+  );
+
   const balances: MemberBalance[] = loadedGroup.members.map((m) => ({
     memberId: m.id,
     balanceMinorUnits: byId.get(m.id) ?? 0,
     displayName: m.displayName,
     initials: m.initials,
     color: m.color,
+    image: imageByMember.get(m.id) ?? null,
   }));
 
   const payments = loadedGroup.simplifyDebts

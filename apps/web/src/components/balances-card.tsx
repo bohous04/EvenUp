@@ -29,7 +29,13 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
           return (
             <li key={b.memberId} className="flex items-center gap-2">
               <span className="flex w-44 min-w-0 items-center gap-1.5">
-                <MemberChip initials={b.initials} color={b.color} name={b.displayName} size="sm" />
+                <MemberChip
+                  initials={b.initials}
+                  color={b.color}
+                  name={b.displayName}
+                  imageUrl={b.image}
+                  size="sm"
+                />
                 <span className="truncate text-sm" title={b.displayName}>
                   {label}
                 </span>

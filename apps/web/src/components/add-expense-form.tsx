@@ -27,6 +27,7 @@ interface MemberLite {
   displayName: string;
   initials: string;
   color: string;
+  imageUrl?: string | null;
 }
 
 interface CustomCategoryLite {
@@ -706,6 +707,7 @@ export function AddExpenseForm({
                       initials={m.initials}
                       color={m.color}
                       name={m.displayName}
+                      imageUrl={m.imageUrl}
                       size="sm"
                     />
                     {m.displayName}
@@ -744,6 +746,7 @@ export function AddExpenseForm({
                         initials={m.initials}
                         color={m.color}
                         name={m.displayName}
+                        imageUrl={m.imageUrl}
                         size="sm"
                       />
                       {m.displayName}
@@ -796,6 +799,7 @@ export function AddExpenseForm({
                           initials={m.initials}
                           color={m.color}
                           name={m.displayName}
+                          imageUrl={m.imageUrl}
                           size="sm"
                         />
                         <span className="flex-1 text-sm">{m.displayName}</span>

@@ -11,6 +11,7 @@ interface MemberLite {
   displayName: string;
   initials: string;
   color: string;
+  imageUrl?: string | null;
 }
 
 const iconButton = `${iconButtonClass} disabled:cursor-not-allowed disabled:opacity-40`;
@@ -57,7 +58,13 @@ export function MemberList({ groupId, members }: { groupId: string; members: Mem
         const editing = editingId === m.id;
         return (
           <li key={m.id} className="flex items-center gap-2 py-1">
-            <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+            <MemberChip
+              initials={m.initials}
+              color={m.color}
+              name={m.displayName}
+              imageUrl={m.imageUrl}
+              size="sm"
+            />
             {editing ? (
               <>
                 <Input

@@ -21,6 +21,7 @@ interface MemberLite {
   displayName: string;
   initials: string;
   color: string;
+  imageUrl?: string | null;
 }
 
 /** Parse an item's price text to minor units, or null if invalid/non-positive. */
@@ -165,6 +166,7 @@ export function ItemizedEditor({
                   initials={m.initials}
                   color={m.color}
                   name={m.displayName}
+                  imageUrl={m.imageUrl}
                   selected={it.assigned.has(m.id)}
                   onClick={() => toggleAssign(i, m.id)}
                 />
@@ -203,7 +205,13 @@ export function ItemizedEditor({
           {members.map((m) => (
             <li key={m.id} className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2">
-                <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+                <MemberChip
+                  initials={m.initials}
+                  color={m.color}
+                  name={m.displayName}
+                  imageUrl={m.imageUrl}
+                  size="sm"
+                />
                 {m.displayName}
               </span>
               <AmountText

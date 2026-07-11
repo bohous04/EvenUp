@@ -15,6 +15,7 @@ export const userRouter = router({
         id: true,
         email: true,
         name: true,
+        image: true,
         locale: true,
         defaultCurrency: true,
         ocrModel: true,
@@ -90,6 +91,28 @@ export const userRouter = router({
       });
       return { ok: true as const, membersRenamed: linked.length };
     }),
+
+  /**
+   * Set the user's profile picture, stored as a (client-downscaled) image data
+   * URL in `User.image` — the same field OAuth providers populate with a photo
+   * URL, so it renders identically wherever a member's chip appears. Bounded in
+   * size to keep it out of the way in the member queries that carry it.
+   */
+  setAvatar: protectedProcedure
+    .input(z.object({ image: z.string().startsWith('data:image/').max(300_000) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.user.update({
+        where: { id: ctx.user.id },
+        data: { image: input.image },
+      });
+      return { ok: true as const };
+    }),
+
+  /** Remove the profile picture, falling back to the monogram everywhere. */
+  clearAvatar: protectedProcedure.mutation(async ({ ctx }) => {
+    await ctx.prisma.user.update({ where: { id: ctx.user.id }, data: { image: null } });
+    return { ok: true as const };
+  }),
 
   /** Store the CZ bank account used for SPAYD QR in all groups (spec §4). */
   setBankAccount: protectedProcedure

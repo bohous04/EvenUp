@@ -62,6 +62,7 @@ export function NextRoundCard({
               initials={p.initials}
               color={p.color}
               name={p.displayName}
+              imageUrl={p.image}
             />
           ))}
         </div>

@@ -296,6 +296,11 @@ export const cs = {
   'profile.bankAccount': 'Číslo účtu',
   'profile.bankAccountHint': 'Použije se pro QR platby ve všech vašich skupinách.',
   'profile.bankAccountInvalid': 'Neplatné číslo účtu. Zkontrolujte formát 19-2000145399/0800.',
+  'profile.photo': 'Profilová fotka',
+  'profile.photoHint': 'Nahrajte vlastní fotku, která nahradí monogram ve všech vašich skupinách.',
+  'profile.uploadPhoto': 'Nahrát fotku',
+  'profile.removePhoto': 'Odebrat fotku',
+  'profile.photoTooLarge': 'Obrázek je příliš velký. Zkuste menší.',
 
   // Notifications (FR-11.1/FR-11.2)
   'activityType.member.joined': 'Člen se připojil',

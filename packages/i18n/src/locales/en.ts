@@ -293,6 +293,11 @@ export const en: Messages = {
   'profile.bankAccount': 'Bank account',
   'profile.bankAccountHint': 'Used for QR payments in all your groups.',
   'profile.bankAccountInvalid': 'Invalid account number. Check the 19-2000145399/0800 format.',
+  'profile.photo': 'Profile picture',
+  'profile.photoHint': 'Upload a custom photo to replace your monogram across all your groups.',
+  'profile.uploadPhoto': 'Upload photo',
+  'profile.removePhoto': 'Remove photo',
+  'profile.photoTooLarge': 'That image is too large. Try a smaller one.',
 
   // Notifications (FR-11.1/FR-11.2)
   'activityType.member.joined': 'Member joined',

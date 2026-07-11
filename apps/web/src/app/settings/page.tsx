@@ -1,12 +1,48 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
+import { deriveInitials } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, Input, Label, SectionLabel } from '@/components/ui';
 import { Check } from '@/components/icons';
 import { SecurityCard } from '@/components/security/security-card';
+
+/**
+ * Center-crop a picked image to a square and re-encode it small, so the avatar
+ * is a compact data URL that rides comfortably inside the member queries.
+ */
+function fileToAvatarDataUrl(file: File, size = 256, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas not available'));
+        return;
+      }
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - side) / 2;
+      const sy = (img.naturalHeight - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not load image'));
+    };
+    img.src = url;
+  });
+}
+
+// Keep the encoded avatar under the server's data-URL cap (300k) with margin.
+const MAX_AVATAR_CHARS = 290_000;
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -23,6 +59,8 @@ export default function SettingsPage() {
   const [accountError, setAccountError] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
   const [notificationsSaved, setNotificationsSaved] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   const notificationSettings = trpc.notification.getSettings.useQuery(undefined, {
     enabled: !!session?.user,
@@ -43,6 +81,28 @@ export default function SettingsPage() {
       window.setTimeout(() => setNameSaved(false), 2500);
     },
   });
+  const setAvatar = trpc.user.setAvatar.useMutation({
+    onSuccess: () => void utils.user.me.invalidate(),
+    onError: () => setAvatarError(true),
+  });
+  const clearAvatar = trpc.user.clearAvatar.useMutation({
+    onSuccess: () => void utils.user.me.invalidate(),
+  });
+
+  async function handleAvatarFile(file: File) {
+    setAvatarError(false);
+    try {
+      const image = await fileToAvatarDataUrl(file);
+      if (image.length > MAX_AVATAR_CHARS) {
+        setAvatarError(true);
+        return;
+      }
+      setAvatar.mutate({ image });
+    } catch {
+      setAvatarError(true);
+    }
+  }
+
   const setBankAccount = trpc.user.setBankAccount.useMutation({
     onSuccess: () => {
       setAccount('');
@@ -114,6 +174,74 @@ export default function SettingsPage() {
       </div>
       <Card>
         <SectionLabel>{t('profile.title')}</SectionLabel>
+
+        <div className="mb-5 flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+            {me.data?.image ? (
+              <img
+                src={me.data.image}
+                alt=""
+                className="h-full w-full object-cover"
+                data-testid="avatar-preview"
+              />
+            ) : (
+              <span
+                className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-400 dark:text-zinc-500"
+                data-testid="avatar-monogram"
+              >
+                {me.data?.name ? deriveInitials(me.data.name) : ''}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor="avatar-upload">{t('profile.photo')}</Label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                data-testid="avatar-input"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleAvatarFile(f);
+                  e.target.value = '';
+                }}
+              />
+              <Button
+                id="avatar-upload"
+                variant="secondary"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={setAvatar.isPending}
+                data-testid="avatar-upload"
+              >
+                {setAvatar.isPending ? t('common.loading') : t('profile.uploadPhoto')}
+              </Button>
+              {me.data?.image ? (
+                <Button
+                  variant="danger"
+                  onClick={() => clearAvatar.mutate()}
+                  disabled={clearAvatar.isPending}
+                  data-testid="avatar-remove"
+                >
+                  {t('profile.removePhoto')}
+                </Button>
+              ) : null}
+            </div>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+              {t('profile.photoHint')}
+            </p>
+            {avatarError ? (
+              <p
+                role="alert"
+                className="mt-1 text-sm text-red-700 dark:text-red-400"
+                data-testid="avatar-error"
+              >
+                {t('profile.photoTooLarge')}
+              </p>
+            ) : null}
+          </div>
+        </div>
 
         <form
           className="space-y-2"

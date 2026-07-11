@@ -22,6 +22,7 @@ interface MemberLite {
   displayName: string;
   initials: string;
   color: string;
+  imageUrl?: string | null;
 }
 
 /** One picked page (screenshot or PDF) awaiting a `scan.mutate` call. */

@@ -63,7 +63,10 @@ export const groupRouter = router({
         OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }],
       },
       orderBy: { createdAt: 'desc' },
-      include: { members: true, _count: { select: { transactions: true } } },
+      include: {
+        members: { include: { user: { select: { image: true } } } },
+        _count: { select: { transactions: true } },
+      },
     });
   }),
 
@@ -71,7 +74,12 @@ export const groupRouter = router({
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
     return ctx.prisma.group.findUniqueOrThrow({
       where: { id: input.groupId },
-      include: { members: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        members: {
+          orderBy: { createdAt: 'asc' },
+          include: { user: { select: { image: true } } },
+        },
+      },
     });
   }),
 

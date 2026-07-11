@@ -73,7 +73,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     displayName: m.displayName,
     initials: m.initials,
     color: m.color,
+    imageUrl: m.user?.image ?? null,
   }));
+  // Payer chips on transaction rows use the raw member (incl. inactive), so map
+  // memberId → profile picture separately from the active-only memberLite.
+  const imageByMemberId = new Map(group.data.members.map((m) => [m.id, m.user?.image ?? null]));
   const totalSpent = (stats.data ?? []).reduce((a, s) => a + Math.abs(s.totalMinorUnits), 0);
   const txs = transactions.data ?? [];
   const visibleTxs = showAll ? txs : txs.slice(0, 5);
@@ -177,6 +181,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           initials={payer.initials}
                           color={payer.color}
                           name={payer.displayName}
+                          imageUrl={imageByMemberId.get(payer.id) ?? null}
                           size="sm"
                         />
                       ) : null}

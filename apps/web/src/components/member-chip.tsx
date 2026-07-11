@@ -13,6 +13,7 @@ export function MemberChip({
   selected,
   onClick,
   size = 'md',
+  imageUrl,
 }: {
   initials: string;
   color: string;
@@ -20,14 +21,31 @@ export function MemberChip({
   selected?: boolean;
   onClick?: () => void;
   size?: 'xs' | 'sm' | 'md';
+  /** Profile picture; when set it replaces the monogram (falls back to it). */
+  imageUrl?: string | null;
 }) {
   const dims =
     size === 'xs' ? 'h-5 w-5 text-[9px]' : size === 'sm' ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm';
   const ring = selected ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white' : '';
   // shrink-0: inside tight flex rows (balances, settle) a long sibling name
-  // otherwise squeezes the circle into a pill.
-  const base = `inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-semibold ${ring}`;
+  // otherwise squeezes the circle into a pill. overflow-hidden clips the photo
+  // to the circle.
+  const base = `relative inline-flex ${dims} shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold ${ring}`;
   const style = { backgroundColor: color, color: readableTextColor(color) };
+  // The monogram sits under the photo, so a transparent/late-loading image still
+  // shows the initials rather than an empty circle.
+  const inner = (
+    <>
+      {initials}
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full rounded-full object-cover"
+        />
+      ) : null}
+    </>
+  );
 
   if (onClick) {
     return (
@@ -40,14 +58,14 @@ export function MemberChip({
         className={`${base} transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600`}
         style={style}
       >
-        {initials}
+        {inner}
       </button>
     );
   }
 
   return (
     <span className={base} style={style} role="img" aria-label={name ?? initials}>
-      {initials}
+      {inner}
     </span>
   );
 }
@@ -57,7 +75,13 @@ export function AvatarStack({
   members,
   max = 5,
 }: {
-  members: { id: string; initials: string; color: string; displayName: string }[];
+  members: {
+    id: string;
+    initials: string;
+    color: string;
+    displayName: string;
+    image?: string | null;
+  }[];
   max?: number;
 }) {
   const shown = members.slice(0, max);
@@ -69,7 +93,13 @@ export function AvatarStack({
           key={m.id}
           className="-ml-1.5 rounded-full ring-2 ring-white first:ml-0 dark:ring-zinc-900"
         >
-          <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+          <MemberChip
+            initials={m.initials}
+            color={m.color}
+            name={m.displayName}
+            size="sm"
+            imageUrl={m.image}
+          />
         </span>
       ))}
       {extra > 0 ? (
