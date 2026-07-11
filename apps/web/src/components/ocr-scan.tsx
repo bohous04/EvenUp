@@ -6,7 +6,17 @@ import { trpc } from '@/lib/trpc';
 import { Button, Input, Select } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
-import { Camera, ImageIcon, AlertCircle, Trash2, Plus } from '@/components/icons';
+import {
+  Camera,
+  ImageIcon,
+  AlertCircle,
+  Trash2,
+  Plus,
+  FileText,
+  ChevronUp,
+  ChevronDown,
+} from '@/components/icons';
+import { moveItem } from '@/lib/move-item';
 
 interface MemberLite {
   id: string;
@@ -21,6 +31,15 @@ interface ScanItem {
   priceText: string;
   assigned: Set<string>;
 }
+
+/** One picked page (screenshot or PDF) awaiting a `scan.mutate` call. */
+type PagePreview = {
+  id: string;
+  kind: 'image' | 'pdf';
+  label: string;
+  preview?: string;
+  dataUrl: string;
+};
 
 /**
  * Downscale a (potentially huge phone-camera) image before upload (PRD §6.4):
@@ -90,6 +109,8 @@ export function OcrScan({
   const lacksOcrAccess = me.data ? !me.data.isVip && !me.data.hasOpenRouterKey : false;
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const filesRef = useRef<HTMLInputElement>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ScanItem[] | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   // Detected shop name — used as the saved expense title so it reads naturally
@@ -97,6 +118,10 @@ export function OcrScan({
   const [merchant, setMerchant] = useState<string | null>(null);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
+  // Multi-page picker preview (FR-5.4/5.9): screenshots + a PDF collected here,
+  // reordered/removed by the user, then sent as `pages[]` to `ocr.scan`.
+  const [pages, setPages] = useState<PagePreview[]>([]);
+  const MAX_PAGES = 10;
 
   const scan = trpc.ocr.scan.useMutation({
     onSuccess: (res) => {
@@ -109,6 +134,7 @@ export function OcrScan({
       );
       setReceiptId(res.receiptId);
       setMerchant(res.result.merchant);
+      setPages([]);
       setError(null);
     },
     // Surface the actionable reason rather than a blanket "recognition failed":
@@ -141,6 +167,54 @@ export function OcrScan({
     } catch {
       setError(t('ocr.failed'));
     }
+  }
+
+  /** Downscale and queue one or more picked screenshots as pending pages. */
+  async function addImageFiles(files: FileList) {
+    const room = MAX_PAGES - pages.length;
+    if (room <= 0) {
+      setError(t('ocr.tooManyPages'));
+      return;
+    }
+    const picked = Array.from(files).slice(0, room);
+    const next: PagePreview[] = [];
+    for (const f of picked) {
+      const dataUrl = await downscaleImage(f);
+      next.push({
+        id: crypto.randomUUID(),
+        kind: 'image',
+        label: f.name,
+        preview: dataUrl,
+        dataUrl,
+      });
+    }
+    setPages((p) => [...p, ...next]);
+    setError(null);
+  }
+
+  /** Queue a picked PDF as a pending page (read as a data URL, no downscaling). */
+  function addPdf(file: File) {
+    if (pages.length >= MAX_PAGES) {
+      setError(t('ocr.tooManyPages'));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError(t('ocr.pdfTooLarge'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      setPages((p) => [...p, { id: crypto.randomUUID(), kind: 'pdf', label: file.name, dataUrl }]);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /** Send the queued pages (in their current order) to `ocr.scan`. */
+  function scanPages() {
+    if (pages.length === 0) return;
+    scan.mutate({ groupId, pages: pages.map((p) => p.dataUrl) });
   }
 
   function patchItem(index: number, patch: Partial<ScanItem>) {
@@ -262,6 +336,30 @@ export function OcrScan({
           if (f) void onFile(f);
         }}
       />
+      {/* Multi-page picker: any mix of screenshots and PDF pages, up to MAX_PAGES
+          total, queued into `pages` for a single review-then-scan step. */}
+      <input
+        ref={filesRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        data-testid="ocr-files-input"
+        onChange={(e) => {
+          if (e.target.files?.length) void addImageFiles(e.target.files);
+        }}
+      />
+      <input
+        ref={pdfRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        data-testid="ocr-pdf-input"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) addPdf(f);
+        }}
+      />
 
       {!items ? (
         lacksOcrAccess ? (
@@ -272,28 +370,105 @@ export function OcrScan({
             {t('ocr.accessRequired')}
           </div>
         ) : (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="secondary"
-              onClick={() => cameraRef.current?.click()}
-              disabled={scan.isPending}
-              className="flex-1"
-              data-testid="ocr-upload-btn"
-            >
-              <Camera size={16} aria-hidden />
-              {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => galleryRef.current?.click()}
-              disabled={scan.isPending}
-              className="flex-1"
-              data-testid="ocr-gallery-btn"
-            >
-              <ImageIcon size={16} aria-hidden />
-              {t('ocr.fromGallery')}
-            </Button>
-          </div>
+          <>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={() => cameraRef.current?.click()}
+                disabled={scan.isPending}
+                className="flex-1"
+                data-testid="ocr-upload-btn"
+              >
+                <Camera size={16} aria-hidden />
+                {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => galleryRef.current?.click()}
+                disabled={scan.isPending}
+                className="flex-1"
+                data-testid="ocr-gallery-btn"
+              >
+                <ImageIcon size={16} aria-hidden />
+                {t('ocr.fromGallery')}
+              </Button>
+            </div>
+
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={() => filesRef.current?.click()}
+                disabled={scan.isPending}
+                className="flex-1"
+                data-testid="ocr-add-files-btn"
+              >
+                <ImageIcon size={16} aria-hidden /> {t('ocr.addScreenshots')}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => pdfRef.current?.click()}
+                disabled={scan.isPending}
+                className="flex-1"
+                data-testid="ocr-add-pdf-btn"
+              >
+                <FileText size={16} aria-hidden /> {t('ocr.importPdf')}
+              </Button>
+            </div>
+
+            {pages.length > 0 ? (
+              <div className="mt-3 space-y-2" data-testid="ocr-pages">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
+                {pages.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
+                    data-testid={`ocr-page-${i}`}
+                  >
+                    {p.preview ? (
+                      <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <FileText size={20} aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
+                    <button
+                      type="button"
+                      aria-label={t('ocr.moveUp')}
+                      disabled={i === 0}
+                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                      onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
+                    >
+                      <ChevronUp size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('ocr.moveDown')}
+                      disabled={i === pages.length - 1}
+                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                      onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
+                    >
+                      <ChevronDown size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('ocr.removePage')}
+                      data-testid={`ocr-page-remove-${i}`}
+                      className="rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                      onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  onClick={scanPages}
+                  disabled={scan.isPending}
+                  data-testid="ocr-scan-pages-btn"
+                >
+                  {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
+                </Button>
+              </div>
+            ) : null}
+          </>
         )
       ) : (
         <div className="space-y-3" data-testid="ocr-items">

@@ -15,7 +15,7 @@ export {
   createS3ObjectStore,
   createNoopObjectStore,
   createInMemoryObjectStore,
-  parseImageDataUrl,
+  parseDataUrl,
   type ObjectStore,
   type S3Config,
 } from './storage/object-store.js';

@@ -1,25 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseImageDataUrl,
+  parseDataUrl,
   createNoopObjectStore,
   createInMemoryObjectStore,
 } from './object-store.js';
 
-describe('parseImageDataUrl', () => {
+describe('parseDataUrl', () => {
   it('decodes a base64 png data URL to bytes + content type + ext', () => {
     // 1x1 transparent PNG
     const b64 =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
-    const { bytes, contentType, ext } = parseImageDataUrl(`data:image/png;base64,${b64}`);
+    const { bytes, contentType, ext } = parseDataUrl(`data:image/png;base64,${b64}`);
     expect(contentType).toBe('image/png');
     expect(ext).toBe('png');
     expect(bytes.length).toBeGreaterThan(0);
     expect(bytes.equals(Buffer.from(b64, 'base64'))).toBe(true);
   });
 
+  it('decodes an application/pdf data URL with a pdf ext', () => {
+    const b64 = Buffer.from('%PDF-1.4').toString('base64');
+    const { contentType, ext } = parseDataUrl(`data:application/pdf;base64,${b64}`);
+    expect(contentType).toBe('application/pdf');
+    expect(ext).toBe('pdf');
+  });
+
   it('throws on a non-image / malformed data URL', () => {
-    expect(() => parseImageDataUrl('data:text/plain;base64,aGk=')).toThrow();
-    expect(() => parseImageDataUrl('not-a-data-url')).toThrow();
+    expect(() => parseDataUrl('data:text/plain;base64,aGk=')).toThrow();
+    expect(() => parseDataUrl('not-a-data-url')).toThrow();
   });
 });
 

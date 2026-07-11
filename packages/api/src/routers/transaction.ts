@@ -30,14 +30,14 @@ import type { Context } from '../context.js';
 const transactionInclude = {
   payers: { include: { member: true } },
   splits: { include: { member: true } },
-  receipt: { select: { id: true, storageKey: true } },
+  receipt: { select: { id: true, storageKeys: true } },
 } satisfies Prisma.TransactionInclude;
 
 type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactionInclude }>;
 
 /**
  * Surface whether a receipt image is available to view (FR-5.8/5.9) without
- * leaking the internal storageKey (object-store path) to the client, and hand
+ * leaking the internal storageKeys (object-store paths) to the client, and hand
  * the client a plain-number `percentage` (a Prisma Decimal doesn't survive
  * superjson intact) so an edit can read back the original percentage split.
  */
@@ -50,7 +50,8 @@ function shapeTransaction(tx: FullTransaction) {
       percentage: s.percentage === null ? null : Number(s.percentage),
     })),
     receiptId: receipt?.id ?? null,
-    hasReceiptImage: !!receipt?.storageKey,
+    hasReceiptImage: (receipt?.storageKeys.length ?? 0) > 0,
+    receiptPageCount: receipt?.storageKeys.length ?? 0,
   };
 }
 

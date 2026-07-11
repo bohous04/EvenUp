@@ -238,8 +238,18 @@ export const cs = {
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',
+  'ocr.addScreenshots': 'Přidat screenshoty',
+  'ocr.importPdf': 'Importovat PDF',
+  'ocr.pagesSelected': 'Vybrané stránky',
+  'ocr.removePage': 'Odebrat stránku',
+  'ocr.moveUp': 'Posunout nahoru',
+  'ocr.moveDown': 'Posunout dolů',
+  'ocr.scanPages': 'Rozpoznat účtenku',
+  'ocr.pdfTooLarge': 'PDF je příliš velké (max 10 MB).',
+  'ocr.tooManyPages': 'Maximálně 10 stránek.',
 
   'receipt.view': 'Zobrazit účtenku',
+  'receipt.viewCount': 'Zobrazit účtenku ({count})',
 
   'fx.rate': 'Směnný kurz',
   'fx.override': 'Vlastní kurz',

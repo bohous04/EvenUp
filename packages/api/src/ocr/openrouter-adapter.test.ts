@@ -31,10 +31,58 @@ const HAPPY = JSON.stringify({
 });
 
 const baseArgs = {
-  imageDataUrl: 'data:image/jpeg;base64,AAAA',
+  pages: ['data:image/jpeg;base64,AAAA'],
   apiKey: 'sk-or-test',
   model: 'google/gemini-2.5-flash',
 };
+
+describe('extractReceipt — multi-page input', () => {
+  test('sends one text part then one image_url part per page, no plugins', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({
+      ...baseArgs,
+      pages: ['data:image/jpeg;base64,AAAA', 'data:image/png;base64,BBBB'],
+      fetchImpl,
+    });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const content = body.messages[0].content;
+    expect(content[0].type).toBe('text');
+    expect(content.filter((c: { type: string }) => c.type === 'image_url')).toHaveLength(2);
+    expect(body.plugins).toBeUndefined();
+  });
+
+  test('sends a PDF as a file part and enables the file-parser plugin', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({
+      ...baseArgs,
+      pages: ['data:application/pdf;base64,JVBERi0='],
+      fetchImpl,
+    });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const content = body.messages[0].content;
+    expect(content.find((c: { type: string }) => c.type === 'file').file.file_data).toContain(
+      'application/pdf',
+    );
+    expect(body.plugins).toEqual([{ id: 'file-parser', pdf: { engine: 'pdf-text' } }]);
+  });
+
+  test('a mixed image + PDF page set sends both part types and enables the file-parser plugin', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({
+      ...baseArgs,
+      pages: ['data:image/png;base64,AAAA', 'data:application/pdf;base64,JVBERi0='],
+      fetchImpl,
+    });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const content = body.messages[0].content;
+    expect(content.filter((c: { type: string }) => c.type === 'image_url')).toHaveLength(1);
+    expect(content.filter((c: { type: string }) => c.type === 'file')).toHaveLength(1);
+    expect(body.plugins).toEqual([{ id: 'file-parser', pdf: { engine: 'pdf-text' } }]);
+  });
+});
 
 describe('extractReceipt — happy path', () => {
   test('parses items into integer minor units in the detected currency', async () => {

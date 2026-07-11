@@ -83,6 +83,10 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
 
 - **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model. OCR API keys are
   **per-user (BYO)**, not a global secret.
+- **`OCR_PDF_ENGINE`** — PDF parsing engine used by OpenRouter's file-parser
+  plugin when a receipt PDF is imported. Default `pdf-text` (free; good for
+  digital receipts with a text layer). Set to `mistral-ocr` (paid) for scanned
+  PDFs where `pdf-text` extracts poor or empty text.
 - **`STORAGE_*`** — S3/MinIO endpoint and credentials for receipt images.
 - **`RECEIPT_RETENTION_DAYS`** — days to retain the stored receipt image before
   the cleanup cron deletes it (privacy). Default `30`.

@@ -235,8 +235,18 @@ export const en: Messages = {
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',
+  'ocr.addScreenshots': 'Add screenshots',
+  'ocr.importPdf': 'Import PDF',
+  'ocr.pagesSelected': 'Selected pages',
+  'ocr.removePage': 'Remove page',
+  'ocr.moveUp': 'Move up',
+  'ocr.moveDown': 'Move down',
+  'ocr.scanPages': 'Scan receipt',
+  'ocr.pdfTooLarge': 'PDF is too large (max 10 MB).',
+  'ocr.tooManyPages': 'At most 10 pages.',
 
   'receipt.view': 'View receipt',
+  'receipt.viewCount': 'View receipt ({count})',
 
   'fx.rate': 'Exchange rate',
   'fx.override': 'Custom rate',

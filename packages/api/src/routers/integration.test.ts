@@ -364,7 +364,49 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       );
       expect(deletes).toEqual([puts[0]!.key]); // deleted immediately (retention=0)
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toBe(''); // cleared after immediate delete
+      expect(receipt.storageKeys).toEqual([]); // cleared after immediate delete
+    } finally {
+      if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
+      else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
+    }
+  });
+
+  test('deletes every page immediately for a multi-page scan when RECEIPT_RETENTION_DAYS=0 (FR-5.8)', async () => {
+    const puts: { key: string; bytes: Uint8Array }[] = [];
+    const deletes: string[] = [];
+    const store = {
+      async putReceipt(key: string, bytes: Uint8Array) {
+        puts.push({ key, bytes });
+      },
+      async deleteObject(key: string) {
+        deletes.push(key);
+      },
+      async getObject() {
+        return null;
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'RM', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // Receipt-photo storage is a VIP-only privilege.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+
+    const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
+    process.env.RECEIPT_RETENTION_DAYS = '0';
+    try {
+      const res = await caller.ocr.scan({
+        groupId: group.id,
+        pages: [
+          `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+          `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+        ],
+      });
+
+      expect(puts).toHaveLength(2);
+      expect(deletes).toEqual(puts.map((p) => p.key)); // every page deleted immediately (retention=0)
+      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKeys).toEqual([]); // nothing stored
     } finally {
       if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
       else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
@@ -408,12 +450,70 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       );
       expect(deletes).toEqual([]); // retained
       const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-      expect(receipt.storageKey).toMatch(/^receipts\//);
-      expect(receipt.storageKey).toContain(`receipts/${group.id}/`);
+      expect(receipt.storageKeys[0]!).toMatch(/^receipts\//);
+      expect(receipt.storageKeys[0]!).toContain(`receipts/${group.id}/`);
     } finally {
       if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
       else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
     }
+  });
+
+  test('scan accepts multiple pages and stores every page for a VIP', async () => {
+    const puts: string[] = [];
+    const store = {
+      async putReceipt(key: string) {
+        puts.push(key);
+      },
+      async deleteObject() {},
+      async getObject() {
+        return null;
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'M', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      pages: [
+        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      ],
+    });
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKeys).toHaveLength(2);
+    expect(puts).toHaveLength(2);
+  });
+
+  test('scan rejects more than 10 pages', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'X', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    const pages = Array.from({ length: 11 }, () => 'data:image/png;base64,AAAA');
+    await expect(caller.ocr.scan({ groupId: group.id, pages })).rejects.toThrow();
+  });
+
+  test('scan rejects a page whose data URL exceeds the per-page size cap', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'Huge', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    const huge = 'data:image/png;base64,' + 'A'.repeat(20_000_001);
+    await expect(caller.ocr.scan({ groupId: group.id, pages: [huge] })).rejects.toThrow();
+  });
+
+  test('scan sends the file-parser plugin when a page is a PDF', async () => {
+    const fetchImpl = makeOcrFetch();
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: fetchImpl });
+    const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    await caller.ocr.scan({ groupId: group.id, pages: ['data:application/pdf;base64,JVBERi0='] });
+    const body = JSON.parse((fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1].body as string);
+    expect(body.plugins?.[0]?.id).toBe('file-parser');
   });
 
   test('a storage failure does not break OCR (best-effort, FR-5.8)', async () => {
@@ -441,7 +541,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     expect(res.result).toBeDefined();
     expect(res.receiptId).toBeDefined();
     const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toBe('');
+    expect(receipt.storageKeys).toEqual([]);
     expect(receipt.status).toBe('COMPLETED');
   });
 
@@ -505,7 +605,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     expect(res.result).toBeDefined();
     expect(puts).toHaveLength(0); // non-VIP -> no receipt photo stored
     const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
-    expect(receipt.storageKey).toBe('');
+    expect(receipt.storageKeys).toEqual([]);
   });
 
   test('a failed OCR scan is recorded in the error log', async () => {
@@ -560,12 +660,12 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       groupId: group.id,
       imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
     });
-    // Sanity: default retention (30 days) keeps the image, so the receipt has a
-    // non-empty storageKey for the UI link to resolve against.
+    // Sanity: default retention (30 days) keeps the image, so the receipt has
+    // non-empty storageKeys for the UI link to resolve against.
     const receipt = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: scanRes.receiptId },
     });
-    expect(receipt.storageKey).toMatch(/^receipts\//);
+    expect(receipt.storageKeys[0]!).toMatch(/^receipts\//);
 
     await caller.transaction.createExpense({
       groupId: group.id,
