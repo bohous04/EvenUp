@@ -97,9 +97,7 @@ export const groupRouter = router({
     // A linked account's email is PII: expose it only to group admins (and to the
     // member who owns it). Everyone else still sees that a member is connected
     // (via `user` being non-null), just not the address.
-    const viewerIsAdmin = group.members.some(
-      (m) => m.userId === ctx.user.id && m.role === 'ADMIN',
-    );
+    const viewerIsAdmin = group.members.some((m) => m.userId === ctx.user.id && m.role === 'ADMIN');
     return {
       ...group,
       members: group.members.map((m) =>
