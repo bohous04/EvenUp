@@ -416,6 +416,55 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     }
   });
 
+  test('scan accepts multiple pages and stores every page for a VIP', async () => {
+    const puts: string[] = [];
+    const store = {
+      async putReceipt(key: string) {
+        puts.push(key);
+      },
+      async deleteObject() {},
+      async getObject() {
+        return null;
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'M', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+
+    const res = await caller.ocr.scan({
+      groupId: group.id,
+      pages: [
+        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+        `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+      ],
+    });
+    const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+    expect(receipt.storageKeys).toHaveLength(2);
+    expect(puts).toHaveLength(2);
+  });
+
+  test('scan rejects more than 10 pages', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'X', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    const pages = Array.from({ length: 11 }, () => 'data:image/png;base64,AAAA');
+    await expect(caller.ocr.scan({ groupId: group.id, pages })).rejects.toThrow();
+  });
+
+  test('scan sends the file-parser plugin when a page is a PDF', async () => {
+    const fetchImpl = makeOcrFetch();
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: fetchImpl });
+    const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    await caller.ocr.scan({ groupId: group.id, pages: ['data:application/pdf;base64,JVBERi0='] });
+    const body = JSON.parse((fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1].body as string);
+    expect(body.plugins?.[0]?.id).toBe('file-parser');
+  });
+
   test('a storage failure does not break OCR (best-effort, FR-5.8)', async () => {
     const store = {
       async putReceipt(): Promise<void> {

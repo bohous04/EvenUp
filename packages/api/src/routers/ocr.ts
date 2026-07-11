@@ -5,18 +5,31 @@ import { fromMinor } from '@evenup/db';
 import { router, protectedProcedure } from '../trpc.js';
 import { assertGroupAccess } from '../access.js';
 import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-adapter.js';
-import { parseImageDataUrl } from '../storage/object-store.js';
+import { parseDataUrl } from '../storage/object-store.js';
+
+const MAX_PAGES = 10;
 
 export const ocrRouter = router({
   scan: protectedProcedure
     .input(
-      z.object({
-        groupId: z.string(),
-        imageDataUrl: z.string().startsWith('data:image/'),
-      }),
+      z.union([
+        z.object({
+          groupId: z.string(),
+          imageDataUrl: z.string().startsWith('data:image/'),
+        }),
+        z.object({
+          groupId: z.string(),
+          pages: z
+            .array(z.string().regex(/^data:(image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,/))
+            .min(1)
+            .max(MAX_PAGES),
+        }),
+      ]),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      const groupId = input.groupId;
+      const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
+      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
 
       if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
         throw new TRPCError({
@@ -26,7 +39,7 @@ export const ocrRouter = router({
       }
 
       const group = await ctx.prisma.group.findUniqueOrThrow({
-        where: { id: input.groupId },
+        where: { id: groupId },
         select: { baseCurrency: true },
       });
       const user = await ctx.prisma.user.findUniqueOrThrow({
@@ -61,12 +74,13 @@ export const ocrRouter = router({
 
       try {
         const result = await extractReceipt({
-          pages: [input.imageDataUrl],
+          pages,
           apiKey,
           model,
           baseUrl: process.env.OPENROUTER_BASE_URL || undefined,
           fallbackCurrency: group.baseCurrency,
           fetchImpl: ctx.ocrFetch,
+          pdfEngine: process.env.OCR_PDF_ENGINE || undefined,
         });
 
         // Best-effort image storage (FR-5.8): a storage failure must never block
@@ -75,23 +89,25 @@ export const ocrRouter = router({
         const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
         const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
         if (ctx.objectStore && user.isVip) {
-          try {
-            const { bytes, contentType, ext } = parseImageDataUrl(input.imageDataUrl);
-            const key = `receipts/${input.groupId}/${crypto.randomUUID()}.${ext}`;
-            await ctx.objectStore.putReceipt(key, bytes, contentType);
-            if (retentionDays === 0) {
-              await ctx.objectStore.deleteObject(key); // retention 0: store nothing
-            } else {
-              storageKeys.push(key);
+          for (const page of pages) {
+            try {
+              const { bytes, contentType, ext } = parseDataUrl(page);
+              const key = `receipts/${groupId}/${crypto.randomUUID()}.${ext}`;
+              await ctx.objectStore.putReceipt(key, bytes, contentType);
+              if (retentionDays === 0) {
+                await ctx.objectStore.deleteObject(key);
+              } else {
+                storageKeys.push(key);
+              }
+            } catch (err) {
+              console.warn('[ocr] receipt storage failed (best-effort)', err);
             }
-          } catch (err) {
-            console.warn('[ocr] receipt storage failed (best-effort)', err);
           }
         }
 
         const receipt = await ctx.prisma.receipt.create({
           data: {
-            groupId: input.groupId,
+            groupId,
             storageKeys,
             ocrModel: model,
             status: 'COMPLETED',
@@ -110,7 +126,7 @@ export const ocrRouter = router({
         // Record the failure and tell the client to fall back to manual entry (FR-5.6/5.7).
         await ctx.prisma.receipt.create({
           data: {
-            groupId: input.groupId,
+            groupId,
             storageKeys: [],
             ocrModel: model,
             status: 'FAILED',

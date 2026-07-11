@@ -81,16 +81,13 @@ export function createNoopObjectStore(): ObjectStore {
   };
 }
 
-/** Parse a `data:image/...;base64,...` URL into raw bytes + content type + extension. */
-export function parseImageDataUrl(dataUrl: string): {
-  bytes: Buffer;
-  contentType: string;
-  ext: string;
-} {
-  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(dataUrl);
-  if (!m) throw new Error('Unsupported or malformed image data URL');
+/** Parse a `data:image/...` or `data:application/pdf;base64,...` URL into bytes + content type + ext. */
+export function parseDataUrl(dataUrl: string): { bytes: Buffer; contentType: string; ext: string } {
+  const m = /^data:(image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,(.+)$/s.exec(dataUrl);
+  if (!m) throw new Error('Unsupported or malformed data URL');
   const contentType = m[1]!;
-  const ext = contentType.split('/')[1]?.split('+')[0] ?? 'bin';
+  const ext =
+    contentType === 'application/pdf' ? 'pdf' : (contentType.split('/')[1]?.split('+')[0] ?? 'bin');
   return { bytes: Buffer.from(m[2]!, 'base64'), contentType, ext };
 }
 
