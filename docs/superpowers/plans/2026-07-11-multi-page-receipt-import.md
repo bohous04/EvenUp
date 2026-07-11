@@ -515,7 +515,7 @@ describe('resolveReceiptPage', () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `pnpm --filter web test receipt-page`
+Run: `pnpm --filter @evenup/web test receipt-page`
 Expected: FAIL (module missing).
 
 - [ ] **Step 3: Implement the helper**
@@ -562,7 +562,7 @@ Replace the content-type resolution so PDF is allowed inline (keep the raster wh
 
 - [ ] **Step 5: Run tests + typecheck**
 
-Run: `pnpm -w typecheck && pnpm --filter web test receipt-page`
+Run: `pnpm -w typecheck && pnpm --filter @evenup/web test receipt-page`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -611,7 +611,7 @@ describe('moveItem', () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `pnpm --filter web test move-item`
+Run: `pnpm --filter @evenup/web test move-item`
 Expected: FAIL (module missing).
 
 - [ ] **Step 3: Implement `moveItem`**
@@ -782,8 +782,8 @@ In `apps/web/src/components/group-detail.tsx` (lines ~205-215), change the link 
 
 - [ ] **Step 7: Run unit tests + typecheck**
 
-Run: `pnpm -w typecheck && pnpm --filter web test && pnpm --filter @evenup/i18n test`
-Expected: PASS (moveItem; i18n key-parity test if present).
+Run: `pnpm -w typecheck && pnpm --filter @evenup/web test && pnpm --filter @evenup/i18n test`
+Expected: PASS (moveItem; i18n key-parity test if present). If `@evenup/i18n` has no `test` script, skip that segment.
 
 - [ ] **Step 8: Commit**
 
@@ -837,7 +837,7 @@ test('multi-screenshot receipt import → itemized expense (mocked OpenRouter)',
 
 - [ ] **Step 3: Run the e2e**
 
-Run: `pnpm --filter web test:e2e critical-flow` (see the `e2e-local-recipe` note for the Postgres + env setup)
+Run (see the `e2e-local-recipe` note for the Postgres + CI env vars): rebuild first because Playwright's `webServer` runs the production bundle — `pnpm --filter @evenup/web build`, then `pnpm --filter @evenup/web test:e2e -- --project=chromium critical-flow` (only chromium is installed locally).
 Expected: PASS.
 
 - [ ] **Step 4: Manual verification on the real app**
