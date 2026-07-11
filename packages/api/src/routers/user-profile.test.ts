@@ -61,7 +61,7 @@ describe('user.updateProfile', () => {
 describe('user.setBankAccount / clearBankAccount / me', () => {
   beforeEach(resetDb);
 
-  it('stores the account encrypted and me returns only the mask', async () => {
+  it('stores the account encrypted at rest; me only flags it, getBankAccount returns it in full', async () => {
     const user = await createTestUser('acct@example.com');
     const caller = makeCaller(user);
 
@@ -72,9 +72,13 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
     expect(row.bankAccountEncrypted).not.toBeNull();
     expect(row.bankAccountEncrypted).not.toContain('2000145399'); // encrypted, not plaintext
 
+    // `me` never carries the plaintext — only a boolean flag.
     const me = await caller.user.me();
-    expect(me.bankAccountMasked).toBe('…5399/0800');
+    expect(me.hasBankAccount).toBe(true);
     expect(JSON.stringify(me)).not.toContain('2000145399');
+
+    // The owner sees the whole (normalized) account number via the dedicated query.
+    expect(await caller.user.getBankAccount()).toEqual({ account: '19-2000145399/0800' });
   });
 
   it('rejects an invalid account number', async () => {
@@ -84,7 +88,7 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
-  it('clearBankAccount nulls the column and the mask', async () => {
+  it('clearBankAccount nulls the column, the flag, and the value', async () => {
     const user = await createTestUser('acct3@example.com');
     const caller = makeCaller(user);
     await caller.user.setBankAccount({ account: '19-2000145399/0800' });
@@ -92,10 +96,11 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
 
     const row = await testPrisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.bankAccountEncrypted).toBeNull();
-    expect((await caller.user.me()).bankAccountMasked).toBeNull();
+    expect((await caller.user.me()).hasBankAccount).toBe(false);
+    expect(await caller.user.getBankAccount()).toEqual({ account: null });
   });
 
-  it('me() fails closed (masked null) when the ciphertext is corrupt, without throwing', async () => {
+  it('getBankAccount fails closed (null) when the ciphertext is corrupt, without throwing', async () => {
     const user = await createTestUser('acct4@example.com');
     const caller = makeCaller(user);
     await caller.user.setBankAccount({ account: '19-2000145399/0800' });
@@ -105,8 +110,9 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
       data: { bankAccountEncrypted: 'not-encrypted' },
     });
 
-    const me = await caller.user.me();
-    expect(me.bankAccountMasked).toBeNull();
+    // The flag still reports "set", but the value can't be decrypted → null, no throw.
+    expect((await caller.user.me()).hasBankAccount).toBe(true);
+    expect(await caller.user.getBankAccount()).toEqual({ account: null });
   });
 });
 

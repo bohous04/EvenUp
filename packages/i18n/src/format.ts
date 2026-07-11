@@ -30,6 +30,14 @@ export function formatNumber(value: number, locale: Locale): string {
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value);
 }
 
+/**
+ * The CLDR plural category (`one` / `few` / `many` / `other`) for `count` in the
+ * locale — Czech uses `one` (1), `few` (2–4), `other` (0, 5+); English `one`/`other`.
+ */
+export function pluralCategory(count: number, locale: Locale): Intl.LDMLPluralRule {
+  return new Intl.PluralRules(INTL_LOCALE[locale]).select(count);
+}
+
 /** Format an ISO date string or `Date` for the locale (medium style). */
 export function formatDate(date: string | Date, locale: Locale): string {
   const d = typeof date === 'string' ? new Date(date) : date;

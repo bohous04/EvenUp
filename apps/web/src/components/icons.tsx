@@ -45,6 +45,7 @@ import {
   Gamepad2,
   Beer,
   HandCoins,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -147,5 +148,6 @@ export {
   ChevronLeft,
   LogOut,
   HandCoins,
+  Sparkles,
 };
 export type { LucideIcon };

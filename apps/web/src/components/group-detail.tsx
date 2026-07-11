@@ -2,13 +2,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
-import { trpc } from '@/lib/trpc';
+import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { Button, Card, SectionLabel, iconButtonClass } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { MemberList } from '@/components/member-list';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
+import { EditTransferSheet } from '@/components/edit-transfer-sheet';
 import { SettleCard } from '@/components/settle-card';
 import { BalancesCard } from '@/components/balances-card';
 import { NextRoundCard } from '@/components/next-round-card';
@@ -30,6 +31,7 @@ import {
 } from '@/components/icons';
 
 type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
+type Transaction = RouterOutputs['transaction']['list'][number];
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
@@ -42,6 +44,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [showAll, setShowAll] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   const createInvite = trpc.invite.create.useMutation({
     onSuccess: (invite) => {
@@ -143,6 +146,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       </div>
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+
       <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 
       {/* Recent transactions */}
@@ -157,49 +161,58 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               {visibleTxs.map((tx) => {
                 const payer = tx.payers[0]?.member;
                 return (
-                  <li key={tx.id} className="flex items-center gap-3 py-2.5">
-                    {payer ? (
-                      <MemberChip
-                        initials={payer.initials}
-                        color={payer.color}
-                        name={payer.displayName}
-                        size="sm"
-                      />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{tx.title}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {tx.type === 'TRANSFER'
-                          ? t('expense.transfer')
-                          : (payer?.displayName ?? '')}{' '}
-                        · {formatDate(tx.date)}
-                      </p>
-                      {tx.hasReceiptImage ? (
-                        <a
-                          href={`/api/receipts/${tx.receiptId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-brand-600 underline"
-                          data-testid="view-receipt"
-                        >
-                          {t('receipt.view')}
-                        </a>
-                      ) : null}
-                    </div>
-                    <div className="text-right">
-                      <AmountText
-                        minorUnits={Number(tx.baseMinorUnits)}
-                        currency={group.data.baseCurrency}
-                        className="text-sm font-semibold"
-                      />
-                      {tx.currency !== group.data.baseCurrency ? (
-                        <AmountText
-                          minorUnits={Number(tx.totalMinorUnits)}
-                          currency={tx.currency}
-                          className="block text-xs text-zinc-500 dark:text-zinc-400"
+                  <li key={tx.id} className="py-1">
+                    {/* The row is the tap target for editing; the receipt link sits
+                        below it (a link can't be nested inside a button). */}
+                    <button
+                      type="button"
+                      onClick={() => setEditingTx(tx)}
+                      data-testid="transaction-row"
+                      className="flex w-full items-center gap-3 rounded-xl px-1 py-1.5 text-left transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
+                    >
+                      {payer ? (
+                        <MemberChip
+                          initials={payer.initials}
+                          color={payer.color}
+                          name={payer.displayName}
+                          size="sm"
                         />
                       ) : null}
-                    </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{tx.title}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {tx.type === 'TRANSFER'
+                            ? t('expense.transfer')
+                            : (payer?.displayName ?? '')}{' '}
+                          · {formatDate(tx.date)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <AmountText
+                          minorUnits={Number(tx.baseMinorUnits)}
+                          currency={group.data.baseCurrency}
+                          className="text-sm font-semibold"
+                        />
+                        {tx.currency !== group.data.baseCurrency ? (
+                          <AmountText
+                            minorUnits={Number(tx.totalMinorUnits)}
+                            currency={tx.currency}
+                            className="block text-xs text-zinc-500 dark:text-zinc-400"
+                          />
+                        ) : null}
+                      </div>
+                    </button>
+                    {tx.hasReceiptImage ? (
+                      <a
+                        href={`/api/receipts/${tx.receiptId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-11 text-xs text-brand-600 underline"
+                        data-testid="view-receipt"
+                      >
+                        {t('receipt.view')}
+                      </a>
+                    ) : null}
                   </li>
                 );
               })}
@@ -229,6 +242,28 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           members={memberLite}
           baseCurrency={group.data.baseCurrency}
           customCategories={customCategories.data ?? []}
+        />
+      ) : null}
+
+      {/* Tapping a transaction opens it for in-place editing — expenses reuse the
+          amount-first sheet (prefilled); settlements use their own editor. */}
+      {editingTx && editingTx.type !== 'TRANSFER' ? (
+        <AddExpenseForm
+          key={editingTx.id}
+          groupId={groupId}
+          members={memberLite}
+          baseCurrency={group.data.baseCurrency}
+          customCategories={customCategories.data ?? []}
+          editing={editingTx}
+          onClose={() => setEditingTx(null)}
+        />
+      ) : null}
+      {editingTx && editingTx.type === 'TRANSFER' ? (
+        <EditTransferSheet
+          key={editingTx.id}
+          transaction={editingTx}
+          members={memberLite}
+          onClose={() => setEditingTx(null)}
         />
       ) : null}
 

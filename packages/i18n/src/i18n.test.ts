@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   t,
+  plural,
   createTranslator,
   formatCurrency,
   formatNumber,
@@ -62,6 +63,34 @@ describe('createTranslator', () => {
   test('binds a locale for repeated use', () => {
     const tr = createTranslator('en');
     expect(tr('common.cancel')).toBe('Cancel');
+  });
+});
+
+describe('plural (CLDR plural selection)', () => {
+  test('Czech picks one / few / other by count', () => {
+    expect(plural('cs', 'group.transactions', 1)).toBe('1 transakce');
+    expect(plural('cs', 'group.transactions', 3)).toBe('3 transakce');
+    expect(plural('cs', 'group.transactions', 5)).toBe('5 transakcí');
+    expect(plural('cs', 'group.transactions', 0)).toBe('0 transakcí');
+  });
+
+  test('English picks one / other by count', () => {
+    expect(plural('en', 'group.transactions', 1)).toBe('1 transaction');
+    expect(plural('en', 'group.transactions', 2)).toBe('2 transactions');
+    expect(plural('en', 'group.transactions', 0)).toBe('0 transactions');
+  });
+
+  test('Czech decimal counts select the "many" form', () => {
+    expect(plural('cs', 'group.transactions', 1.5)).toBe('1.5 transakce');
+  });
+
+  test('falls back: unknown locale → default catalog', () => {
+    // @ts-expect-error unknown locale exercises the default-catalog fallback
+    expect(plural('de', 'group.transactions', 5)).toBe('5 transakcí');
+  });
+
+  test('falls back: unknown base → the base string itself', () => {
+    expect(plural('en', 'totally.unknown', 2)).toBe('totally.unknown');
   });
 });
 

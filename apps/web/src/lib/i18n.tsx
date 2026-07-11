@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   DEFAULT_LOCALE,
   createTranslator,
+  plural as pluralize,
   formatCurrency as fmtCurrency,
   formatDate as fmtDate,
   formatNameList as fmtNameList,
@@ -15,6 +16,7 @@ interface I18nValue {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: MessageKey, values?: InterpolationValues) => string;
+  plural: (base: string, count: number, values?: InterpolationValues) => string;
   formatCurrency: (minor: number, currency: string) => string;
   formatDate: (date: string | Date) => string;
   formatNameList: (names: readonly string[], type: 'conjunction' | 'disjunction') => string;
@@ -43,6 +45,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       locale,
       setLocale,
       t: translator,
+      plural: (base, count, values) => pluralize(locale, base, count, values),
       formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
       formatDate: (date) => fmtDate(date, locale),
       formatNameList: (names, type) => fmtNameList(names, locale, type),

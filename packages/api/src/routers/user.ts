@@ -25,25 +25,34 @@ export const userRouter = router({
         twoFactorEnabled: true,
       },
     });
-    // Never expose the key or the raw account; just derived, non-sensitive facts.
+    // Expose only derived, non-sensitive facts here — `me` is fetched on many
+    // pages (header, OCR, admin). The OpenRouter key and the plaintext bank
+    // account (PII) never ride this hot, widely-cached query; the full account
+    // lives behind the dedicated, settings-only `getBankAccount` below.
     const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
-    let bankAccountMasked: string | null = null;
-    if (bankAccountEncrypted !== null) {
-      try {
-        const raw = ctx.secretBox.decrypt(bankAccountEncrypted);
-        const masked = maskCzAccount(raw);
-        // Fail closed: if masking couldn't parse the value (falls back to
-        // echoing the input), never let the raw account reach the client.
-        bankAccountMasked = masked !== raw ? masked : null;
-      } catch {
-        bankAccountMasked = null;
-      }
-    }
     return {
       ...rest,
       hasOpenRouterKey: openRouterKeyEncrypted !== null,
-      bankAccountMasked,
+      hasBankAccount: bankAccountEncrypted !== null,
     };
+  }),
+
+  /**
+   * The owner's own stored bank account, in full. Kept off `me` so the plaintext
+   * PII is only fetched/cached on the settings screen that actually displays it.
+   * Owner-scoped; decryption fails closed (null).
+   */
+  getBankAccount: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.prisma.user.findUniqueOrThrow({
+      where: { id: ctx.user.id },
+      select: { bankAccountEncrypted: true },
+    });
+    if (user.bankAccountEncrypted === null) return { account: null };
+    try {
+      return { account: ctx.secretBox.decrypt(user.bankAccountEncrypted) };
+    } catch {
+      return { account: null };
+    }
   }),
 
   updateSettings: protectedProcedure

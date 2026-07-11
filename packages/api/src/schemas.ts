@@ -141,6 +141,14 @@ export const recordTransferInput = z.object({
   note: z.string().max(2000).optional(),
 });
 
+/** Edit an existing expense/income in place — same shape as create, by id. */
+export const updateExpenseInput = createExpenseInput.extend({ transactionId: z.string() });
+
+/** Edit an existing settlement/transfer in place. */
+export const updateTransferInput = recordTransferInput.extend({ transactionId: z.string() });
+
 export type CreateExpenseInput = z.infer<typeof createExpenseInput>;
 export type SplitConfig = z.infer<typeof splitConfig>;
 export type RecordTransferInput = z.infer<typeof recordTransferInput>;
+export type UpdateExpenseInput = z.infer<typeof updateExpenseInput>;
+export type UpdateTransferInput = z.infer<typeof updateTransferInput>;
