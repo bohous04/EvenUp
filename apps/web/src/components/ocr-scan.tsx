@@ -336,8 +336,8 @@ export function OcrScan({
           if (f) void onFile(f);
         }}
       />
-      {/* Multi-page picker: any number of screenshots (up to MAX_PAGES) plus at
-          most one PDF, queued into `pages` for a single review-then-scan step. */}
+      {/* Multi-page picker: any mix of screenshots and PDF pages, up to MAX_PAGES
+          total, queued into `pages` for a single review-then-scan step. */}
       <input
         ref={filesRef}
         type="file"

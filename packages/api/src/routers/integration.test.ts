@@ -371,6 +371,48 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     }
   });
 
+  test('deletes every page immediately for a multi-page scan when RECEIPT_RETENTION_DAYS=0 (FR-5.8)', async () => {
+    const puts: { key: string; bytes: Uint8Array }[] = [];
+    const deletes: string[] = [];
+    const store = {
+      async putReceipt(key: string, bytes: Uint8Array) {
+        puts.push({ key, bytes });
+      },
+      async deleteObject(key: string) {
+        deletes.push(key);
+      },
+      async getObject() {
+        return null;
+      },
+    };
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
+    const group = await caller.group.create({ name: 'RM', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    // Receipt-photo storage is a VIP-only privilege.
+    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+
+    const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
+    process.env.RECEIPT_RETENTION_DAYS = '0';
+    try {
+      const res = await caller.ocr.scan({
+        groupId: group.id,
+        pages: [
+          `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+          `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
+        ],
+      });
+
+      expect(puts).toHaveLength(2);
+      expect(deletes).toEqual(puts.map((p) => p.key)); // every page deleted immediately (retention=0)
+      const receipt = await testPrisma.receipt.findUniqueOrThrow({ where: { id: res.receiptId } });
+      expect(receipt.storageKeys).toEqual([]); // nothing stored
+    } finally {
+      if (prevRetentionDays === undefined) delete process.env.RECEIPT_RETENTION_DAYS;
+      else process.env.RECEIPT_RETENTION_DAYS = prevRetentionDays;
+    }
+  });
+
   test('retains the receipt image when RECEIPT_RETENTION_DAYS>0 (FR-5.8)', async () => {
     const puts: { key: string; bytes: Uint8Array }[] = [];
     const deletes: string[] = [];
@@ -452,6 +494,15 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
     const pages = Array.from({ length: 11 }, () => 'data:image/png;base64,AAAA');
     await expect(caller.ocr.scan({ groupId: group.id, pages })).rejects.toThrow();
+  });
+
+  test('scan rejects a page whose data URL exceeds the per-page size cap', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'Huge', baseCurrency: 'CZK' });
+    await caller.user.setOpenRouterKey({ apiKey: 'sk-or-test-key' });
+    const huge = 'data:image/png;base64,' + 'A'.repeat(20_000_001);
+    await expect(caller.ocr.scan({ groupId: group.id, pages: [huge] })).rejects.toThrow();
   });
 
   test('scan sends the file-parser plugin when a page is a PDF', async () => {
@@ -609,8 +660,8 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
       groupId: group.id,
       imageDataUrl: `data:image/png;base64,${RECEIPT_PNG_BASE64}`,
     });
-    // Sanity: default retention (30 days) keeps the image, so the receipt has a
-    // non-empty storageKey for the UI link to resolve against.
+    // Sanity: default retention (30 days) keeps the image, so the receipt has
+    // non-empty storageKeys for the UI link to resolve against.
     const receipt = await testPrisma.receipt.findUniqueOrThrow({
       where: { id: scanRes.receiptId },
     });

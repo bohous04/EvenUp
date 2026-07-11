@@ -67,6 +67,21 @@ describe('extractReceipt — multi-page input', () => {
     );
     expect(body.plugins).toEqual([{ id: 'file-parser', pdf: { engine: 'pdf-text' } }]);
   });
+
+  test('a mixed image + PDF page set sends both part types and enables the file-parser plugin', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({
+      ...baseArgs,
+      pages: ['data:image/png;base64,AAAA', 'data:application/pdf;base64,JVBERi0='],
+      fetchImpl,
+    });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const content = body.messages[0].content;
+    expect(content.filter((c: { type: string }) => c.type === 'image_url')).toHaveLength(1);
+    expect(content.filter((c: { type: string }) => c.type === 'file')).toHaveLength(1);
+    expect(body.plugins).toEqual([{ id: 'file-parser', pdf: { engine: 'pdf-text' } }]);
+  });
 });
 
 describe('extractReceipt — happy path', () => {

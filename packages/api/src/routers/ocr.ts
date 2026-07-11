@@ -8,6 +8,8 @@ import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-a
 import { parseDataUrl } from '../storage/object-store.js';
 
 const MAX_PAGES = 10;
+// ~15 MB decoded; clears the client 10 MB PDF guard with margin while bounding abuse.
+const MAX_PAGE_DATA_URL_CHARS = 20_000_000;
 
 export const ocrRouter = router({
   scan: protectedProcedure
@@ -15,12 +17,17 @@ export const ocrRouter = router({
       z.union([
         z.object({
           groupId: z.string(),
-          imageDataUrl: z.string().startsWith('data:image/'),
+          imageDataUrl: z.string().startsWith('data:image/').max(MAX_PAGE_DATA_URL_CHARS),
         }),
         z.object({
           groupId: z.string(),
           pages: z
-            .array(z.string().regex(/^data:(image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,/))
+            .array(
+              z
+                .string()
+                .regex(/^data:(image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,/)
+                .max(MAX_PAGE_DATA_URL_CHARS),
+            )
             .min(1)
             .max(MAX_PAGES),
         }),

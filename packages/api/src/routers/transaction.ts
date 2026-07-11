@@ -37,7 +37,7 @@ type FullTransaction = Prisma.TransactionGetPayload<{ include: typeof transactio
 
 /**
  * Surface whether a receipt image is available to view (FR-5.8/5.9) without
- * leaking the internal storageKey (object-store path) to the client, and hand
+ * leaking the internal storageKeys (object-store paths) to the client, and hand
  * the client a plain-number `percentage` (a Prisma Decimal doesn't survive
  * superjson intact) so an edit can read back the original percentage split.
  */

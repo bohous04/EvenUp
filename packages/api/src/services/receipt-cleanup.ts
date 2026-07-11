@@ -17,6 +17,10 @@ export async function cleanupExpiredReceipts(args: {
   let deleted = 0;
   for (const r of expired) {
     try {
+      // With multiple keys, a failure partway through re-runs this receipt from
+      // key 0 on the next daily run. That only converges (rather than re-deleting
+      // forever) because S3 DeleteObject is idempotent: deleting an already-gone
+      // key is not an error, so the retry just re-confirms the earlier keys.
       for (const key of r.storageKeys) {
         await args.objectStore.deleteObject(key);
       }

@@ -98,7 +98,7 @@ describe('cleanupExpiredReceipts (FR-5.8)', () => {
     expect(recentAfter.storageKeys).toEqual(['receipts/recent.png']);
   });
 
-  it('leaves storageKey untouched and does not count the row when deleteObject throws, so the next run retries', async () => {
+  it('leaves storageKeys untouched and does not count the row when deleteObject throws, so the next run retries', async () => {
     const { group } = await seedGroup();
     const now = new Date();
     const fortyDaysAgo = new Date(now.getTime() - 40 * 86_400_000);
