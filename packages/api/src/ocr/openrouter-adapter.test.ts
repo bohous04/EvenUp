@@ -377,6 +377,23 @@ describe('extractReceipt — discount netting', () => {
     expect(result.items[0]!.totalMinorUnits).toBe(2490);
     expect(result.items[1]!.totalMinorUnits).toBe(3900);
   });
+
+  test('accumulates two discounts that both fold onto the same item', async () => {
+    const twoDiscounts = JSON.stringify({
+      currency: 'CZK',
+      items: [
+        { name: 'Zboží', quantity: 1, totalPrice: 100 },
+        { name: 'Sleva 1', quantity: 1, totalPrice: -10 },
+        { name: 'Sleva 2', quantity: 1, totalPrice: -15 },
+      ],
+      total: 75,
+      confidence: 0.95,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(twoDiscounts) });
+
+    expect(result.items.map((i) => [i.name, i.totalMinorUnits])).toEqual([['Zboží', 7500]]);
+    expect(result.reconciliation.matchesTotal).toBe(true);
+  });
 });
 
 describe('extractReceipt — discount prompt', () => {

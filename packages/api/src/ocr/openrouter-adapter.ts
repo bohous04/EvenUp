@@ -167,9 +167,11 @@ function toMinor(value: number, currency: string): number {
 /**
  * Fold discount lines (a negative `totalMinorUnits`) into the item they apply to.
  * A discount is netted into the immediately-preceding positive item so the user
- * sees one item with the reduced price. A discount with no positive predecessor —
- * or one larger than that item — is dropped; the reconcile (item sum vs. printed
- * total) absorbs it, so the save is never blocked by a leftover negative line.
+ * sees one item with the reduced price. Attribution here is positional (the model
+ * is asked to attribute discounts itself; this is only the safety net) — a
+ * discount with no positive predecessor, or one greater than or equal to that
+ * item's total, is dropped; the reconcile (item sum vs. printed total) absorbs it,
+ * so the save is never blocked by a leftover negative line.
  */
 function netDiscounts(items: OcrItem[]): OcrItem[] {
   const out: OcrItem[] = [];
