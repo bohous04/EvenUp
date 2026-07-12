@@ -116,7 +116,12 @@ const BASE_PROMPT =
   ' Set "total" to the printed grand total; it need not equal the item sum (deposits, rounding, discounts).' +
   ' Classify the whole receipt into "category" — exactly one of: groceries, restaurant, transport,' +
   ' accommodation, entertainment, shopping, utilities, health, travel, other.' +
-  ' The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once.';
+  ' The pages belong to ONE receipt (multiple screenshots or PDF pages) — combine them into a single receipt; do not duplicate items repeated in page headers/footers; the grand total appears once.' +
+  ' When a line is a discount (a negative amount, e.g. "Sleva", "Rabatt", "discount"), subtract it from the' +
+  ' total price of the specific item it applies to — even when the discount is listed lower down or grouped' +
+  ' at the end of the receipt, match it to its item by name/context — and do NOT return the discount as its' +
+  ' own line item. Only return a standalone negative item for a whole-receipt discount that cannot be' +
+  ' attributed to a single item.';
 
 // Language codes we can name for the model. Unknown codes skip translation.
 const LANGUAGE_NAMES: Record<string, string> = { cs: 'Czech', en: 'English' };

@@ -378,3 +378,15 @@ describe('extractReceipt — discount netting', () => {
     expect(result.items[1]!.totalMinorUnits).toBe(3900);
   });
 });
+
+describe('extractReceipt — discount prompt', () => {
+  test('instructs the model to subtract discounts into their item', async () => {
+    const fetchImpl = fakeFetch(HAPPY);
+    await extractReceipt({ ...baseArgs, fetchImpl });
+    const [, init] = fetchImpl.mock.calls[0]!;
+    const body = JSON.parse(init.body as string);
+    const prompt = body.messages[0].content[0].text as string;
+    expect(prompt).toMatch(/discount/i);
+    expect(prompt).toMatch(/subtract/i);
+  });
+});
