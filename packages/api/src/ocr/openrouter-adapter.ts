@@ -159,17 +159,48 @@ function toMinor(value: number, currency: string): number {
   return decimalStringToMinor(value.toFixed(exp), currency);
 }
 
+/**
+ * Fold discount lines (a negative `totalMinorUnits`) into the item they apply to.
+ * A discount is netted into the immediately-preceding positive item so the user
+ * sees one item with the reduced price. A discount with no positive predecessor —
+ * or one larger than that item — is dropped; the reconcile (item sum vs. printed
+ * total) absorbs it, so the save is never blocked by a leftover negative line.
+ */
+function netDiscounts(items: OcrItem[]): OcrItem[] {
+  const out: OcrItem[] = [];
+  for (const it of items) {
+    if (it.totalMinorUnits >= 0) {
+      out.push(it);
+      continue;
+    }
+    const prev = out[out.length - 1];
+    if (prev && prev.totalMinorUnits + it.totalMinorUnits > 0) {
+      out[out.length - 1] = {
+        ...prev,
+        totalMinorUnits: prev.totalMinorUnits + it.totalMinorUnits,
+        unitPriceMinorUnits: null,
+      };
+    }
+    // else: orphan / over-sized discount — drop it; reconcile absorbs the difference.
+  }
+  return out;
+}
+
 function normalize(raw: RawReceipt, fallbackCurrency: string): OcrResult {
   const currency = normalizeCurrencyCode(raw.currency, fallbackCurrency);
-  const items: OcrItem[] = raw.items.map((it) => ({
-    name: it.name,
-    nameTranslated: it.nameTranslated ?? null,
-    quantity: it.quantity,
-    unitPriceMinorUnits:
-      it.unitPrice === null || it.unitPrice === undefined ? null : toMinor(it.unitPrice, currency),
-    totalMinorUnits: toMinor(it.totalPrice, currency),
-    taxRate: it.taxRate ?? null,
-  }));
+  const items: OcrItem[] = netDiscounts(
+    raw.items.map((it) => ({
+      name: it.name,
+      nameTranslated: it.nameTranslated ?? null,
+      quantity: it.quantity,
+      unitPriceMinorUnits:
+        it.unitPrice === null || it.unitPrice === undefined
+          ? null
+          : toMinor(it.unitPrice, currency),
+      totalMinorUnits: toMinor(it.totalPrice, currency),
+      taxRate: it.taxRate ?? null,
+    })),
+  );
   const totalMinorUnits = toMinor(raw.total, currency);
   const itemsSumMinorUnits = items.reduce((a, it) => a + it.totalMinorUnits, 0);
 

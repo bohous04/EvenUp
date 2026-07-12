@@ -292,3 +292,89 @@ describe('extractReceipt — currency normalization (real models return symbols)
     expect(r.currency).toBe('EUR');
   });
 });
+
+describe('extractReceipt — discount netting', () => {
+  test('nets a per-item discount into the immediately-preceding item', async () => {
+    const withDiscount = JSON.stringify({
+      currency: 'CZK',
+      items: [
+        { name: 'Rohlík', quantity: 1, unitPrice: 25, totalPrice: 25 },
+        { name: 'Sleva', quantity: 1, totalPrice: -5 },
+      ],
+      total: 20,
+      confidence: 0.95,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(withDiscount) });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]!.name).toBe('Rohlík');
+    expect(result.items[0]!.totalMinorUnits).toBe(2000);
+    // unit price is stale once a discount is folded in — dropped to avoid showing a wrong figure
+    expect(result.items[0]!.unitPriceMinorUnits).toBeNull();
+    expect(result.reconciliation.itemsSumMinorUnits).toBe(2000);
+    expect(result.reconciliation.matchesTotal).toBe(true);
+  });
+
+  test('nets a discount grouped after several items into its adjacent item', async () => {
+    const grouped = JSON.stringify({
+      currency: 'CZK',
+      items: [
+        { name: 'Mléko', quantity: 1, totalPrice: 30 },
+        { name: 'Chléb', quantity: 1, totalPrice: 25 },
+        { name: 'Sleva Chléb', quantity: 1, totalPrice: -5 },
+      ],
+      total: 50,
+      confidence: 0.95,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(grouped) });
+
+    expect(result.items.map((i) => [i.name, i.totalMinorUnits])).toEqual([
+      ['Mléko', 3000],
+      ['Chléb', 2000],
+    ]);
+    expect(result.reconciliation.matchesTotal).toBe(true);
+  });
+
+  test('drops an orphan leading discount and lets reconcile absorb it — never leaks a negative item', async () => {
+    const orphan = JSON.stringify({
+      currency: 'CZK',
+      items: [
+        { name: 'Sleva', quantity: 1, totalPrice: -10 },
+        { name: 'Zboží', quantity: 1, totalPrice: 100 },
+      ],
+      total: 90,
+      confidence: 0.95,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(orphan) });
+
+    expect(result.items.map((i) => i.name)).toEqual(['Zboží']);
+    expect(result.items.every((i) => i.totalMinorUnits > 0)).toBe(true);
+    // items sum (10000) now exceeds the printed total (9000) → reconcile spreads the discount
+    expect(result.reconciliation.itemsSumMinorUnits).toBe(10000);
+    expect(result.reconciliation.matchesTotal).toBe(false);
+  });
+
+  test('a discount larger than its item is left to reconcile, not netted into a negative', async () => {
+    const over = JSON.stringify({
+      currency: 'CZK',
+      items: [
+        { name: 'A', quantity: 1, totalPrice: 20 },
+        { name: 'BigSleva', quantity: 1, totalPrice: -25 },
+        { name: 'B', quantity: 1, totalPrice: 100 },
+      ],
+      total: 95,
+      confidence: 0.9,
+    });
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(over) });
+
+    expect(result.items.map((i) => i.name)).toEqual(['A', 'B']);
+    expect(result.items.every((i) => i.totalMinorUnits > 0)).toBe(true);
+  });
+
+  test('leaves a receipt with no discount untouched', async () => {
+    const result = await extractReceipt({ ...baseArgs, fetchImpl: fakeFetch(HAPPY) });
+    expect(result.items.map((i) => i.name)).toEqual(['Mléko', 'Chléb']);
+    expect(result.items[0]!.totalMinorUnits).toBe(2490);
+    expect(result.items[1]!.totalMinorUnits).toBe(3900);
+  });
+});
