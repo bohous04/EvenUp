@@ -54,7 +54,14 @@ async function loadBalanceTransactions(
 ): Promise<BalanceTransaction[]> {
   const txns = await prisma.transaction.findMany({
     where: { groupId },
-    include: { payers: true, splits: true },
+    // Pin nested row order so the per-transaction `allocateByWeights` inputs are
+    // index-identical to getMemberBreakdown's — largest-remainder ties break by
+    // lowest index, so a differing Postgres row order would let the two callers
+    // disagree by a minor unit. Both must use the same `{ id: 'asc' }`.
+    include: {
+      payers: { orderBy: { id: 'asc' } },
+      splits: { orderBy: { id: 'asc' } },
+    },
   });
 
   return txns.map((t) => {
@@ -253,7 +260,15 @@ export async function getMemberBreakdown(
 
   const txns = await prisma.transaction.findMany({
     where: { groupId },
-    include: { payers: true, splits: true, receiptItems: { include: { assignments: true } } },
+    // Nested `{ id: 'asc' }` must match loadBalanceTransactions exactly so the
+    // per-transaction `allocateByWeights` inputs (and thus the largest-remainder
+    // tie-break) are index-identical — otherwise balanceMinorUnits here could
+    // drift a minor unit from balance.get.
+    include: {
+      payers: { orderBy: { id: 'asc' } },
+      splits: { orderBy: { id: 'asc' } },
+      receiptItems: { include: { assignments: true } },
+    },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
   });
 

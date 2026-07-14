@@ -120,4 +120,80 @@ describe('balance.memberBreakdown', () => {
       caller.balance.memberBreakdown({ groupId: group.id, memberId: 'not-a-member' }),
     ).rejects.toThrow(/not found/i);
   });
+
+  // Parity guard: memberBreakdown re-derives base allocations from its OWN query,
+  // separate from balance.get's (loadBalanceTransactions). `allocateByWeights`
+  // breaks largest-remainder ties by lowest array index, so both queries must
+  // feed it the nested payer/split rows in the same order — hence the shared
+  // `orderBy: { id: 'asc' }` on both. This exercises a genuine tie: same-currency
+  // re-allocation is the identity map (order-independent), so only the
+  // cross-currency expense below actually stresses the tie-break.
+  test('balanceMinorUnits matches balance.get for every member (tie-prone + multi-payer + cross-currency)', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, {
+      fxFetch: async () =>
+        ({
+          ok: true,
+          json: async () => ({ rates: { CZK: 25.5 } }),
+          text: async () => '',
+        }) as Response,
+    });
+    const group = await caller.group.create({
+      name: 'Ties',
+      template: 'TRIP',
+      baseCurrency: 'CZK',
+    });
+    const m = {
+      olivia: group.members[0]!,
+      petr: await caller.member.add({ groupId: group.id, displayName: 'Petr' }),
+      jana: await caller.member.add({ groupId: group.id, displayName: 'Jana' }),
+    };
+    const equal = {
+      type: 'EQUAL' as const,
+      members: [{ memberId: m.olivia.id }, { memberId: m.petr.id }, { memberId: m.jana.id }],
+    };
+
+    // (1) Non-evenly-divisible EQUAL split: 100 -> 34/33/33 (largest-remainder tie).
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Split100',
+      currency: 'CZK',
+      date: new Date('2026-06-20'),
+      payers: [{ memberId: m.olivia.id, amountMinorUnits: 100 }],
+      split: equal,
+    });
+    // (2) Multi-payer expense (payers split 34/33/33 too).
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'MultiPayer',
+      currency: 'CZK',
+      date: new Date('2026-06-21'),
+      payers: [
+        { memberId: m.olivia.id, amountMinorUnits: 34 },
+        { memberId: m.petr.id, amountMinorUnits: 33 },
+        { memberId: m.jana.id, amountMinorUnits: 33 },
+      ],
+      split: equal,
+    });
+    // (3) Cross-currency expense whose BASE re-allocation lands a leftover unit on
+    //     a largest-remainder TIE (302 EUR-cents * 25.5 = 7701 CZK base, EQUAL 3 ->
+    //     shares 101/101/100 re-allocated over base 7701 -> +1 tie on the two 101s).
+    //     Which member gets the +1 depends on nested row order; the fix pins it.
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Lanovka',
+      currency: 'EUR',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: m.olivia.id, amountMinorUnits: 302 }],
+      split: equal,
+    });
+
+    const card = await caller.balance.get({ groupId: group.id });
+    for (const memberId of [m.olivia.id, m.petr.id, m.jana.id]) {
+      const fromCard = card.balances.find((b) => b.memberId === memberId)!.balanceMinorUnits;
+      const bd = await caller.balance.memberBreakdown({ groupId: group.id, memberId });
+      expect(bd.balanceMinorUnits).toBe(fromCard);
+      expect(bd.entries.reduce((a, e) => a + e.amountMinorUnits, 0)).toBe(fromCard);
+    }
+  });
 });
