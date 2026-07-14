@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { minorToDecimalString } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Button, Select } from '@/components/ui';
+import { Button, Input, Select } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import {
   Camera,
@@ -13,6 +13,7 @@ import {
   FileText,
   ChevronUp,
   ChevronDown,
+  Check,
 } from '@/components/icons';
 import { moveItem } from '@/lib/move-item';
 import { parseLocalDate } from '@/lib/local-date';
@@ -103,7 +104,10 @@ export function OcrScan({
   // Detected purchase date + printed grand total + category, carried from OCR
   // onto the saved expense so the user doesn't re-key what the receipt shows.
   const [receiptDate, setReceiptDate] = useState<string | null>(null);
-  const [receiptTotalMinor, setReceiptTotalMinor] = useState<number | null>(null);
+  // Receipt's printed grand total as an editable decimal string (pre-filled from
+  // OCR, blank when OCR found none). Kept as text so the user can key in the
+  // total by hand; the minor-unit value is derived below via itemPriceToMinor.
+  const [receiptTotalText, setReceiptTotalText] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   // When the extracted items don't sum to the receipt's printed total, offer to
   // add a proportional balancing line so the expense total matches the receipt.
@@ -123,7 +127,7 @@ export function OcrScan({
     setReceiptId(null);
     setMerchant(null);
     setReceiptDate(null);
-    setReceiptTotalMinor(null);
+    setReceiptTotalText('');
     setCategory(null);
     setReconcile(false);
   }
@@ -150,7 +154,11 @@ export function OcrScan({
       setReceiptId(res.receiptId);
       setMerchant(res.result.merchant);
       setReceiptDate(res.result.date);
-      setReceiptTotalMinor(res.result.totalMinorUnits > 0 ? res.result.totalMinorUnits : null);
+      setReceiptTotalText(
+        res.result.totalMinorUnits > 0
+          ? minorToDecimalString(res.result.totalMinorUnits, baseCurrency)
+          : '',
+      );
       setCategory(res.result.category);
       setReconcile(!res.result.reconciliation.matchesTotal);
       setPages([]);
@@ -295,12 +303,17 @@ export function OcrScan({
   // Live discrepancy between the edited item rows and the receipt's printed
   // total; drives the reconcile banner shown above the payer picker. Only summed
   // when a receipt total exists — otherwise there's no discrepancy to show.
+  // Receipt total in minor units, derived from the editable text (null when the
+  // field is blank/invalid). save() and the reconcile machinery read this, so
+  // their behavior is unchanged from when it was OCR-only state.
+  const receiptTotalMinor = itemPriceToMinor(receiptTotalText, baseCurrency);
   const itemsSumMinor =
     receiptTotalMinor != null
       ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
       : 0;
   const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
   const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
+  const showMatch = receiptTotalMinor != null && totalDiffMinor === 0;
 
   return (
     <div>
@@ -456,6 +469,37 @@ export function OcrScan({
             baseCurrency={baseCurrency}
           />
 
+          {/* Editable receipt total: reuses the item price Input so the user can
+              key in (or correct) the printed grand total, then see whether the
+              items add up — even when OCR missed the total. */}
+          <div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+            <label htmlFor="ocr-receipt-total" className="text-sm font-medium">
+              {t('ocr.receiptTotal')}
+            </label>
+            <div className="w-28 shrink-0">
+              <Input
+                id="ocr-receipt-total"
+                value={receiptTotalText}
+                onChange={(e) => setReceiptTotalText(e.target.value)}
+                inputMode="decimal"
+                placeholder="0"
+                aria-label={t('ocr.receiptTotal')}
+                data-testid="ocr-receipt-total-input"
+                className="text-right"
+              />
+            </div>
+          </div>
+
+          {showMatch ? (
+            <p
+              className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400"
+              data-testid="ocr-total-matches"
+            >
+              <Check size={14} aria-hidden />
+              {t('ocr.totalMatches')}
+            </p>
+          ) : null}
+
           {showReconcile ? (
             <div
               className="rounded-lg border border-amber-300 bg-amber-50/70 p-3 dark:border-amber-500/40 dark:bg-amber-950/20"
@@ -466,14 +510,6 @@ export function OcrScan({
                 {t('ocr.totalMismatch')}
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-amber-700 dark:text-amber-300">
-                <span>
-                  {t('ocr.receiptTotal')}:{' '}
-                  <AmountText
-                    minorUnits={receiptTotalMinor!}
-                    currency={baseCurrency}
-                    className="font-semibold"
-                  />
-                </span>
                 <span>
                   {t('common.total')}:{' '}
                   <AmountText

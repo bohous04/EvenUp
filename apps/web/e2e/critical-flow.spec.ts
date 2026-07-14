@@ -211,9 +211,22 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // Running sum is shown before saving (24.90 + 35.10 = 60.00).
     await expect(page.getByTestId('ocr-total')).toContainText(/60[.,]00/);
 
-    // Inline editor: change the first item's price -> the sum recomputes live.
+    // Receipt total is pre-filled from OCR (60.00) and, with the item sum equal,
+    // the "items match the receipt total" confirmation shows.
+    await expect(page.getByTestId('ocr-receipt-total-input')).not.toHaveValue('');
+    await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
+
+    // Inline editor: change the first item's price -> the sum recomputes live and
+    // now differs from the receipt total, so the mismatch banner appears.
     await page.getByTestId('ocr-item-price-0').fill('40');
     await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
+    await expect(page.getByTestId('ocr-total-mismatch')).toBeVisible();
+
+    // Keying the printed total in by hand to match the edited items clears the
+    // mismatch — the sum check runs against the manually-entered total.
+    await page.getByTestId('ocr-receipt-total-input').fill('75.10');
+    await expect(page.getByTestId('ocr-total-mismatch')).toBeHidden();
+    await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
 
     // Assign every item to Petr in one tap via the "assign to all items" row.
     await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
