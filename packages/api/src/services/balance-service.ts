@@ -20,6 +20,7 @@ import {
   type NextPayerCandidate,
 } from '@evenup/core';
 import { toMinor, type Prisma, type PrismaClient } from '@evenup/db';
+import { TRPCError } from '@trpc/server';
 
 function safeAllocate(base: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -199,5 +200,146 @@ export async function getNextRound(
     clearsGate: ranking.clearsGate,
     payers: toBalances(ranking.payers),
     runnerUp: toBalances(ranking.runnerUp),
+  };
+}
+
+export interface BreakdownItem {
+  name: string;
+  quantity: number;
+  portionMinorUnits: number;
+}
+export interface BreakdownEntry {
+  txId: string;
+  title: string;
+  date: Date;
+  type: 'EXPENSE' | 'INCOME' | 'TRANSFER';
+  kind: 'paid' | 'share';
+  amountMinorUnits: number;
+  transferLabel: string | null;
+  currency: string | null;
+  items: BreakdownItem[] | null;
+  remainderMinorUnits: number | null;
+}
+export interface MemberBreakdown {
+  memberId: string;
+  displayName: string;
+  balanceMinorUnits: number;
+  spentMinorUnits: number;
+  paidMinorUnits: number;
+  entries: BreakdownEntry[];
+}
+
+/** Per-member ledger explaining one member's balance (paid vs share, with
+ *  itemized receipt drill-in). Reuses the same base re-allocation as
+ *  getGroupBalances, so `entries` sum to `balanceMinorUnits`. */
+export async function getMemberBreakdown(
+  prisma: PrismaClient,
+  groupId: string,
+  memberId: string,
+): Promise<MemberBreakdown> {
+  const member = await prisma.member.findFirst({
+    where: { id: memberId, groupId },
+    select: { id: true, displayName: true },
+  });
+  if (!member) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found in this group' });
+  }
+
+  const nameById = new Map(
+    (await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })).map(
+      (m) => [m.id, m.displayName],
+    ),
+  );
+
+  const txns = await prisma.transaction.findMany({
+    where: { groupId },
+    include: { payers: true, splits: true, receiptItems: { include: { assignments: true } } },
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+  });
+
+  const entries: BreakdownEntry[] = [];
+  let balance = 0;
+  let spent = 0;
+  let paid = 0;
+
+  for (const t of txns) {
+    const base = toMinor(t.baseMinorUnits);
+    const basePayers = safeAllocate(
+      base,
+      t.payers.map((p) => toMinor(p.amountMinorUnits)),
+    );
+    const baseSplits = safeAllocate(
+      base,
+      t.splits.map((s) => toMinor(s.computedMinorUnits)),
+    );
+    const transferLabel =
+      t.type === 'TRANSFER' && t.fromMemberId && t.toMemberId
+        ? `${nameById.get(t.fromMemberId) ?? '?'} → ${nameById.get(t.toMemberId) ?? '?'}`
+        : null;
+
+    t.payers.forEach((p, i) => {
+      if (p.memberId !== memberId) return;
+      const amount = basePayers[i]!;
+      balance += amount;
+      if (t.type === 'EXPENSE') paid += amount;
+      entries.push({
+        txId: t.id,
+        title: t.title,
+        date: t.date,
+        type: t.type,
+        kind: 'paid',
+        amountMinorUnits: amount,
+        transferLabel,
+        currency: null,
+        items: null,
+        remainderMinorUnits: null,
+      });
+    });
+
+    t.splits.forEach((s, i) => {
+      if (s.memberId !== memberId) return;
+      const shareBase = baseSplits[i]!;
+      balance -= shareBase;
+      if (t.type === 'EXPENSE') spent += shareBase;
+
+      let items: BreakdownItem[] | null = null;
+      let remainderMinorUnits: number | null = null;
+      let currency: string | null = null;
+      if (t.splitType === 'ITEMIZED' && t.receiptItems.length > 0) {
+        const mine = t.receiptItems.filter((ri) => ri.assignments.some((a) => a.memberId === memberId));
+        if (mine.length > 0) {
+          currency = t.currency;
+          items = mine.map((ri) => ({
+            name: ri.name,
+            quantity: Number(ri.quantity),
+            portionMinorUnits: Math.round(toMinor(ri.totalMinorUnits) / ri.assignments.length),
+          }));
+          const shareTx = toMinor(s.computedMinorUnits);
+          remainderMinorUnits = shareTx - items.reduce((a, it) => a + it.portionMinorUnits, 0);
+        }
+      }
+
+      entries.push({
+        txId: t.id,
+        title: t.title,
+        date: t.date,
+        type: t.type,
+        kind: 'share',
+        amountMinorUnits: -shareBase,
+        transferLabel,
+        currency,
+        items,
+        remainderMinorUnits,
+      });
+    });
+  }
+
+  return {
+    memberId: member.id,
+    displayName: member.displayName,
+    balanceMinorUnits: balance,
+    spentMinorUnits: spent,
+    paidMinorUnits: paid,
+    entries,
   };
 }
