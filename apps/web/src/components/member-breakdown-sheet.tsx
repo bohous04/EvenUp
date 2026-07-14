@@ -112,8 +112,8 @@ export function MemberBreakdownSheet({
               className="divide-y divide-zinc-100 dark:divide-zinc-800"
               data-testid="breakdown-list"
             >
-              {entries.map((e, idx) => {
-                const key = `${e.txId}-${e.kind}-${idx}`;
+              {entries.map((e) => {
+                const key = `${e.txId}-${e.kind}`;
                 const canExpand = e.kind === 'share' && e.items != null;
                 const isOpen = expanded.has(key);
                 return (
@@ -121,6 +121,7 @@ export function MemberBreakdownSheet({
                     <button
                       type="button"
                       disabled={!canExpand}
+                      aria-expanded={canExpand ? isOpen : undefined}
                       onClick={() =>
                         setExpanded((prev) => {
                           const next = new Set(prev);
