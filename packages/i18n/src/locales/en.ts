@@ -256,6 +256,7 @@ export const en: Messages = {
   'ocr.reconcile': 'Balance to the receipt total',
   'ocr.reconcileItem': 'Adjustment',
   'ocr.itemNeedsPrice': 'Every item needs a price — fill in the highlighted ones.',
+  'ocr.assignAll': 'Assign to all items',
 
   'receipt.view': 'View receipt',
   'receipt.viewCount': 'View receipt ({count})',

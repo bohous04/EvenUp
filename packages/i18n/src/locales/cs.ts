@@ -259,6 +259,7 @@ export const cs = {
   'ocr.reconcile': 'Dorovnat na částku z účtenky',
   'ocr.reconcileItem': 'Dorovnání',
   'ocr.itemNeedsPrice': 'Každá položka musí mít cenu — doplňte ji u zvýrazněných.',
+  'ocr.assignAll': 'Přiřadit ke všem položkám',
 
   'receipt.view': 'Zobrazit účtenku',
   'receipt.viewCount': 'Zobrazit účtenku ({count})',

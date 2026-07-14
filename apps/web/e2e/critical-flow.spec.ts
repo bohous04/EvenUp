@@ -215,9 +215,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('ocr-item-price-0').fill('40');
     await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
 
-    // Assign every item to Petr by tapping his chip in each item.
-    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
-    for (const chip of await petrChips.all()) await chip.click();
+    // Assign every item to Petr in one tap via the "assign to all items" row.
+    await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
 
     // Per-person sum reflects the assignment (Petr owes the whole 75.10).
     await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
@@ -321,9 +320,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
 
-    // Assign every item to Petr (required before saving) and save.
-    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
-    for (const chip of await petrChips.all()) await chip.click();
+    // Assign every item to Petr in one tap (required before saving) and save.
+    await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
     await page.getByTestId('ocr-save-btn').click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 

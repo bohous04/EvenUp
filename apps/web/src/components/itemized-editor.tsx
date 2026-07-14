@@ -5,6 +5,7 @@ import { Button, Input } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { AlertCircle, Trash2, Plus } from '@/components/icons';
+import { assignAllToItems } from '@/lib/assign-all';
 
 export interface EditorItem {
   name: string;
@@ -69,6 +70,9 @@ export function ItemizedEditor({
   function addItem() {
     onChange([...items, { name: '', priceText: '', assigned: new Set<string>() }]);
   }
+  function assignAll(memberId: string) {
+    onChange(assignAllToItems(items, memberId));
+  }
 
   // Parse each item's price once per render and reuse it for the total, the
   // per-person breakdown, and the per-row "needs a price" flag below.
@@ -104,6 +108,31 @@ export function ItemizedEditor({
 
   return (
     <>
+      {members.length > 0 && items.length > 0 ? (
+        <div
+          role="group"
+          aria-label={t('ocr.assignAll')}
+          data-testid="ocr-assign-all"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+        >
+          <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            {t('ocr.assignAll')}
+          </span>
+          {members.map((m) => (
+            <MemberChip
+              key={m.id}
+              initials={m.initials}
+              color={m.color}
+              name={m.displayName}
+              imageUrl={m.imageUrl}
+              selected={items.every((it) => it.assigned.has(m.id))}
+              onClick={() => assignAll(m.id)}
+              size="lg"
+            />
+          ))}
+        </div>
+      ) : null}
+
       {items.map((it, i) => {
         const unassigned = it.assigned.size === 0;
         // A blank/unparseable/zero price silently blocked "Save" with a confusing
