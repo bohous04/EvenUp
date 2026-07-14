@@ -1,13 +1,16 @@
 'use client';
+import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Card, SectionLabel } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
+import { MemberBreakdownSheet } from '@/components/member-breakdown-sheet';
 
 /** Per-member balances as bars diverging from a center line (green = is owed). */
 export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseCurrency: string }) {
   const { t } = useI18n();
+  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
   const balances = trpc.balance.get.useQuery({ groupId });
 
   if (balances.isLoading)
@@ -27,7 +30,14 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
           const label =
             b.displayName.length > 20 ? `${b.displayName.slice(0, 20)}…` : b.displayName;
           return (
-            <li key={b.memberId} className="flex items-center gap-2">
+            <li key={b.memberId}>
+              <button
+                type="button"
+                onClick={() => setSelected({ id: b.memberId, name: b.displayName })}
+                data-testid="balance-row"
+                aria-label={b.displayName}
+                className="flex w-full items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
+              >
               <span className="flex w-28 min-w-0 shrink-0 items-center gap-1.5">
                 <MemberChip
                   initials={b.initials}
@@ -64,10 +74,21 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
                 className="min-w-[7rem] shrink-0 text-right text-sm font-semibold"
                 testId={`balance-${b.memberId}`}
               />
+              </button>
             </li>
           );
         })}
       </ul>
+      {selected ? (
+        <MemberBreakdownSheet
+          groupId={groupId}
+          memberId={selected.id}
+          memberName={selected.name}
+          baseCurrency={baseCurrency}
+          open={!!selected}
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
     </Card>
   );
 }
