@@ -483,7 +483,6 @@ export function OcrScan({
                 onChange={(e) => setReceiptTotalText(e.target.value)}
                 inputMode="decimal"
                 placeholder="0"
-                aria-label={t('ocr.receiptTotal')}
                 data-testid="ocr-receipt-total-input"
                 className="text-right"
               />

@@ -229,9 +229,19 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
 
     // Assign every item to Petr in one tap via the "assign to all items" row.
-    await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
+    const bulkPetr = page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' });
+    await bulkPetr.click();
+    await expect(bulkPetr).toHaveAttribute('aria-pressed', 'true');
 
     // Per-person sum reflects the assignment (Petr owes the whole 75.10).
+    await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
+
+    // Tapping the bulk chip again clears Petr from every item (toggle off) ...
+    await bulkPetr.click();
+    await expect(bulkPetr).toHaveAttribute('aria-pressed', 'false');
+    // ... then re-assign so the save flow below still has every item assigned.
+    await bulkPetr.click();
+    await expect(bulkPetr).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
 
     await page.getByTestId('ocr-save-btn').click();
