@@ -4,5 +4,7 @@ export { Card } from './Card';
 export { Input } from './Input';
 export { Chip } from './Chip';
 export { SegmentedControl } from './SegmentedControl';
+export { AmountInput, clampAmountDecimals } from './AmountInput';
+export { BottomSheet } from './BottomSheet';
 export { useTheme, ThemeProvider } from './theme';
 export type { ThemeTokens } from './tokens';
