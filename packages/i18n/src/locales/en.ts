@@ -288,6 +288,7 @@ export const en: Messages = {
   'activity.deleted': '{actor} deleted {item}',
   'activity.settled': '{actor} settled a payment of {amount}',
   'activity.filterByType': 'Filter by type',
+  'activity.empty': 'No activity yet',
 
   'activityType.group.created': 'Group created',
   'activityType.member.added': 'Member added',

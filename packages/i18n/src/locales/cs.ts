@@ -291,6 +291,7 @@ export const cs = {
   'activity.deleted': '{actor} smazal(a) {item}',
   'activity.settled': '{actor} vyrovnal(a) platbu {amount}',
   'activity.filterByType': 'Filtrovat podle typu',
+  'activity.empty': 'Zatím žádná aktivita',
 
   'activityType.group.created': 'Skupina vytvořena',
   'activityType.member.added': 'Člen přidán',
