@@ -1,19 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { signIn } from '@/lib/auth';
-import { signInWithApple } from '@/lib/apple-sign-in';
+import { authClient, signIn } from '@/lib/auth';
+import { SocialAuth } from '@/components/SocialAuth';
 import { useI18n } from '@/lib/i18n';
-import { theme } from '@/theme';
+import { useTheme } from '@/ui/theme';
+import { Button, Input, Screen } from '@/ui';
 
 export default function SignInScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const c = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // 2FA step: shown in place of the email/password form when the account
+  // requires a second factor (Better Auth returns `{ twoFactorRedirect: true }`
+  // and creates no session until the code is verified).
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [code, setCode] = useState('');
+  const [useBackup, setUseBackup] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(false);
 
   async function submit() {
     setLoading(true);
@@ -26,116 +35,137 @@ export default function SignInScreen() {
           ? t('auth.err.unverified')
           : t('auth.err.invalidCredentials'),
       );
-    } else {
-      router.replace('/');
+      return;
     }
+    if ((res.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) {
+      setTwoFactor(true);
+      return;
+    }
+    router.replace('/');
   }
 
-  const [appleAvailable, setAppleAvailable] = useState(false);
-  const [appleError, setAppleError] = useState<string | null>(null);
-  const appleBusy = useRef(false);
+  async function submitTwoFactor() {
+    setLoading(true);
+    setError(null);
+    const res = useBackup
+      ? await authClient.twoFactor.verifyBackupCode({ code })
+      : await authClient.twoFactor.verifyTotp({ code, trustDevice });
+    setLoading(false);
+    if (res.error) setError(t('auth.err.invalidCredentials'));
+    else router.replace('/');
+  }
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
-  }, []);
-
-  async function onApple() {
-    // A ref, not state: a double-tap lands before React re-renders, and
-    // AppleAuthenticationButton has no `disabled` prop to lean on.
-    if (appleBusy.current) return;
-    appleBusy.current = true;
-    setAppleError(null);
-    try {
-      const { ok, canceled } = await signInWithApple();
-      if (ok) router.replace('/');
-      else if (!canceled) setAppleError(t('error.generic'));
-    } catch {
-      setAppleError(t('error.generic'));
-    } finally {
-      appleBusy.current = false;
-    }
+  if (twoFactor) {
+    return (
+      <Screen padded={false} style={styles.container}>
+        <Text style={[styles.heading, { color: c.text }]}>
+          {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.title')}
+        </Text>
+        <Input
+          label={useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
+          keyboardType={useBackup ? 'default' : 'number-pad'}
+          autoCapitalize="none"
+          value={code}
+          onChangeText={setCode}
+          autoFocus
+          testID="signin-2fa-code"
+        />
+        {!useBackup ? (
+          <Button
+            title={`${trustDevice ? '☑' : '☐'}  ${t('security.2fa.trustDevice')}`}
+            variant="ghost"
+            onPress={() => setTrustDevice((v) => !v)}
+          />
+        ) : null}
+        {error ? (
+          <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
+            {error}
+          </Text>
+        ) : null}
+        <Button
+          title={loading ? t('common.loading') : t('security.2fa.confirm')}
+          onPress={submitTwoFactor}
+          loading={loading}
+          testID="signin-2fa-submit"
+        />
+        <Button
+          title={useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
+          variant="ghost"
+          onPress={() => {
+            setUseBackup((v) => !v);
+            setCode('');
+            setError(null);
+          }}
+        />
+      </Screen>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>{t('app.name')}</Text>
-      <Text style={styles.tagline}>{t('app.tagline')}</Text>
-      <TextInput
-        style={styles.input}
+    <Screen padded={false} style={styles.container}>
+      <Text style={[styles.heading, { color: c.text }]}>{t('app.name')}</Text>
+      <Text style={[styles.tagline, { color: c.textMuted }]}>{t('app.tagline')}</Text>
+      <Input
         placeholder="you@example.com"
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        accessibilityLabel={t('auth.email')}
+        label={t('auth.email')}
       />
-      <TextInput
-        style={styles.input}
+      <Input
         placeholder={t('auth.password')}
         autoCapitalize="none"
         autoComplete="current-password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        accessibilityLabel={t('auth.password')}
+        label={t('auth.password')}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Pressable
-        style={styles.button}
+      {error ? (
+        <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        title={loading ? t('common.loading') : t('auth.signInBtn')}
         onPress={submit}
-        disabled={loading}
+        loading={loading}
+        testID="signin-submit"
+      />
+      <View style={styles.linkRow}>
+        <Text
+          style={[styles.link, { color: c.brand }]}
+          onPress={() => router.push('/forgot-password')}
+          accessibilityRole="button"
+        >
+          {t('auth.forgotLink')}
+        </Text>
+        <Text
+          style={[styles.link, { color: c.brand }]}
+          onPress={() => router.push('/sign-up')}
+          accessibilityRole="button"
+        >
+          {t('auth.signUpLink')}
+        </Text>
+      </View>
+      <SocialAuth onSuccess={() => router.replace('/')} />
+      <Text
+        style={[styles.link, { color: c.brand, textAlign: 'center' }]}
+        onPress={() => router.replace('/')}
         accessibilityRole="button"
       >
-        <Text style={styles.buttonText}>{loading ? t('common.loading') : t('auth.signInBtn')}</Text>
-      </Pressable>
-      <View style={styles.linkRow}>
-        <Pressable onPress={() => router.push('/forgot-password')} accessibilityRole="button">
-          <Text style={styles.link}>{t('auth.forgotLink')}</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/sign-up')} accessibilityRole="button">
-          <Text style={styles.link}>{t('auth.signUpLink')}</Text>
-        </Pressable>
-      </View>
-      {appleAvailable ? (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={theme.radius}
-          style={styles.appleButton}
-          onPress={onApple}
-        />
-      ) : null}
-      {appleError ? <Text style={styles.error}>{appleError}</Text> : null}
-      <Pressable onPress={() => router.replace('/')} accessibilityRole="button">
-        <Text style={styles.link}>{t('common.back')}</Text>
-      </Pressable>
-    </View>
+        {t('common.back')}
+      </Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: theme.bg },
-  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center', color: theme.text },
-  tagline: { textAlign: 'center', color: theme.textMuted, marginBottom: 16 },
+  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
+  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  tagline: { textAlign: 'center', marginBottom: 16 },
   linkRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.card,
-    borderRadius: theme.radius,
-    padding: 14,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: theme.brand,
-    borderRadius: theme.radius,
-    padding: 14,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  appleButton: { height: 48, width: '100%' },
-  error: { textAlign: 'center', color: '#b91c1c' },
-  link: { textAlign: 'center', color: theme.brand, marginTop: 8 },
+  link: { marginTop: 8, fontWeight: '600' },
 });

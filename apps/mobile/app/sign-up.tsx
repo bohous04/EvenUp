@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signUp } from '@/lib/auth';
+import { SocialAuth } from '@/components/SocialAuth';
 import { useI18n } from '@/lib/i18n';
-import { theme } from '@/theme';
+import { useTheme } from '@/ui/theme';
+import { Button, Input, Screen } from '@/ui';
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  const c = useTheme();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,81 +34,81 @@ export default function SignUpScreen() {
     }
   }
 
+  if (sent) {
+    return (
+      <Screen padded={false} style={styles.container}>
+        <Text style={[styles.heading, { color: c.text }]}>{t('auth.signUpTitle')}</Text>
+        <Text style={{ color: c.text, textAlign: 'center' }} testID="signup-verify-sent">
+          {t('auth.verifySent')}
+        </Text>
+        <Button
+          title={t('auth.resend')}
+          variant="ghost"
+          onPress={() => router.push({ pathname: '/verify-email', params: { email } })}
+        />
+        <Button
+          title={t('auth.haveAccount')}
+          variant="ghost"
+          onPress={() => router.replace('/sign-in')}
+        />
+      </Screen>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>{t('auth.signUpTitle')}</Text>
-      {sent ? (
-        <Text style={styles.info}>{t('auth.verifySent')}</Text>
-      ) : (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.name')}
-            autoCapitalize="words"
-            autoComplete="name"
-            value={name}
-            onChangeText={setName}
-            accessibilityLabel={t('auth.name')}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="you@example.com"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            accessibilityLabel={t('auth.email')}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.password')}
-            autoCapitalize="none"
-            autoComplete="new-password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            accessibilityLabel={t('auth.password')}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable
-            style={styles.button}
-            onPress={submit}
-            disabled={loading}
-            accessibilityRole="button"
-          >
-            <Text style={styles.buttonText}>
-              {loading ? t('common.loading') : t('auth.signUpBtn')}
-            </Text>
-          </Pressable>
-        </>
-      )}
-      <Pressable onPress={() => router.replace('/sign-in')} accessibilityRole="button">
-        <Text style={styles.link}>{t('auth.haveAccount')}</Text>
-      </Pressable>
-    </View>
+    <Screen padded={false} style={styles.container}>
+      <Text style={[styles.heading, { color: c.text }]}>{t('auth.signUpTitle')}</Text>
+      <Input
+        placeholder={t('auth.name')}
+        autoCapitalize="words"
+        autoComplete="name"
+        value={name}
+        onChangeText={setName}
+        label={t('auth.name')}
+      />
+      <Input
+        placeholder="you@example.com"
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+        label={t('auth.email')}
+      />
+      <Input
+        placeholder={t('auth.password')}
+        autoCapitalize="none"
+        autoComplete="new-password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+        label={t('auth.password')}
+      />
+      {error ? (
+        <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        title={loading ? t('common.loading') : t('auth.signUpBtn')}
+        onPress={submit}
+        loading={loading}
+        testID="signup-submit"
+      />
+      <SocialAuth onSuccess={() => router.replace('/')} />
+      <Text
+        style={[styles.link, { color: c.brand }]}
+        onPress={() => router.replace('/sign-in')}
+        accessibilityRole="button"
+      >
+        {t('auth.haveAccount')}
+      </Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12, backgroundColor: theme.bg },
-  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center', color: theme.text },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.card,
-    borderRadius: theme.radius,
-    padding: 14,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: theme.brand,
-    borderRadius: theme.radius,
-    padding: 14,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  error: { textAlign: 'center', color: '#b91c1c' },
-  info: { textAlign: 'center', color: theme.text },
-  link: { textAlign: 'center', color: theme.brand, marginTop: 8 },
+  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
+  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  link: { textAlign: 'center', marginTop: 8, fontWeight: '600' },
 });
