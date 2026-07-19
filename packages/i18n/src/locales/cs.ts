@@ -154,6 +154,7 @@ export const cs = {
   'invite.copy': 'Kopírovat odkaz',
   'invite.copied': 'Zkopírováno',
   'invite.share': 'Sdílet',
+  'invite.signInToClaim': 'Přihlas se a převezmi své místo ve skupině.',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',

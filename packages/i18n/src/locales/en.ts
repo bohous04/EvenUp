@@ -152,6 +152,7 @@ export const en: Messages = {
   'invite.copy': 'Copy link',
   'invite.copied': 'Copied',
   'invite.share': 'Share',
+  'invite.signInToClaim': 'Sign in to claim your spot in this group.',
 
   'expense.add': 'Add expense',
   'expense.edit': 'Edit expense',
