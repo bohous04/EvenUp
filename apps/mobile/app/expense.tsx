@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   EXPENSE_CATEGORIES,
   RECURRENCE_INTERVALS,
   decimalStringToMinor,
+  minorToDecimalString,
   splitEqually,
 } from '@evenup/core';
 import { useSession } from '@/lib/auth';
@@ -32,8 +33,12 @@ function todayIso(): string {
 
 /** Full add-expense form (PRD §4.3/4.4): all split types, single payer, category, date, FX, recurrence. */
 export default function ExpenseScreen() {
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { groupId, transactionId } = useLocalSearchParams<{
+    groupId: string;
+    transactionId?: string;
+  }>();
   const gid = String(groupId);
+  const editingId = transactionId ? String(transactionId) : null;
   const router = useRouter();
   const { t, formatCurrency } = useI18n();
   const c = useTheme();
@@ -67,8 +72,9 @@ export default function ExpenseScreen() {
   const baseCurrency = group.data?.baseCurrency ?? 'CZK';
 
   // Default: base currency, everyone selected, payer = the viewer's member.
+  // Skipped in edit mode — the prefill effect owns the initial state there.
   useEffect(() => {
-    if (!group.data) return;
+    if (!group.data || editingId) return;
     setCurrency((prev) => (prev === 'CZK' ? group.data.baseCurrency : prev));
     setSelected((prev) => (prev.size === 0 ? new Set(members.map((m) => m.id)) : prev));
     setPayerId((prev) => {
@@ -87,17 +93,60 @@ export default function ExpenseScreen() {
     if (currency !== baseCurrency && fx.data && fxRate === '') setFxRate(fx.data.rateDecimal);
   }, [currency, baseCurrency, fx.data, fxRate]);
 
+  // Edit mode: load the transaction and prefill the form once.
+  const txList = trpc.transaction.list.useQuery({ groupId: gid }, { enabled: !!editingId });
+  const editing = editingId ? txList.data?.find((x) => x.id === editingId) : undefined;
+  const inited = useRef(false);
+  useEffect(() => {
+    if (!editing || inited.current) return;
+    inited.current = true;
+    setKind(editing.type === 'INCOME' ? 'INCOME' : 'EXPENSE');
+    setTitle(editing.title);
+    setNote(editing.note ?? '');
+    setCurrency(editing.currency);
+    setDate(new Date(editing.date).toISOString().slice(0, 10));
+    setCategory(editing.category ?? undefined);
+    setPayerId(editing.payers[0]?.memberId ?? null);
+    setSelected(new Set(editing.splits.map((s) => s.memberId)));
+    const type = (editing.splitType === 'ITEMIZED' ? 'EQUAL' : editing.splitType) as SplitType;
+    setSplitType(type);
+    if (type === 'EXACT') {
+      setExactById(
+        Object.fromEntries(
+          editing.splits.map((s) => [
+            s.memberId,
+            minorToDecimalString(Number(s.exactMinorUnits ?? s.computedMinorUnits), editing.currency),
+          ]),
+        ),
+      );
+    } else if (type === 'SHARES') {
+      setWeightById(
+        Object.fromEntries(editing.splits.map((s) => [s.memberId, String(s.shareWeight ?? 1)])),
+      );
+    } else if (type === 'PERCENTAGE') {
+      setPercentById(
+        Object.fromEntries(editing.splits.map((s) => [s.memberId, String(s.percentage ?? 0)])),
+      );
+    } else {
+      setAmount(minorToDecimalString(Number(editing.totalMinorUnits), editing.currency));
+    }
+  }, [editing]);
+
   const setRecurrenceMutation = trpc.transaction.setRecurrence.useMutation();
+  const onSaved = () => {
+    void utils.balance.get.invalidate({ groupId: gid });
+    void utils.transaction.list.invalidate({ groupId: gid });
+    router.back();
+  };
   const create = trpc.transaction.createExpense.useMutation({
     onSuccess: (created) => {
       if (recurrence !== 'none') {
         setRecurrenceMutation.mutate({ transactionId: created.id, interval: recurrence });
       }
-      void utils.balance.get.invalidate({ groupId: gid });
-      void utils.transaction.list.invalidate({ groupId: gid });
-      router.back();
+      onSaved();
     },
   });
+  const update = trpc.transaction.updateExpense.useMutation({ onSuccess: onSaved });
 
   if (group.isLoading || !group.data) {
     return (
@@ -149,7 +198,7 @@ export default function ExpenseScreen() {
       setError(built.error);
       return;
     }
-    create.mutate({
+    const payload = {
       groupId: gid,
       type: kind,
       title: title.trim() || t('expense.title'),
@@ -160,7 +209,9 @@ export default function ExpenseScreen() {
       payers: [{ memberId: payerId, amountMinorUnits: built.totalMinor }],
       split: built.split,
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
-    });
+    };
+    if (editingId) update.mutate({ transactionId: editingId, ...payload });
+    else create.mutate(payload);
   }
 
   const perMemberValue = (id: string) =>
@@ -346,7 +397,7 @@ export default function ExpenseScreen() {
       <Button
         title={t('common.save')}
         onPress={submit}
-        loading={create.isPending}
+        loading={create.isPending || update.isPending}
         testID="expense-save"
       />
       <Button title={t('common.cancel')} variant="ghost" onPress={() => router.back()} />

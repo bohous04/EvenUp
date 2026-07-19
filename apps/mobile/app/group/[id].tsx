@@ -5,6 +5,7 @@ import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { MemberChip } from '@/components/MemberChip';
+import { TransactionList } from '@/components/TransactionList';
 import { AddMemberForm } from '@/components/AddMemberForm';
 import { MemberList } from '@/components/MemberList';
 import { InviteSheet } from '@/components/InviteSheet';
@@ -90,6 +91,11 @@ export default function GroupScreen() {
             <Text style={styles.secondaryBtnText}>{t('ocr.scan')}</Text>
           </Pressable>
         </Link>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.h2}>{t('nav.transactions')}</Text>
+        <TransactionList groupId={groupId} baseCurrency={baseCurrency} />
       </View>
 
       <View style={styles.card}>

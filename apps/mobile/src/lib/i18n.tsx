@@ -5,6 +5,7 @@ import {
   DEFAULT_LOCALE,
   createTranslator,
   formatCurrency as fmtCurrency,
+  formatDate as fmtDate,
   type Locale,
   type MessageKey,
   type InterpolationValues,
@@ -18,6 +19,7 @@ interface I18nValue {
   setLocale: (l: Locale) => void;
   t: (key: MessageKey, values?: InterpolationValues) => string;
   formatCurrency: (minor: number, currency: string) => string;
+  formatDate: (date: Date) => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -46,6 +48,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLocale,
       t: translator,
       formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
+      formatDate: (date) => fmtDate(date, locale),
     };
   }, [locale]);
 
