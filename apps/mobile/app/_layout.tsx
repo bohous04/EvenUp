@@ -2,12 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Providers } from '@/providers';
+import { PushRegistrar } from '@/components/PushRegistrar';
 import { theme } from '@/theme';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <Providers>
+        <PushRegistrar />
         <StatusBar style="auto" />
         <Stack
           screenOptions={{
