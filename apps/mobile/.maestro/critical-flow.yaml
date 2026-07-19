@@ -1,34 +1,51 @@
 # Maestro E2E for EvenUp mobile (PRD §10.1). Runs on iOS Simulator + Android
-# Emulator in CI. Assumes a test build with AUTH_DEV_ECHO so the magic link can
-# be opened via the `evenup://` deep link injected by the harness.
+# Emulator in CI. Assumes a test build pointed at a staging API with a seeded
+# account (EMAIL/PASSWORD env) and at least one group, or a fresh sign-up with
+# AUTH_DEV_ECHO so email verification is auto-completed.
 appId: company.lnrt.evenup
 ---
 - launchApp:
     clearState: true
 
-# Sign in
+# --- Sign in (email + password) ---
 - assertVisible: 'EvenUp'
 - tapOn:
     id: 'Email'
-- inputText: 'olivia@example.com'
-- tapOn: 'Sign in with email'
-- assertVisible: 'Check your inbox to finish signing in.'
+- inputText: '${EMAIL}'
+- tapOn:
+    id: 'Password'
+- inputText: '${PASSWORD}'
+- tapOn:
+    id: 'signin-submit'
 
-# The CI harness opens the captured magic link:
-- openLink: '${MAGIC_LINK}'
-- assertVisible: 'EvenUp'
-
-# Open the first group and add an expense
+# --- Groups tab: open the first group ---
+- assertVisible:
+    id: 'Groups'
 - tapOn:
     index: 0
     text: '.*'
-- assertVisible: 'Members'
+
+# --- Add an expense via the full form ---
+- tapOn: 'Add expense'
 - tapOn:
-    id: 'expense title'
+    id: 'expense-title'
 - inputText: 'Chata'
 - tapOn:
-    id: 'amount'
+    id: 'expense-amount'
 - inputText: '900'
-- tapOn: 'Save'
+- tapOn:
+    id: 'expense-save'
+
+# --- Back on the group: balances recomputed ---
 - assertVisible: 'Balances'
-- assertVisible: 'Suggested payments'
+
+# --- Settle a suggested payment (opens the settle sheet) ---
+- runFlow:
+    when:
+      visible: 'Settle up'
+    commands:
+      - tapOn: 'Settle up'
+      - assertVisible:
+          id: 'settle-confirm'
+      - tapOn:
+          id: 'settle-confirm'
