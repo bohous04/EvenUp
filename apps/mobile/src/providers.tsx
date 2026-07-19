@@ -6,6 +6,7 @@ import { trpc } from './lib/trpc';
 import { apiUrl } from './lib/api';
 import { authClient } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
+import { ThemeProvider } from './ui/theme';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -28,7 +29,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </I18nProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );
