@@ -1,16 +1,7 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { decimalStringToMinor } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { MemberChip } from '@/components/MemberChip';
@@ -32,17 +23,8 @@ export default function GroupScreen() {
   const group = trpc.group.get.useQuery({ groupId });
   const balances = trpc.balance.get.useQuery({ groupId });
 
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
   const [sheet, setSheet] = useState<GroupSheet>(null);
 
-  const addExpense = trpc.transaction.createExpense.useMutation({
-    onSuccess: () => {
-      setTitle('');
-      setAmount('');
-      void utils.balance.get.invalidate({ groupId });
-    },
-  });
   const transfer = trpc.transaction.recordTransfer.useMutation({
     onSuccess: () => void utils.balance.get.invalidate({ groupId }),
   });
@@ -57,25 +39,6 @@ export default function GroupScreen() {
 
   const members = group.data.members.filter((m) => m.isActive);
   const baseCurrency = group.data.baseCurrency;
-
-  function submitExpense() {
-    let totalMinor: number;
-    try {
-      totalMinor = decimalStringToMinor(amount, baseCurrency);
-    } catch {
-      return;
-    }
-    if (!members[0] || totalMinor <= 0) return;
-    addExpense.mutate({
-      groupId,
-      title,
-      currency: baseCurrency,
-      date: new Date(),
-      payers: [{ memberId: members[0].id, amountMinorUnits: totalMinor }],
-      split: { type: 'EQUAL', members: members.map((m) => ({ memberId: m.id })) },
-    });
-  }
-
   const byId = new Map(members.map((m) => [m.id, m]));
 
   return (
@@ -113,23 +76,14 @@ export default function GroupScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.h2}>{t('expense.add')}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t('expense.title')}
-          value={title}
-          onChangeText={setTitle}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder={`0 ${baseCurrency}`}
-          keyboardType="decimal-pad"
-          value={amount}
-          onChangeText={setAmount}
-        />
-        <Pressable style={styles.button} onPress={submitExpense} disabled={addExpense.isPending}>
-          <Text style={styles.buttonText}>{t('common.save')}</Text>
-        </Pressable>
+        <Link href={{ pathname: '/expense', params: { groupId } }} asChild>
+          <Pressable style={styles.button}>
+            <View style={styles.iconBtn}>
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.buttonText}>{t('expense.add')}</Text>
+            </View>
+          </Pressable>
+        </Link>
         <Link href={{ pathname: '/scan', params: { groupId } }} asChild>
           <Pressable style={[styles.secondaryBtn, styles.iconBtn]}>
             <Ionicons name="camera-outline" size={18} color={theme.brand} />
