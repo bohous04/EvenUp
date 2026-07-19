@@ -126,6 +126,7 @@ export const en: Messages = {
   'group.menu': 'Group options',
   'group.simplifyDebts': 'Simplify debts',
   'group.archive': 'Archive group',
+  'group.restore': 'Restore group',
   'group.archived': 'Archived',
   'group.empty': 'No groups yet. Create your first one!',
   'group.categories': 'Categories',

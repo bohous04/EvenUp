@@ -127,6 +127,7 @@ export const cs = {
   'group.menu': 'Možnosti skupiny',
   'group.simplifyDebts': 'Zjednodušit dluhy',
   'group.archive': 'Archivovat skupinu',
+  'group.restore': 'Obnovit skupinu',
   'group.archived': 'Archivováno',
   'group.empty': 'Zatím žádné skupiny. Vytvořte první!',
   'group.categories': 'Kategorie',

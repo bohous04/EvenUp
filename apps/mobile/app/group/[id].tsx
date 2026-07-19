@@ -9,12 +9,19 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { decimalStringToMinor } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { MemberChip } from '@/components/MemberChip';
+import { AddMemberForm } from '@/components/AddMemberForm';
+import { MemberList } from '@/components/MemberList';
+import { InviteSheet } from '@/components/InviteSheet';
+import { GroupSettingsSheet } from '@/components/GroupSettingsSheet';
+import { BottomSheet, Button } from '@/ui';
 import { theme } from '@/theme';
+
+type GroupSheet = 'menu' | 'members' | 'invite' | 'settings' | null;
 
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,17 +32,10 @@ export default function GroupScreen() {
   const group = trpc.group.get.useQuery({ groupId });
   const balances = trpc.balance.get.useQuery({ groupId });
 
-  const [memberName, setMemberName] = useState('');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
+  const [sheet, setSheet] = useState<GroupSheet>(null);
 
-  const addMember = trpc.member.add.useMutation({
-    onSuccess: () => {
-      setMemberName('');
-      void utils.group.get.invalidate({ groupId });
-      void utils.balance.get.invalidate({ groupId });
-    },
-  });
   const addExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: () => {
       setTitle('');
@@ -79,8 +79,25 @@ export default function GroupScreen() {
   const byId = new Map(members.map((m) => [m.id, m]));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: theme.space, gap: 16 }}>
-      <Text style={styles.h1}>{group.data.name}</Text>
+    <>
+      <Stack.Screen
+        options={{
+          title: group.data.name,
+          headerRight: () => (
+            <Pressable
+              onPress={() => setSheet('menu')}
+              accessibilityRole="button"
+              accessibilityLabel={t('group.menu')}
+              hitSlop={12}
+              style={{ paddingHorizontal: 4 }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
+            </Pressable>
+          ),
+        }}
+      />
+      <ScrollView contentContainerStyle={{ padding: theme.space, gap: 16 }}>
+        <Text style={styles.h1}>{group.data.name}</Text>
 
       <View style={styles.card}>
         <Text style={styles.h2}>{t('group.members')}</Text>
@@ -92,22 +109,7 @@ export default function GroupScreen() {
             </View>
           ))}
         </View>
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            placeholder={t('member.name')}
-            value={memberName}
-            onChangeText={setMemberName}
-          />
-          <Pressable
-            style={styles.secondaryBtn}
-            onPress={() =>
-              memberName.trim() && addMember.mutate({ groupId, displayName: memberName.trim() })
-            }
-          >
-            <Text style={styles.secondaryBtnText}>{t('common.add')}</Text>
-          </Pressable>
-        </View>
+        <Button title={t('group.members')} variant="secondary" onPress={() => setSheet('members')} />
       </View>
 
       <View style={styles.card}>
@@ -192,7 +194,41 @@ export default function GroupScreen() {
           })
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      <BottomSheet visible={sheet === 'menu'} onClose={() => setSheet(null)} title={t('group.menu')}>
+        <Button title={t('group.members')} variant="ghost" onPress={() => setSheet('members')} />
+        <Button title={t('invite.create')} variant="ghost" onPress={() => setSheet('invite')} />
+        <Button title={t('nav.settings')} variant="ghost" onPress={() => setSheet('settings')} />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheet === 'members'}
+        onClose={() => setSheet(null)}
+        title={t('group.members')}
+      >
+        <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={{ gap: 16 }}>
+          <MemberList groupId={groupId} />
+          <AddMemberForm groupId={groupId} />
+        </ScrollView>
+      </BottomSheet>
+
+      <InviteSheet
+        visible={sheet === 'invite'}
+        onClose={() => setSheet(null)}
+        groupId={groupId}
+        groupName={group.data.name}
+      />
+
+      <GroupSettingsSheet
+        visible={sheet === 'settings'}
+        onClose={() => setSheet(null)}
+        groupId={groupId}
+        name={group.data.name}
+        simplifyDebts={group.data.simplifyDebts}
+        archived={!!group.data.archivedAt}
+      />
+    </>
   );
 }
 
