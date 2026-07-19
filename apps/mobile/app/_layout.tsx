@@ -21,6 +21,8 @@ export default function RootLayout() {
           <Stack.Screen name="sign-in" options={{ title: 'Sign in' }} />
           <Stack.Screen name="sign-up" options={{ title: 'Sign up' }} />
           <Stack.Screen name="forgot-password" options={{ title: 'Reset password' }} />
+          <Stack.Screen name="verify-email" options={{ title: 'Verify email' }} />
+          <Stack.Screen name="reset-password" options={{ title: 'Reset password' }} />
           <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
           <Stack.Screen name="scan" options={{ title: 'Scan receipt', presentation: 'modal' }} />
           <Stack.Screen name="invite/[token]" options={{ title: 'Invite', presentation: 'modal' }} />
