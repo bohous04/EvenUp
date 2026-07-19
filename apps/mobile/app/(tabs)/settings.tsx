@@ -201,6 +201,10 @@ export default function SettingsScreen() {
         />
       </Card>
 
+      {me.data?.isAdmin ? (
+        <Button title={t('nav.admin')} variant="secondary" onPress={() => router.push('/admin')} />
+      ) : null}
+
       <Button title={t('nav.signOut')} variant="secondary" onPress={() => signOut().then(() => router.replace('/sign-in'))} />
     </Screen>
   );

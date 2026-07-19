@@ -26,6 +26,7 @@ export default function RootLayout() {
           <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
           <Stack.Screen name="scan" options={{ title: 'Scan receipt', presentation: 'modal' }} />
           <Stack.Screen name="expense" options={{ title: 'Expense', presentation: 'modal' }} />
+          <Stack.Screen name="admin" options={{ title: 'Admin' }} />
           <Stack.Screen name="invite/[token]" options={{ title: 'Invite', presentation: 'modal' }} />
         </Stack>
       </Providers>

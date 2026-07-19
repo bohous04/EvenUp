@@ -13,10 +13,13 @@ import { GroupSettingsSheet } from '@/components/GroupSettingsSheet';
 import { SettleSheet, type PendingPayment } from '@/components/SettleSheet';
 import { NextRoundCard } from '@/components/NextRoundCard';
 import { MemberBreakdownSheet } from '@/components/MemberBreakdownSheet';
+import { SpendStatsCard } from '@/components/SpendStatsCard';
+import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
+import { CsvImportSheet } from '@/components/CsvImportSheet';
 import { BottomSheet, Button } from '@/ui';
 import { theme } from '@/theme';
 
-type GroupSheet = 'menu' | 'members' | 'invite' | 'settings' | null;
+type GroupSheet = 'menu' | 'members' | 'invite' | 'settings' | 'categories' | 'csv' | null;
 
 export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -100,6 +103,8 @@ export default function GroupScreen() {
 
       <NextRoundCard groupId={groupId} baseCurrency={baseCurrency} />
 
+      <SpendStatsCard groupId={groupId} baseCurrency={baseCurrency} />
+
       <View style={styles.card}>
         <Text style={styles.h2}>{t('balance.title')}</Text>
         {balances.data?.balances.map((b) => (
@@ -165,6 +170,8 @@ export default function GroupScreen() {
       <BottomSheet visible={sheet === 'menu'} onClose={() => setSheet(null)} title={t('group.menu')}>
         <Button title={t('group.members')} variant="ghost" onPress={() => setSheet('members')} />
         <Button title={t('invite.create')} variant="ghost" onPress={() => setSheet('invite')} />
+        <Button title={t('group.categories')} variant="ghost" onPress={() => setSheet('categories')} />
+        <Button title={t('csv.import')} variant="ghost" onPress={() => setSheet('csv')} />
         <Button title={t('nav.settings')} variant="ghost" onPress={() => setSheet('settings')} />
       </BottomSheet>
 
@@ -210,6 +217,19 @@ export default function GroupScreen() {
         memberId={breakdownMember?.id ?? null}
         memberName={breakdownMember?.name ?? ''}
         baseCurrency={baseCurrency}
+      />
+
+      <CategoryManagerSheet
+        visible={sheet === 'categories'}
+        onClose={() => setSheet(null)}
+        groupId={groupId}
+      />
+
+      <CsvImportSheet
+        visible={sheet === 'csv'}
+        onClose={() => setSheet(null)}
+        groupId={groupId}
+        members={members}
       />
     </>
   );
