@@ -23,6 +23,7 @@ export default function RootLayout() {
           <Stack.Screen name="forgot-password" options={{ title: 'Reset password' }} />
           <Stack.Screen name="group/[id]" options={{ title: 'Group' }} />
           <Stack.Screen name="scan" options={{ title: 'Scan receipt', presentation: 'modal' }} />
+          <Stack.Screen name="invite/[token]" options={{ title: 'Invite', presentation: 'modal' }} />
         </Stack>
       </Providers>
     </SafeAreaProvider>
