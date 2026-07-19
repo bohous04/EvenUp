@@ -10,6 +10,9 @@ import { AddMemberForm } from '@/components/AddMemberForm';
 import { MemberList } from '@/components/MemberList';
 import { InviteSheet } from '@/components/InviteSheet';
 import { GroupSettingsSheet } from '@/components/GroupSettingsSheet';
+import { SettleSheet, type PendingPayment } from '@/components/SettleSheet';
+import { NextRoundCard } from '@/components/NextRoundCard';
+import { MemberBreakdownSheet } from '@/components/MemberBreakdownSheet';
 import { BottomSheet, Button } from '@/ui';
 import { theme } from '@/theme';
 
@@ -19,16 +22,13 @@ export default function GroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = String(id);
   const { t, formatCurrency } = useI18n();
-  const utils = trpc.useUtils();
 
   const group = trpc.group.get.useQuery({ groupId });
   const balances = trpc.balance.get.useQuery({ groupId });
 
   const [sheet, setSheet] = useState<GroupSheet>(null);
-
-  const transfer = trpc.transaction.recordTransfer.useMutation({
-    onSuccess: () => void utils.balance.get.invalidate({ groupId }),
-  });
+  const [settlePayment, setSettlePayment] = useState<PendingPayment | null>(null);
+  const [breakdownMember, setBreakdownMember] = useState<{ id: string; name: string } | null>(null);
 
   if (group.isLoading || !group.data) {
     return (
@@ -98,10 +98,17 @@ export default function GroupScreen() {
         <TransactionList groupId={groupId} baseCurrency={baseCurrency} />
       </View>
 
+      <NextRoundCard groupId={groupId} baseCurrency={baseCurrency} />
+
       <View style={styles.card}>
         <Text style={styles.h2}>{t('balance.title')}</Text>
         {balances.data?.balances.map((b) => (
-          <View key={b.memberId} style={styles.balanceRow}>
+          <Pressable
+            key={b.memberId}
+            style={styles.balanceRow}
+            onPress={() => setBreakdownMember({ id: b.memberId, name: b.displayName })}
+            accessibilityRole="button"
+          >
             <Text style={styles.text}>{b.displayName}</Text>
             <Text
               style={{
@@ -116,7 +123,7 @@ export default function GroupScreen() {
             >
               {formatCurrency(b.balanceMinorUnits, baseCurrency)}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </View>
 
@@ -137,17 +144,16 @@ export default function GroupScreen() {
                 <Pressable
                   style={styles.secondaryBtn}
                   onPress={() =>
-                    transfer.mutate({
-                      groupId,
+                    setSettlePayment({
                       fromMemberId: p.fromMemberId,
                       toMemberId: p.toMemberId,
+                      fromName: from?.displayName ?? '',
+                      toName: to?.displayName ?? '',
                       amountMinorUnits: p.amountMinorUnits,
-                      currency: baseCurrency,
-                      method: 'CASH',
                     })
                   }
                 >
-                  <Text style={styles.secondaryBtnText}>{t('settle.markPaid')}</Text>
+                  <Text style={styles.secondaryBtnText}>{t('settle.title')}</Text>
                 </Pressable>
               </View>
             );
@@ -187,6 +193,23 @@ export default function GroupScreen() {
         name={group.data.name}
         simplifyDebts={group.data.simplifyDebts}
         archived={!!group.data.archivedAt}
+      />
+
+      <SettleSheet
+        visible={!!settlePayment}
+        onClose={() => setSettlePayment(null)}
+        groupId={groupId}
+        currency={baseCurrency}
+        payment={settlePayment}
+      />
+
+      <MemberBreakdownSheet
+        visible={!!breakdownMember}
+        onClose={() => setBreakdownMember(null)}
+        groupId={groupId}
+        memberId={breakdownMember?.id ?? null}
+        memberName={breakdownMember?.name ?? ''}
+        baseCurrency={baseCurrency}
       />
     </>
   );
