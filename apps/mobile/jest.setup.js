@@ -6,10 +6,6 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => {}),
 }));
 
-jest.mock('expo-localization', () => ({
-  getLocales: () => [{ languageTag: 'cs-CZ', languageCode: 'cs' }],
-}));
-
 // @expo/vector-icons pulls in expo-font, which throws under jest
 // ("loadedNativeFonts.forEach is not a function"). Stub icon sets as no-op views.
 jest.mock('@expo/vector-icons', () => {

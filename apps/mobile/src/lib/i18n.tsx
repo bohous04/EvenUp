@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import * as Localization from 'expo-localization';
 import {
   DEFAULT_LOCALE,
   createTranslator,
@@ -13,6 +12,20 @@ import {
 import { resolveInitialLocale } from './resolve-locale';
 
 const LOCALE_KEY = 'evenup.locale';
+
+/**
+ * Device language via Hermes' built-in `Intl` (e.g. "cs-CZ") — avoids a native
+ * module. `expo-localization` was dropped: its SDK-52 Swift no longer compiles
+ * against the iOS 26 SDK ("switch must be exhaustive"), and `Intl` covers the
+ * one thing we needed (the device language tag).
+ */
+function deviceLanguageTag(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface I18nValue {
   locale: Locale;
@@ -31,8 +44,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       const stored = await SecureStore.getItemAsync(LOCALE_KEY).catch(() => null);
-      const device = Localization.getLocales()[0]?.languageTag ?? null;
-      setLocaleState(resolveInitialLocale(stored, device));
+      setLocaleState(resolveInitialLocale(stored, deviceLanguageTag()));
     })();
   }, []);
 
