@@ -195,6 +195,22 @@ export const memberRouter = router({
       }
 
       await ctx.prisma.$transaction(async (tx) => {
+        // --- Close the concurrency window FIRST: take FOR UPDATE on `source`
+        // before anything else in this transaction. Every insert that
+        // references a member (TransactionPayer, TransactionSplit,
+        // ItemAssignment, BankDetail — all FK to Member) must first take a
+        // FOR KEY SHARE lock on that member row, so a competing write that
+        // names `source` now blocks for the duration of this transaction
+        // instead of landing invisibly between our snapshots and the delete.
+        // When we commit and delete `source`, the blocked insert wakes up
+        // and fails with a foreign-key violation (Postgres 23503) instead of
+        // being silently cascade-deleted. This is what actually closes the
+        // window — Postgres is READ COMMITTED (no isolationLevel is set on
+        // this $transaction), so without an explicit lock every statement
+        // below would see its own fresh snapshot and a same-instant write
+        // could slip through unseen.
+        await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${source.id} FOR UPDATE`;
+
         // --- Payers: unique on [transactionId, memberId], so a shared
         // transaction means summing rather than repointing.
         const [sourcePayers, targetPayers] = await Promise.all([
@@ -319,15 +335,29 @@ export const memberRouter = router({
           },
         });
 
-        // --- Defensive re-check, immediately before the delete: a concurrent
-        // insert naming `source` between our snapshots above and here would
-        // otherwise be silently cascade-deleted (TransactionPayer.memberId and
-        // TransactionSplit.memberId are both `onDelete: Cascade`), either
-        // re-spreading a lost split's base across the survivors (money moves
-        // silently, balances still net to zero) or leaving a lost sole-payer
-        // row's transaction with a non-zero base and zero weights, which
-        // throws inside allocateByWeights and breaks balance.get for the
-        // whole group. Abort and roll back the whole transaction instead.
+        // --- Belt-and-braces assertion, immediately before the delete. The
+        // FOR UPDATE lock taken at the top of this transaction is what
+        // actually closes the concurrency window (it also covers BankDetail,
+        // the one FK-to-Member path deliberately left out of this count —
+        // counting it would spuriously abort every merge where both members
+        // already have a bank detail, which is a legitimate, common case).
+        // This count is a cheap secondary check: it does not by itself
+        // guarantee no row was lost (a write that landed and committed
+        // before the lock was taken, i.e. before this transaction even
+        // started, would already be reflected in the snapshots above and
+        // simply merged normally; this guard exists to catch anything that
+        // still slips past that story, e.g. bugs in the lock coverage
+        // itself). If it ever fires, treat it as a bug: a concurrent insert
+        // naming `source` should have blocked on FOR UPDATE and then failed
+        // with a foreign-key violation on delete, not landed here at all.
+        // TransactionPayer.memberId and TransactionSplit.memberId are both
+        // `onDelete: Cascade`, so an unnoticed leftover row would otherwise
+        // be silently destroyed, either re-spreading a lost split's base
+        // across the survivors (money moves silently, balances still net to
+        // zero) or leaving a lost sole-payer row's transaction with a
+        // non-zero base and zero weights, which throws inside
+        // allocateByWeights and breaks balance.get for the whole group.
+        // Abort and roll back the whole transaction instead.
         const stillReferenced =
           (await tx.transactionPayer.count({ where: { memberId: source.id } })) +
           (await tx.transactionSplit.count({ where: { memberId: source.id } })) +
@@ -343,16 +373,20 @@ export const memberRouter = router({
         }
 
         await tx.member.delete({ where: { id: source.id } });
-      });
 
-      await logActivity(ctx.prisma, source.groupId, ctx.user.id, 'member.merged', {
-        from: source.displayName,
-        into: target.displayName,
-        // Once `source` is deleted nothing else retains its id -- keep it
-        // here so an erroneous merge can still be reconstructed.
-        sourceMemberId: source.id,
-        targetMemberId: target.id,
-        sourceUserId: source.userId,
+        // Log inside the transaction, on `tx`: this payload is the sole
+        // surviving record of `source.id`/`sourceUserId` once the delete
+        // above commits, so if the log can't be written the merge must roll
+        // back rather than complete silently untraceable.
+        await logActivity(tx, source.groupId, ctx.user.id, 'member.merged', {
+          from: source.displayName,
+          into: target.displayName,
+          // Once `source` is deleted nothing else retains its id -- keep it
+          // here so an erroneous merge can still be reconstructed.
+          sourceMemberId: source.id,
+          targetMemberId: target.id,
+          sourceUserId: source.userId,
+        });
       });
 
       return { merged: true, targetMemberId: target.id };

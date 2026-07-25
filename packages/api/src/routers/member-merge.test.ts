@@ -128,65 +128,185 @@ describe('member.merge preflight', () => {
 });
 
 describe('member.merge concurrency guard', () => {
-  test('aborts, and deletes nothing, if a row starts referencing source mid-merge', async () => {
-    const { olivia, caller, group, creator, marek, jana } = await seed();
-
-    // We can't reliably win a real race against a background thread from a
-    // single-threaded test, so we pin the interleaving deterministically
-    // instead: a Prisma client extension hooks the LAST write merge makes
-    // before its guard + delete (`tx.member.update` on target) and, right
-    // there, commits a competing transfer naming `source` (jana) as an
-    // endpoint on a separate connection. Under READ COMMITTED this is exactly
-    // what the merge transaction would see if another session's write landed
-    // at that instant -- i.e. after the snapshot/sweep, before the delete.
-    let injected = false;
+  // The merge transaction takes `FOR UPDATE` on `source` as its very first
+  // statement (member.ts), before any of the reads/moves below. Every
+  // FK-referencing insert (TransactionPayer, TransactionSplit,
+  // ItemAssignment, and Transaction.from/toMemberId all reference Member)
+  // must first take `FOR KEY SHARE` on the same row, which conflicts with
+  // `FOR UPDATE` -- so a competing writer that names `source` while our
+  // transaction is open cannot land invisibly. It can only:
+  //   (a) already have committed before we took the lock -- in which case
+  //       our own reads (taken after the lock) already see it and merge it
+  //       normally, or
+  //   (b) still be in flight when we commit -- in which case it blocks on
+  //       our lock and, once we commit having deleted `source`, wakes up to
+  //       find the row gone and fails with a foreign-key violation
+  //       (Postgres 23503 / Prisma P2003) instead of landing on it.
+  //
+  // These tests pin outcome (b) deterministically: a Prisma client
+  // extension hooks the FIRST read the merge transaction makes after taking
+  // the lock (`tx.transactionPayer.findMany`) and, right there, fires a
+  // competing write on a genuinely separate connection (`caller`, backed by
+  // `testPrisma`). Critically the write is NOT awaited inline -- awaiting it
+  // would serialize it behind the very lock it needs to race against and
+  // deadlock the (single-threaded) merge transaction against itself. Left
+  // to run concurrently, it reliably loses the race (the merge transaction
+  // has far fewer remaining statements before commit than the competing
+  // write has before its own first locking insert) and we inspect the
+  // outcome once both have settled.
+  //
+  // Because the lock is taken on the Member row itself, one lock covers
+  // every FK path uniformly -- including BankDetail, which the row-count
+  // guard below deliberately does not count. That also means the row-count
+  // guard can no longer be tripped by a real race once this lock is in
+  // place (nothing can commit a reference to `source` while we hold it, and
+  // anything that committed earlier is already reflected in our own reads);
+  // it is retained purely as a belt-and-braces self-consistency assertion,
+  // not exercised as a concurrency guard by these tests.
+  function raceAfterLock<T>(
+    source: { id: string },
+    buildRacer: () => Promise<T>,
+  ): { racyPrisma: PrismaClient; getRacer: () => Promise<T> | null } {
+    let racer: Promise<T> | null = null;
     const racyPrisma = testPrisma.$extends({
       query: {
-        member: {
-          async update({ args, query }) {
-            const where = args.where as { id?: string };
-            if (!injected && where.id === marek.id) {
-              injected = true;
-              await caller.transaction.recordTransfer({
-                groupId: group.id,
-                fromMemberId: jana.id,
-                toMemberId: creator.id,
-                amountMinorUnits: 12300,
-                currency: 'CZK',
-                date: new Date('2026-06-24'),
-                note: 'Concurrent settlement',
-              });
+        transactionPayer: {
+          async findMany({ args, query }) {
+            const where = args.where as { memberId?: string };
+            if (!racer && where.memberId === source.id) {
+              racer = buildRacer();
             }
             return query(args);
           },
         },
       },
     });
+    return { racyPrisma: racyPrisma as unknown as PrismaClient, getRacer: () => racer };
+  }
 
+  test('a payer + transfer-endpoint write that lands mid-merge is rejected, not lost', async () => {
+    const { olivia, caller, group, creator, marek, jana } = await seed();
+    // recordTransfer names `source` (jana) as BOTH the payer (fromMemberId)
+    // and a transfer endpoint in one call -- this is the pairing the guard's
+    // `transactionPayer` and `transaction` (from/toMemberId) counts exist for.
+    const { racyPrisma, getRacer } = raceAfterLock(jana, () =>
+      caller.transaction.recordTransfer({
+        groupId: group.id,
+        fromMemberId: jana.id,
+        toMemberId: creator.id,
+        amountMinorUnits: 12300,
+        currency: 'CZK',
+        date: new Date('2026-06-24'),
+        note: 'Concurrent settlement',
+      }),
+    );
     const racyCallerFactory = createCallerFactory(appRouter);
     const racyCaller = racyCallerFactory(
-      createContext({
-        prisma: racyPrisma as unknown as PrismaClient,
-        user: olivia,
-        secretBox: testSecretBox,
-      }),
+      createContext({ prisma: racyPrisma, user: olivia, secretBox: testSecretBox }),
     );
 
     await expect(
       racyCaller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    ).resolves.toMatchObject({ merged: true });
 
-    // Prove the injected write actually happened -- otherwise this test would
-    // pass vacuously (guard never exercised).
-    expect(injected).toBe(true);
-
-    // Nothing was destroyed: source survives, and so does the transfer that
-    // "arrived late".
-    expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).not.toBeNull();
-    const transfers = await testPrisma.transaction.findMany({
-      where: { groupId: group.id, type: 'TRANSFER', fromMemberId: jana.id },
+    // Prove the race actually happened -- otherwise this test would pass
+    // vacuously (lock never exercised) -- and that it lost cleanly: no
+    // TRPCError with a swallowed cause, a real FK violation.
+    expect(getRacer()).not.toBeNull();
+    await expect(getRacer()).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      cause: expect.objectContaining({ code: 'P2003' }),
     });
-    expect(transfers).toHaveLength(1);
+    expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
+    // The whole nested write (Transaction + TransactionPayer) rolled back
+    // together -- nothing from the racing settlement survives anywhere.
+    expect(
+      await testPrisma.transaction.findFirst({
+        where: { groupId: group.id, title: 'Concurrent settlement' },
+      }),
+    ).toBeNull();
+  });
+
+  test('a split write (source named only as a beneficiary) that lands mid-merge is rejected, not lost', async () => {
+    const { olivia, caller, group, creator, marek, jana } = await seed();
+    // jana is a split beneficiary but NOT a payer here, isolating the
+    // `transactionSplit` count arm from the payer arm covered above.
+    const { racyPrisma, getRacer } = raceAfterLock(jana, () =>
+      caller.transaction.createExpense({
+        groupId: group.id,
+        title: 'Race split',
+        currency: 'CZK',
+        date: new Date('2026-06-24'),
+        payers: [{ memberId: creator.id, amountMinorUnits: 10000 }],
+        split: { type: 'EQUAL', members: [{ memberId: creator.id }, { memberId: jana.id }] },
+      }),
+    );
+    const racyCallerFactory = createCallerFactory(appRouter);
+    const racyCaller = racyCallerFactory(
+      createContext({ prisma: racyPrisma, user: olivia, secretBox: testSecretBox }),
+    );
+
+    await expect(
+      racyCaller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
+    ).resolves.toMatchObject({ merged: true });
+
+    expect(getRacer()).not.toBeNull();
+    await expect(getRacer()).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      cause: expect.objectContaining({ code: 'P2003' }),
+    });
+    expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
+    expect(
+      await testPrisma.transaction.findFirst({ where: { groupId: group.id, title: 'Race split' } }),
+    ).toBeNull();
+  });
+
+  test('an item-assignment write that lands mid-merge is rejected, not lost', async () => {
+    const { olivia, caller, group, creator, marek, jana } = await seed();
+    // jana is assigned a receipt item -- this exercises `itemAssignment`,
+    // the guard's fourth arm. ITEMIZED splits compute a TransactionSplit row
+    // from item assignments, so this single nested write also touches
+    // TransactionSplit for jana; Postgres happens to report that FK first
+    // (it's created before receiptItems/assignments in the nested-write
+    // order), but the whole write -- item assignment included -- rolls back
+    // as one unit, which the assertions below confirm directly.
+    const { racyPrisma, getRacer } = raceAfterLock(jana, () =>
+      caller.transaction.createExpense({
+        groupId: group.id,
+        title: 'Race item',
+        currency: 'CZK',
+        date: new Date('2026-06-24'),
+        payers: [{ memberId: creator.id, amountMinorUnits: 2490 }],
+        split: {
+          type: 'ITEMIZED',
+          items: [{ name: 'Mléko', totalMinorUnits: 2490, memberIds: [jana.id] }],
+        },
+      }),
+    );
+    const racyCallerFactory = createCallerFactory(appRouter);
+    const racyCaller = racyCallerFactory(
+      createContext({ prisma: racyPrisma, user: olivia, secretBox: testSecretBox }),
+    );
+
+    await expect(
+      racyCaller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
+    ).resolves.toMatchObject({ merged: true });
+
+    expect(getRacer()).not.toBeNull();
+    await expect(getRacer()).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      cause: expect.objectContaining({ code: 'P2003' }),
+    });
+    expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
+    expect(
+      await testPrisma.transaction.findFirst({ where: { groupId: group.id, title: 'Race item' } }),
+    ).toBeNull();
+    // No item-assignment row for jana survives either -- direct proof this
+    // arm's write was rolled back, not just the split it happens to share
+    // an INSERT statement with.
+    expect(await testPrisma.itemAssignment.findMany({ where: { memberId: jana.id } })).toHaveLength(
+      0,
+    );
   });
 });
 
@@ -248,6 +368,10 @@ describe('member.merge data movement', () => {
     });
     expect(splits).toHaveLength(1);
     expect(Number(splits[0]!.computedMinorUnits)).toBe(50000);
+    // The EXACT split's own basis (exactMinorUnits) must be summed too, not
+    // just the derived computedMinorUnits -- this is the one call site that
+    // actually exercises sumNullableBigInt with two non-null bigints.
+    expect(splits[0]!.exactMinorUnits).toBe(50000n);
 
     // The expense's splits still sum to its total.
     const all = await testPrisma.transactionSplit.findMany({
