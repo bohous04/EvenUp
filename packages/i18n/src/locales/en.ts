@@ -152,6 +152,17 @@ export const en: Messages = {
   'invite.copy': 'Copy link',
   'invite.copied': 'Copied',
   'invite.share': 'Share',
+  'invite.pickYourName': 'Find your name below',
+  'invite.thisIsMe': 'This is me',
+  'invite.notOnList': "I'm not on the list",
+  'invite.confirmNewTitle': 'Sure none of these is you?',
+  'invite.confirmNewBody':
+    'If you create a new account, the debts stay on the original name and nobody takes them over for you.',
+  'invite.confirmNewCta': 'Create a new account anyway',
+  'invite.confirmBack': 'Back to the list',
+  'invite.owes': 'owes {amount}',
+  'invite.isOwed': 'is owed {amount}',
+  'invite.settled': 'settled up',
 
   'expense.add': 'Add expense',
   'expense.edit': 'Edit expense',

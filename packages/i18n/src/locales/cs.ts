@@ -154,6 +154,17 @@ export const cs = {
   'invite.copy': 'Kopírovat odkaz',
   'invite.copied': 'Zkopírováno',
   'invite.share': 'Sdílet',
+  'invite.pickYourName': 'Najdi se v seznamu',
+  'invite.thisIsMe': 'To jsem já',
+  'invite.notOnList': 'Nejsem v seznamu',
+  'invite.confirmNewTitle': 'Opravdu tu nikdo z nich nejsi ty?',
+  'invite.confirmNewBody':
+    'Když si založíš nový účet, dluhy zůstanou přiřazené původnímu jménu a nikdo je za tebe nepřevezme.',
+  'invite.confirmNewCta': 'Přesto založit nový účet',
+  'invite.confirmBack': 'Zpět k seznamu',
+  'invite.owes': 'dluží {amount}',
+  'invite.isOwed': 'má dostat {amount}',
+  'invite.settled': 'vyrovnáno',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',
