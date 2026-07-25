@@ -1,5 +1,5 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
@@ -7,20 +7,25 @@ import { trpc } from '@/lib/trpc';
 import { Button, Card } from '@/components/ui';
 import { Modal } from '@/components/modal';
 import { MemberChip } from '@/components/member-chip';
+import { AmountText } from '@/components/amount-text';
 import { SignIn } from '@/components/sign-in';
 
 /** A member's balance rendered as a short, self-contained phrase. */
 function BalanceHint({ minorUnits, currency }: { minorUnits: number; currency: string }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   if (minorUnits === 0) {
     return <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('invite.settled')}</span>;
   }
   const key = minorUnits < 0 ? 'invite.owes' : 'invite.isOwed';
-  // `whitespace-nowrap` keeps the whole phrase (and therefore the amount)
-  // unbroken, which is the design-spec rule AmountText exists to enforce.
+  // The label word is free to truncate under pressure, but the amount itself
+  // sits in AmountText's non-shrinking slot — same never-wrap-or-clip
+  // contract balances-card.tsx uses for money (see amount-text.tsx). That's
+  // what actually stops the phrase from spilling past its box; nowrap alone
+  // (the old approach) only stops line-breaking, not overflow.
   return (
-    <span className="text-xs whitespace-nowrap tabular-nums text-zinc-600 dark:text-zinc-300">
-      {t(key, { amount: formatCurrency(Math.abs(minorUnits), currency) })}
+    <span className="flex min-w-0 items-baseline gap-1 text-xs text-zinc-600 dark:text-zinc-300">
+      <span className="min-w-0 truncate">{t(key, { amount: '' }).trim()}</span>
+      <AmountText minorUnits={Math.abs(minorUnits)} currency={currency} className="shrink-0" />
     </span>
   );
 }
@@ -37,11 +42,20 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     { token },
     { enabled: Boolean(session?.user) },
   );
-  const claim = trpc.invite.claim.useMutation({
-    onSuccess: () => router.push('/'),
-  });
   const [error, setError] = useState<string | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
+  // Synchronous in-flight guard. `claim.isPending` (and the `disabled` props
+  // driven by it) only reflect reality after a re-render, so a fast
+  // double-click/double-tap on any trigger can still fire two concurrent
+  // mutations before React catches up. This ref is checked-and-set at the
+  // call site itself, closing that gap regardless of render timing.
+  const pendingRef = useRef(false);
+  const claim = trpc.invite.claim.useMutation({
+    onSuccess: () => router.push('/'),
+    onSettled: () => {
+      pendingRef.current = false;
+    },
+  });
 
   if (isPending) return <p className="py-10 text-center text-zinc-500 dark:text-zinc-400">…</p>;
   if (!session?.user) {
@@ -65,8 +79,17 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   }
 
   const { groupName, baseCurrency, members } = options.data;
-  const joinAsNew = () =>
-    claim.mutate({ token }, { onError: (e) => setError(e.message) });
+  // The one call site for claim.mutate — every trigger (member rows, the
+  // "not on the list" link, and the confirm-dialog CTA) routes through this,
+  // so the in-flight guard can't be bypassed by any one of them.
+  const submitClaim = (memberId?: string) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    claim.mutate(memberId ? { token, memberId } : { token }, {
+      onError: (e) => setError(e.message),
+    });
+  };
+  const joinAsNew = () => submitClaim();
 
   return (
     <Card>
@@ -89,9 +112,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
               type="button"
               data-testid={`invite-member-${m.id}`}
               disabled={claim.isPending}
-              onClick={() =>
-                claim.mutate({ token, memberId: m.id }, { onError: (e) => setError(e.message) })
-              }
+              onClick={() => submitClaim(m.id)}
               className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-400 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-100"
             >
               <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
@@ -113,8 +134,9 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <button
           type="button"
           data-testid="invite-join-new"
+          disabled={claim.isPending}
           onClick={() => (members.length === 0 ? joinAsNew() : setConfirmNew(true))}
-          className="rounded text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-800 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none dark:text-zinc-400 dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
+          className="rounded text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-800 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
         >
           {t('invite.notOnList')}
         </button>
