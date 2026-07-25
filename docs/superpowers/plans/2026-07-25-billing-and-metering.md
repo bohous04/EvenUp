@@ -1329,6 +1329,12 @@ export const billingRouter = router({
       success_url: returnUrl('/vip?checkout=success'),
       cancel_url: returnUrl('/vip?checkout=cancelled'),
       metadata: { userId: ctx.user.id },
+      // REQUIRED: Stripe does NOT copy session-level metadata onto the
+      // Subscription it creates. The webhook reads sub.metadata.userId, so
+      // without this no Subscription row is ever persisted and VIP never
+      // activates — and no test catches it, because webhook tests fabricate
+      // the event with metadata already attached.
+      subscription_data: { metadata: { userId: ctx.user.id } },
     });
     return { url: session.url };
   }),
