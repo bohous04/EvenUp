@@ -17,8 +17,13 @@ async function groupIdForMember(ctx: { prisma: PrismaClient }, memberId: string)
   return member.groupId;
 }
 
-/** Sum two nullable numeric columns, staying null only when both sides are null. */
-function sumNullable(a: number | null, b: number | null): number | null {
+/**
+ * Sum two nullable `Int?` columns (e.g. `TransactionSplit.shareWeight`),
+ * staying null only when both sides are null. Not safe for money columns —
+ * those are `BigInt`/`Decimal` and must go through `sumNullableBigInt` /
+ * `sumNullableDecimal` instead, or precision is lost via `number`.
+ */
+function sumNullableInt(a: number | null, b: number | null): number | null {
   return a === null && b === null ? null : (a ?? 0) + (b ?? 0);
 }
 
@@ -228,7 +233,7 @@ export const memberRouter = router({
               data: {
                 computedMinorUnits: ts.computedMinorUnits + ss.computedMinorUnits,
                 exactMinorUnits: sumNullableBigInt(ts.exactMinorUnits, ss.exactMinorUnits),
-                shareWeight: sumNullable(ts.shareWeight, ss.shareWeight),
+                shareWeight: sumNullableInt(ts.shareWeight, ss.shareWeight),
                 percentage: sumNullableDecimal(ts.percentage, ss.percentage),
               },
             });
@@ -300,17 +305,54 @@ export const memberRouter = router({
           });
         }
 
-        // --- The surviving member keeps its own identity but gains the link.
+        // --- The surviving member keeps its own identity (displayName,
+        // initials, color) but gains the link, and takes the STRONGER of the
+        // two on role/isActive: losing ADMIN could leave the group with no
+        // admin at all, and losing active-ness would strand real debt on a
+        // member hidden from the picker/notifications/next-round.
         await tx.member.update({
           where: { id: target.id },
-          data: { userId: target.userId ?? source.userId },
+          data: {
+            userId: target.userId ?? source.userId,
+            role: source.role === 'ADMIN' || target.role === 'ADMIN' ? 'ADMIN' : target.role,
+            isActive: source.isActive || target.isActive,
+          },
         });
+
+        // --- Defensive re-check, immediately before the delete: a concurrent
+        // insert naming `source` between our snapshots above and here would
+        // otherwise be silently cascade-deleted (TransactionPayer.memberId and
+        // TransactionSplit.memberId are both `onDelete: Cascade`), either
+        // re-spreading a lost split's base across the survivors (money moves
+        // silently, balances still net to zero) or leaving a lost sole-payer
+        // row's transaction with a non-zero base and zero weights, which
+        // throws inside allocateByWeights and breaks balance.get for the
+        // whole group. Abort and roll back the whole transaction instead.
+        const stillReferenced =
+          (await tx.transactionPayer.count({ where: { memberId: source.id } })) +
+          (await tx.transactionSplit.count({ where: { memberId: source.id } })) +
+          (await tx.itemAssignment.count({ where: { memberId: source.id } })) +
+          (await tx.transaction.count({
+            where: { OR: [{ fromMemberId: source.id }, { toMemberId: source.id }] },
+          }));
+        if (stillReferenced > 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Source member changed while merging — please try again.',
+          });
+        }
+
         await tx.member.delete({ where: { id: source.id } });
       });
 
       await logActivity(ctx.prisma, source.groupId, ctx.user.id, 'member.merged', {
         from: source.displayName,
         into: target.displayName,
+        // Once `source` is deleted nothing else retains its id -- keep it
+        // here so an erroneous merge can still be reconstructed.
+        sourceMemberId: source.id,
+        targetMemberId: target.id,
+        sourceUserId: source.userId,
       });
 
       return { merged: true, targetMemberId: target.id };
