@@ -3,8 +3,13 @@
 **Date:** 2026-07-25
 **Scope:** Spec 1 of 2. Entitlement model, credit ledger, Stripe integration,
 removal of per-user BYO OpenRouter keys.
-**Out of scope:** the public landing page, the VIP/pricing page and locale URL
-routing — those are Spec 2, which consumes the price model defined here.
+**Out of scope:** the public landing page, the VIP/pricing page, locale URL
+routing and the privacy/terms pages — those are Spec 2
+(`2026-07-25-public-pages-and-gdpr-design.md`), which consumes the price model
+defined here.
+**Amended by Spec 2:** the "Consumer law and data protection" section below was
+added after that spec's data-protection review, and changes the Checkout flow and
+account deletion.
 
 ## Context
 
@@ -169,6 +174,53 @@ Two non-negotiables:
   event must not double-credit. The unique constraint enforces this at the
   database rather than in application logic.
 
+## Consumer law and data protection
+
+Added after the data-protection review in Spec 2
+(`2026-07-25-public-pages-and-gdpr-design.md`). These are not policy-page
+concerns; each one changes code in this spec.
+
+### The 14-day withdrawal right changes Checkout
+
+EU distance selling gives consumers 14 days to withdraw from a purchase. Credits
+are consumed immediately, so without further action a customer could spend their
+credits and still demand a refund, and there would be no defence.
+
+The remedy is to obtain, at Checkout, **express consent to immediate performance
+together with an acknowledgement that the withdrawal right is thereby lost**. In
+practice this is a required checkbox before the credit-pack Checkout Session is
+created, with the consent recorded against the purchase.
+
+Consequences:
+
+- Credit-pack purchases record a consent flag and timestamp alongside the
+  `PURCHASE` ledger row.
+- The subscription flow is unaffected in the same way — a subscription is not
+  immediately consumed — but cancellation terms still belong in the terms page.
+- Refunds remain possible at your discretion; this concerns what may be
+  *demanded*, not what may be *granted*.
+
+### Erasure becomes selective
+
+`deleteUserAccount` (`packages/api/src/services/account.ts:10`) currently deletes
+everything belonging to a user. Once payments exist, Czech accounting law
+requires invoices and payment records to be retained, and that obligation
+**overrides the right to erasure** for exactly those records
+(GDPR Art. 17(3)(b)).
+
+Deletion therefore splits in two: purge personal data as it does today, but
+retain the minimum billing record, stripped of identifiers beyond what the law
+requires. Both halves need tests — the failure modes are symmetrical and both are
+legal violations.
+
+### Stripe is a new processor
+
+- Stripe must be named in the privacy policy as a recipient of email and billing
+  metadata.
+- `exportData` (`packages/api/src/routers/user.ts:162`) extends to include
+  subscription state and the scan ledger, or the export stops being complete the
+  moment billing ships.
+
 ## Pricing configuration
 
 Launch values. Held as configuration (Stripe price IDs in env or
@@ -216,6 +268,12 @@ credits is the manual remedy for the refund gap above.
   asserting no double-credit, and a **bad signature** asserting rejection.
 - **Scan flow** integration tests: reservation on failure is refunded; VIP
   falls through to credits at the cap.
+- **Withdrawal consent**: a credit-pack Checkout Session cannot be created
+  without the immediate-performance acknowledgement, and the consent is recorded
+  against the purchase.
+- **Selective erasure**: after account deletion, personal data is gone *and* the
+  legally required billing record remains, carrying no identifiers beyond what
+  the retention obligation requires. Both directions asserted.
 
 ## Success criteria
 
@@ -229,6 +287,9 @@ credits is the manual remedy for the refund gap above.
 - With `STRIPE_SECRET_KEY` unset, scanning behaves exactly as it does today for a
   self-hoster with an instance key configured.
 - Cancellation through the Customer Portal is reflected in the app.
+- Credits cannot be bought without acknowledging immediate performance.
+- Deleting an account leaves the required billing record and nothing else.
+- `exportData` includes subscription state and the scan ledger.
 
 ## Receipt-image storage
 
