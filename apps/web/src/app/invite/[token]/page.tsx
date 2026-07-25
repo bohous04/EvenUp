@@ -22,9 +22,18 @@ function BalanceHint({ minorUnits, currency }: { minorUnits: number; currency: s
   // contract balances-card.tsx uses for money (see amount-text.tsx). That's
   // what actually stops the phrase from spilling past its box; nowrap alone
   // (the old approach) only stops line-breaking, not overflow.
+  // Both locales put `{amount}` at the end, preceded by a space (see
+  // packages/i18n/src/locales/{cs,en}.ts) — interpolating an empty string
+  // for it leaves that trailing space in the label's own text node, so
+  // splitting into two spans doesn't change concatenated textContent (still
+  // "owes 1 234 Kč", not "owes1 234 Kč" — matters for screen readers and
+  // any test asserting on text). That trailing space renders as zero-width
+  // once the label is blockified as a flex item, though, so `gap-1` is what
+  // actually produces the visible gap — the two together give correct text
+  // *and* correct rendering; either alone gets only one right.
   return (
     <span className="flex min-w-0 items-baseline gap-1 text-xs text-zinc-600 dark:text-zinc-300">
-      <span className="min-w-0 truncate">{t(key, { amount: '' }).trim()}</span>
+      <span className="min-w-0 truncate">{t(key, { amount: '' })}</span>
       <AmountText minorUnits={Math.abs(minorUnits)} currency={currency} className="shrink-0" />
     </span>
   );
