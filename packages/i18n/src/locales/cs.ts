@@ -59,6 +59,9 @@ export const cs = {
   'errors.addMembersBeforeImport': 'Před importem přidejte členy',
   'errors.payerNotMember': 'Plátce není členem skupiny',
   'errors.payersTotalMismatch': 'Součet plateb neodpovídá celkové částce.',
+  'errors.billingNotConfigured': 'Platby nejsou na této instanci nastavené.',
+  'errors.acknowledgeImmediate': 'Potvrďte okamžité dodání a pokračujte.',
+  'errors.unknownPack': 'Neznámý balíček kreditů.',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',

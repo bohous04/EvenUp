@@ -58,6 +58,9 @@ export const en: Messages = {
   'errors.addMembersBeforeImport': 'Add members before importing',
   'errors.payerNotMember': 'Payer is not a group member',
   'errors.payersTotalMismatch': 'The payer amounts do not add up to the expense total.',
+  'errors.billingNotConfigured': 'Billing is not configured on this instance.',
+  'errors.acknowledgeImmediate': 'Acknowledge immediate delivery to continue.',
+  'errors.unknownPack': 'Unknown credit pack.',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
