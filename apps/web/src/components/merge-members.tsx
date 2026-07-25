@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Card } from '@/components/ui';
@@ -40,6 +40,11 @@ export function MergeDialog({
   const { t, formatCurrency } = useI18n();
   const utils = trpc.useUtils();
   const preview = trpc.member.mergePreview.useQuery({ sourceMemberId, targetMemberId });
+  // React clears `disabled` only on re-render, so a fast double-click can fire
+  // two merges. The second races the first's FOR UPDATE lock and then fails on
+  // a source that no longer exists — an error for a merge that actually
+  // succeeded. Guard synchronously, same as the invite page's claim.
+  const pendingRef = useRef(false);
   const merge = trpc.member.merge.useMutation({
     onSuccess: async () => {
       await Promise.all([
@@ -47,17 +52,41 @@ export function MergeDialog({
         utils.balance.get.invalidate({ groupId }),
         utils.member.duplicateCandidates.invalidate({ groupId }),
         utils.group.get.invalidate({ groupId }),
+        // The merge writes a `member.merged` entry; without this the feed
+        // keeps showing the pre-merge history.
+        utils.activity.list.invalidate({ groupId }),
       ]);
       onClose();
+    },
+    onSettled: () => {
+      pendingRef.current = false;
     },
   });
 
   const blocked = (preview.data?.blockingTransfers.length ?? 0) > 0;
 
+  function submitMerge() {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    merge.mutate({ sourceMemberId, targetMemberId });
+  }
+
   return (
     <Modal open onClose={onClose} title={t('merge.title')} testId="merge-dialog">
-      {preview.isLoading || !preview.data ? (
+      {preview.isLoading ? (
         <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>
+      ) : !preview.data ? (
+        // A failed preview must not masquerade as a spinner — and Cancel lives
+        // in the success branch, so without this the dialog would look like it
+        // was loading forever with no visible way out.
+        <>
+          <p role="alert" className="mb-4 text-sm text-red-700 dark:text-red-400">
+            {preview.error?.message ?? t('errors.memberNotFound')}
+          </p>
+          <Button variant="secondary" onClick={onClose}>
+            {t('merge.cancel')}
+          </Button>
+        </>
       ) : (
         <>
           {blocked ? (
@@ -96,7 +125,7 @@ export function MergeDialog({
             <Button
               data-testid="merge-confirm"
               disabled={blocked || merge.isPending}
-              onClick={() => merge.mutate({ sourceMemberId, targetMemberId })}
+              onClick={submitMerge}
             >
               {t('merge.confirm')}
             </Button>
