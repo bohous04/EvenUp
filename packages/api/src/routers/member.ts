@@ -400,6 +400,9 @@ export const memberRouter = router({
   mergePreview: protectedProcedure
     .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
     .query(async ({ ctx, input }) => {
+      if (input.sourceMemberId === input.targetMemberId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot merge a member into itself' });
+      }
       const [source, target] = await Promise.all([
         ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),
         ctx.prisma.member.findUnique({ where: { id: input.targetMemberId } }),

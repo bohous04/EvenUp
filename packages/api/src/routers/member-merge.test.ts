@@ -535,6 +535,27 @@ describe('member.merge role and isActive', () => {
 });
 
 describe('member.mergePreview', () => {
+  test('refuses to preview a merge for a group the caller is not a member of', async () => {
+    const { marek, jana } = await seed();
+    // A real user who simply never joins the group -- no member link, not
+    // the creator -- so assertGroupAccess's FORBIDDEN branch is the only way
+    // this can fail.
+    const outsider = await createTestUser('outsider@example.com');
+    await expect(
+      makeCaller(outsider).member.mergePreview({
+        sourceMemberId: jana.id,
+        targetMemberId: marek.id,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  test('refuses to preview a merge of a member into itself', async () => {
+    const { caller, marek } = await seed();
+    await expect(
+      caller.member.mergePreview({ sourceMemberId: marek.id, targetMemberId: marek.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   test('reports what will move and the resulting balance', async () => {
     const { caller, group, creator, marek, jana } = await seed();
     await caller.transaction.createExpense({
