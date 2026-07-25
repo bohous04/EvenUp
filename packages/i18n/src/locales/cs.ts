@@ -146,6 +146,18 @@ export const cs = {
   'member.connected': 'Připojeno',
   'member.notConnected': 'Zatím bez účtu',
 
+  'merge.title': 'Sloučit členy',
+  'merge.bannerQuestion':
+    '{newcomer} se přidal(a), ale {placeholder} je pořád nepřevzatý. Je to stejný člověk?',
+  'merge.bannerConfirm': 'Sloučit',
+  'merge.bannerDismiss': 'Není',
+  'merge.action': 'Sloučit do…',
+  'merge.summary': 'Přesune se {count} transakcí a zůstatek {amount} na {target}.',
+  'merge.willDelete': '{source} bude smazán(a).',
+  'merge.blocked': 'Nejdřív vyřeš převod mezi těmito členy: {titles}',
+  'merge.confirm': 'Sloučit',
+  'merge.cancel': 'Zrušit',
+
   'invite.create': 'Vytvořit pozvánku',
   'invite.link': 'Odkaz na pozvánku',
   'invite.claim': 'Převzít profil člena',
@@ -301,10 +313,12 @@ export const cs = {
   'activity.edited': '{actor} upravil(a) {item}',
   'activity.deleted': '{actor} smazal(a) {item}',
   'activity.settled': '{actor} vyrovnal(a) platbu {amount}',
+  'activity.merged': '{actor} sloučil(a) {from} do {into}',
   'activity.filterByType': 'Filtrovat podle typu',
 
   'activityType.group.created': 'Skupina vytvořena',
   'activityType.member.added': 'Člen přidán',
+  'activityType.member.merged': 'Člen sloučen',
   'activityType.member.updated': 'Člen upraven',
   'activityType.expense.created': 'Výdaj přidán',
   'activityType.expenses.imported': 'Výdaje importovány',

@@ -18,6 +18,8 @@ export function describeActivity(
       return t('activity.created', { actor, item: str(p.name) });
     case 'member.added':
       return t('activity.created', { actor, item: str(p.name) });
+    case 'member.merged':
+      return t('activity.merged', { actor, from: str(p.from), into: str(p.into) });
     case 'category.created':
       return t('activity.created', { actor, item: str(p.name) });
     case 'expense.created':
