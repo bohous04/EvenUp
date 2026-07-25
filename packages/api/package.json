@@ -28,6 +28,7 @@
     "@evenup/db": "workspace:*",
     "@evenup/i18n": "workspace:*",
     "@trpc/server": "^11.0.0",
+    "stripe": "^22.3.2",
     "superjson": "^2.2.2",
     "zod": "^3.24.1"
   },
