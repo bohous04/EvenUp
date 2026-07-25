@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import * as fc from 'fast-check';
 import {
   deriveInitials,
   MEMBER_COLORS,
@@ -136,5 +137,32 @@ describe('nameSimilarity', () => {
   test('a leading-token match stays strong evidence even with a shared surname too', () => {
     expect(nameSimilarity('Marek Novák', 'Marek Novák')).toBe(1);
     expect(nameSimilarity('Marek', 'Marek Novák')).toBeGreaterThanOrEqual(0.8);
+  });
+
+  test('a repeated token does not inflate the score for the side that repeats it', () => {
+    // "Jan Jan" has "jan" as both its leading and (redundant) trailing token.
+    // Counting shared tokens as a set intersection means that repetition must
+    // not count for more than a single "jan" would.
+    expect(nameSimilarity('Jan Jan', 'Jan Petr')).toBe(nameSimilarity('Jan Petr', 'Jan Jan'));
+    expect(nameSimilarity('Jan', 'Jan Jan')).toBe(nameSimilarity('Jan Jan', 'Jan'));
+  });
+
+  test('property: nameSimilarity is symmetric for arbitrary strings', () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (a, b) => {
+        expect(nameSimilarity(a, b)).toBe(nameSimilarity(b, a));
+      }),
+    );
+  });
+
+  test('property: nameSimilarity is always finite and within [0, 1]', () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (a, b) => {
+        const score = nameSimilarity(a, b);
+        expect(Number.isFinite(score)).toBe(true);
+        expect(score).toBeGreaterThanOrEqual(0);
+        expect(score).toBeLessThanOrEqual(1);
+      }),
+    );
   });
 });

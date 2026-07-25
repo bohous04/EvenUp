@@ -136,6 +136,23 @@ function diceCoefficient(a: string, b: string): number {
   return (2 * hits) / (a.length - 1 + (b.length - 1));
 }
 
+/** Base credit for a leading-token (given-name) match — strong evidence alone. */
+const LEADING_MATCH_BASE = 0.8;
+
+/** Base credit for a trailing-token-only (surname-only) match — weak evidence alone. */
+const TRAILING_MATCH_BASE = 0.4;
+
+/**
+ * Extra credit per the fraction of tokens that overlap beyond the deciding
+ * one. Bounded (0–1 fraction) so it can add at most this much on top of a
+ * base score. That bound is load-bearing: TRAILING_MATCH_BASE +
+ * SHARED_TOKEN_BONUS_WEIGHT = 0.4 + 0.2 = 0.6 for ALL inputs, which is what
+ * keeps a surname-only match (see nameSimilarity's doc comment) safely below
+ * the 0.8 duplicate-merge threshold. Do not raise either constant without
+ * re-checking that 0.6 ceiling.
+ */
+const SHARED_TOKEN_BONUS_WEIGHT = 0.2;
+
 /**
  * How likely two display names refer to the same person, 0–1.
  *
@@ -151,9 +168,17 @@ function diceCoefficient(a: string, b: string): number {
  * deliberately weak evidence instead of strong: Czech surnames like Novák,
  * Svoboda and Dvořák are shared by huge numbers of unrelated people, so two
  * different first names with the same surname ("Jan Novák" vs "Petr Novák")
- * must NOT clear the 0.8 duplicate-merge threshold. Do not special-case
- * specific surnames to fix false positives here — the leading-vs-trailing
- * position is what carries the signal, structurally, for any name.
+ * must NOT clear the 0.8 duplicate-merge threshold (see SHARED_TOKEN_BONUS_WEIGHT
+ * above for why that holds structurally). Do not special-case specific
+ * surnames to fix false positives here — the leading-vs-trailing position is
+ * what carries the signal, structurally, for any name.
+ *
+ * Pure and symmetric: nameSimilarity(a, b) === nameSimilarity(b, a) for all
+ * inputs (see the property test). Token overlap is counted as a *set*
+ * intersection rather than per-occurrence membership specifically to keep
+ * that symmetry — a naive `leftTokens.filter(tok => rightTokens.includes(tok))`
+ * counts a token repeated on one side once per occurrence while the same
+ * repetition on the other side counts once, which is asymmetric.
  */
 export function nameSimilarity(a: string, b: string): number {
   const left = normalizeForMatch(a);
@@ -163,18 +188,28 @@ export function nameSimilarity(a: string, b: string): number {
 
   const leftTokens = left.split(' ');
   const rightTokens = right.split(' ');
-  const shared = leftTokens.filter((tok) => tok.length > 1 && rightTokens.includes(tok));
+
+  // Genuine set intersection of distinct tokens (length > 1) — multiplicity
+  // on either side must never skew the count. See the doc comment above.
+  const leftTokenSet = new Set(leftTokens.filter((tok) => tok.length > 1));
+  const rightTokenSet = new Set(rightTokens.filter((tok) => tok.length > 1));
+  let sharedTokenCount = 0;
+  for (const tok of leftTokenSet) {
+    if (rightTokenSet.has(tok)) sharedTokenCount++;
+  }
+
   const leadingTokenShared = leftTokens[0]!.length > 1 && leftTokens[0] === rightTokens[0];
+  const tokenSpan = Math.max(leftTokens.length, rightTokens.length);
 
   let tokenScore = 0;
   if (leadingTokenShared) {
     // The given name matches — strong evidence on its own, plus a small bonus
     // if other tokens (e.g. the surname too) also match.
-    tokenScore = 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length));
-  } else if (shared.length > 0) {
+    tokenScore = LEADING_MATCH_BASE + SHARED_TOKEN_BONUS_WEIGHT * (sharedTokenCount / tokenSpan);
+  } else if (sharedTokenCount > 0) {
     // Only a trailing token (surname) matches — weak evidence, capped well
-    // below the 0.8 merge threshold on purpose.
-    tokenScore = 0.4 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length));
+    // below the 0.8 merge threshold on purpose (see SHARED_TOKEN_BONUS_WEIGHT).
+    tokenScore = TRAILING_MATCH_BASE + SHARED_TOKEN_BONUS_WEIGHT * (sharedTokenCount / tokenSpan);
   }
 
   return Math.max(tokenScore, diceCoefficient(left, right));
