@@ -7,6 +7,7 @@ import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
 import { assertGroupAccess, isGroupAdmin } from '../access.js';
 import { logActivity } from '../services/activity.js';
+import { getGroupBalances } from '../services/balance-service.js';
 
 async function groupIdForMember(ctx: { prisma: PrismaClient }, memberId: string) {
   const member = await ctx.prisma.member.findUnique({
@@ -390,6 +391,72 @@ export const memberRouter = router({
       });
 
       return { merged: true, targetMemberId: target.id };
+    }),
+
+  /**
+   * What `merge` would do, without doing it. Blocking transfers are RETURNED
+   * rather than thrown so the dialog can explain the refusal in place.
+   */
+  mergePreview: protectedProcedure
+    .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [source, target] = await Promise.all([
+        ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),
+        ctx.prisma.member.findUnique({ where: { id: input.targetMemberId } }),
+      ]);
+      if (!source || !target || source.groupId !== target.groupId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      }
+      await assertGroupAccess(ctx.prisma, ctx.user, source.groupId);
+
+      const group = await ctx.prisma.group.findUniqueOrThrow({
+        where: { id: source.groupId },
+        select: { baseCurrency: true },
+      });
+
+      const transactionIds = new Set<string>();
+      for (const row of await ctx.prisma.transactionPayer.findMany({
+        where: { memberId: source.id },
+        select: { transactionId: true },
+      })) {
+        transactionIds.add(row.transactionId);
+      }
+      for (const row of await ctx.prisma.transactionSplit.findMany({
+        where: { memberId: source.id },
+        select: { transactionId: true },
+      })) {
+        transactionIds.add(row.transactionId);
+      }
+
+      const { balances } = await getGroupBalances(ctx.prisma, source.groupId);
+      const balanceById = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
+      const moving = balanceById.get(source.id) ?? 0;
+      const current = balanceById.get(target.id) ?? 0;
+
+      const blockingTransfers = await ctx.prisma.transaction.findMany({
+        where: {
+          groupId: source.groupId,
+          type: 'TRANSFER',
+          OR: [
+            { fromMemberId: source.id, toMemberId: target.id },
+            { fromMemberId: target.id, toMemberId: source.id },
+          ],
+        },
+        select: { id: true, title: true },
+      });
+
+      return {
+        sourceName: source.displayName,
+        targetName: target.displayName,
+        transactionCount: transactionIds.size,
+        movingBalanceMinorUnits: moving,
+        // Balances are additive across a merge for same-currency groups; a
+        // cross-currency group may land ±1 minor unit off (see the plan's
+        // Global Constraints), so this is a preview, not a guarantee.
+        resultingBalanceMinorUnits: current + moving,
+        baseCurrency: group.baseCurrency,
+        blockingTransfers,
+      };
     }),
 
   /** @deprecated Per-member bank details are legacy; the web app now stores the account on the User (spec 2026-07-09). Kept for mobile/back-compat and as a read fallback in generateSpayd. */

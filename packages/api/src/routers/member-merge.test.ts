@@ -533,3 +533,54 @@ describe('member.merge role and isActive', () => {
     expect(merged.isActive).toBe(true);
   });
 });
+
+describe('member.mergePreview', () => {
+  test('reports what will move and the resulting balance', async () => {
+    const { caller, group, creator, marek, jana } = await seed();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Chata',
+      currency: 'CZK',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: creator.id, amountMinorUnits: 90000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: creator.id }, { memberId: marek.id }, { memberId: jana.id }],
+      },
+    });
+
+    const preview = await caller.member.mergePreview({
+      sourceMemberId: jana.id,
+      targetMemberId: marek.id,
+    });
+
+    expect(preview.sourceName).toBe('Jana');
+    expect(preview.targetName).toBe('Marek');
+    expect(preview.transactionCount).toBe(1);
+    expect(preview.movingBalanceMinorUnits).toBe(-30000);
+    expect(preview.resultingBalanceMinorUnits).toBe(-60000);
+    expect(preview.baseCurrency).toBe('CZK');
+    expect(preview.blockingTransfers).toEqual([]);
+  });
+
+  test('surfaces blocking transfers instead of throwing', async () => {
+    const { caller, group, marek, jana } = await seed();
+    // `note` becomes the transaction's title — recordTransfer has no `title`.
+    await caller.transaction.recordTransfer({
+      groupId: group.id,
+      fromMemberId: jana.id,
+      toMemberId: marek.id,
+      amountMinorUnits: 50000,
+      currency: 'CZK',
+      date: new Date('2026-06-23'),
+      note: 'Vyrovnání',
+    });
+
+    const preview = await caller.member.mergePreview({
+      sourceMemberId: jana.id,
+      targetMemberId: marek.id,
+    });
+    expect(preview.blockingTransfers).toHaveLength(1);
+    expect(preview.blockingTransfers[0]!.title).toBe('Vyrovnání');
+  });
+});
