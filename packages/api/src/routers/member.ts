@@ -1,7 +1,7 @@
 /** Member management (PRD §4.2). */
 import { z } from 'zod';
 import { deriveInitials, colorForIndex, isValidIban, normalizeIban } from '@evenup/core';
-import type { PrismaClient } from '@evenup/db';
+import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
@@ -15,6 +15,25 @@ async function groupIdForMember(ctx: { prisma: PrismaClient }, memberId: string)
   });
   if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
   return member.groupId;
+}
+
+/** Sum two nullable numeric columns, staying null only when both sides are null. */
+function sumNullable(a: number | null, b: number | null): number | null {
+  return a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+}
+
+function sumNullableBigInt(a: bigint | null, b: bigint | null): bigint | null {
+  return a === null && b === null ? null : (a ?? 0n) + (b ?? 0n);
+}
+
+function sumNullableDecimal(
+  a: Prisma.Decimal | null,
+  b: Prisma.Decimal | null,
+): Prisma.Decimal | null {
+  if (a === null && b === null) return null;
+  if (a === null) return b;
+  if (b === null) return a;
+  return a.add(b);
 }
 
 export const memberRouter = router({
@@ -169,6 +188,130 @@ export const memberRouter = router({
             .join(', ')}`,
         });
       }
+
+      await ctx.prisma.$transaction(async (tx) => {
+        // --- Payers: unique on [transactionId, memberId], so a shared
+        // transaction means summing rather than repointing.
+        const [sourcePayers, targetPayers] = await Promise.all([
+          tx.transactionPayer.findMany({ where: { memberId: source.id } }),
+          tx.transactionPayer.findMany({ where: { memberId: target.id } }),
+        ]);
+        const targetPayerByTxn = new Map(targetPayers.map((p) => [p.transactionId, p]));
+        for (const sp of sourcePayers) {
+          const tp = targetPayerByTxn.get(sp.transactionId);
+          if (tp) {
+            await tx.transactionPayer.update({
+              where: { id: tp.id },
+              data: { amountMinorUnits: tp.amountMinorUnits + sp.amountMinorUnits },
+            });
+            await tx.transactionPayer.delete({ where: { id: sp.id } });
+          } else {
+            await tx.transactionPayer.update({
+              where: { id: sp.id },
+              data: { memberId: target.id },
+            });
+          }
+        }
+
+        // --- Splits: same constraint. Both rows share the transaction's
+        // SplitType, so the same nullable columns are populated on both.
+        const [sourceSplits, targetSplits] = await Promise.all([
+          tx.transactionSplit.findMany({ where: { memberId: source.id } }),
+          tx.transactionSplit.findMany({ where: { memberId: target.id } }),
+        ]);
+        const targetSplitByTxn = new Map(targetSplits.map((s) => [s.transactionId, s]));
+        for (const ss of sourceSplits) {
+          const ts = targetSplitByTxn.get(ss.transactionId);
+          if (ts) {
+            await tx.transactionSplit.update({
+              where: { id: ts.id },
+              data: {
+                computedMinorUnits: ts.computedMinorUnits + ss.computedMinorUnits,
+                exactMinorUnits: sumNullableBigInt(ts.exactMinorUnits, ss.exactMinorUnits),
+                shareWeight: sumNullable(ts.shareWeight, ss.shareWeight),
+                percentage: sumNullableDecimal(ts.percentage, ss.percentage),
+              },
+            });
+            await tx.transactionSplit.delete({ where: { id: ss.id } });
+          } else {
+            await tx.transactionSplit.update({
+              where: { id: ss.id },
+              data: { memberId: target.id },
+            });
+          }
+        }
+
+        // --- Receipt item assignments: composite PK [receiptItemId, memberId].
+        // A shared item just means the source row is redundant.
+        const sourceAssignments = await tx.itemAssignment.findMany({
+          where: { memberId: source.id },
+        });
+        for (const sa of sourceAssignments) {
+          const existing = await tx.itemAssignment.findUnique({
+            where: {
+              receiptItemId_memberId: {
+                receiptItemId: sa.receiptItemId,
+                memberId: target.id,
+              },
+            },
+          });
+          if (existing) {
+            await tx.itemAssignment.delete({
+              where: {
+                receiptItemId_memberId: {
+                  receiptItemId: sa.receiptItemId,
+                  memberId: source.id,
+                },
+              },
+            });
+          } else {
+            await tx.itemAssignment.update({
+              where: {
+                receiptItemId_memberId: {
+                  receiptItemId: sa.receiptItemId,
+                  memberId: source.id,
+                },
+              },
+              data: { memberId: target.id },
+            });
+          }
+        }
+
+        // --- Transfers. Any transfer BETWEEN the pair was already rejected in
+        // preflight, so nothing here can become a self-transfer.
+        await tx.transaction.updateMany({
+          where: { fromMemberId: source.id },
+          data: { fromMemberId: target.id },
+        });
+        await tx.transaction.updateMany({
+          where: { toMemberId: source.id },
+          data: { toMemberId: target.id },
+        });
+
+        // --- Bank details: memberId is unique, so the target's own row wins.
+        const [sourceBank, targetBank] = await Promise.all([
+          tx.bankDetail.findUnique({ where: { memberId: source.id } }),
+          tx.bankDetail.findUnique({ where: { memberId: target.id } }),
+        ]);
+        if (sourceBank && !targetBank) {
+          await tx.bankDetail.update({
+            where: { memberId: source.id },
+            data: { memberId: target.id },
+          });
+        }
+
+        // --- The surviving member keeps its own identity but gains the link.
+        await tx.member.update({
+          where: { id: target.id },
+          data: { userId: target.userId ?? source.userId },
+        });
+        await tx.member.delete({ where: { id: source.id } });
+      });
+
+      await logActivity(ctx.prisma, source.groupId, ctx.user.id, 'member.merged', {
+        from: source.displayName,
+        into: target.displayName,
+      });
 
       return { merged: true, targetMemberId: target.id };
     }),

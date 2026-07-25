@@ -1,6 +1,6 @@
 /** member.merge — authorization, preflight refusals (spec 2026-07-25). */
 import { beforeEach, describe, expect, test } from 'vitest';
-import { makeCaller, createTestUser, resetDb } from '../test/harness.js';
+import { makeCaller, createTestUser, resetDb, testPrisma } from '../test/harness.js';
 
 beforeEach(resetDb);
 
@@ -120,5 +120,115 @@ describe('member.merge preflight', () => {
     await expect(
       caller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
     ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+  });
+});
+
+describe('member.merge data movement', () => {
+  test('balances are preserved exactly and the source member is gone', async () => {
+    const { caller, group, creator, marek, jana } = await seed();
+    // Creator pays 900, split equally across all three.
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Chata',
+      currency: 'CZK',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: creator.id, amountMinorUnits: 90000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: creator.id }, { memberId: marek.id }, { memberId: jana.id }],
+      },
+    });
+
+    const before = await caller.balance.get({ groupId: group.id });
+    const byId = new Map(before.balances.map((b) => [b.memberId, b.balanceMinorUnits]));
+    const expected = byId.get(marek.id)! + byId.get(jana.id)!;
+
+    await caller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id });
+
+    const after = await caller.balance.get({ groupId: group.id });
+    const afterById = new Map(after.balances.map((b) => [b.memberId, b.balanceMinorUnits]));
+    expect(afterById.get(marek.id)).toBe(expected);
+    expect(afterById.has(jana.id)).toBe(false);
+    expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
+
+    // The group still nets to zero.
+    const total = after.balances.reduce((sum, b) => sum + b.balanceMinorUnits, 0);
+    expect(total).toBe(0);
+  });
+
+  test('when both members are in the same expense their shares are summed', async () => {
+    const { caller, group, creator, marek, jana } = await seed();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Večeře',
+      currency: 'CZK',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: creator.id, amountMinorUnits: 60000 }],
+      split: {
+        type: 'EXACT',
+        members: [
+          { memberId: creator.id, exactMinorUnits: 10000 },
+          { memberId: marek.id, exactMinorUnits: 20000 },
+          { memberId: jana.id, exactMinorUnits: 30000 },
+        ],
+      },
+    });
+
+    await caller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id });
+
+    const splits = await testPrisma.transactionSplit.findMany({
+      where: { memberId: marek.id },
+    });
+    expect(splits).toHaveLength(1);
+    expect(Number(splits[0]!.computedMinorUnits)).toBe(50000);
+
+    // The expense's splits still sum to its total.
+    const all = await testPrisma.transactionSplit.findMany({
+      where: { transactionId: splits[0]!.transactionId },
+    });
+    const sum = all.reduce((acc, s) => acc + Number(s.computedMinorUnits), 0);
+    expect(sum).toBe(60000);
+  });
+
+  test('when both members paid the same expense their payments are summed', async () => {
+    const { caller, group, creator, marek, jana } = await seed();
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Benzín',
+      currency: 'CZK',
+      date: new Date('2026-06-22'),
+      payers: [
+        { memberId: marek.id, amountMinorUnits: 40000 },
+        { memberId: jana.id, amountMinorUnits: 20000 },
+      ],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: creator.id }, { memberId: marek.id }, { memberId: jana.id }],
+      },
+    });
+
+    await caller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id });
+
+    const payers = await testPrisma.transactionPayer.findMany({ where: { memberId: marek.id } });
+    expect(payers).toHaveLength(1);
+    expect(Number(payers[0]!.amountMinorUnits)).toBe(60000);
+  });
+
+  test('the target inherits the source account link and keeps its own name', async () => {
+    const { caller, group, marek } = await seed();
+    const { user, member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+
+    await caller.member.merge({ sourceMemberId: newcomer.id, targetMemberId: marek.id });
+
+    const merged = await testPrisma.member.findUniqueOrThrow({ where: { id: marek.id } });
+    expect(merged.userId).toBe(user.id);
+    expect(merged.displayName).toBe('Marek');
+  });
+
+  test('records a member.merged activity entry', async () => {
+    const { caller, group, marek, jana } = await seed();
+    await caller.member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id });
+    const logs = await testPrisma.activityLog.findMany({ where: { groupId: group.id } });
+    expect(logs.map((l) => l.action)).toContain('member.merged');
   });
 });
