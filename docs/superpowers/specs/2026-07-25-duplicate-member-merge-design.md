@@ -164,11 +164,14 @@ after the fact, so it is bounded by the same trust.
 1. Both members exist and share `groupId`; `source !== target`.
 2. `CONFLICT` if `source.userId && target.userId && source.userId !== target.userId`
    — two real accounts must not be silently collapsed.
-3. **Self-transfer check.** Any `Transaction` with `type: TRANSFER` where
-   `{transferFromId, transferToId}` is the pair in either order would become a
+3. **Self-transfer check.** Any `Transaction` with `type: TRANSFER` whose
+   `{fromMemberId, toMemberId}` is the pair in either order would become a
    payment from a person to themselves. Rather than destroy a money record we
-   `PRECONDITION_FAILED` and **name the offending transactions** (id + date +
-   amount) so the admin resolves them first.
+   `PRECONDITION_FAILED` and **name the offending transactions** (id + title +
+   date + amount) so the admin resolves them first.
+
+   (The columns are `fromMemberId` / `toMemberId`; `TransferFrom` / `TransferTo`
+   are only the Prisma *relation* names.)
 
 ### B4. The merge — one `$transaction`, driven by the uniqueness constraints
 
@@ -187,7 +190,7 @@ treat the missing side as 0.
 
 Also in the same transaction:
 
-- `transferFromId` / `transferToId` repointed from source to target
+- `fromMemberId` / `toMemberId` repointed from source to target
   (self-transfers already excluded by B3).
 - `BankDetail`: moved to target only if target has none; otherwise source's is
   dropped (`memberId` is `@unique`).
