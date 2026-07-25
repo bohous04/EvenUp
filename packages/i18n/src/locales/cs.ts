@@ -47,6 +47,7 @@ export const cs = {
   'errors.noSharedKey': 'Není nastaven sdílený OpenRouter klíč; požádejte administrátora.',
   'errors.ocrNoAccess':
     'Přidejte svůj OpenRouter API klíč v nastavení, nebo požádejte administrátora o VIP přístup.',
+  'errors.noScansRemaining': 'Nemáte žádné skeny. Předplaťte si VIP nebo dokupte kredit.',
   'errors.inviteNotFound': 'Pozvánka nenalezena',
   'errors.inviteExpired': 'Platnost pozvánky vypršela',
   'errors.inviteLimitReached': 'Byl dosažen limit použití pozvánky',
