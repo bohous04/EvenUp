@@ -47,3 +47,24 @@ export async function assertGroupAdmin(
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
   }
 }
+
+/**
+ * Non-throwing admin check, for call sites that branch on the answer rather
+ * than refusing outright (e.g. member.merge, where a non-admin still has a
+ * narrower legitimate path).
+ */
+export async function isGroupAdmin(
+  prisma: PrismaClient,
+  user: AuthUser,
+  groupId: string,
+): Promise<boolean> {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: {
+      createdById: true,
+      members: { where: { userId: user.id, role: 'ADMIN' }, select: { id: true } },
+    },
+  });
+  if (!group) return false;
+  return group.createdById === user.id || group.members.length > 0;
+}

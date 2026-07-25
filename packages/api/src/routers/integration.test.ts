@@ -302,6 +302,57 @@ describe('invite claim (FR-1.3, FR-2.5)', () => {
     expect(oliviaForPetr.user).not.toBeNull();
     expect(oliviaForPetr.user?.email).toBeNull();
   });
+
+  test('claimOptions returns unclaimed members with their balances, and requires auth', async () => {
+    const { caller, group, members } = await seedGroupWithMembers();
+    // Olivia pays 900 CZK split equally three ways -> Petr owes 300.00.
+    await caller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Chata',
+      currency: 'CZK',
+      date: new Date('2026-06-22'),
+      payers: [{ memberId: members.olivia.id, amountMinorUnits: 90000 }],
+      split: {
+        type: 'EQUAL',
+        members: [
+          { memberId: members.olivia.id },
+          { memberId: members.petr.id },
+          { memberId: members.jana.id },
+        ],
+      },
+    });
+    const invite = await caller.invite.create({ groupId: group.id });
+
+    // Unauthenticated callers are refused — balances must not leak to a bare token holder.
+    await expect(
+      makeCaller(null).invite.claimOptions({ token: invite.token }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+
+    const petrUser = await createTestUser('petr@example.com');
+    const options = await makeCaller(petrUser).invite.claimOptions({ token: invite.token });
+
+    expect(options.groupName).toBe('Tatry 2026');
+    expect(options.baseCurrency).toBe('CZK');
+    const petr = options.members.find((m) => m.id === members.petr.id)!;
+    expect(petr.balanceMinorUnits).toBe(-30000);
+    expect(petr.displayName).toBe('Petr Svoboda');
+
+    // Olivia's member is already linked to a user, so it is not offered.
+    expect(options.members.map((m) => m.id)).not.toContain(members.olivia.id);
+  });
+
+  test('claimOptions rejects an expired invite', async () => {
+    const { caller, group } = await seedGroupWithMembers();
+    const invite = await caller.invite.create({ groupId: group.id, expiresInDays: 1 });
+    await testPrisma.invite.update({
+      where: { id: invite.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const petrUser = await createTestUser('petr@example.com');
+    await expect(
+      makeCaller(petrUser).invite.claimOptions({ token: invite.token }),
+    ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+  });
 });
 
 describe('OCR (mocked OpenRouter, no live calls)', () => {

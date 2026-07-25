@@ -94,3 +94,123 @@ export function colorForKey(key: string): MemberColor {
   }
   return colorForIndex(Math.abs(hash));
 }
+
+/**
+ * Fold a display name to a comparable form: lowercase, diacritics stripped,
+ * punctuation reduced to spaces, whitespace collapsed. Czech names differ from
+ * their ASCII spellings only by diacritics ("Tomáš" / "Tomas"), and an
+ * email-derived name arrives punctuated ("jan.novak"), so both must fold to the
+ * same key before any comparison.
+ */
+export function normalizeForMatch(name: string): string {
+  return name
+    .normalize('NFD')
+    // U+0300–U+036F: the combining diacritical marks NFD just split off.
+    // Written as escapes on purpose — literal combining characters are
+    // invisible in source and get mangled by copy-paste.
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/** Dice coefficient over character bigrams; 1 = identical, 0 = nothing shared. */
+function diceCoefficient(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigrams = new Map<string, number>();
+  for (let i = 0; i < a.length - 1; i++) {
+    const g = a.slice(i, i + 2);
+    bigrams.set(g, (bigrams.get(g) ?? 0) + 1);
+  }
+  let hits = 0;
+  for (let i = 0; i < b.length - 1; i++) {
+    const g = b.slice(i, i + 2);
+    const count = bigrams.get(g) ?? 0;
+    if (count > 0) {
+      bigrams.set(g, count - 1);
+      hits++;
+    }
+  }
+  return (2 * hits) / (a.length - 1 + (b.length - 1));
+}
+
+/** Base credit for a leading-token (given-name) match — strong evidence alone. */
+const LEADING_MATCH_BASE = 0.8;
+
+/** Base credit for a trailing-token-only (surname-only) match — weak evidence alone. */
+const TRAILING_MATCH_BASE = 0.4;
+
+/**
+ * Extra credit per the fraction of tokens that overlap beyond the deciding
+ * one. Bounded (0–1 fraction) so it can add at most this much on top of a
+ * base score. That bound is load-bearing: TRAILING_MATCH_BASE +
+ * SHARED_TOKEN_BONUS_WEIGHT = 0.4 + 0.2 = 0.6 for ALL inputs, which is what
+ * keeps a surname-only match (see nameSimilarity's doc comment) safely below
+ * the 0.8 duplicate-merge threshold. Do not raise either constant without
+ * re-checking that 0.6 ceiling.
+ */
+const SHARED_TOKEN_BONUS_WEIGHT = 0.2;
+
+/**
+ * How likely two display names refer to the same person, 0–1.
+ *
+ * Whole-string similarity alone scores "Marek" against "Marek Novák" poorly
+ * (the surname is pure noise), yet that is the single most common duplicate
+ * shape: `invite.claim` derives the new member's name from the account name or
+ * the email local-part, which is usually just the given name (or a full name
+ * whose given name leads). So a match on the *leading* token — "marek" is
+ * token 0 of both "marek" and "marek novak" — counts as strong evidence on
+ * its own.
+ *
+ * A match on a *trailing* token only (e.g. both names end in "novak") is
+ * deliberately weak evidence instead of strong: Czech surnames like Novák,
+ * Svoboda and Dvořák are shared by huge numbers of unrelated people, so two
+ * different first names with the same surname ("Jan Novák" vs "Petr Novák")
+ * must NOT clear the 0.8 duplicate-merge threshold (see SHARED_TOKEN_BONUS_WEIGHT
+ * above for why that holds structurally). Do not special-case specific
+ * surnames to fix false positives here — the leading-vs-trailing position is
+ * what carries the signal, structurally, for any name.
+ *
+ * Pure and symmetric: nameSimilarity(a, b) === nameSimilarity(b, a) for all
+ * inputs (see the property test). Token overlap is counted as a *set*
+ * intersection rather than per-occurrence membership specifically to keep
+ * that symmetry — a naive `leftTokens.filter(tok => rightTokens.includes(tok))`
+ * counts a token repeated on one side once per occurrence while the same
+ * repetition on the other side counts once, which is asymmetric.
+ */
+export function nameSimilarity(a: string, b: string): number {
+  const left = normalizeForMatch(a);
+  const right = normalizeForMatch(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+
+  const leftTokens = left.split(' ');
+  const rightTokens = right.split(' ');
+
+  // Genuine set intersection of distinct tokens (length > 1) — multiplicity
+  // on either side must never skew the count. See the doc comment above.
+  const leftTokenSet = new Set(leftTokens.filter((tok) => tok.length > 1));
+  const rightTokenSet = new Set(rightTokens.filter((tok) => tok.length > 1));
+  let sharedTokenCount = 0;
+  for (const tok of leftTokenSet) {
+    if (rightTokenSet.has(tok)) sharedTokenCount++;
+  }
+
+  const leadingTokenShared = leftTokens[0]!.length > 1 && leftTokens[0] === rightTokens[0];
+  const tokenSpan = Math.max(leftTokens.length, rightTokens.length);
+
+  let tokenScore = 0;
+  if (leadingTokenShared) {
+    // The given name matches — strong evidence on its own, plus a small bonus
+    // if other tokens (e.g. the surname too) also match.
+    tokenScore = LEADING_MATCH_BASE + SHARED_TOKEN_BONUS_WEIGHT * (sharedTokenCount / tokenSpan);
+  } else if (sharedTokenCount > 0) {
+    // Only a trailing token (surname) matches — weak evidence, capped well
+    // below the 0.8 merge threshold on purpose (see SHARED_TOKEN_BONUS_WEIGHT).
+    tokenScore = TRAILING_MATCH_BASE + SHARED_TOKEN_BONUS_WEIGHT * (sharedTokenCount / tokenSpan);
+  }
+
+  return Math.max(tokenScore, diceCoefficient(left, right));
+}

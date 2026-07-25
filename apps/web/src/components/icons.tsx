@@ -50,6 +50,7 @@ import {
   Sparkles,
   Copy,
   Share2,
+  Merge,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -157,5 +158,6 @@ export {
   Sparkles,
   Copy,
   Share2,
+  Merge,
 };
 export type { LucideIcon };

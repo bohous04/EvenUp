@@ -8,6 +8,7 @@ import { Button, Card, SectionLabel, iconButtonClass } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { MemberList } from '@/components/member-list';
+import { DuplicateBanner } from '@/components/merge-members';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { EditTransferSheet } from '@/components/edit-transfer-sheet';
@@ -186,6 +187,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       </div>
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+
+      <DuplicateBanner groupId={groupId} />
 
       <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 

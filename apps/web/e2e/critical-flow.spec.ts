@@ -568,10 +568,15 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
 
-    // Open the inline editor for Petr (the pencil's accessible name carries the
-    // member name), clear it, and rename to "Pavel".
+    // Open the inline editor for Petr, clear it, and rename to "Pavel". Each
+    // row now carries both a merge and an edit action whose accessible names
+    // include the member, so target the row first and then the edit control.
     const memberList = page.getByTestId('member-list');
-    await memberList.getByRole('button', { name: /Petr/ }).click();
+    await memberList
+      .locator('li')
+      .filter({ hasText: 'Petr' })
+      .getByTestId(/^member-edit-/)
+      .click();
     const editor = page.getByTestId('member-rename-input');
     await editor.fill('Pavel');
     await page.getByTestId('member-rename-save').click();
@@ -582,7 +587,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(memberList.getByRole('img', { name: 'Petr' })).toHaveCount(0);
 
     // Escape cancels an edit without changing the name.
-    await memberList.getByRole('button', { name: /Pavel/ }).click();
+    await memberList
+      .locator('li')
+      .filter({ hasText: 'Pavel' })
+      .getByTestId(/^member-edit-/)
+      .click();
     await page.getByTestId('member-rename-input').fill('Zmeneno');
     await page.getByTestId('member-rename-input').press('Escape');
     await expect(memberList.getByText('Pavel')).toBeVisible();
@@ -737,5 +746,162 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await openGroupSheet(page, 'stats');
     await expect(page.getByTestId('spend-stats').getByText(/Ostatní|Other/)).toBeVisible();
     await expect(page.getByTestId('spend-stats').getByText('Pivo')).toHaveCount(0);
+  });
+
+  /**
+   * The duplicate-member bug: an invitee who is already in the group as a
+   * virtual member creates a second account instead of claiming the first,
+   * stranding that member's debts on an orphan nobody owns.
+   */
+  test('invitee claims the member that already holds their debt', async ({ page }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('debt-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Chata');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Chata').click();
+
+    // A virtual member who will owe money once the expense lands.
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('900');
+    await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('add-expense-submit').click();
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    const invitee = uniqueEmail('marek', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+
+    // Marek's row is the primary action and states what he owes, so he can
+    // recognise himself rather than reaching for "I'm not on the list".
+    const marekRow = page.getByTestId(/^invite-member-/).filter({ hasText: 'Marek' });
+    await expect(marekRow).toBeVisible();
+    await expect(marekRow).toContainText(/450/);
+
+    await marekRow.click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+    await expect(page.getByText('Chata')).toBeVisible();
+  });
+
+  test('creating a new account is gated behind a confirmation listing the unclaimed names', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('confirm-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Potvrzení');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Potvrzení').click();
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    const invitee = uniqueEmail('novak', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Novák', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+
+    // The escape hatch no longer mutates on the first click.
+    await page.getByTestId('invite-join-new').click();
+    const dialog = page.getByTestId('invite-confirm-new-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Marek');
+    await expect(page).toHaveURL(/\/invite\//);
+
+    // Backing out returns to the list without creating anything.
+    await page.getByTestId('invite-confirm-back').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/invite\//);
+
+    // Confirming deliberately still works — a genuinely new person is not locked out.
+    await page.getByTestId('invite-join-new').click();
+    await page.getByTestId('invite-confirm-new-cta').click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+    await expect(page.getByText('Potvrzení')).toBeVisible();
+  });
+
+  test('an accidental duplicate can be merged back into the placeholder', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('merge-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Sloučení');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Sloučení').click();
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('900');
+    await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('add-expense-submit').click();
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Marek ignores the nudge and creates a second account anyway.
+    const invitee = uniqueEmail('marek-dup', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+    await page.getByTestId('invite-join-new').click();
+    await page.getByTestId('invite-confirm-new-cta').click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+
+    // The owner is offered the repair and takes it.
+    await page.context().clearCookies();
+    await signIn(page, owner);
+    await page.getByText('Sloučení').click();
+    await expect(page.getByTestId('merge-banner')).toBeVisible();
+    await page.getByTestId('merge-banner-confirm').click();
+
+    // The dialog shows the arithmetic before anything is destroyed. The
+    // duplicate itself is empty, so what matters is the balance the survivor
+    // ends up owning — the placeholder's stranded 450.
+    const dialog = page.getByTestId('merge-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(/450/);
+    await expect(dialog).toContainText('Marek');
+
+    await page.getByTestId('merge-confirm').click();
+    await expect(page.getByTestId('merge-banner')).toHaveCount(0);
   });
 });
