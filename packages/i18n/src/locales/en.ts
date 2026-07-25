@@ -150,6 +150,7 @@ export const en: Messages = {
   'merge.bannerDismiss': 'Not the same',
   'merge.action': 'Merge into…',
   'merge.summary': '{count} transactions and a balance of {amount} move to {target}.',
+  'merge.resulting': '{target} then owns a balance of {amount}.',
   'merge.willDelete': '{source} will be deleted.',
   'merge.blocked': 'Resolve the transfer between these members first: {titles}',
   'merge.confirm': 'Merge',

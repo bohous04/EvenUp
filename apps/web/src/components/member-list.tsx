@@ -151,6 +151,7 @@ export function MemberList({ groupId, members }: { groupId: string; members: Mem
                     aria-label={`${t('common.edit')} — ${m.displayName}`}
                     title={t('common.edit')}
                     className={iconButton}
+                    data-testid={`member-edit-${m.id}`}
                   >
                     <Pencil size={16} aria-hidden />
                   </button>

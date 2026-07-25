@@ -153,6 +153,7 @@ export const cs = {
   'merge.bannerDismiss': 'Není',
   'merge.action': 'Sloučit do…',
   'merge.summary': 'Přesune se {count} transakcí a zůstatek {amount} na {target}.',
+  'merge.resulting': '{target} pak bude mít zůstatek {amount}.',
   'merge.willDelete': '{source} bude smazán(a).',
   'merge.blocked': 'Nejdřív vyřeš převod mezi těmito členy: {titles}',
   'merge.confirm': 'Sloučit',

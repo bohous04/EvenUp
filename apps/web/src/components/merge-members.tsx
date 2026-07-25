@@ -111,6 +111,19 @@ export function MergeDialog({
                   target: preview.data.targetName,
                 })}
               </p>
+              {/* In the canonical case the duplicate is empty, so `merge.summary`
+                  alone reads "0 transactions, 0 Kč move" — as if nothing happens.
+                  The number that actually matters is what the survivor ends up
+                  owning, which is the placeholder's stranded debt. */}
+              <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {t('merge.resulting', {
+                  target: preview.data.targetName,
+                  amount: formatCurrency(
+                    preview.data.resultingBalanceMinorUnits,
+                    preview.data.baseCurrency,
+                  ).replace(/ /g, ' '),
+                })}
+              </p>
               <p className="mb-4 text-sm font-semibold">
                 {t('merge.willDelete', { source: preview.data.sourceName })}
               </p>
