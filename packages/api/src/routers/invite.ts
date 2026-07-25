@@ -6,6 +6,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { assertGroupAdmin } from '../access.js';
 import { logActivity } from '../services/activity.js';
+import { getGroupBalances } from '../services/balance-service.js';
 
 export const inviteRouter = router({
   create: protectedProcedure
@@ -55,6 +56,44 @@ export const inviteRouter = router({
         })),
     };
   }),
+
+  /**
+   * The signed-in invitee's claim list: the same unclaimed members `preview`
+   * returns, plus each one's balance so the invitee recognises their own row.
+   *
+   * Deliberately NOT folded into `preview`: that one is public, and attaching
+   * balances there would expose the group's debts to anyone holding the token
+   * before they ever sign in.
+   */
+  claimOptions: protectedProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const invite = await ctx.prisma.invite.findUnique({
+        where: { token: input.token },
+        include: { group: { include: { members: true } } },
+      });
+      if (!invite) throw new TRPCError({ code: 'NOT_FOUND', message: 'Invite not found' });
+      if (invite.expiresAt && invite.expiresAt < new Date()) {
+        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Invite expired' });
+      }
+
+      const { balances } = await getGroupBalances(ctx.prisma, invite.groupId, invite.group);
+      const balanceById = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
+
+      return {
+        groupName: invite.group.name,
+        baseCurrency: invite.group.baseCurrency,
+        members: invite.group.members
+          .filter((m) => m.userId === null && m.isActive)
+          .map((m) => ({
+            id: m.id,
+            displayName: m.displayName,
+            initials: m.initials,
+            color: m.color,
+            balanceMinorUnits: balanceById.get(m.id) ?? 0,
+          })),
+      };
+    }),
 
   /** Claim an existing virtual member, or join as a new member. */
   claim: protectedProcedure
