@@ -116,6 +116,23 @@ describe('user.setBankAccount / clearBankAccount / me', () => {
   });
 });
 
+describe('user.setOcrConsent', () => {
+  beforeEach(resetDb);
+
+  it('grants consent (sets a timestamp) and revokes it back to null', async () => {
+    const user = await createTestUser('consent@example.com');
+    const caller = makeCaller(user);
+
+    await caller.user.setOcrConsent({ granted: true });
+    const granted = await testPrisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(granted.ocrConsentAt).not.toBeNull();
+
+    await caller.user.setOcrConsent({ granted: false });
+    const revoked = await testPrisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(revoked.ocrConsentAt).toBeNull();
+  });
+});
+
 describe('user.exportData', () => {
   beforeEach(resetDb);
 

@@ -388,8 +388,28 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     });
   }
 
+  /**
+   * Every scan below exercises behaviour *past* the consent gate (billing,
+   * storage, entitlement, etc.), so it grants consent directly rather than via
+   * the `user.setOcrConsent` mutation, which has its own dedicated test.
+   */
+  async function grantOcrConsent(userId: string): Promise<void> {
+    await testPrisma.user.update({ where: { id: userId }, data: { ocrConsentAt: new Date() } });
+  }
+
+  test('refuses to scan without OCR consent', async () => {
+    const olivia = await createTestUser('olivia@example.com');
+    const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
+    const group = await caller.group.create({ name: 'NoConsent', baseCurrency: 'CZK' });
+    await setInstanceKey();
+    await expect(
+      caller.ocr.scan({ groupId: group.id, imageDataUrl: 'data:image/png;base64,AAAA' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   test('scan extracts items using the shared instance key and stores the receipt (billing disabled)', async () => {
     const olivia = await createTestUser('olivia@example.com');
+    await grantOcrConsent(olivia.id);
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch() });
     const group = await caller.group.create({ name: 'G', baseCurrency: 'CZK' });
     await setInstanceKey();
@@ -405,6 +425,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
 
   test('scan with no shared instance key configured is rejected (manual entry remains available)', async () => {
     const olivia = await createTestUser('olivia@example.com');
+    await grantOcrConsent(olivia.id);
     const caller = makeCaller(olivia);
     const group = await caller.group.create({ name: 'G', baseCurrency: 'CZK' });
     await expect(
@@ -434,7 +455,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R', baseCurrency: 'CZK' });
     await setInstanceKey();
     // Receipt-photo storage is a VIP (comp) privilege.
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
     process.env.RECEIPT_RETENTION_DAYS = '0';
@@ -479,7 +503,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'RM', baseCurrency: 'CZK' });
     await setInstanceKey();
     // Receipt-photo storage is a VIP (comp) privilege.
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
     process.env.RECEIPT_RETENTION_DAYS = '0';
@@ -521,7 +548,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R2', baseCurrency: 'CZK' });
     await setInstanceKey();
     // Receipt-photo storage is a VIP (comp) privilege.
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const prevRetentionDays = process.env.RECEIPT_RETENTION_DAYS;
     process.env.RECEIPT_RETENTION_DAYS = '30';
@@ -562,7 +592,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const caller = makeCaller(olivia, { ocrFetch: makeOcrFetch(), objectStore: store });
     const group = await caller.group.create({ name: 'M', baseCurrency: 'CZK' });
     await setInstanceKey();
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const res = await caller.ocr.scan({
       groupId: group.id,
@@ -597,6 +630,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
   test('scan sends the file-parser plugin when a page is a PDF', async () => {
     const fetchImpl = makeOcrFetch();
     const olivia = await createTestUser('olivia@example.com');
+    await grantOcrConsent(olivia.id);
     const caller = makeCaller(olivia, { ocrFetch: fetchImpl });
     const group = await caller.group.create({ name: 'P', baseCurrency: 'CZK' });
     await setInstanceKey();
@@ -623,7 +657,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const group = await caller.group.create({ name: 'R3', baseCurrency: 'CZK' });
     await setInstanceKey();
     // VIP so the (throwing) storage path actually runs — proving best-effort.
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const res = await caller.ocr.scan({
       groupId: group.id,
@@ -660,7 +697,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     await makeCaller(admin).admin.setInstanceOpenRouterKey({ apiKey: 'sk-or-shared-key' });
 
     const vip = await createTestUser('vip@example.com');
-    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: vip.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
     const { puts, store } = collectingStore();
     const caller = makeCaller(vip, { ocrFetch: makeOcrFetch(), objectStore: store });
     const group = await caller.group.create({ name: 'VIP', baseCurrency: 'CZK' });
@@ -675,7 +715,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
 
   test('a VIP with no BYO key and no shared key is rejected', async () => {
     const vip = await createTestUser('vip@example.com');
-    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: vip.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
     const caller = makeCaller(vip, { ocrFetch: makeOcrFetch() });
     const group = await caller.group.create({ name: 'VIP2', baseCurrency: 'CZK' });
     await expect(
@@ -690,7 +733,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_x'; // enable billing/entitlement metering
     try {
       const user = await createTestUser('credit@example.com'); // not VIP, no subscription
-      await testPrisma.user.update({ where: { id: user.id }, data: { creditBalance: 1 } });
+      await testPrisma.user.update({
+        where: { id: user.id },
+        data: { creditBalance: 1, ocrConsentAt: new Date() },
+      });
       const { puts, store } = collectingStore();
       const caller = makeCaller(user, { ocrFetch: makeOcrFetch(), objectStore: store });
       const group = await caller.group.create({ name: 'Credit', baseCurrency: 'CZK' });
@@ -719,6 +765,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_x';
     try {
       const user = await createTestUser('unfunded@example.com');
+      await grantOcrConsent(user.id);
       const caller = makeCaller(user, { ocrFetch: makeOcrFetch() });
       const group = await caller.group.create({ name: 'Unfunded', baseCurrency: 'CZK' });
       await setInstanceKey();
@@ -737,7 +784,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_x';
     try {
       const user = await createTestUser('refund@example.com');
-      await testPrisma.user.update({ where: { id: user.id }, data: { creditBalance: 1 } });
+      await testPrisma.user.update({
+        where: { id: user.id },
+        data: { creditBalance: 1, ocrConsentAt: new Date() },
+      });
       await setInstanceKey();
 
       // A 5xx from OpenRouter makes extraction fail -> the reserved credit must
@@ -763,7 +813,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     await testPrisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
     await makeCaller(admin).admin.setInstanceOpenRouterKey({ apiKey: 'sk-or-shared-key' });
     const vip = await createTestUser('vip@example.com');
-    await testPrisma.user.update({ where: { id: vip.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: vip.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     // A 5xx from OpenRouter makes extraction fail -> UNPROCESSABLE_CONTENT (logged).
     const badFetch: FetchLike = async () => new Response('upstream error', { status: 500 });
@@ -782,6 +835,7 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
 
   it('rate-limits OCR scans per user (§9.2)', async () => {
     const user = await createTestUser();
+    await grantOcrConsent(user.id);
     const caller = makeCaller(user, { ocrRateLimit: { check: () => false } }); // always over the limit
     const group = await caller.group.create({ name: 'RL', baseCurrency: 'CZK' });
     await expect(
@@ -804,7 +858,10 @@ describe('OCR (mocked OpenRouter, no live calls)', () => {
     const petr = await caller.member.add({ groupId: group.id, displayName: 'Petr' });
     await setInstanceKey();
     // Receipt-photo storage is a VIP (comp) privilege.
-    await testPrisma.user.update({ where: { id: olivia.id }, data: { isVip: true } });
+    await testPrisma.user.update({
+      where: { id: olivia.id },
+      data: { isVip: true, ocrConsentAt: new Date() },
+    });
 
     const scanRes = await caller.ocr.scan({
       groupId: group.id,

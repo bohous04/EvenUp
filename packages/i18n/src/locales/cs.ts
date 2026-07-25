@@ -48,6 +48,8 @@ export const cs = {
   'errors.ocrNoAccess':
     'Přidejte svůj OpenRouter API klíč v nastavení, nebo požádejte administrátora o VIP přístup.',
   'errors.noScansRemaining': 'Nemáte žádné skeny. Předplaťte si VIP nebo dokupte kredit.',
+  'errors.ocrConsentRequired':
+    'Skenování účtenek vyžaduje váš souhlas s odesláním obrázku našemu poskytovateli OCR.',
   'errors.inviteNotFound': 'Pozvánka nenalezena',
   'errors.inviteExpired': 'Platnost pozvánky vypršela',
   'errors.inviteLimitReached': 'Byl dosažen limit použití pozvánky',

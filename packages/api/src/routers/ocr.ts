@@ -43,6 +43,22 @@ export const ocrRouter = router({
       const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
       await assertGroupAccess(ctx.prisma, ctx.user, groupId);
 
+      const user = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
+        select: { ocrModel: true, ocrConsentAt: true },
+      });
+
+      // Explicit, revocable consent gate (GDPR Art. 9): a receipt can disclose
+      // special-category data (e.g. a pharmacy purchase reveals health
+      // information) and is sent to a third-party AI provider, so this must be
+      // checked before anything else that spends money or calls out.
+      if (!user.ocrConsentAt) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Receipt scanning requires your consent to send the image to our OCR provider.',
+        });
+      }
+
       if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
         throw new TRPCError({
           code: 'TOO_MANY_REQUESTS',
@@ -53,10 +69,6 @@ export const ocrRouter = router({
       const group = await ctx.prisma.group.findUniqueOrThrow({
         where: { id: groupId },
         select: { baseCurrency: true },
-      });
-      const user = await ctx.prisma.user.findUniqueOrThrow({
-        where: { id: ctx.user.id },
-        select: { ocrModel: true },
       });
 
       // Entitlement (paid tiers) replaces the old BYO-key resolution: the

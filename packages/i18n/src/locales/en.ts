@@ -47,6 +47,8 @@ export const en: Messages = {
   'errors.noSharedKey': 'No shared OpenRouter key is configured; ask an admin.',
   'errors.ocrNoAccess': 'Add your OpenRouter API key in settings, or ask an admin for VIP access.',
   'errors.noScansRemaining': 'No scans remaining. Subscribe or buy credits to continue.',
+  'errors.ocrConsentRequired':
+    'Receipt scanning requires your consent to send the image to our OCR provider.',
   'errors.inviteNotFound': 'Invite not found',
   'errors.inviteExpired': 'Invite expired',
   'errors.inviteLimitReached': 'Invite usage limit reached',

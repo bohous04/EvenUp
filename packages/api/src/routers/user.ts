@@ -158,6 +158,22 @@ export const userRouter = router({
     return { ok: true };
   }),
 
+  /**
+   * Explicit consent to send receipt images to the OCR provider. Receipts can
+   * disclose special-category data under GDPR Art. 9 (e.g. a pharmacy
+   * purchase reveals health information) and are sent to a third-party AI
+   * provider, so this is opt-in and genuinely revocable rather than implied.
+   */
+  setOcrConsent: protectedProcedure
+    .input(z.object({ granted: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.user.update({
+        where: { id: ctx.user.id },
+        data: { ocrConsentAt: input.granted ? new Date() : null },
+      });
+      return { ok: true as const };
+    }),
+
   /** GDPR export of the user's personal data (FR-1.6). */
   exportData: protectedProcedure.query(async ({ ctx }) => {
     const [profile, groups, bankDetails] = await Promise.all([
