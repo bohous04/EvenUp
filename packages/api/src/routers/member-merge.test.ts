@@ -605,3 +605,53 @@ describe('member.mergePreview', () => {
     expect(preview.blockingTransfers[0]!.title).toBe('Vyrovnání');
   });
 });
+
+describe('member.duplicateCandidates', () => {
+  test('pairs a freshly joined member with a same-named unclaimed placeholder', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+
+    const candidates = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]!.sourceMemberId).toBe(newcomer.id);
+    expect(candidates[0]!.targetMemberId).toBe(marek.id);
+  });
+
+  test('does not pair members with unrelated names', async () => {
+    const { caller, group } = await seed();
+    await joinAsNew(group.id, caller, 'zdenek@example.com');
+    const candidates = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(candidates).toEqual([]);
+  });
+
+  test('returns nothing once every placeholder is claimed', async () => {
+    const { caller, group, marek, jana } = await seed();
+    await caller.member.remove({ memberId: jana.id });
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    await caller.member.merge({ sourceMemberId: newcomer.id, targetMemberId: marek.id });
+
+    const candidates = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(candidates).toEqual([]);
+  });
+
+  // The brief predates a fix to nameSimilarity: it originally scored ANY
+  // shared token as strong evidence, so two different people sharing a
+  // common Czech surname ("Jan Novák" vs "Petr Novák") scored 0.9 — as high
+  // as a true positive — which would have routinely proposed merging two
+  // different people's financial history. Pin the corrected behaviour: a
+  // surname-only match must stay below DUPLICATE_MATCH_THRESHOLD (0.8).
+  test('does not pair two different people who merely share a surname', async () => {
+    const { caller, group } = await seed();
+    await caller.member.add({ groupId: group.id, displayName: 'Jan Novák' });
+    await joinAsNew(group.id, caller, 'petr.novak@example.com');
+    // joinAsNew derives the newcomer's displayName from the email
+    // local-part via invite.claim, so this newcomer is "petr.novak".
+    // nameSimilarity folds punctuation before comparing, so "petr.novak" vs
+    // "Jan Novák" is exactly the surname-only case: leading tokens "petr" /
+    // "jan" differ, only the trailing "novak" token is shared — the same
+    // 0.588 score as "Petr Novák" vs "Jan Novák" in the brief's own table,
+    // safely below DUPLICATE_MATCH_THRESHOLD (0.8).
+    const candidates = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(candidates).toEqual([]);
+  });
+});

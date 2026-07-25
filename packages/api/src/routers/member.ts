@@ -1,6 +1,12 @@
 /** Member management (PRD §4.2). */
 import { z } from 'zod';
-import { deriveInitials, colorForIndex, isValidIban, normalizeIban } from '@evenup/core';
+import {
+  deriveInitials,
+  colorForIndex,
+  isValidIban,
+  normalizeIban,
+  nameSimilarity,
+} from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
@@ -41,6 +47,14 @@ function sumNullableDecimal(
   if (b === null) return a;
   return a.add(b);
 }
+
+/**
+ * Below this, two names are not the same person. Deliberately conservative —
+ * a false banner asking "is this the same person?" about two genuinely
+ * different people is worse than missing one, because the manual merge action
+ * covers whatever detection misses.
+ */
+const DUPLICATE_MATCH_THRESHOLD = 0.8;
 
 export const memberRouter = router({
   add: protectedProcedure.input(addMemberInput).mutation(async ({ ctx, input }) => {
@@ -391,6 +405,51 @@ export const memberRouter = router({
       });
 
       return { merged: true, targetMemberId: target.id };
+    }),
+
+  /**
+   * Claimed members that look like they duplicate an unclaimed placeholder.
+   *
+   * `invite.claim` derives a new member's name from the account name or the
+   * email local-part, so the duplicate usually carries a recognisable form of
+   * the placeholder's name — all three are compared.
+   */
+  duplicateCandidates: protectedProcedure
+    .input(z.object({ groupId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      const members = await ctx.prisma.member.findMany({
+        where: { groupId: input.groupId, isActive: true },
+        include: { user: { select: { name: true, email: true } } },
+      });
+
+      const unclaimed = members.filter((m) => m.userId === null);
+      if (unclaimed.length === 0) return [];
+
+      const candidates = [];
+      for (const claimed of members.filter((m) => m.userId !== null)) {
+        const aliases = [
+          claimed.displayName,
+          claimed.user?.name ?? '',
+          claimed.user?.email?.split('@')[0] ?? '',
+        ].filter(Boolean);
+
+        for (const placeholder of unclaimed) {
+          const score = Math.max(
+            ...aliases.map((alias) => nameSimilarity(alias, placeholder.displayName)),
+          );
+          if (score >= DUPLICATE_MATCH_THRESHOLD) {
+            candidates.push({
+              sourceMemberId: claimed.id,
+              sourceName: claimed.displayName,
+              targetMemberId: placeholder.id,
+              targetName: placeholder.displayName,
+              score,
+            });
+          }
+        }
+      }
+      return candidates.sort((a, b) => b.score - a.score);
     }),
 
   /**
