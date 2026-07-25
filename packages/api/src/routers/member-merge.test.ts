@@ -25,6 +25,17 @@ async function joinAsNew(groupId: string, caller: ReturnType<typeof makeCaller>,
   return { user, member };
 }
 
+/** Sign a user up (or reuse one) and have them claim a specific existing placeholder member. */
+async function claimPlaceholder(
+  groupId: string,
+  caller: ReturnType<typeof makeCaller>,
+  user: Awaited<ReturnType<typeof createTestUser>>,
+  memberId: string,
+) {
+  const invite = await caller.invite.create({ groupId });
+  return makeCaller(user).invite.claim({ token: invite.token, memberId });
+}
+
 describe('member.merge preflight', () => {
   test('refuses to merge a member into itself', async () => {
     const { caller, marek } = await seed();
@@ -68,9 +79,29 @@ describe('member.merge preflight', () => {
   test('a non-admin may not merge into a placeholder that is already claimed', async () => {
     const { caller, group, creator } = await seed();
     const { user, member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    // NOTE: `creator` is linked to a *different* account than `newcomer`, so
+    // this actually exercises the cross-account check, not the "already
+    // claimed" guard — see the next test for that branch.
     await expect(
       makeCaller(user).member.merge({ sourceMemberId: newcomer.id, targetMemberId: creator.id }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'Both members are linked to different accounts',
+    });
+  });
+
+  test('a non-admin may not merge two of their own members when the target is already claimed', async () => {
+    const { caller, group, marek, jana } = await seed();
+    const petr = await createTestUser('petr@example.com');
+    // Same non-admin user claims BOTH placeholders, so source.userId ===
+    // target.userId === ctx.user.id and the cross-account check does not
+    // fire — this is the only way to reach the `target.userId !== null`
+    // "already claimed" guard as a non-admin.
+    await claimPlaceholder(group.id, caller, petr, marek.id);
+    await claimPlaceholder(group.id, caller, petr, jana.id);
+    await expect(
+      makeCaller(petr).member.merge({ sourceMemberId: marek.id, targetMemberId: jana.id }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'Member already claimed' });
   });
 
   test('blocks the merge when a transfer exists directly between the two members', async () => {
