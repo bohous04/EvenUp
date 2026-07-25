@@ -71,5 +71,6 @@ export async function resetDb(): Promise<void> {
   await testPrisma.account.deleteMany();
   await testPrisma.session.deleteMany();
   await testPrisma.fxRate.deleteMany();
+  await testPrisma.scanLedger.deleteMany();
   await testPrisma.user.deleteMany();
 }
