@@ -142,8 +142,18 @@ function diceCoefficient(a: string, b: string): number {
  * Whole-string similarity alone scores "Marek" against "Marek Novák" poorly
  * (the surname is pure noise), yet that is the single most common duplicate
  * shape: `invite.claim` derives the new member's name from the account name or
- * the email local-part, which is usually just the first name. So a full token
- * shared between the two names counts as a strong match on its own.
+ * the email local-part, which is usually just the given name (or a full name
+ * whose given name leads). So a match on the *leading* token — "marek" is
+ * token 0 of both "marek" and "marek novak" — counts as strong evidence on
+ * its own.
+ *
+ * A match on a *trailing* token only (e.g. both names end in "novak") is
+ * deliberately weak evidence instead of strong: Czech surnames like Novák,
+ * Svoboda and Dvořák are shared by huge numbers of unrelated people, so two
+ * different first names with the same surname ("Jan Novák" vs "Petr Novák")
+ * must NOT clear the 0.8 duplicate-merge threshold. Do not special-case
+ * specific surnames to fix false positives here — the leading-vs-trailing
+ * position is what carries the signal, structurally, for any name.
  */
 export function nameSimilarity(a: string, b: string): number {
   const left = normalizeForMatch(a);
@@ -154,8 +164,18 @@ export function nameSimilarity(a: string, b: string): number {
   const leftTokens = left.split(' ');
   const rightTokens = right.split(' ');
   const shared = leftTokens.filter((tok) => tok.length > 1 && rightTokens.includes(tok));
-  // One shared whole name part (e.g. "marek") is strong evidence on its own.
-  const tokenScore = shared.length > 0 ? 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length)) : 0;
+  const leadingTokenShared = leftTokens[0]!.length > 1 && leftTokens[0] === rightTokens[0];
+
+  let tokenScore = 0;
+  if (leadingTokenShared) {
+    // The given name matches — strong evidence on its own, plus a small bonus
+    // if other tokens (e.g. the surname too) also match.
+    tokenScore = 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length));
+  } else if (shared.length > 0) {
+    // Only a trailing token (surname) matches — weak evidence, capped well
+    // below the 0.8 merge threshold on purpose.
+    tokenScore = 0.4 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length));
+  }
 
   return Math.max(tokenScore, diceCoefficient(left, right));
 }

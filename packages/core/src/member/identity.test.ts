@@ -124,4 +124,17 @@ describe('nameSimilarity', () => {
     expect(nameSimilarity('', 'Marek')).toBe(0);
     expect(nameSimilarity('Marek', '   ')).toBe(0);
   });
+
+  test('a shared surname alone is not strong evidence — two different people can share it', () => {
+    // "Jan Novák" and "Petr Novák" are almost certainly different people:
+    // Novák is one of the most common Czech surnames. Only a match on the
+    // *leading* token (the given name, which is what invite.claim derives
+    // from account name/email) should count as strong evidence.
+    expect(nameSimilarity('Jan Novák', 'Petr Novák')).toBeLessThan(0.8);
+  });
+
+  test('a leading-token match stays strong evidence even with a shared surname too', () => {
+    expect(nameSimilarity('Marek Novák', 'Marek Novák')).toBe(1);
+    expect(nameSimilarity('Marek', 'Marek Novák')).toBeGreaterThanOrEqual(0.8);
+  });
 });
