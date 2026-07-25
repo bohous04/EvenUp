@@ -94,3 +94,68 @@ export function colorForKey(key: string): MemberColor {
   }
   return colorForIndex(Math.abs(hash));
 }
+
+/**
+ * Fold a display name to a comparable form: lowercase, diacritics stripped,
+ * punctuation reduced to spaces, whitespace collapsed. Czech names differ from
+ * their ASCII spellings only by diacritics ("Tomáš" / "Tomas"), and an
+ * email-derived name arrives punctuated ("jan.novak"), so both must fold to the
+ * same key before any comparison.
+ */
+export function normalizeForMatch(name: string): string {
+  return name
+    .normalize('NFD')
+    // U+0300–U+036F: the combining diacritical marks NFD just split off.
+    // Written as escapes on purpose — literal combining characters are
+    // invisible in source and get mangled by copy-paste.
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/** Dice coefficient over character bigrams; 1 = identical, 0 = nothing shared. */
+function diceCoefficient(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigrams = new Map<string, number>();
+  for (let i = 0; i < a.length - 1; i++) {
+    const g = a.slice(i, i + 2);
+    bigrams.set(g, (bigrams.get(g) ?? 0) + 1);
+  }
+  let hits = 0;
+  for (let i = 0; i < b.length - 1; i++) {
+    const g = b.slice(i, i + 2);
+    const count = bigrams.get(g) ?? 0;
+    if (count > 0) {
+      bigrams.set(g, count - 1);
+      hits++;
+    }
+  }
+  return (2 * hits) / (a.length - 1 + (b.length - 1));
+}
+
+/**
+ * How likely two display names refer to the same person, 0–1.
+ *
+ * Whole-string similarity alone scores "Marek" against "Marek Novák" poorly
+ * (the surname is pure noise), yet that is the single most common duplicate
+ * shape: `invite.claim` derives the new member's name from the account name or
+ * the email local-part, which is usually just the first name. So a full token
+ * shared between the two names counts as a strong match on its own.
+ */
+export function nameSimilarity(a: string, b: string): number {
+  const left = normalizeForMatch(a);
+  const right = normalizeForMatch(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+
+  const leftTokens = left.split(' ');
+  const rightTokens = right.split(' ');
+  const shared = leftTokens.filter((tok) => tok.length > 1 && rightTokens.includes(tok));
+  // One shared whole name part (e.g. "marek") is strong evidence on its own.
+  const tokenScore = shared.length > 0 ? 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length)) : 0;
+
+  return Math.max(tokenScore, diceCoefficient(left, right));
+}

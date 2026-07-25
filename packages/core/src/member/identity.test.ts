@@ -5,6 +5,8 @@ import {
   colorForIndex,
   colorForKey,
   readableTextColor,
+  normalizeForMatch,
+  nameSimilarity,
 } from './identity.js';
 
 // WCAG relative luminance + contrast ratio for verifying the palette.
@@ -86,5 +88,40 @@ describe('member colors (§9.4 — never color alone, but distinct chips)', () =
 
   test('readableTextColor rejects malformed input', () => {
     expect(() => readableTextColor('nope')).toThrow();
+  });
+});
+
+describe('normalizeForMatch', () => {
+  test('folds Czech diacritics and case', () => {
+    expect(normalizeForMatch('Tomáš')).toBe('tomas');
+    expect(normalizeForMatch('TOMAS')).toBe('tomas');
+    expect(normalizeForMatch('Řehoř Žluťoučký')).toBe('rehor zlutoucky');
+  });
+
+  test('collapses whitespace and drops punctuation', () => {
+    expect(normalizeForMatch('  Jan   Novák.  ')).toBe('jan novak');
+    expect(normalizeForMatch('jan.novak')).toBe('jan novak');
+  });
+});
+
+describe('nameSimilarity', () => {
+  test('identical names ignoring case and diacritics score 1', () => {
+    expect(nameSimilarity('Marek', 'marek')).toBe(1);
+    expect(nameSimilarity('Tomáš', 'Tomas')).toBe(1);
+  });
+
+  test('a first name inside a full name scores high', () => {
+    expect(nameSimilarity('Marek', 'Marek Novák')).toBeGreaterThanOrEqual(0.8);
+    expect(nameSimilarity('jan.novak', 'Jan Novák')).toBeGreaterThanOrEqual(0.8);
+  });
+
+  test('unrelated names score low', () => {
+    expect(nameSimilarity('Marek', 'Jana Dvořáková')).toBeLessThan(0.5);
+    expect(nameSimilarity('Petr', 'Olivia')).toBeLessThan(0.5);
+  });
+
+  test('empty input never matches', () => {
+    expect(nameSimilarity('', 'Marek')).toBe(0);
+    expect(nameSimilarity('Marek', '   ')).toBe(0);
   });
 });
