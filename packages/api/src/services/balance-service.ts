@@ -109,14 +109,23 @@ export async function getGroupBalances(
     ).map((m) => [m.id, visibleAvatar(m.user)]),
   );
 
-  const balances: MemberBalance[] = loadedGroup.members.map((m) => ({
-    memberId: m.id,
-    balanceMinorUnits: byId.get(m.id) ?? 0,
-    displayName: m.displayName,
-    initials: m.initials,
-    color: m.color,
-    image: imageByMember.get(m.id) ?? null,
-  }));
+  // Sorted here rather than relying on the query: `loadedGroup` may be supplied
+  // by the caller with its own `include`, and neither this function's own
+  // `findUniqueOrThrow` nor those callers order the members. Postgres is then
+  // free to return them in physical-row order, which shifts as rows are written
+  // — so the balances list could silently reorder between two loads of the same
+  // group. `createdAt` matches the order `group.get` already uses everywhere
+  // else, with `id` as the tiebreak for members created in the same millisecond.
+  const balances: MemberBalance[] = [...loadedGroup.members]
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+    .map((m) => ({
+      memberId: m.id,
+      balanceMinorUnits: byId.get(m.id) ?? 0,
+      displayName: m.displayName,
+      initials: m.initials,
+      color: m.color,
+      image: imageByMember.get(m.id) ?? null,
+    }));
 
   const payments = loadedGroup.simplifyDebts
     ? minimizeDebts(rawBalances)
@@ -253,9 +262,9 @@ export async function getMemberBreakdown(
   }
 
   const nameById = new Map(
-    (await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })).map(
-      (m) => [m.id, m.displayName],
-    ),
+    (
+      await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })
+    ).map((m) => [m.id, m.displayName]),
   );
 
   const txns = await prisma.transaction.findMany({
@@ -321,7 +330,9 @@ export async function getMemberBreakdown(
       let remainderMinorUnits: number | null = null;
       let currency: string | null = null;
       if (t.splitType === 'ITEMIZED' && t.receiptItems.length > 0) {
-        const mine = t.receiptItems.filter((ri) => ri.assignments.some((a) => a.memberId === memberId));
+        const mine = t.receiptItems.filter((ri) =>
+          ri.assignments.some((a) => a.memberId === memberId),
+        );
         if (mine.length > 0) {
           currency = t.currency;
           items = mine.map((ri) => ({

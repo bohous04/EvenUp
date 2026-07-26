@@ -13,7 +13,7 @@
 - Use SVG icon components, never emoji glyphs — the "matches" confirmation uses the `Check` icon from `@/components/icons`.
 - The editable receipt-total field reuses the existing price `Input` from `@/components/ui` (right-aligned, `inputMode="decimal"`).
 - No changes to OCR parsing (`packages/api/src/ocr`) or to the manual expense form's own top-level amount handling.
-- `save()`'s reconcile logic is behaviorally unchanged — it reads a *derived* `receiptTotalMinor` instead of a state one.
+- `save()`'s reconcile logic is behaviorally unchanged — it reads a _derived_ `receiptTotalMinor` instead of a state one.
 - Every new i18n key must be added to **both** `packages/i18n/src/locales/cs.ts` and `en.ts` (the `MessageKey` type derives from `cs.ts`; `en` must satisfy `Record<MessageKey, string>`, so a key in only one file fails typecheck).
 - Bulk-assign chips render inside the `ocr-items` container; their row carries `data-testid="ocr-assign-all"` so tests select the bulk chip without colliding with per-item chips (Playwright `getByRole` name matching is substring-based).
 
@@ -22,10 +22,12 @@
 ### Task 1: `assignAllToItems` pure helper
 
 **Files:**
+
 - Create: `apps/web/src/lib/assign-all.ts`
 - Test: `apps/web/src/lib/assign-all.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `assignAllToItems<T extends { assigned: Set<string> }>(items: T[], memberId: string): T[]` — returns a new array where, if `memberId` is on **every** item, it is removed from all; otherwise it is added to all. Empty input returns a new empty array (no-op). Each returned item is a shallow copy with a fresh `assigned` Set (never mutates inputs).
 
@@ -114,12 +116,14 @@ git commit -m "feat(web): add assignAllToItems helper for bulk item assignment"
 ### Task 2: Bulk-assign row in `ItemizedEditor`
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/en.ts` (after the `'ocr.itemNeedsPrice'` line)
 - Modify: `packages/i18n/src/locales/cs.ts` (after the `'ocr.itemNeedsPrice'` line)
 - Modify: `apps/web/src/components/itemized-editor.tsx`
 - Modify: `apps/web/e2e/critical-flow.spec.ts` (both OCR tests)
 
 **Interfaces:**
+
 - Consumes: `assignAllToItems(items, memberId)` from Task 1; `t('ocr.assignAll')`.
 - Produces: a `<div data-testid="ocr-assign-all" role="group">` bulk-assign row rendered above the item list whenever there is ≥1 item and ≥1 member.
 
@@ -150,12 +154,12 @@ import { assignAllToItems } from '@/lib/assign-all';
 In `itemized-editor.tsx`, immediately after the existing `addItem` function:
 
 ```ts
-  function addItem() {
-    onChange([...items, { name: '', priceText: '', assigned: new Set<string>() }]);
-  }
-  function assignAll(memberId: string) {
-    onChange(assignAllToItems(items, memberId));
-  }
+function addItem() {
+  onChange([...items, { name: '', priceText: '', assigned: new Set<string>() }]);
+}
+function assignAll(memberId: string) {
+  onChange(assignAllToItems(items, memberId));
+}
 ```
 
 - [ ] **Step 4: Render the bulk-assign row above the item list**
@@ -200,22 +204,22 @@ In `itemized-editor.tsx`, the `return (` currently starts with `<>` then `{items
 In `apps/web/e2e/critical-flow.spec.ts`, replace the block at the first OCR test (currently):
 
 ```ts
-    // Assign every item to Petr by tapping his chip in each item.
-    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
-    for (const chip of await petrChips.all()) await chip.click();
+// Assign every item to Petr by tapping his chip in each item.
+const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
+for (const chip of await petrChips.all()) await chip.click();
 
-    // Per-person sum reflects the assignment (Petr owes the whole 75.10).
-    await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
+// Per-person sum reflects the assignment (Petr owes the whole 75.10).
+await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
 ```
 
 with:
 
 ```ts
-    // Assign every item to Petr in one tap via the "assign to all items" row.
-    await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
+// Assign every item to Petr in one tap via the "assign to all items" row.
+await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
 
-    // Per-person sum reflects the assignment (Petr owes the whole 75.10).
-    await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
+// Per-person sum reflects the assignment (Petr owes the whole 75.10).
+await expect(page.getByTestId('ocr-per-person')).toContainText(/75[.,]10/);
 ```
 
 - [ ] **Step 6: Update the second OCR e2e test to assign via the bulk chip**
@@ -223,18 +227,18 @@ with:
 In the same file, in the `multi-screenshot receipt import` test, replace (currently):
 
 ```ts
-    // Assign every item to Petr (required before saving) and save.
-    const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
-    for (const chip of await petrChips.all()) await chip.click();
-    await page.getByTestId('ocr-save-btn').click();
+// Assign every item to Petr (required before saving) and save.
+const petrChips = page.getByTestId('ocr-items').getByRole('button', { name: 'Petr' });
+for (const chip of await petrChips.all()) await chip.click();
+await page.getByTestId('ocr-save-btn').click();
 ```
 
 with:
 
 ```ts
-    // Assign every item to Petr in one tap (required before saving) and save.
-    await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
-    await page.getByTestId('ocr-save-btn').click();
+// Assign every item to Petr in one tap (required before saving) and save.
+await page.getByTestId('ocr-assign-all').getByRole('button', { name: 'Petr' }).click();
+await page.getByTestId('ocr-save-btn').click();
 ```
 
 - [ ] **Step 7: Typecheck, lint, and run unit tests**
@@ -254,12 +258,14 @@ git commit -m "feat(web): add assign-to-all-items row to itemized editor"
 ### Task 3: Editable receipt total + item-sum check in `ocr-scan.tsx`
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/en.ts` (after the `'ocr.assignAll'` line from Task 2)
 - Modify: `packages/i18n/src/locales/cs.ts` (after the `'ocr.assignAll'` line from Task 2)
 - Modify: `apps/web/src/components/ocr-scan.tsx`
 - Modify: `apps/web/e2e/critical-flow.spec.ts` (first OCR test)
 
 **Interfaces:**
+
 - Consumes: existing `itemPriceToMinor`, `minorToDecimalString`, the `Input` UI component, the `Check` icon, `t('ocr.receiptTotal')`, `t('ocr.totalMatches')`.
 - Produces: an editable `data-testid="ocr-receipt-total-input"` field; a `data-testid="ocr-total-matches"` confirmation when the item sum equals the entered total; the existing `data-testid="ocr-total-mismatch"` banner otherwise.
 
@@ -325,16 +331,16 @@ import {
 Change:
 
 ```ts
-  const [receiptTotalMinor, setReceiptTotalMinor] = useState<number | null>(null);
+const [receiptTotalMinor, setReceiptTotalMinor] = useState<number | null>(null);
 ```
 
 to:
 
 ```ts
-  // Receipt's printed grand total as an editable decimal string (pre-filled from
-  // OCR, blank when OCR found none). Kept as text so the user can key in the
-  // total by hand; the minor-unit value is derived below via itemPriceToMinor.
-  const [receiptTotalText, setReceiptTotalText] = useState('');
+// Receipt's printed grand total as an editable decimal string (pre-filled from
+// OCR, blank when OCR found none). Kept as text so the user can key in the
+// total by hand; the minor-unit value is derived below via itemPriceToMinor.
+const [receiptTotalText, setReceiptTotalText] = useState('');
 ```
 
 - [ ] **Step 4: Reset the new state in `resetScan`**
@@ -342,13 +348,13 @@ to:
 In `resetScan`, change:
 
 ```ts
-    setReceiptTotalMinor(null);
+setReceiptTotalMinor(null);
 ```
 
 to:
 
 ```ts
-    setReceiptTotalText('');
+setReceiptTotalText('');
 ```
 
 - [ ] **Step 5: Pre-fill the total from OCR on scan success**
@@ -356,17 +362,17 @@ to:
 In the `scan` mutation's `onSuccess`, change:
 
 ```ts
-      setReceiptTotalMinor(res.result.totalMinorUnits > 0 ? res.result.totalMinorUnits : null);
+setReceiptTotalMinor(res.result.totalMinorUnits > 0 ? res.result.totalMinorUnits : null);
 ```
 
 to:
 
 ```ts
-      setReceiptTotalText(
-        res.result.totalMinorUnits > 0
-          ? minorToDecimalString(res.result.totalMinorUnits, baseCurrency)
-          : '',
-      );
+setReceiptTotalText(
+  res.result.totalMinorUnits > 0
+    ? minorToDecimalString(res.result.totalMinorUnits, baseCurrency)
+    : '',
+);
 ```
 
 - [ ] **Step 6: Derive `receiptTotalMinor` and a `showMatch` flag**
@@ -374,28 +380,28 @@ to:
 Find the derivation block near the end of the component:
 
 ```ts
-  const itemsSumMinor =
-    receiptTotalMinor != null
-      ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
-      : 0;
-  const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
-  const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
+const itemsSumMinor =
+  receiptTotalMinor != null
+    ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
+    : 0;
+const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
+const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
 ```
 
 Replace it with (adds the derived `receiptTotalMinor` above it and a `showMatch` flag below):
 
 ```ts
-  // Receipt total in minor units, derived from the editable text (null when the
-  // field is blank/invalid). save() and the reconcile machinery read this, so
-  // their behavior is unchanged from when it was OCR-only state.
-  const receiptTotalMinor = itemPriceToMinor(receiptTotalText, baseCurrency);
-  const itemsSumMinor =
-    receiptTotalMinor != null
-      ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
-      : 0;
-  const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
-  const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
-  const showMatch = receiptTotalMinor != null && totalDiffMinor === 0;
+// Receipt total in minor units, derived from the editable text (null when the
+// field is blank/invalid). save() and the reconcile machinery read this, so
+// their behavior is unchanged from when it was OCR-only state.
+const receiptTotalMinor = itemPriceToMinor(receiptTotalText, baseCurrency);
+const itemsSumMinor =
+  receiptTotalMinor != null
+    ? (items ?? []).reduce((a, it) => a + (itemPriceToMinor(it.priceText, baseCurrency) ?? 0), 0)
+    : 0;
+const totalDiffMinor = receiptTotalMinor != null ? receiptTotalMinor - itemsSumMinor : 0;
+const showReconcile = receiptTotalMinor != null && totalDiffMinor !== 0;
+const showMatch = receiptTotalMinor != null && totalDiffMinor === 0;
 ```
 
 - [ ] **Step 7: Render the editable total field + match/mismatch check**
@@ -403,76 +409,82 @@ Replace it with (adds the derived `receiptTotalMinor` above it and a `showMatch`
 In the review-mode JSX, find the block that starts right after the `<ItemizedEditor ... />` element — currently the `{showReconcile ? (` block. Replace the **entire** existing `{showReconcile ? ( ... ) : null}` block with:
 
 ```tsx
-          {/* Editable receipt total: reuses the item price Input so the user can
+{
+  /* Editable receipt total: reuses the item price Input so the user can
               key in (or correct) the printed grand total, then see whether the
-              items add up — even when OCR missed the total. */}
-          <div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-            <label htmlFor="ocr-receipt-total" className="text-sm font-medium">
-              {t('ocr.receiptTotal')}
-            </label>
-            <div className="w-28 shrink-0">
-              <Input
-                id="ocr-receipt-total"
-                value={receiptTotalText}
-                onChange={(e) => setReceiptTotalText(e.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-                aria-label={t('ocr.receiptTotal')}
-                data-testid="ocr-receipt-total-input"
-                className="text-right"
-              />
-            </div>
-          </div>
+              items add up — even when OCR missed the total. */
+}
+<div className="flex items-center justify-between gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+  <label htmlFor="ocr-receipt-total" className="text-sm font-medium">
+    {t('ocr.receiptTotal')}
+  </label>
+  <div className="w-28 shrink-0">
+    <Input
+      id="ocr-receipt-total"
+      value={receiptTotalText}
+      onChange={(e) => setReceiptTotalText(e.target.value)}
+      inputMode="decimal"
+      placeholder="0"
+      aria-label={t('ocr.receiptTotal')}
+      data-testid="ocr-receipt-total-input"
+      className="text-right"
+    />
+  </div>
+</div>;
 
-          {showMatch ? (
-            <p
-              className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400"
-              data-testid="ocr-total-matches"
-            >
-              <Check size={14} aria-hidden />
-              {t('ocr.totalMatches')}
-            </p>
-          ) : null}
+{
+  showMatch ? (
+    <p
+      className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400"
+      data-testid="ocr-total-matches"
+    >
+      <Check size={14} aria-hidden />
+      {t('ocr.totalMatches')}
+    </p>
+  ) : null;
+}
 
-          {showReconcile ? (
-            <div
-              className="rounded-lg border border-amber-300 bg-amber-50/70 p-3 dark:border-amber-500/40 dark:bg-amber-950/20"
-              data-testid="ocr-total-mismatch"
-            >
-              <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
-                <AlertCircle size={14} aria-hidden />
-                {t('ocr.totalMismatch')}
-              </p>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-amber-700 dark:text-amber-300">
-                <span>
-                  {t('common.total')}:{' '}
-                  <AmountText
-                    minorUnits={itemsSumMinor}
-                    currency={baseCurrency}
-                    className="font-semibold"
-                  />
-                </span>
-                <span>
-                  {t('ocr.difference')}:{' '}
-                  <AmountText
-                    minorUnits={totalDiffMinor}
-                    currency={baseCurrency}
-                    className="font-semibold"
-                  />
-                </span>
-              </div>
-              <label className="mt-2 flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
-                <input
-                  type="checkbox"
-                  checked={reconcile}
-                  onChange={(e) => setReconcile(e.target.checked)}
-                  data-testid="ocr-reconcile-toggle"
-                  className="h-4 w-4 rounded border-amber-400 text-brand-600 focus-visible:ring-brand-600"
-                />
-                {t('ocr.reconcile')}
-              </label>
-            </div>
-          ) : null}
+{
+  showReconcile ? (
+    <div
+      className="rounded-lg border border-amber-300 bg-amber-50/70 p-3 dark:border-amber-500/40 dark:bg-amber-950/20"
+      data-testid="ocr-total-mismatch"
+    >
+      <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+        <AlertCircle size={14} aria-hidden />
+        {t('ocr.totalMismatch')}
+      </p>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-amber-700 dark:text-amber-300">
+        <span>
+          {t('common.total')}:{' '}
+          <AmountText
+            minorUnits={itemsSumMinor}
+            currency={baseCurrency}
+            className="font-semibold"
+          />
+        </span>
+        <span>
+          {t('ocr.difference')}:{' '}
+          <AmountText
+            minorUnits={totalDiffMinor}
+            currency={baseCurrency}
+            className="font-semibold"
+          />
+        </span>
+      </div>
+      <label className="mt-2 flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+        <input
+          type="checkbox"
+          checked={reconcile}
+          onChange={(e) => setReconcile(e.target.checked)}
+          data-testid="ocr-reconcile-toggle"
+          className="h-4 w-4 rounded border-amber-400 text-brand-600 focus-visible:ring-brand-600"
+        />
+        {t('ocr.reconcile')}
+      </label>
+    </div>
+  ) : null;
+}
 ```
 
 (The old banner showed the receipt total as a read-only `AmountText`; that line is intentionally dropped because the editable field above is now the source of the total.)
@@ -482,36 +494,36 @@ In the review-mode JSX, find the block that starts right after the `<ItemizedEdi
 In `apps/web/e2e/critical-flow.spec.ts`, first OCR test, find:
 
 ```ts
-    // Running sum is shown before saving (24.90 + 35.10 = 60.00).
-    await expect(page.getByTestId('ocr-total')).toContainText(/60[.,]00/);
+// Running sum is shown before saving (24.90 + 35.10 = 60.00).
+await expect(page.getByTestId('ocr-total')).toContainText(/60[.,]00/);
 
-    // Inline editor: change the first item's price -> the sum recomputes live.
-    await page.getByTestId('ocr-item-price-0').fill('40');
-    await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
+// Inline editor: change the first item's price -> the sum recomputes live.
+await page.getByTestId('ocr-item-price-0').fill('40');
+await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
 ```
 
 Replace it with:
 
 ```ts
-    // Running sum is shown before saving (24.90 + 35.10 = 60.00).
-    await expect(page.getByTestId('ocr-total')).toContainText(/60[.,]00/);
+// Running sum is shown before saving (24.90 + 35.10 = 60.00).
+await expect(page.getByTestId('ocr-total')).toContainText(/60[.,]00/);
 
-    // Receipt total is pre-filled from OCR (60.00) and, with the item sum equal,
-    // the "items match the receipt total" confirmation shows.
-    await expect(page.getByTestId('ocr-receipt-total-input')).not.toHaveValue('');
-    await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
+// Receipt total is pre-filled from OCR (60.00) and, with the item sum equal,
+// the "items match the receipt total" confirmation shows.
+await expect(page.getByTestId('ocr-receipt-total-input')).not.toHaveValue('');
+await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
 
-    // Inline editor: change the first item's price -> the sum recomputes live and
-    // now differs from the receipt total, so the mismatch banner appears.
-    await page.getByTestId('ocr-item-price-0').fill('40');
-    await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
-    await expect(page.getByTestId('ocr-total-mismatch')).toBeVisible();
+// Inline editor: change the first item's price -> the sum recomputes live and
+// now differs from the receipt total, so the mismatch banner appears.
+await page.getByTestId('ocr-item-price-0').fill('40');
+await expect(page.getByTestId('ocr-total')).toContainText(/75[.,]10/);
+await expect(page.getByTestId('ocr-total-mismatch')).toBeVisible();
 
-    // Keying the printed total in by hand to match the edited items clears the
-    // mismatch — the sum check runs against the manually-entered total.
-    await page.getByTestId('ocr-receipt-total-input').fill('75.10');
-    await expect(page.getByTestId('ocr-total-mismatch')).toBeHidden();
-    await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
+// Keying the printed total in by hand to match the edited items clears the
+// mismatch — the sum check runs against the manually-entered total.
+await page.getByTestId('ocr-receipt-total-input').fill('75.10');
+await expect(page.getByTestId('ocr-total-mismatch')).toBeHidden();
+await expect(page.getByTestId('ocr-total-matches')).toBeVisible();
 ```
 
 - [ ] **Step 9: Typecheck and lint**
@@ -533,6 +545,7 @@ git commit -m "feat(web): make OCR receipt total editable with live item-sum che
 **Files:** none (verification only).
 
 **Interfaces:**
+
 - Consumes: the running Playwright harness (`playwright.config.ts` auto-starts `next dev` with `AUTH_DEV_ECHO=true` and `OPENROUTER_BASE_URL` pointed at `/api/dev/ocr-mock`). Requires the local e2e Postgres per the project's e2e recipe.
 
 - [ ] **Step 1: Run the OCR e2e specs**

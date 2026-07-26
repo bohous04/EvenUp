@@ -1,5 +1,5 @@
 'use client';
-import { use, useRef, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
@@ -67,6 +67,17 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     },
   });
 
+  // Already in this group? Don't make them read a card and click a button —
+  // go straight there and explain it with a banner on arrival. The server-side
+  // guard in `invite.claim` is what actually prevents a duplicate; this is UX.
+  const alreadyMember = options.data?.alreadyMember ?? false;
+  const alreadyGroupId = options.data?.groupId;
+  useEffect(() => {
+    if (alreadyMember && alreadyGroupId) {
+      router.replace(`/groups/${alreadyGroupId}?already=1`);
+    }
+  }, [alreadyMember, alreadyGroupId, router]);
+
   if (isPending) return <p className="py-10 text-center text-zinc-500 dark:text-zinc-400">…</p>;
   if (!session?.user) {
     return (
@@ -87,11 +98,17 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
       </Card>
     );
   }
+  if (options.data.alreadyMember) {
+    // The effect above is already redirecting; render nothing interactive so
+    // the name list never flashes while that navigation is in flight.
+    return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
+  }
 
-  const { groupName, baseCurrency, members } = options.data;
+  const { groupName, baseCurrency, members, returningMember } = options.data;
   // The one call site for claim.mutate — every trigger (member rows, the
-  // "not on the list" link, and the confirm-dialog CTA) routes through this,
-  // so the in-flight guard can't be bypassed by any one of them.
+  // "not on the list" link, the confirm-dialog CTA, and the welcome-back CTA)
+  // routes through this, so the in-flight guard can't be bypassed by any one
+  // of them.
   const submitClaim = (memberId?: string) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -100,6 +117,52 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
     });
   };
   const joinAsNew = () => submitClaim();
+
+  // A returning ex-member: the server reactivates THEIR row and only theirs
+  // (claiming anyone else is refused with CONFLICT), so the picker and the
+  // "not on the list" escape hatch are both dead ends here — the picker's
+  // own row was filtered out upstream (preview/claimOptions only ever list
+  // unclaimed members), and "not on the list" would just re-explain the same
+  // wrong story the confirmation modal tells newcomers (that debts stay
+  // behind on a name nobody takes over). Give them one action instead: go
+  // back to the profile that's already theirs, history and debts included.
+  if (returningMember) {
+    return (
+      <Card>
+        <h1 className="mb-1 text-xl font-extrabold tracking-tight">{groupName}</h1>
+        <p
+          className="mb-4 text-sm text-zinc-600 dark:text-zinc-300"
+          data-testid="invite-welcome-back"
+        >
+          {t('invite.welcomeBack', { name: returningMember.displayName })}
+        </p>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
+          {t('invite.welcomeBackBody')}
+        </p>
+        {error ? (
+          <p role="alert" className="mb-2 text-sm text-red-700 dark:text-red-400">
+            {error}
+          </p>
+        ) : null}
+        <Button
+          data-testid="invite-welcome-back-cta"
+          disabled={claim.isPending}
+          // Deliberately no memberId: the server re-derives the caller's own
+          // row from findOwnMembership (isActive desc, no tiebreaker) and
+          // throws CONFLICT if it disagrees with a passed id. With two
+          // inactive rows for the same user (production has these — see
+          // invite.ts:32) claimOptions and claim could pick different ones
+          // and strand this button. Calling with no id reaches the same
+          // reactivate branch (invite.ts's `own` check short-circuits when
+          // input.memberId is undefined) without that tiebreak risk.
+          onClick={() => submitClaim()}
+          className="w-full"
+        >
+          {t('invite.welcomeBackCta')}
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <Card>

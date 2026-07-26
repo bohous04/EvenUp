@@ -70,6 +70,7 @@ export async function resetDb(): Promise<void> {
   await testPrisma.errorLog.deleteMany();
   await testPrisma.instanceConfig.deleteMany();
   await testPrisma.activityLog.deleteMany();
+  await testPrisma.mergeDismissal.deleteMany();
   await testPrisma.transaction.deleteMany();
   await testPrisma.invite.deleteMany();
   await testPrisma.receipt.deleteMany();

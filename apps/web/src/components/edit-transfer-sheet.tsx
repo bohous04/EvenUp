@@ -50,7 +50,12 @@ export function EditTransferSheet({
   const [method, setMethod] = useState<(typeof METHODS)[number]>(
     (transaction.method as (typeof METHODS)[number]) ?? 'CASH',
   );
-  const [note, setNote] = useState(transaction.note ?? '');
+  // A transfer's note is stored in `title`, not in the `note` column — see
+  // recordTransfer/updateTransfer. Seeding from `note` alone left this field
+  // empty for every settlement, so opening and saving one silently wiped the
+  // note. Harmless-looking until the localized label landed: the row then still
+  // read "Vyrovnání" afterwards instead of visibly reverting to "Settlement".
+  const [note, setNote] = useState(transaction.note ?? transaction.title ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const invalidateGroup = () => {

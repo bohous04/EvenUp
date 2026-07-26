@@ -9,6 +9,7 @@ import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { MemberList } from '@/components/member-list';
 import { DuplicateBanner } from '@/components/merge-members';
+import { AlreadyMemberBanner } from '@/components/already-member-banner';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { EditTransferSheet } from '@/components/edit-transfer-sheet';
@@ -39,7 +40,13 @@ import {
 type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
 type Transaction = RouterOutputs['transaction']['list'][number];
 
-export function GroupDetail({ groupId }: { groupId: string }) {
+export function GroupDetail({
+  groupId,
+  alreadyMemberNotice = false,
+}: {
+  groupId: string;
+  alreadyMemberNotice?: boolean;
+}) {
   const { t, formatCurrency, formatDate } = useI18n();
   const group = trpc.group.get.useQuery({ groupId });
   const transactions = trpc.transaction.list.useQuery({ groupId });
@@ -108,7 +115,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     // Whether a user account is linked, and (admin-gated server-side) its email —
     // so the roster shows who is connected and, for admins, with which address.
     connected: m.userId != null,
-    linkedEmail: m.user?.email ?? null,
   }));
   // Payer chips on transaction rows use the raw member (incl. inactive), so map
   // memberId → profile picture separately from the active-only memberLite.
@@ -188,6 +194,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
 
+      <AlreadyMemberBanner groupId={groupId} show={alreadyMemberNotice} />
+
       <DuplicateBanner groupId={groupId} />
 
       <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
@@ -223,7 +231,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         />
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{tx.title}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {tx.title || t('transaction.settlement')}
+                        </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           {tx.type === 'TRANSFER'
                             ? t('expense.transfer')
@@ -293,7 +303,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
       </Card>
 
-      <SettleCard groupId={groupId} members={memberLite} baseCurrency={group.data.baseCurrency} />
+      <SettleCard
+        groupId={groupId}
+        members={memberLite}
+        baseCurrency={group.data.baseCurrency}
+        groupName={group.data.name}
+      />
 
       {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it). */}
       {activeMembers.length > 0 ? (

@@ -9,9 +9,10 @@ import {
 } from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
+import { t as translate } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
-import { assertGroupAccess, isGroupAdmin } from '../access.js';
+import { assertGroupAccess } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
@@ -119,16 +120,30 @@ export const memberRouter = router({
   remove: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const groupId = await groupIdForMember(ctx, input.memberId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
-      // Members that appear in any transaction are deactivated, not deleted (FR-2.4).
+      const member = await ctx.prisma.member.findUnique({
+        where: { id: input.memberId },
+        select: { groupId: true, userId: true },
+      });
+      if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      await assertGroupAccess(ctx.prisma, ctx.user, member.groupId);
+      // Members that appear in any transaction are deactivated, not deleted
+      // (FR-2.4). Members linked to a user account (userId !== null) are
+      // deactivated too, for a second reason: invite.claim's "already a
+      // member" guard looks the caller up by { groupId, userId }, and a
+      // hard-deleted row is as invisible to that lookup as a self-deactivated
+      // one was before that variant was closed -- except irreversibly, since
+      // the row and its balance are simply gone. That let a non-admin remove
+      // their own (transaction-free) member, claim someone else's, then
+      // repeat the trick on the member they just took over, walking through
+      // the group one identity at a time. Only an unlinked placeholder with
+      // no transaction history may still be hard-deleted.
       const usage = await ctx.prisma.transactionSplit.count({
         where: { memberId: input.memberId },
       });
       const asPayer = await ctx.prisma.transactionPayer.count({
         where: { memberId: input.memberId },
       });
-      if (usage > 0 || asPayer > 0) {
+      if (usage > 0 || asPayer > 0 || member.userId !== null) {
         return ctx.prisma.member.update({
           where: { id: input.memberId },
           data: { isActive: false },
@@ -175,17 +190,10 @@ export const memberRouter = router({
         });
       }
 
-      // Admins may merge any pair. Anyone else may only fold THEIR OWN member
-      // into an unclaimed placeholder — exactly the power invite.claim already
-      // grants, so this is no escalation.
-      if (!(await isGroupAdmin(ctx.prisma, ctx.user, source.groupId))) {
-        if (source.userId !== ctx.user.id) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
-        }
-        if (target.userId !== null) {
-          throw new TRPCError({ code: 'CONFLICT', message: 'Member already claimed' });
-        }
-      }
+      // Any member of the group may merge any pair. Groups here are flat by
+      // design — there is no admin tier — and every member can already rewrite
+      // any expense's payers and splits, so merging grants no capability they
+      // did not have. The cross-account guard above is the real constraint.
 
       // A transfer between the pair would become a payment from a person to
       // themselves. Refuse and name it rather than destroy a money record.
@@ -201,10 +209,11 @@ export const memberRouter = router({
         select: { id: true, title: true, date: true },
       });
       if (selfTransfers.length > 0) {
+        const label = translate(ctx.locale, 'transaction.settlement');
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message: `Resolve the transfer(s) between these members first: ${selfTransfers
-            .map((tr) => `${tr.title} (${tr.date.toISOString().slice(0, 10)})`)
+            .map((tr) => `${tr.title || label} (${tr.date.toISOString().slice(0, 10)})`)
             .join(', ')}`,
         });
       }
@@ -426,6 +435,18 @@ export const memberRouter = router({
       const unclaimed = members.filter((m) => m.userId === null);
       if (unclaimed.length === 0) return [];
 
+      // Pairs somebody already answered "not the same person" to. The answer is
+      // group-wide on purpose: the question is about two OTHER people, so once
+      // anyone has settled it, re-asking everyone else is noise.
+      const dismissed = new Set(
+        (
+          await ctx.prisma.mergeDismissal.findMany({
+            where: { groupId: input.groupId },
+            select: { sourceMemberId: true, targetMemberId: true },
+          })
+        ).map((d) => `${d.sourceMemberId}:${d.targetMemberId}`),
+      );
+
       const candidates = [];
       for (const claimed of members.filter((m) => m.userId !== null)) {
         const aliases = [
@@ -438,7 +459,10 @@ export const memberRouter = router({
           const score = Math.max(
             ...aliases.map((alias) => nameSimilarity(alias, placeholder.displayName)),
           );
-          if (score >= DUPLICATE_MATCH_THRESHOLD) {
+          if (
+            score >= DUPLICATE_MATCH_THRESHOLD &&
+            !dismissed.has(`${claimed.id}:${placeholder.id}`)
+          ) {
             candidates.push({
               sourceMemberId: claimed.id,
               sourceName: claimed.displayName,
@@ -450,6 +474,55 @@ export const memberRouter = router({
         }
       }
       return candidates.sort((a, b) => b.score - a.score);
+    }),
+
+  /**
+   * Record "these two are not the same person", suppressing that suggestion for
+   * the whole group rather than just the browser that clicked it.
+   *
+   * Any group member may answer: the banner is shown to whoever opens the
+   * group, so anyone who can see the question can settle it. It only ever
+   * hides a *suggestion* — the manual merge action stays available, so a
+   * mistaken dismissal costs discoverability, never data.
+   */
+  dismissDuplicate: protectedProcedure
+    .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.sourceMemberId === input.targetMemberId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot dismiss a member against itself',
+        });
+      }
+      const [source, target] = await Promise.all([
+        ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),
+        ctx.prisma.member.findUnique({ where: { id: input.targetMemberId } }),
+      ]);
+      if (!source || !target) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      }
+      if (source.groupId !== target.groupId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Members belong to different groups' });
+      }
+      await assertGroupAccess(ctx.prisma, ctx.user, source.groupId);
+
+      // Idempotent: clicking "not the same" twice must not 500 on the unique.
+      await ctx.prisma.mergeDismissal.upsert({
+        where: {
+          sourceMemberId_targetMemberId: {
+            sourceMemberId: source.id,
+            targetMemberId: target.id,
+          },
+        },
+        create: {
+          groupId: source.groupId,
+          sourceMemberId: source.id,
+          targetMemberId: target.id,
+          dismissedById: ctx.user.id,
+        },
+        update: {},
+      });
+      return { dismissed: true };
     }),
 
   /**

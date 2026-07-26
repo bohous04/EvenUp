@@ -74,6 +74,7 @@ export {
   isValidIban,
   normalizeIban,
   formatSpaydDate,
+  SPAYD_MESSAGE_MAX_LENGTH,
 } from './spayd/spayd.js';
 
 // Czech bank accounts (parsing, IBAN conversion, display mask)

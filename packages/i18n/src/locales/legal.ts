@@ -377,7 +377,7 @@ export const legalCs = {
 
   'legal.privacy.s9.h': 'Vaše práva',
   'legal.privacy.s9.li1':
-    'Přístup k údajům a jejich kopie. Kompletní export si stáhnete v Nastavení jedním klepnutím.',
+    'Přístup k údajům a jejich kopie. Export si stáhnete v Nastavení jedním klepnutím. Zahrnuje vše, co o vás vedeme, s jedinou výjimkou: u skupiny, ze které jste byli odebráni, obsahuje pouze výdaje, kterých jste se sami účastnili, nikoli její další dění po vašem odchodu.',
   'legal.privacy.s9.li2': 'Oprava nepřesných údajů.',
   'legal.privacy.s9.li3':
     'Výmaz. Účet smažete v Nastavení; co zůstává a proč, popisuje předchozí oddíl.',
@@ -769,7 +769,7 @@ export const legalEn: LegalMessages = {
 
   'legal.privacy.s9.h': 'Your rights',
   'legal.privacy.s9.li1':
-    'Access to your data and a copy of it. A complete export is one click away in Settings.',
+    'Access to your data and a copy of it. The export is one click away in Settings. It covers everything we hold about you, with a single exception: for a group you were removed from, it contains only the expenses you took part in yourself, not what the group did after you left.',
   'legal.privacy.s9.li2': 'Rectification of inaccurate data.',
   'legal.privacy.s9.li3':
     'Erasure. You delete the account in Settings; what stays and why is set out in the previous section.',

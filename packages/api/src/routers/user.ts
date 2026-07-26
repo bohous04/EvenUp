@@ -72,19 +72,25 @@ export const userRouter = router({
       return { ok: true };
     }),
 
-  /** Rename the account AND every group member linked to it (spec 2026-07-09 §4). */
+  /**
+   * Rename the account AND every group member linked to it (spec 2026-07-09
+   * §4). Scoped to *active* links only: a deactivated row is a removed
+   * membership (see access.ts), so a former member must not be able to keep
+   * rewriting their old row's display name or injecting activity entries
+   * into a group they no longer belong to.
+   */
   updateProfile: protectedProcedure
     .input(z.object({ name: z.string().trim().min(1).max(50) }))
     .mutation(async ({ ctx, input }) => {
       const linked = await ctx.prisma.member.findMany({
-        where: { userId: ctx.user.id },
+        where: { userId: ctx.user.id, isActive: true },
         select: { id: true, groupId: true },
       });
       await ctx.prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: ctx.user.id }, data: { name: input.name } });
         if (linked.length > 0) {
           await tx.member.updateMany({
-            where: { userId: ctx.user.id },
+            where: { userId: ctx.user.id, isActive: true },
             data: { displayName: input.name, initials: deriveInitials(input.name) },
           });
         }
@@ -159,10 +165,12 @@ export const userRouter = router({
   /**
    * GDPR export of the user's personal data (FR-1.6, Art. 15 and Art. 20).
    *
-   * **The privacy policy calls this a "complete export"** (`legal.privacy.s9.li1`),
-   * so the selection below is deliberately organised against the categories
-   * that document declares in its §2 rather than against whatever happened to
-   * be convenient. Each category maps to one key here:
+   * **What is exported.** The privacy policy describes this export in
+   * `legal.privacy.s9.li1` — including the removed-member narrowing below, which
+   * that sentence names explicitly — so the selection here is deliberately
+   * organised against the categories the document declares in its §2 rather
+   * than against whatever happened to be convenient. Each category maps to one
+   * key here:
    *
    * | Policy (`legal.privacy.s2.*`) | Exported as |
    * |---|---|
@@ -183,16 +191,58 @@ export const userRouter = router({
    * service, and `User.bankAccountEncrypted` is ciphertext the owner cannot use
    * — the account number is decrypted into `profile.bankAccount` instead.
    *
-   * **Known limitation, deliberately not addressed here:** `groups` carries
-   * shared groups whole, so it includes other members' names and the
-   * transactions, payers and splits of people who are not the requester. That
-   * predates billing and is a design question (a member-scoped projection, or
-   * an aggregate of only the requester's share), not a select-list fix.
+   * **How much of each group is exported.** Groups fall into two buckets by
+   * the caller's *current* link, mirroring the access.ts contract: a
+   * deactivated member row is a removed person and must not read as ongoing
+   * group access (see access.ts).
+   *  - Creator, or an active member -> the whole group.
+   *  - Only a deactivated (removed) link left -> not "their own data" in
+   *    full: the group's identity, plus only the transactions their member
+   *    row actually took part in (as payer or split), and only the members
+   *    and receipts those transactions reference. Without this, export
+   *    became a way for a removed member to keep reading the group's live
+   *    ledger indefinitely -- everything added after they left included.
+   *
+   * The narrowing is row-level, not column-level: both buckets read the same
+   * transaction and receipt columns, including `receiptItems` and
+   * `Receipt.rawJson`. That is safe because `Transaction.receiptId` is
+   * `@unique` — a receipt backs at most one transaction — so a receipt the
+   * restricted bucket reaches describes an expense the caller was a party to
+   * and nothing else. Withholding those columns from a removed member would
+   * deny them the li5 category ("what was read from them") for expenses that
+   * are genuinely their own, which is a different thing from denying them the
+   * group's ongoing ledger.
+   *
+   * **Known limitation, deliberately not addressed here:** the full-access
+   * bucket carries shared groups whole, so it includes other members' names
+   * and the transactions, payers and splits of people who are not the
+   * requester. That predates billing and is a design question (a member-scoped
+   * projection, or an aggregate of only the requester's share), not a
+   * select-list fix.
    */
   exportData: protectedProcedure.query(async ({ ctx }) => {
+    // Both buckets read the same columns — see the row-level/column-level note
+    // above. `rawJson` is the second copy of the OCR result that the policy
+    // warns survives a deleted expense (s2.li5); held about the person,
+    // therefore theirs to receive.
+    const receiptSelect = {
+      id: true,
+      merchant: true,
+      detectedCurrency: true,
+      detectedTotalMinorUnits: true,
+      rawJson: true,
+      createdAt: true,
+    } as const;
+
+    // `receiptItems` are the recognised receipt lines the policy's li5 promises
+    // ("položky, částky") — the expense rows alone carried only totals. They
+    // hang off Transaction, so whichever transactions a bucket selects scope
+    // them automatically.
+    const transactionInclude = { payers: true, splits: true, receiptItems: true } as const;
+
     const [
       profile,
-      groups,
+      fullAccessGroups,
       bankDetails,
       subscriptions,
       ledger,
@@ -234,27 +284,15 @@ export const userRouter = router({
       }),
       ctx.prisma.group.findMany({
         where: {
-          OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }],
+          OR: [
+            { createdById: ctx.user.id },
+            { members: { some: { userId: ctx.user.id, isActive: true } } },
+          ],
         },
         include: {
           members: true,
-          // `receiptItems` are the recognised receipt lines the policy's li5
-          // promises ("položky, částky") — the expense rows alone carried only
-          // totals.
-          transactions: { include: { payers: true, splits: true, receiptItems: true } },
-          receipts: {
-            select: {
-              id: true,
-              merchant: true,
-              detectedCurrency: true,
-              detectedTotalMinorUnits: true,
-              // The second copy of the OCR result that the policy warns
-              // survives a deleted expense (s2.li5). Held about the person,
-              // therefore theirs to receive.
-              rawJson: true,
-              createdAt: true,
-            },
-          },
+          transactions: { include: transactionInclude },
+          receipts: { select: receiptSelect },
         },
       }),
       ctx.prisma.bankDetail.findMany({
@@ -328,6 +366,51 @@ export const userRouter = router({
         orderBy: { createdAt: 'asc' },
       }),
     ]);
+
+    const fullAccessIds = new Set(fullAccessGroups.map((g) => g.id));
+    const inactiveLinkGroups = await ctx.prisma.group.findMany({
+      where: {
+        id: { notIn: [...fullAccessIds] },
+        members: { some: { userId: ctx.user.id, isActive: false } },
+      },
+      include: {
+        members: true,
+        // Only the transactions the caller's own (now-inactive) member row
+        // participated in -- not the group's transactions in general.
+        transactions: {
+          where: {
+            OR: [
+              { payers: { some: { member: { userId: ctx.user.id } } } },
+              { splits: { some: { member: { userId: ctx.user.id } } } },
+            ],
+          },
+          include: transactionInclude,
+        },
+        receipts: { select: receiptSelect },
+      },
+    });
+
+    const restrictedGroups = inactiveLinkGroups.map((group) => {
+      // Always keep the caller's own member row(s) -- that's their data
+      // regardless of whether they ever took part in a transaction -- plus
+      // whoever co-appears in a transaction they actually participated in.
+      const participantMemberIds = new Set(
+        group.members.filter((m) => m.userId === ctx.user.id).map((m) => m.id),
+      );
+      const linkedReceiptIds = new Set<string>();
+      for (const t of group.transactions) {
+        for (const p of t.payers) participantMemberIds.add(p.memberId);
+        for (const s of t.splits) participantMemberIds.add(s.memberId);
+        if (t.receiptId) linkedReceiptIds.add(t.receiptId);
+      }
+      return {
+        ...group,
+        members: group.members.filter((m) => participantMemberIds.has(m.id)),
+        receipts: group.receipts.filter((r) => linkedReceiptIds.has(r.id)),
+      };
+    });
+
+    const groups = [...fullAccessGroups, ...restrictedGroups];
     const { bankAccountEncrypted, ...profileRest } = profile;
     let bankAccount: string | null = null;
     if (bankAccountEncrypted !== null) {

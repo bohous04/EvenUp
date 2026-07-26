@@ -50,7 +50,11 @@ describe('member.merge preflight', () => {
 
   test('refuses members from different groups', async () => {
     const { caller, marek } = await seed();
-    const other = await caller.group.create({ name: 'Jiná', template: 'OTHER', baseCurrency: 'CZK' });
+    const other = await caller.group.create({
+      name: 'Jiná',
+      template: 'OTHER',
+      baseCurrency: 'CZK',
+    });
     await expect(
       caller.member.merge({ sourceMemberId: marek.id, targetMemberId: other.members[0]!.id }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
@@ -72,12 +76,15 @@ describe('member.merge preflight', () => {
     ).resolves.toBeTruthy();
   });
 
-  test('a non-admin may not merge a pair that is not theirs', async () => {
+  test('any member may merge a pair that is not theirs', async () => {
     const { caller, group, marek, jana } = await seed();
     const { user } = await joinAsNew(group.id, caller, 'marek@example.com');
+    // Groups are flat: no admin tier, and every member can already rewrite any
+    // expense's payers and splits, so merging two placeholders they do not hold
+    // grants nothing they could not do the long way round.
     await expect(
       makeCaller(user).member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    ).resolves.toBeTruthy();
   });
 
   test('a non-admin may not merge into a placeholder that is already claimed', async () => {
@@ -94,24 +101,28 @@ describe('member.merge preflight', () => {
     });
   });
 
-  test('a non-admin may not merge two of their own members when the target is already claimed', async () => {
+  test('a member may fold two rows they hold themselves into one', async () => {
     const { caller, group, marek, jana } = await seed();
     const petr = await createTestUser('petr@example.com');
-    // Same non-admin user claims BOTH placeholders, so source.userId ===
-    // target.userId === ctx.user.id and the cross-account check does not
-    // fire — this is the only way to reach the `target.userId !== null`
-    // "already claimed" guard as a non-admin.
+    // Same user holds BOTH placeholders. The cross-account guard does not fire
+    // (source.userId === target.userId), and with no admin tier there is
+    // nothing else to stop them tidying their own duplicate away.
+    // invite.claim refuses a second claim from someone already in the group, so
+    // this state -- which predates that guard in real data -- is built directly
+    // in the DB rather than by claiming twice through the endpoint.
     await claimPlaceholder(group.id, caller, petr, marek.id);
-    await claimPlaceholder(group.id, caller, petr, jana.id);
+    await testPrisma.member.update({ where: { id: jana.id }, data: { userId: petr.id } });
     await expect(
       makeCaller(petr).member.merge({ sourceMemberId: marek.id, targetMemberId: jana.id }),
-    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'Member already claimed' });
+    ).resolves.toBeTruthy();
+    expect(await testPrisma.member.findUnique({ where: { id: marek.id } })).toBeNull();
   });
 
   test('blocks the merge when a transfer exists directly between the two members', async () => {
     const { caller, group, marek, jana } = await seed();
     // The procedure is `recordTransfer` (not createTransfer) and has NO `title`
-    // field — it stores `title: input.note ?? 'Settlement'`.
+    // field — it stores `title: input.note ?? ''` (an empty title renders
+    // localized via `transaction.settlement`, not the English literal).
     await caller.transaction.recordTransfer({
       groupId: group.id,
       fromMemberId: jana.id,
@@ -653,5 +664,90 @@ describe('member.duplicateCandidates', () => {
     // safely below DUPLICATE_MATCH_THRESHOLD (0.8).
     const candidates = await caller.member.duplicateCandidates({ groupId: group.id });
     expect(candidates).toEqual([]);
+  });
+});
+
+describe('member.dismissDuplicate', () => {
+  test('one member dismissing hides the suggestion from everyone in the group', async () => {
+    const { caller, group, marek } = await seed();
+    const { user: newcomerUser, member: newcomer } = await joinAsNew(
+      group.id,
+      caller,
+      'marek@example.com',
+    );
+
+    // Visible to both the admin and the newcomer before anyone answers.
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toHaveLength(1);
+    expect(
+      await makeCaller(newcomerUser).member.duplicateCandidates({ groupId: group.id }),
+    ).toHaveLength(1);
+
+    // The newcomer — a plain member, not an admin — says "not the same".
+    await makeCaller(newcomerUser).member.dismissDuplicate({
+      sourceMemberId: newcomer.id,
+      targetMemberId: marek.id,
+    });
+
+    // Gone for the person who dismissed it AND for the admin who did not.
+    expect(
+      await makeCaller(newcomerUser).member.duplicateCandidates({ groupId: group.id }),
+    ).toEqual([]);
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toEqual([]);
+  });
+
+  test('dismissing one pair leaves an unrelated pair still suggested', async () => {
+    const { caller, group, marek } = await seed();
+    const tomas = await caller.member.add({ groupId: group.id, displayName: 'Tomáš Král' });
+    const { member: marekDup } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const { member: tomasDup } = await joinAsNew(group.id, caller, 'tomas@example.com');
+
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toHaveLength(2);
+
+    await caller.member.dismissDuplicate({
+      sourceMemberId: marekDup.id,
+      targetMemberId: marek.id,
+    });
+
+    const left = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(left).toHaveLength(1);
+    expect(left[0]!.sourceMemberId).toBe(tomasDup.id);
+    expect(left[0]!.targetMemberId).toBe(tomas.id);
+  });
+
+  test('dismissing twice is idempotent, not a unique-constraint crash', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const args = { sourceMemberId: newcomer.id, targetMemberId: marek.id };
+
+    await caller.member.dismissDuplicate(args);
+    await expect(caller.member.dismissDuplicate(args)).resolves.toBeTruthy();
+    expect(await testPrisma.mergeDismissal.count()).toBe(1);
+  });
+
+  test('a non-member of the group cannot dismiss', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const outsider = await createTestUser('outsider@example.com');
+
+    await expect(
+      makeCaller(outsider).member.dismissDuplicate({
+        sourceMemberId: newcomer.id,
+        targetMemberId: marek.id,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  test('merging a pair clears its dismissal rather than orphaning it', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+
+    await caller.member.dismissDuplicate({
+      sourceMemberId: newcomer.id,
+      targetMemberId: marek.id,
+    });
+    expect(await testPrisma.mergeDismissal.count()).toBe(1);
+
+    await caller.member.merge({ sourceMemberId: newcomer.id, targetMemberId: marek.id });
+    expect(await testPrisma.mergeDismissal.count()).toBe(0);
   });
 });
