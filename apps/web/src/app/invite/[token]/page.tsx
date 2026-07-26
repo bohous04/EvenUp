@@ -143,7 +143,15 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         <Button
           data-testid="invite-welcome-back-cta"
           disabled={claim.isPending}
-          onClick={() => submitClaim(returningMember.id)}
+          // Deliberately no memberId: the server re-derives the caller's own
+          // row from findOwnMembership (isActive desc, no tiebreaker) and
+          // throws CONFLICT if it disagrees with a passed id. With two
+          // inactive rows for the same user (production has these — see
+          // invite.ts:32) claimOptions and claim could pick different ones
+          // and strand this button. Calling with no id reaches the same
+          // reactivate branch (invite.ts's `own` check short-circuits when
+          // input.memberId is undefined) without that tiebreak risk.
+          onClick={() => submitClaim()}
           className="w-full"
         >
           {t('invite.welcomeBackCta')}

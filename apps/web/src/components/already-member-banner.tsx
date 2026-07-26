@@ -8,9 +8,11 @@ import { Card, iconButtonClass } from '@/components/ui';
 import { X } from '@/components/icons';
 
 /**
- * Shown once, after an invite link redirected someone who is already in the
- * group. Purely informational — no confirm button, because the point of the
- * redirect was to remove a click, not relocate it.
+ * Shown after an invite link redirected someone who is already in the group.
+ * `dismissed` is only component-local state, not persisted anywhere, so the
+ * banner reappears on any fresh visit to the `?already=1` URL -- including
+ * browser Back after a dismiss. Purely informational — no confirm button,
+ * because the point of the redirect was to remove a click, not relocate it.
  */
 export function AlreadyMemberBanner({ groupId, show }: { groupId: string; show: boolean }) {
   const { t } = useI18n();

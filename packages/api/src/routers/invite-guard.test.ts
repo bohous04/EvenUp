@@ -135,8 +135,9 @@ describe('invite.claim guards against an existing membership', () => {
     await testPrisma.member.update({ where: { id: placeholder.id }, data: { isActive: false } });
 
     // A deactivated ex-member must reach the claim page, not get redirected
-    // into the group -- otherwise they can never get back to the "not on the
-    // list" path that reactivates their row.
+    // into the group -- otherwise they never see the welcome-back view that
+    // reactivates their row (the picker and "not on the list" are dead ends
+    // for a returning member -- see the invite page's returningMember branch).
     const options = await newcomerCaller.invite.claimOptions({ token: invite.token });
     expect(options.alreadyMember).toBe(false);
   });

@@ -185,8 +185,8 @@ export const cs = {
   'invite.alreadyMember': 'V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.',
   'invite.welcomeBack': 'Vítej zpátky, {name}!',
   'invite.welcomeBackBody':
-    'Pokračováním obnovíš svůj původní profil – i s historií a dluhy. Nikdo ho za tebe nepřevezme.',
-  'invite.welcomeBackCta': 'Pokračovat',
+    'Když budeš pokračovat, vrátí se ti původní profil — i s historií a dluhy.',
+  'invite.welcomeBackCta': 'Obnovit svůj profil',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',
