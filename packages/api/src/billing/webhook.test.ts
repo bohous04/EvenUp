@@ -40,21 +40,30 @@ function checkoutEvent(
  * `buildSubscriptionCheckoutParams` in `routers/billing.ts`), so the fixture
  * — and the webhook accessor it exercises — use the first item's period.
  */
-function subscriptionEvent(userId: string) {
+function subscriptionEvent(
+  userId: string,
+  opts: {
+    id?: string;
+    subscriptionId?: string;
+    status?: string;
+    periodStart?: number;
+    periodEnd?: number;
+  } = {},
+) {
   return {
-    id: 'evt_sub',
+    id: opts.id ?? 'evt_sub',
     type: 'customer.subscription.updated',
     data: {
       object: {
-        id: 'sub_1',
-        status: 'active',
+        id: opts.subscriptionId ?? 'sub_1',
+        status: opts.status ?? 'active',
         cancel_at_period_end: false,
         metadata: { userId },
         items: {
           data: [
             {
-              current_period_start: 1_760_000_000,
-              current_period_end: 1_762_600_000,
+              current_period_start: opts.periodStart ?? 1_760_000_000,
+              current_period_end: opts.periodEnd ?? 1_762_600_000,
             },
           ],
         },
@@ -171,6 +180,38 @@ describe('applyStripeEvent', () => {
     expect(saved.status).toBe('active');
     expect(saved.currentPeriodStart).toEqual(new Date(1_760_000_000 * 1000));
     expect(saved.currentPeriodEnd).toEqual(new Date(1_762_600_000 * 1000));
+  });
+
+  it('persists a trialing subscription with the trial window as its period', async () => {
+    // The row shape the whole trial rests on. Stripe puts a subscription
+    // created with `trial_period_days` into `trialing` and sets the item's
+    // period to the trial window, and `isSubscriptionUsable`
+    // (`billing/entitlement.ts`) grants VIP only for a status in its
+    // allow-list AND a `now` inside `currentPeriodStart`..`currentPeriodEnd`.
+    // Every other test here builds an `active` event, so nothing checked that
+    // a trialing subscription lands as anything at all — and a webhook that
+    // dropped it, or flattened the status, would leave a customer in checkout
+    // success with zero scans.
+    const u = await createTestUser('a@example.com');
+    const trialStart = 1_760_000_000;
+    const trialEnd = trialStart + 7 * 24 * 3600;
+    await applyStripeEvent(
+      testPrisma,
+      subscriptionEvent(u.id, {
+        id: 'evt_sub_trial',
+        subscriptionId: 'sub_trial',
+        status: 'trialing',
+        periodStart: trialStart,
+        periodEnd: trialEnd,
+      }),
+    );
+    const saved = await testPrisma.subscription.findUniqueOrThrow({
+      where: { stripeSubscriptionId: 'sub_trial' },
+    });
+    expect(saved.status).toBe('trialing');
+    expect(saved.userId).toBe(u.id);
+    expect(saved.currentPeriodStart).toEqual(new Date(trialStart * 1000));
+    expect(saved.currentPeriodEnd).toEqual(new Date(trialEnd * 1000));
   });
 
   it('ignores event types it does not handle', async () => {

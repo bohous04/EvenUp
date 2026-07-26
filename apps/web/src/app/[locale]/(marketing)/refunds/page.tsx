@@ -20,9 +20,16 @@ import { LegalDocument, legalMetadata, type LegalSection } from '@/components/le
  * withdrawal window. The 14-day clock of § 1829 runs from conclusion of the
  * contract, not from the first charge, so a 7-day trial puts the first charge
  * on day 8 — inside the window — and a customer withdrawing on day 10 is owed
- * that charge back, less the § 1834 proportionate part for the paid days they
- * actually used. The copy says so explicitly rather than staying silent,
- * because silence here reads as a denial of the right.
+ * that charge back in full. The copy says so explicitly rather than staying
+ * silent, because silence here reads as a denial of the right.
+ *
+ * No § 1834 proportionate deduction is reserved, deliberately: that section
+ * applies only where performance began at the consumer's express request, and
+ * `checkoutSubscription` asks for no such request (unlike `checkoutCredits`) —
+ * which is exactly what section 3's first paragraph tells the reader. Absent
+ * that request, Art. 14(4)(a)(ii) of Directive 2011/83/EU leaves the consumer
+ * owing nothing at all. Nothing in the codebase computes a pro-rata refund
+ * either.
  */
 const SECTIONS: readonly LegalSection[] = [
   { h: 'legal.refunds.s1.h', blocks: [{ p: 'legal.refunds.s1.p1' }] },
@@ -43,8 +50,8 @@ const SECTIONS: readonly LegalSection[] = [
       // The trial and the withdrawal right, in that order and kept apart.
       // `p4` exists to say the two do not interact: the 14-day clock runs from
       // contract conclusion, so the first charge (day 8 of a 7-day trial)
-      // lands inside it and `p5` owes that money back, less the § 1834
-      // proportionate part for paid days actually used.
+      // lands inside it and `p5` owes that money back — in full, matching the
+      // unconditional promise `p1` already makes.
       { p: 'legal.refunds.s3.p3' },
       { p: 'legal.refunds.s3.p4' },
       { p: 'legal.refunds.s3.p5' },

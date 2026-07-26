@@ -127,12 +127,58 @@ describe('tMarketing', () => {
   test('the trial copy never suggests it shortens or starts the withdrawal period', () => {
     // The legal pivot of this document: the 14-day clock runs from contract
     // conclusion, so the first charge (day 8 of a 7-day trial) falls inside
-    // it. `s3.p4` is the sentence that says so and `s3.p5` is the refund
-    // promise that follows from it; neither may quietly disappear.
+    // it. `s3.p4` is the sentence that says so.
+    //
+    // This used to assert `/14|čtrnáct/` and nothing else, which is a test
+    // that a digit is present — a reviewer rewrote the paragraph to claim the
+    // 14 days start at the first payment after the trial, the exact opposite
+    // of its job, and it still passed. So pin the operative phrase, and
+    // negatively pin the misstatement it exists to prevent.
+    const RUNS_FROM_CONCLUSION: Record<(typeof LOCALES)[number], string> = {
+      cs: 'ode dne uzavření smlouvy',
+      en: 'from the day the contract is concluded',
+    };
+    // Shapes that would mean "the clock starts (or restarts) after the trial".
+    const FORBIDDEN: Record<(typeof LOCALES)[number], readonly RegExp[]> = {
+      cs: [
+        /běží\s+(až\s+)?od\s+(první|prvn[íi]ho)/i,
+        /(začíná|počíná|běží)[^.]*po\s+(skončení|uplynutí)\s+zkušebního/i,
+        /nespotřebov/i,
+      ],
+      en: [
+        /(runs|starts|begins)[^.]*from\s+the\s+first\s+payment/i,
+        /(runs|starts|begins)[^.]*(after|once)\s+the\s+trial\s+(ends|has\s+ended)/i,
+        /use\s+it\s+up/i,
+      ],
+    };
     for (const locale of LOCALES) {
       const p4 = tMarketing(locale, 'legal.refunds.s3.p4', { trialDays: 7 });
       expect(p4, locale).toMatch(/14|čtrnáct/i);
-      expect(tMarketing(locale, 'legal.refunds.s3.p5', { trialDays: 7 }), locale).toContain('1834');
+      expect(p4, locale).toContain(RUNS_FROM_CONCLUSION[locale]);
+      for (const forbidden of FORBIDDEN[locale]) {
+        expect(p4, `${locale} / ${String(forbidden)}`).not.toMatch(forbidden);
+      }
+    }
+  });
+
+  test('the subscription refund promise reserves no pro-rata deduction', () => {
+    // `s3.p1` promises the price of the paid period back unconditionally, and
+    // two clauses earlier it says we deliberately do NOT collect the express
+    // request for immediate performance that § 1834 requires — so a § 1834
+    // deduction in `s3.p5` contradicted both the neighbouring sentence and
+    // Art. 14(4)(a)(ii) of Directive 2011/83/EU, which leaves a consumer who
+    // made no such request owing nothing. Nothing in the repo computes a
+    // pro-rata refund either: the only `refund*` symbol is `refundCredit`,
+    // which returns a scan after a failed OCR.
+    //
+    // Pinned as an absence rather than as a phrase, because the deduction can
+    // come back worded any number of ways and every one of them is wrong.
+    for (const locale of LOCALES) {
+      const p5 = tMarketing(locale, 'legal.refunds.s3.p5', { trialDays: 7 });
+      expect(p5, locale).not.toContain('1834');
+      expect(p5, locale).not.toMatch(/poměrn|proportionate|pro-rata/i);
+      // The promise itself has to survive the deletion.
+      expect(p5, locale).toMatch(/vrátíme|refund/i);
     }
   });
 

@@ -157,25 +157,14 @@ export function buildCreditCheckoutParams(args: {
 }
 
 /**
- * Every Stripe subscription status that means "this customer already has a
- * subscription with us" — not just the healthy ones.
- *
- * `summary` used to look for `'active'` alone, which quietly broke the moment
- * a card expired: Stripe moves the subscription to `past_due`, the app saw no
- * subscription, and offered "Subscribe to VIP" to somebody who already had
- * one. Buying again leaves the customer holding two Stripe subscriptions, and
- * if Stripe's smart retries then recover the first, they are billed twice for
- * the same product.
- *
- * `incomplete` and `unpaid` are here for the same reason — both describe a
- * subscription object that exists at Stripe and can still transition to
- * `active` on its own. What is deliberately absent is `canceled` and
- * `incomplete_expired`: those are terminal, and a customer whose subscription
- * ended must be able to buy a new one.
- */
-/**
  * Terminal Stripe subscription statuses — the only two that mean "gone, sell
  * them another one". Everything else counts as an open subscription.
+ *
+ * Why any of this exists: `summary` used to look for `'active'` alone, which
+ * quietly broke the moment a card expired. Stripe moves the subscription to
+ * `past_due`, the app saw no subscription, and offered "Subscribe to VIP" to
+ * somebody who already had one — and if Stripe's smart retries then recovered
+ * the first, the customer was billed twice for the same product.
  *
  * Deliberately a deny-list. The allow-list this replaced omitted `paused`, so
  * a paused subscriber was offered a second subscription — the very bug this

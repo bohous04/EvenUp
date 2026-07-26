@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type Stripe from 'stripe';
 import { createTestUser, testPrisma, makeCaller, resetDb } from '../test/harness.js';
 import { resetStripeForTests } from '../billing/stripe.js';
 import { TRIAL_PERIOD_DAYS } from '../billing/prices.js';
@@ -7,6 +8,41 @@ import {
   buildCreditCheckoutParams,
   persistCustomerId,
 } from './billing.js';
+
+/**
+ * A fake Stripe client, so `checkoutSubscription` can be driven end to end
+ * without a network call.
+ *
+ * The gap this closes: `buildSubscriptionCheckoutParams` was tested purely and
+ * `hasEverSubscribed` was tested through `summary.trialEligible`, but the one
+ * line in `checkoutSubscription` that joins them — the line deciding whether
+ * the customer is charged — was covered by nothing. Both wrong versions of it
+ * (`= TRIAL_PERIOD_DAYS`, an unlimited free ride for returning customers, and
+ * `= undefined`, a trial that never happens) passed the entire api suite.
+ */
+const stripeMock = vi.hoisted(() => ({
+  checkout: { sessions: { create: vi.fn() } },
+  customers: { create: vi.fn() },
+}));
+
+vi.mock('../billing/stripe.js', () => ({
+  // Mirrors the real factory's contract rather than always returning a client:
+  // several tests below assert the unconfigured, self-hosted path, and they
+  // must keep exercising it.
+  getStripe: () => (process.env.STRIPE_SECRET_KEY ? (stripeMock as unknown as Stripe) : null),
+  // The real one only drops a memoised client; this fake reads the env on
+  // every call, so there is nothing to forget.
+  resetStripeForTests: () => {},
+}));
+
+/** The params `checkoutSubscription` handed Stripe on its only call. */
+function sessionParams(): Stripe.Checkout.SessionCreateParams {
+  const calls = stripeMock.checkout.sessions.create.mock.calls;
+  expect(calls, 'checkoutSubscription should open exactly one Stripe session').toHaveLength(1);
+  const first = calls.at(0);
+  if (!first) throw new Error('checkoutSubscription never called Stripe');
+  return first[0] as Stripe.Checkout.SessionCreateParams;
+}
 
 const saved = { ...process.env };
 afterEach(() => {
@@ -19,6 +55,12 @@ afterEach(() => {
 describe('billing router', () => {
   beforeEach(() => {
     resetStripeForTests();
+    stripeMock.checkout.sessions.create.mockReset();
+    stripeMock.checkout.sessions.create.mockResolvedValue({
+      url: 'https://checkout.stripe.test/session',
+    });
+    stripeMock.customers.create.mockReset();
+    stripeMock.customers.create.mockResolvedValue({ id: 'cus_test' });
     return resetDb();
   });
 
@@ -146,6 +188,39 @@ describe('billing router', () => {
     const res = await makeCaller(u).billing.summary();
     expect(res.subscription).toBeNull();
     expect(res.trialEligible).toBe(false);
+  });
+
+  it('opens a first-time subscriber’s checkout with the free trial', async () => {
+    // The wiring test. `trialEligible` on the summary and the pure params
+    // builder were both already covered; what was not is that
+    // `checkoutSubscription` passes the eligibility answer into the builder.
+    // Mutating that line to `= undefined` — the trial silently never happens
+    // for anyone — has to fail here and nowhere else.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    process.env.STRIPE_PRICE_CZK_VIP = 'price_czk_vip';
+    const u = await createTestUser('a@example.com');
+    await makeCaller(u).billing.checkoutSubscription();
+    expect(sessionParams().subscription_data?.trial_period_days).toBe(TRIAL_PERIOD_DAYS);
+  });
+
+  it('opens a returning subscriber’s checkout with no trial at all', async () => {
+    // The other half, and the expensive one: mutating the same line to
+    // `= TRIAL_PERIOD_DAYS` gives every customer who cancels another free week
+    // for as long as they care to repeat it. Stripe enforces no
+    // one-trial-per-customer rule of its own.
+    //
+    // `canceled` on purpose: it is terminal, so `openSubscription` treats the
+    // customer as sellable and checkout proceeds — which is exactly the state
+    // in which the trial must not be granted. The key has to be absent, not
+    // zero: Stripe rejects `trial_period_days: 0`.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    process.env.STRIPE_PRICE_CZK_VIP = 'price_czk_vip';
+    const u = await createTestUser('a@example.com');
+    await seedSubscription(u.id, 'canceled');
+    await makeCaller(u).billing.checkoutSubscription();
+    expect(sessionParams().subscription_data).not.toHaveProperty('trial_period_days');
+    // Still a real subscription checkout, not a silently degraded one.
+    expect(sessionParams().subscription_data?.metadata).toMatchObject({ userId: u.id });
   });
 
   it('reports subscriptionAvailable per currency, not merely that Stripe is configured', async () => {

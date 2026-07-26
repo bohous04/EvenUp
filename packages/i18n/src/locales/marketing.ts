@@ -101,9 +101,14 @@ const marketingOnlyCs = {
   // real values and „2 dnů" is wrong.
   'marketing.pricing.vip.body':
     '{scans} skenů účtenek měsíčně. Fotky zůstanou uložené a po {days} dnech od naskenování je smažeme. Zrušíte kdykoli.',
-  // Zkušební lhůta. `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts`,
+  // Zkušební období. `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts`,
   // tedy totéž číslo, které checkout posílá Stripu – ceník nemůže nabízet
-  // lhůtu, kterou předplatné doopravdy nedostane.
+  // období, které předplatné doopravdy nedostane.
+  //
+  // „Zkušební období“, ne „zkušební lhůta“: lhůta je doba k uplatnění práva
+  // a podle § 607 občanského zákoníku se prodlužuje, končí-li ve svátek nebo
+  // o víkendu – tedy by posouvala den první platby. Stejné slovo je i v obou
+  // právních dokumentech.
   //
   // Jiný zástupný symbol než sousední `{days}` schválně: `{days}` znamená
   // všude v tomto jmenném prostoru retenci fotek a `LegalDocument` ji dosazuje
@@ -114,10 +119,12 @@ const marketingOnlyCs = {
   // 14denní), takže tady genitivní past nehrozí; „po {trialDays} dnech“ je
   // lokál a sedí pro každou hodnotu ≥ 2.
   //
-  // Že se kartou platí předem, musí být v ceníku vidět: „zkušební lhůta
-  // zdarma“ bez té věty čte většina lidí jako „nic nezadávám“.
+  // Že se kartou platí předem, musí být v ceníku vidět: „zkušební období
+  // zdarma“ bez té věty čte většina lidí jako „nic nezadávám“. Sloveso
+  // „strhneme“ je tu schválně stejné jako v aplikaci (`vip.trial.note`)
+  // i v podmínkách – ceník má mluvit stejnou řečí jako zbytek produktu.
   'marketing.pricing.vip.trial':
-    '{trialDays}denní zkušební lhůta zdarma. Kartu zadáte hned, platit ale začnete až po {trialDays} dnech – a jen pokud předplatné nezrušíte.',
+    '{trialDays}denní zkušební období zdarma. Kartu zadáte hned, ale strhneme z ní až po {trialDays} dnech – a jen když předplatné nezrušíte.',
   'marketing.pricing.packs.title': 'Balíčky skenů',
   'marketing.pricing.packs.body':
     'Skenujete jen občas? Kupte si balíček bez předplatného. Skeny nevyprší.',
@@ -127,7 +134,12 @@ const marketingOnlyCs = {
   // string has to become a `plural()` call rather than a template.
   'marketing.pricing.packs.item': 'Balíček {scans} skenů',
   'marketing.pricing.note': 'Platby zpracovává Stripe. Předplatné zrušíte kdykoli v aplikaci.',
-  'marketing.pricing.cta': 'Vyzkoušet zdarma',
+  // Míří na `/sign-up`, ne do checkoutu (`page.tsx`). Dokud v témže bloku
+  // nestála nabídka zkušebního období, četlo se dřívější „Vyzkoušet zdarma“
+  // neutrálně; vedle „{trialDays}denní zkušební období zdarma“ a tlačítka
+  // „Předplatit VIP“ ale slibuje spuštění zkušebního období a dodá účet
+  // zdarma. Popisek proto říká, co odkaz doopravdy udělá.
+  'marketing.pricing.cta': 'Založit účet zdarma',
   // The price list's second CTA, pointing at `/vip` — the only route to
   // checkout in the whole product. Until it existed nothing linked there and a
   // customer had to type the address to pay.
@@ -221,7 +233,7 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.pricing.packs.item': 'Pack of {scans} scans',
   'marketing.pricing.note':
     'Payments are handled by Stripe. Cancel your subscription any time in the app.',
-  'marketing.pricing.cta': 'Try it free',
+  'marketing.pricing.cta': 'Create a free account',
   'marketing.pricing.ctaVip': 'Subscribe to VIP',
 
   'marketing.faq.title': 'Frequently asked questions',

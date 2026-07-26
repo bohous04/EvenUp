@@ -158,17 +158,23 @@ export const legalCs = {
   // `LegalDocument` ho dosazuje do každého klíče. Tvar „{trialDays}denní“ je
   // navíc mluvnicky správný pro každou hodnotu, na rozdíl od genitivu.
   //
-  // „až po jejím skončení“ je den 8 při sedmidenní lhůtě. Konkrétní číslo dne
-  // tu schválně není: plynulo by z aritmetiky nad konstantou a při její změně
-  // by tiše přestalo platit.
+  // „až po jeho skončení“ je den 8 při sedmidenním zkušebním období. Konkrétní
+  // číslo dne tu schválně není: plynulo by z aritmetiky nad konstantou a při
+  // její změně by tiše přestalo platit.
+  //
+  // Důsledně „zkušební období“, nikdy „zkušební lhůta“. Lhůta je v pojetí
+  // občanského zákoníku doba, v níž je třeba uplatnit právo, a podle § 607 se
+  // prodlužuje, končí-li v sobotu, v neděli nebo ve svátek – to by posunulo
+  // den první platby. Ve zkušebním období není třeba dělat nic, takže je to
+  // doba, ne lhůta.
   'legal.terms.s5.p4':
-    'Předplatné VIP začíná {trialDays}denní zkušební lhůtou zdarma. Platební kartu zadáváte hned při objednávce, ale po dobu zkušební lhůty vám neúčtujeme nic – první platbu strhneme až po jejím skončení, a jen tehdy, pokud jste předplatné do té doby nezrušili.',
-  // Vynucuje to `checkoutSubscription`: zkušební lhůtu dostane jen ten, kdo u
+    'Předplatné VIP začíná {trialDays}denním zkušebním obdobím zdarma. Údaje o platební kartě zadáváte hned při objednávce, ale po dobu zkušebního období vám neúčtujeme nic – první platbu strhneme až po jeho skončení, a jen tehdy, pokud jste předplatné do té doby nezrušili.',
+  // Vynucuje to `checkoutSubscription`: zkušební období dostane jen ten, kdo u
   // nás dosud žádné předplatné neměl, včetně už zrušeného (`hasEverSubscribed`
-  // v `routers/billing.ts`). Bez této věty by podmínky nabízely lhůtu, kterou
-  // část zákazníků při objednávce nedostane.
+  // v `routers/billing.ts`). Bez této věty by podmínky nabízely zkušební
+  // období, které část zákazníků při objednávce nedostane.
   'legal.terms.s5.p5':
-    'Zkušební lhůtu nabízíme jednou. Měli-li jste u nás předplatné VIP už dřív, další si objednáváte rovnou jako placené.',
+    'Zkušební období nabízíme jednou. Měli-li jste u nás předplatné VIP už dřív, další si objednáváte rovnou jako placené.',
 
   'legal.terms.s6.h': 'Zrušení předplatného',
   'legal.terms.s6.p1':
@@ -177,7 +183,7 @@ export const legalCs = {
   // přečíslovat kvůli tomu `p2` by znamenalo sáhnout na klíč, na který se
   // odkazuje stránka i druhý dokument.
   'legal.terms.s6.p1b':
-    'Zrušíte-li předplatné během zkušební lhůty, skončí jejím posledním dnem a nic vám neúčtujeme.',
+    'Zrušíte-li předplatné během zkušebního období, poběží do jeho posledního dne a pak skončí – nic vám neúčtujeme.',
   'legal.terms.s6.p2':
     'Zrušení předplatného není odstoupení od smlouvy. Odstoupení a reklamace řeší samostatný dokument.',
 
@@ -434,25 +440,35 @@ export const legalCs = {
   'legal.refunds.s3.p2':
     'Předplatné se automaticky obnovuje na další období. Chcete-li se obnovení vyhnout, zrušte ho dříve, než období skončí.',
   'legal.refunds.s3.p3':
-    'Předplatné začíná {trialDays}denní zkušební lhůtou zdarma. Zrušíte-li ho v jejím průběhu, neplatíte nic – není tedy co vracet.',
+    'Předplatné začíná {trialDays}denním zkušebním obdobím zdarma. Zrušíte-li ho v jeho průběhu, neplatíte nic – není tedy co vracet.',
   // Tohle je jádro věci a nesmí se to změkčit.
   //
   // Čtrnáctidenní lhůta k odstoupení (§ 1829 občanského zákoníku, směrnice
   // 2011/83/EU) běží od uzavření smlouvy, ne od první platby. Objednávka den 0
-  // → konec zkušební lhůty den 7 → první platba den 8, tedy uvnitř lhůty.
+  // → konec zkušebního období den 7 → první platba den 8, tedy uvnitř lhůty.
   // Spotřebitel, který odstoupí desátý den, má na vrácení této platby nárok.
-  // Kdyby text naznačil opak – že zkušební lhůta lhůtu k odstoupení posouvá,
-  // zkracuje nebo spotřebovává –, byl by to nepravdivý údaj o zákonném právu,
-  // a takové ujednání je navíc samo o sobě neplatné.
+  // Kdyby text naznačil opak – že zkušební období lhůtu k odstoupení posouvá
+  // nebo zkracuje –, byl by to nepravdivý údaj o zákonném právu, a takové
+  // ujednání je navíc samo o sobě neplatné.
+  //
+  // Vědomě tu nestojí „ani ji nespotřebovává“: při sedmidenním zkušebním
+  // období sedm ze čtrnácti dnů uplyne, což hned další věta potvrzuje. Stejně
+  // vědomě tu není ani aritmetika („po skončení vám zbývá 7 dní“) – ta by
+  // přestala platit pro jakoukoli hodnotu `TRIAL_PERIOD_DAYS` od 14 výš.
   'legal.refunds.s3.p4':
-    'Zkušební lhůta nemá na čtrnáctidenní lhůtu k odstoupení žádný vliv – nezkracuje ji, neodkládá její začátek ani ji nespotřebovává. Lhůta k odstoupení běží ode dne uzavření smlouvy, tedy ode dne objednávky, ne ode dne první platby. Protože první platbu strháváme až po skončení zkušební lhůty, spadá i tato platba ještě do čtrnáctidenní lhůty k odstoupení.',
-  // § 1834: odstoupí-li spotřebitel od smlouvy o službě, jejíž plnění na jeho
-  // žádost začalo před uplynutím lhůty, hradí poměrnou část ceny za plnění
-  // poskytnuté do odstoupení. Formulováno jako „smíme ponechat“, ne „vrátíme
-  // jen zbytek“: nárok na vrácení je pravidlo, srážka výjimka. Za dny zkušební
-  // lhůty se nesráží nic – nic za ně zaplaceno nebylo.
+    'Zkušební období nemá na čtrnáctidenní lhůtu k odstoupení žádný vliv – nezkracuje ji ani neodkládá její začátek. Lhůta k odstoupení běží ode dne uzavření smlouvy, tedy ode dne objednávky, ne ode dne první platby. Protože první platbu strháváme až po skončení zkušebního období, spadá i tato platba ještě do čtrnáctidenní lhůty k odstoupení.',
+  // Žádná srážka, a to schválně. Poměrná část ceny podle § 1834 přichází
+  // v úvahu jen tam, kde plnění začalo na výslovnou žádost spotřebitele – a tu
+  // u předplatného nevybíráme, jak říká `p1` o dvě věty výš a jak to dělá
+  // `checkoutSubscription` (na rozdíl od `checkoutCredits` po ničem takovém
+  // nesahá). Bez takové žádosti spotřebitel podle čl. 14 odst. 4 písm. a) bodu
+  // ii) směrnice 2011/83/EU nehradí nic. Srážka by navíc odporovala `p1`, kde
+  // slibujeme cenu za právě zaplacené období zpátky bez výhrad – a je to věta,
+  // kterou nám zákazník ocituje. Nic v repozitáři ostatně poměrnou část
+  // nepočítá; jediné `refund*` je `refundCredit`, což vrací sken po
+  // nepovedeném OCR.
   'legal.refunds.s3.p5':
-    'Odstoupíte-li od smlouvy po první platbě a ještě ve čtrnáctidenní lhůtě, peníze vám vrátíme. Podle § 1834 občanského zákoníku si přitom smíme ponechat poměrnou část ceny za dny, kdy jste placené předplatné do odstoupení skutečně měli k dispozici; za dny zkušební lhůty neúčtujeme nic, ty jsou zdarma.',
+    'Odstoupíte-li od smlouvy po první platbě a ještě ve čtrnáctidenní lhůtě, peníze vám vrátíme.',
 
   'legal.refunds.s4.h': 'Zrušení předplatného není odstoupení',
   'legal.refunds.s4.p1':
@@ -814,9 +830,9 @@ export const legalEn: LegalMessages = {
   'legal.refunds.s3.p3':
     'The subscription starts with a {trialDays}-day free trial. Cancel during it and you pay nothing, so there is nothing to refund.',
   'legal.refunds.s3.p4':
-    'The trial has no effect on the 14-day withdrawal period — it does not shorten it, delay its start, or use it up. The withdrawal period runs from the day the contract is concluded, that is the day you order, not the day of the first payment. Because we take the first payment only after the trial ends, that payment still falls inside it.',
+    'The trial has no effect on the 14-day withdrawal period — it does not shorten it or delay its start. The withdrawal period runs from the day the contract is concluded, that is the day you order, not the day of the first payment. Because we take the first payment only after the trial ends, that payment still falls inside it.',
   'legal.refunds.s3.p5':
-    'If you withdraw after the first payment and still within the 14 days, we refund it. Under § 1834 of the Czech Civil Code we may keep a proportionate part of the price for the days you actually had the paid subscription before withdrawing; nothing is charged for the trial days, which are free.',
+    'If you withdraw after the first payment and still within the 14 days, we refund it.',
 
   'legal.refunds.s4.h': 'Cancelling is not withdrawing',
   'legal.refunds.s4.p1':
