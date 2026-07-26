@@ -71,19 +71,25 @@ export const userRouter = router({
       return { ok: true };
     }),
 
-  /** Rename the account AND every group member linked to it (spec 2026-07-09 §4). */
+  /**
+   * Rename the account AND every group member linked to it (spec 2026-07-09
+   * §4). Scoped to *active* links only: a deactivated row is a removed
+   * membership (see access.ts), so a former member must not be able to keep
+   * rewriting their old row's display name or injecting activity entries
+   * into a group they no longer belong to.
+   */
   updateProfile: protectedProcedure
     .input(z.object({ name: z.string().trim().min(1).max(50) }))
     .mutation(async ({ ctx, input }) => {
       const linked = await ctx.prisma.member.findMany({
-        where: { userId: ctx.user.id },
+        where: { userId: ctx.user.id, isActive: true },
         select: { id: true, groupId: true },
       });
       await ctx.prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: ctx.user.id }, data: { name: input.name } });
         if (linked.length > 0) {
           await tx.member.updateMany({
-            where: { userId: ctx.user.id },
+            where: { userId: ctx.user.id, isActive: true },
             data: { displayName: input.name, initials: deriveInitials(input.name) },
           });
         }
@@ -158,9 +164,29 @@ export const userRouter = router({
     return { ok: true };
   }),
 
-  /** GDPR export of the user's personal data (FR-1.6). */
+  /**
+   * GDPR export of the user's personal data (FR-1.6).
+   *
+   * Groups fall into two buckets by the caller's *current* link, mirroring
+   * the access.ts contract: a deactivated member row is a removed person and
+   * must not read as ongoing group access (see access.ts).
+   *  - Creator, or an active member -> the whole group, unchanged from before.
+   *  - Only a deactivated (removed) link left -> not "their own data" in
+   *    full: the group's identity, plus only the transactions their member
+   *    row actually took part in (as payer or split), and only the members
+   *    and receipts those transactions reference. Without this, export
+   *    became a way for a removed member to keep reading the group's live
+   *    ledger indefinitely -- everything added after they left included.
+   */
   exportData: protectedProcedure.query(async ({ ctx }) => {
-    const [profile, groups, bankDetails] = await Promise.all([
+    const receiptSelect = {
+      id: true,
+      merchant: true,
+      detectedCurrency: true,
+      createdAt: true,
+    } as const;
+
+    const [profile, fullAccessGroups, bankDetails] = await Promise.all([
       ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
         select: {
@@ -175,14 +201,15 @@ export const userRouter = router({
       }),
       ctx.prisma.group.findMany({
         where: {
-          OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }],
+          OR: [
+            { createdById: ctx.user.id },
+            { members: { some: { userId: ctx.user.id, isActive: true } } },
+          ],
         },
         include: {
           members: true,
           transactions: { include: { payers: true, splits: true } },
-          receipts: {
-            select: { id: true, merchant: true, detectedCurrency: true, createdAt: true },
-          },
+          receipts: { select: receiptSelect },
         },
       }),
       ctx.prisma.bankDetail.findMany({
@@ -190,6 +217,51 @@ export const userRouter = router({
         select: { memberId: true, recipientName: true, variableSymbol: true },
       }),
     ]);
+
+    const fullAccessIds = new Set(fullAccessGroups.map((g) => g.id));
+    const inactiveLinkGroups = await ctx.prisma.group.findMany({
+      where: {
+        id: { notIn: [...fullAccessIds] },
+        members: { some: { userId: ctx.user.id, isActive: false } },
+      },
+      include: {
+        members: true,
+        // Only the transactions the caller's own (now-inactive) member row
+        // participated in -- not the group's transactions in general.
+        transactions: {
+          where: {
+            OR: [
+              { payers: { some: { member: { userId: ctx.user.id } } } },
+              { splits: { some: { member: { userId: ctx.user.id } } } },
+            ],
+          },
+          include: { payers: true, splits: true },
+        },
+        receipts: { select: receiptSelect },
+      },
+    });
+
+    const restrictedGroups = inactiveLinkGroups.map((group) => {
+      // Always keep the caller's own member row(s) -- that's their data
+      // regardless of whether they ever took part in a transaction -- plus
+      // whoever co-appears in a transaction they actually participated in.
+      const participantMemberIds = new Set(
+        group.members.filter((m) => m.userId === ctx.user.id).map((m) => m.id),
+      );
+      const linkedReceiptIds = new Set<string>();
+      for (const t of group.transactions) {
+        for (const p of t.payers) participantMemberIds.add(p.memberId);
+        for (const s of t.splits) participantMemberIds.add(s.memberId);
+        if (t.receiptId) linkedReceiptIds.add(t.receiptId);
+      }
+      return {
+        ...group,
+        members: group.members.filter((m) => participantMemberIds.has(m.id)),
+        receipts: group.receipts.filter((r) => linkedReceiptIds.has(r.id)),
+      };
+    });
+
+    const groups = [...fullAccessGroups, ...restrictedGroups];
     const { bankAccountEncrypted, ...profileRest } = profile;
     let bankAccount: string | null = null;
     if (bankAccountEncrypted !== null) {
