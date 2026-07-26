@@ -607,8 +607,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
   });
 
   test('invite page is accessible (§9.4)', async ({ page }, testInfo) => {
-    const email = uniqueEmail('inv', testInfo.workerIndex + Date.now());
-    await signIn(page, email);
+    const owner = uniqueEmail('inv', testInfo.workerIndex + Date.now());
+    await signIn(page, owner);
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Invite');
     await page.getByTestId('create-group-submit').click();
@@ -616,7 +616,109 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await openGroupSheet(page, 'invite');
     await page.getByTestId('invite-btn').click();
     const url = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Scan as someone who is NOT already in the group. The owner is an
+    // active member, and an active member who opens their own invite link
+    // now gets redirected straight to the group (see AlreadyMemberBanner) --
+    // scanning as the owner would race that redirect and land the axe scan
+    // on whatever page won, not reliably on the invite page this test names.
+    // A genuine invitee has no membership yet, so nothing redirects them.
+    const invitee = uniqueEmail('inv-guest', testInfo.workerIndex + Date.now());
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Guest', email: invitee, password: 'test-password-123' },
+    });
     await page.goto(new URL(url!).pathname);
+    await expect(page).toHaveURL(/\/invite\//);
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('already-member banner after the invite redirect is accessible (§9.4)', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('already-a11y', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Already');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Already').click();
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const url = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // The creator is an active member of their own group, so opening their
+    // own invite link redirects straight to the group with the amber banner
+    // this branch introduced (already-member-banner.tsx) -- new UI, so it
+    // gets its own axe scan rather than piggybacking on the invite test above.
+    await page.goto(new URL(url!).pathname);
+    await expect(page).toHaveURL(/\/groups\/.*already=1/);
+    await expect(page.getByTestId('already-member-banner')).toBeVisible();
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('welcome-back view for a removed-then-returning member is accessible (§9.4)', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('comeback-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Comeback');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Comeback').click();
+    // Client-side navigation is async -- wait for it to actually land before
+    // reading the id out of the URL (a bare click() resolves on the click
+    // event, not the route change).
+    await expect(page).toHaveURL(/\/groups\//);
+    const groupId = new URL(page.url()).pathname.split('/').pop()!;
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Petr claims the placeholder, then is removed while he has no
+    // transactions on his row. There is no click path anywhere in the app
+    // for member.remove (it is exercised only via the API -- see that
+    // procedure's own review history), so this uses the same kind of
+    // dev-only backdoor /api/dev/make-vip already relies on for a state e2e
+    // otherwise can't reach.
+    const invitee = uniqueEmail('comeback-petr', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Petr', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+    await page
+      .getByTestId(/^invite-member-/)
+      .filter({ hasText: 'Petr' })
+      .click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+
+    const removeRes = await page.request.post(
+      `/api/dev/remove-member?groupId=${groupId}&email=${encodeURIComponent(invitee)}`,
+    );
+    expect(removeRes.ok()).toBeTruthy();
+
+    // Petr reopens the same link, still signed in as himself -- the server
+    // recognises his deactivated row and returns him to the welcome-back
+    // view instead of the member picker (see invite.ts's claimOptions).
+    await page.goto(new URL(inviteUrl!).pathname);
+    await expect(page.getByTestId('invite-welcome-back')).toBeVisible();
+
     const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
   });
