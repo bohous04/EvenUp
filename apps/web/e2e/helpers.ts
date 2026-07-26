@@ -32,3 +32,33 @@ export async function openGroupSheet(page: Page, item: string) {
 export async function closeSheet(page: Page) {
   await page.getByTestId('sheet-close').click();
 }
+
+/**
+ * Ensure the shared instance OpenRouter key is configured (PRD §9.2): OCR
+ * scanning runs on this admin-set key instead of the old per-user BYO key, so
+ * any e2e flow that scans a receipt needs it in place first. Drives the real
+ * admin dashboard (no server-side seeding shortcut) so the test still
+ * exercises the actual gate the app enforces. Idempotent — a prior test in
+ * the same run may have already set it — and leaves the browser signed out
+ * on return, so call `signIn` again afterward to resume as the intended user.
+ */
+export async function ensureInstanceOcrKey(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await signIn(page, 'admin@example.com');
+  await page.getByTestId('nav-admin').click();
+  // `admin.getInstanceConfig`'s `hasKey ? status : form` ternary has no
+  // distinct loading state — it renders the "not configured" form as its
+  // default too, while the query is still in flight. Wait for that request to
+  // settle before deciding whether a key already exists (from a prior test in
+  // this run); otherwise filling the form can race the query, and once the
+  // real "already configured" state lands, React swaps the form out from
+  // under an in-flight click on its now-detached save button.
+  await page.waitForLoadState('networkidle');
+  const status = page.getByTestId('instance-key-status');
+  if (!(await status.isVisible())) {
+    await page.getByTestId('instance-key-input').fill('sk-or-test-instance-key');
+    await page.getByTestId('instance-key-save').click();
+    await expect(status).toBeVisible();
+  }
+  await page.context().clearCookies();
+}
