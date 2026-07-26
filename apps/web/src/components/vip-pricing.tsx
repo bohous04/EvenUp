@@ -51,7 +51,7 @@ export function VipPricing({
    */
   pending?: boolean;
 }) {
-  const { t, formatCurrency } = useI18n();
+  const { t, formatCurrency, formatDate } = useI18n();
   const [acknowledged, setAcknowledged] = useState(false);
   const ackId = useId();
   // `trialing` is healthy; `past_due`, `unpaid` and `incomplete` all mean a
@@ -59,6 +59,11 @@ export function VipPricing({
   const status = summary.subscription?.status;
   const needsPaymentAttention =
     status !== undefined && status !== 'active' && status !== 'trialing';
+  // Healthy, but not the same as `active`: nothing has been charged yet and
+  // the customer needs to see when that changes. While trialing, Stripe sets
+  // the period to the trial window, so `currentPeriodEnd` *is* the trial end
+  // and therefore the date of the first payment.
+  const isTrialing = status === 'trialing';
 
   if (!summary.billingEnabled) {
     return (
@@ -114,14 +119,52 @@ export function VipPricing({
                 {t('vip.subscription.paymentProblem')}
               </p>
             ) : null}
+            {isTrialing ? (
+              <p
+                role="status"
+                // Only the brand steps `globals.css` actually defines
+                // (50/100/500/600/700) — an undefined `brand-300` or
+                // `brand-950` renders as no style at all, silently.
+                className="mb-3 rounded-lg border border-brand-500/40 bg-brand-50/70 px-3 py-2 text-sm font-medium text-brand-700 dark:bg-brand-600/10 dark:text-brand-100"
+                data-testid="vip-trialing"
+              >
+                {t('vip.subscription.trialing', {
+                  date: formatDate(summary.subscription.currentPeriodEnd),
+                })}
+              </p>
+            ) : null}
             <Button onClick={onPortal} disabled={pending} data-testid="vip-manage">
               {pending ? t('common.loading') : t('vip.manage')}
             </Button>
           </>
         ) : summary.subscriptionAvailable ? (
-          <Button onClick={onSubscribe} disabled={pending} data-testid="vip-subscribe">
-            {pending ? t('common.loading') : t('vip.subscribe')}
-          </Button>
+          // Two audiences behind one button. `trialEligible` comes from the
+          // server because `subscription === null` cannot tell a first-time
+          // buyer from someone who cancelled — and `checkoutSubscription`
+          // grants the trial to the first and refuses it to the second, so a
+          // label guessed on the client could promise a week checkout will not
+          // give.
+          <>
+            <Button onClick={onSubscribe} disabled={pending} data-testid="vip-subscribe">
+              {pending
+                ? t('common.loading')
+                : summary.trialEligible
+                  ? t('vip.trial.subscribe', { trialDays: summary.trialDays })
+                  : t('vip.subscribe')}
+            </Button>
+            {/* Below the button, but written before the click matters: Stripe
+                collects a card for a trialing subscription, and "free trial"
+                with no card warning is the single most common source of "I
+                never agreed to this" disputes. */}
+            {summary.trialEligible ? (
+              <p
+                className="mt-3 text-sm text-zinc-600 dark:text-zinc-300"
+                data-testid="vip-trial-note"
+              >
+                {t('vip.trial.note', { trialDays: summary.trialDays })}
+              </p>
+            ) : null}
+          </>
         ) : (
           // `billingEnabled` is only "STRIPE_SECRET_KEY is set"; the VIP price
           // id is a separate variable per currency. Rendering the button when

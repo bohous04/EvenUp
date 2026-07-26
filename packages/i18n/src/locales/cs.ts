@@ -118,6 +118,28 @@ export const cs = {
   'vip.benefit.storage': 'Fotky účtenek zůstanou uložené – po {days} dnech je smažeme',
   'vip.benefit.cancel': 'Zrušíte kdykoli',
   'vip.subscribe': 'Předplatit VIP',
+  // Nabídka pro toho, kdo u nás předplatné ještě nikdy neměl; `trialEligible`
+  // z `billing.summary` rozhoduje, který z těch dvou popisků tlačítko dostane.
+  //
+  // `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts` – tedy přesně
+  // to číslo, které checkout pošle Stripu jako `trial_period_days`, aby
+  // tlačítko nemohlo slíbit jinou lhůtu, než jaká se doopravdy založí.
+  //
+  // Záměrně `{trialDays}`, ne `{days}`: `{days}` po celém katalogu i v
+  // právních dokumentech znamená retenci fotek účtenek a `LegalDocument`
+  // dosazuje jednu a tutéž hodnotu do každého klíče. Dvě různá čísla pod
+  // jedním jménem by se dřív nebo později prohodila.
+  //
+  // Genitiv „{trialDays} dní“ sedí pro 5 a víc – tedy i pro dnešních 7 –, ale
+  // rozbije se na 2, 3 a 4 („3 dní“ místo „3 dny“), stejně jako u
+  // `marketing.pricing.vip.body`. Zkrátí-li se lhůta pod pět dnů, musí se
+  // řetězec přepsat na `plural()`. Věty níž se tomu vyhýbají lokálem
+  // („po {trialDays} dnech“), který je správný pro každou hodnotu ≥ 2.
+  'vip.trial.subscribe': 'Vyzkoušet {trialDays} dní zdarma',
+  // Kartu Stripe vyžaduje i u zkušební lhůty, takže to musí zaznít dřív, než
+  // člověk klikne – jinak je to nemilé překvapení až v checkoutu.
+  'vip.trial.note':
+    'Kartu zadáte hned, ale platit začnete až po {trialDays} dnech. Zrušíte-li předplatné do té doby, nestrhneme vám nic.',
   'vip.manage': 'Spravovat předplatné',
   'vip.balance': 'Zbývá skenů: {count}',
   'vip.credits.title': 'Nebo si dokupte jednotlivé skeny',
@@ -137,6 +159,14 @@ export const cs = {
   // payment failed. Offering "Subscribe" here would sell a second one.
   'vip.subscription.paymentProblem':
     'Platba předplatného neprošla. Zkontrolujte si kartu v zákaznickém portálu, jinak vám VIP zanikne.',
+  // Stav `trialing`. `{date}` je `currentPeriodEnd` – Stripe po dobu zkušební
+  // lhůty nastavuje období předplatného právě na ni, takže je to zároveň den
+  // první platby. Zdravý stav jako `active`, ale zákazník potřebuje vidět,
+  // kdy mu začneme účtovat; bez data by se „zkušební lhůta“ nedala uhlídat.
+  // `{date}` jde přes `formatDate` (`Intl`, cs-CZ), který vrací „2. srpna 2026“
+  // – genitiv, tedy tvar, který si předložka „do“ žádá.
+  'vip.subscription.trialing':
+    'Zkušební lhůta běží do {date}. Pokud předplatné do té doby nezrušíte, ten den vám strhneme první platbu.',
   'vip.checkout.success': 'Zaplaceno, díky. Skeny se připíšou během chviličky.',
   'vip.checkout.cancelled': 'Platbu jste zrušili. Nic jsme vám nestrhli.',
   'vip.signedOut': 'Přihlaste se a můžete si předplatit VIP nebo dokoupit skeny.',

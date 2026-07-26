@@ -12,7 +12,17 @@ import { LegalDocument, legalMetadata, type LegalSection } from '@/components/le
  * no such thing, so for the subscription the right survives in full. Section 2
  * quotes the checkbox verbatim from `vip.credits.ack` in the app catalogs; if
  * that string is ever reworded, `legal.refunds.s2.quote` has to move with it,
- * or the page will quote wording the customer was never shown.
+ * or the page will quote wording the customer was never shown. A test in
+ * `packages/i18n/src/marketing.test.ts` now pins the two together.
+ *
+ * Section 3 carries the consequence of the free trial, and it is the opposite
+ * of the intuitive one: the trial does NOT push the purchase outside the
+ * withdrawal window. The 14-day clock of § 1829 runs from conclusion of the
+ * contract, not from the first charge, so a 7-day trial puts the first charge
+ * on day 8 — inside the window — and a customer withdrawing on day 10 is owed
+ * that charge back, less the § 1834 proportionate part for the paid days they
+ * actually used. The copy says so explicitly rather than staying silent,
+ * because silence here reads as a denial of the right.
  */
 const SECTIONS: readonly LegalSection[] = [
   { h: 'legal.refunds.s1.h', blocks: [{ p: 'legal.refunds.s1.p1' }] },
@@ -25,7 +35,21 @@ const SECTIONS: readonly LegalSection[] = [
       { p: 'legal.refunds.s2.p3' },
     ],
   },
-  { h: 'legal.refunds.s3.h', blocks: [{ p: 'legal.refunds.s3.p1' }, { p: 'legal.refunds.s3.p2' }] },
+  {
+    h: 'legal.refunds.s3.h',
+    blocks: [
+      { p: 'legal.refunds.s3.p1' },
+      { p: 'legal.refunds.s3.p2' },
+      // The trial and the withdrawal right, in that order and kept apart.
+      // `p4` exists to say the two do not interact: the 14-day clock runs from
+      // contract conclusion, so the first charge (day 8 of a 7-day trial)
+      // lands inside it and `p5` owes that money back, less the § 1834
+      // proportionate part for paid days actually used.
+      { p: 'legal.refunds.s3.p3' },
+      { p: 'legal.refunds.s3.p4' },
+      { p: 'legal.refunds.s3.p5' },
+    ],
+  },
   { h: 'legal.refunds.s4.h', blocks: [{ p: 'legal.refunds.s4.p1' }] },
   {
     h: 'legal.refunds.s5.h',

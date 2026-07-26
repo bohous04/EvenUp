@@ -82,6 +82,60 @@ describe('tMarketing', () => {
     }
   });
 
+  test('the withdrawal document quotes the credit checkbox verbatim, not a paraphrase', () => {
+    // `legal.refunds.s2.quote` is presented to the reader as the wording they
+    // ticked at checkout, so it has to BE that wording: `vip.credits.ack` in
+    // the app catalogs, byte for byte, with only the quotation marks added.
+    // Reword one without the other and the document quotes a statement the
+    // customer was never shown — the operative consent for the § 1837 waiver.
+    // Nothing pinned this before; the trial work is a good moment to fix that,
+    // because the trial touches the neighbouring subscription copy and leaves
+    // the credit waiver deliberately untouched.
+    const marks: Record<(typeof LOCALES)[number], readonly [string, string]> = {
+      // Czech opens low and closes high (U+201E / U+201C); English uses U+201C / U+201D.
+      cs: ['„', '“'],
+      en: ['“', '”'],
+    };
+    for (const locale of LOCALES) {
+      const [open, close] = marks[locale];
+      expect(tMarketing(locale, 'legal.refunds.s2.quote'), locale).toBe(
+        `${open}${catalogs[locale]['vip.credits.ack']}${close}`,
+      );
+    }
+  });
+
+  test('the trial length is interpolated everywhere it is claimed, and never as {days}', () => {
+    // `{days}` means the receipt retention throughout this namespace, and
+    // `LegalDocument` hands one value bag to every key at once. A trial string
+    // written with `{days}` would quietly render the retention period as the
+    // trial length. Distinct values here would surface exactly that swap.
+    const TRIAL_KEYS = [
+      'marketing.pricing.vip.trial',
+      'legal.terms.s5.p4',
+      'legal.refunds.s3.p3',
+    ] as const;
+    for (const locale of LOCALES) {
+      for (const key of TRIAL_KEYS) {
+        const text = tMarketing(locale, key, { trialDays: 7, days: 30, scans: 150 });
+        expect(text, `${locale}/${key}`).toContain('7');
+        expect(text, `${locale}/${key}`).not.toContain('{trialDays}');
+        expect(text, `${locale}/${key}`).not.toContain('30');
+      }
+    }
+  });
+
+  test('the trial copy never suggests it shortens or starts the withdrawal period', () => {
+    // The legal pivot of this document: the 14-day clock runs from contract
+    // conclusion, so the first charge (day 8 of a 7-day trial) falls inside
+    // it. `s3.p4` is the sentence that says so and `s3.p5` is the refund
+    // promise that follows from it; neither may quietly disappear.
+    for (const locale of LOCALES) {
+      const p4 = tMarketing(locale, 'legal.refunds.s3.p4', { trialDays: 7 });
+      expect(p4, locale).toMatch(/14|čtrnáct/i);
+      expect(tMarketing(locale, 'legal.refunds.s3.p5', { trialDays: 7 }), locale).toContain('1834');
+    }
+  });
+
   test('falls back to the default locale for an unknown locale', () => {
     // @ts-expect-error intentionally unknown locale to exercise the fallback
     expect(tMarketing('de', 'marketing.hero.title')).toBe(marketingCs['marketing.hero.title']);

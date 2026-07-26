@@ -30,6 +30,10 @@
  * | A failed scan refunds the credit | `api/src/routers/ocr.ts` → `refundCredit` |
  * | Cancellation is the Stripe portal | `api/src/routers/billing.ts` `portal` |
  * | The credit-pack withdrawal waiver | `api/src/routers/billing.ts` `checkoutCredits` |
+ * | The subscription opens with a free trial of `{trialDays}` | `api/src/billing/prices.ts` `TRIAL_PERIOD_DAYS`, passed to Stripe by `buildSubscriptionCheckoutParams` |
+ * | The trial is granted once per customer | `api/src/routers/billing.ts` `hasEverSubscribed` — counts terminal subscriptions too |
+ * | A trialing subscription is full VIP, not a reduced one | `api/src/billing/entitlement.ts` `USABLE_SUBSCRIPTION_STATUSES` |
+ * | No immediate-performance consent is asked for the subscription | `api/src/routers/billing.ts` `checkoutSubscription` — unlike `checkoutCredits` |
  * | evenup.cz mails via Seznam SMTP as noreply@evenup.cz | `web/src/server/email.ts` + the domain-email migration record |
  * | Deletion keeps PURCHASE + Subscription rows | `api/src/services/account.ts` |
  * | Those rows are pseudonymized, NOT anonymous | same file — `stripeEventId` resolves to a Stripe Customer |
@@ -148,10 +152,32 @@ export const legalCs = {
     'Platby zpracovává Stripe. Údaje o platební kartě zadáváte přímo u něj a k nám se nedostanou. Rozhodující je částka, kterou vám Stripe ukáže v okamžiku placení.',
   'legal.terms.s5.p3':
     'Balíček skenů je jednorázová platba. Předplatné se automaticky obnovuje na další období, dokud ho nezrušíte.',
+  // `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts` – totéž číslo,
+  // které `checkoutSubscription` posílá Stripu jako `trial_period_days`.
+  // Nikoli `{days}`: ten v celém tomto souboru znamená retenci fotek a
+  // `LegalDocument` ho dosazuje do každého klíče. Tvar „{trialDays}denní“ je
+  // navíc mluvnicky správný pro každou hodnotu, na rozdíl od genitivu.
+  //
+  // „až po jejím skončení“ je den 8 při sedmidenní lhůtě. Konkrétní číslo dne
+  // tu schválně není: plynulo by z aritmetiky nad konstantou a při její změně
+  // by tiše přestalo platit.
+  'legal.terms.s5.p4':
+    'Předplatné VIP začíná {trialDays}denní zkušební lhůtou zdarma. Platební kartu zadáváte hned při objednávce, ale po dobu zkušební lhůty vám neúčtujeme nic – první platbu strhneme až po jejím skončení, a jen tehdy, pokud jste předplatné do té doby nezrušili.',
+  // Vynucuje to `checkoutSubscription`: zkušební lhůtu dostane jen ten, kdo u
+  // nás dosud žádné předplatné neměl, včetně už zrušeného (`hasEverSubscribed`
+  // v `routers/billing.ts`). Bez této věty by podmínky nabízely lhůtu, kterou
+  // část zákazníků při objednávce nedostane.
+  'legal.terms.s5.p5':
+    'Zkušební lhůtu nabízíme jednou. Měli-li jste u nás předplatné VIP už dřív, další si objednáváte rovnou jako placené.',
 
   'legal.terms.s6.h': 'Zrušení předplatného',
   'legal.terms.s6.p1':
     'Předplatné zrušíte kdykoli v aplikaci tlačítkem „Spravovat předplatné“, které vás přesměruje do zákaznického portálu Stripe. Zrušení se projeví ke konci právě zaplaceného období – do té doby vám předplatné běží dál.',
+  // Pojmenováno `p1b` po vzoru `legal.privacy.s8.p3b`: patří k `p1`, ale
+  // přečíslovat kvůli tomu `p2` by znamenalo sáhnout na klíč, na který se
+  // odkazuje stránka i druhý dokument.
+  'legal.terms.s6.p1b':
+    'Zrušíte-li předplatné během zkušební lhůty, skončí jejím posledním dnem a nic vám neúčtujeme.',
   'legal.terms.s6.p2':
     'Zrušení předplatného není odstoupení od smlouvy. Odstoupení a reklamace řeší samostatný dokument.',
 
@@ -407,6 +433,26 @@ export const legalCs = {
     'U předplatného souhlas s okamžitým plněním nevyžadujeme, takže vám právo odstoupit do 14 dnů od uzavření smlouvy zůstává. Odstoupíte-li v této lhůtě, vrátíme vám cenu za právě zaplacené období.',
   'legal.refunds.s3.p2':
     'Předplatné se automaticky obnovuje na další období. Chcete-li se obnovení vyhnout, zrušte ho dříve, než období skončí.',
+  'legal.refunds.s3.p3':
+    'Předplatné začíná {trialDays}denní zkušební lhůtou zdarma. Zrušíte-li ho v jejím průběhu, neplatíte nic – není tedy co vracet.',
+  // Tohle je jádro věci a nesmí se to změkčit.
+  //
+  // Čtrnáctidenní lhůta k odstoupení (§ 1829 občanského zákoníku, směrnice
+  // 2011/83/EU) běží od uzavření smlouvy, ne od první platby. Objednávka den 0
+  // → konec zkušební lhůty den 7 → první platba den 8, tedy uvnitř lhůty.
+  // Spotřebitel, který odstoupí desátý den, má na vrácení této platby nárok.
+  // Kdyby text naznačil opak – že zkušební lhůta lhůtu k odstoupení posouvá,
+  // zkracuje nebo spotřebovává –, byl by to nepravdivý údaj o zákonném právu,
+  // a takové ujednání je navíc samo o sobě neplatné.
+  'legal.refunds.s3.p4':
+    'Zkušební lhůta nemá na čtrnáctidenní lhůtu k odstoupení žádný vliv – nezkracuje ji, neodkládá její začátek ani ji nespotřebovává. Lhůta k odstoupení běží ode dne uzavření smlouvy, tedy ode dne objednávky, ne ode dne první platby. Protože první platbu strháváme až po skončení zkušební lhůty, spadá i tato platba ještě do čtrnáctidenní lhůty k odstoupení.',
+  // § 1834: odstoupí-li spotřebitel od smlouvy o službě, jejíž plnění na jeho
+  // žádost začalo před uplynutím lhůty, hradí poměrnou část ceny za plnění
+  // poskytnuté do odstoupení. Formulováno jako „smíme ponechat“, ne „vrátíme
+  // jen zbytek“: nárok na vrácení je pravidlo, srážka výjimka. Za dny zkušební
+  // lhůty se nesráží nic – nic za ně zaplaceno nebylo.
+  'legal.refunds.s3.p5':
+    'Odstoupíte-li od smlouvy po první platbě a ještě ve čtrnáctidenní lhůtě, peníze vám vrátíme. Podle § 1834 občanského zákoníku si přitom smíme ponechat poměrnou část ceny za dny, kdy jste placené předplatné do odstoupení skutečně měli k dispozici; za dny zkušební lhůty neúčtujeme nic, ty jsou zdarma.',
 
   'legal.refunds.s4.h': 'Zrušení předplatného není odstoupení',
   'legal.refunds.s4.p1':
@@ -546,10 +592,16 @@ export const legalEn: LegalMessages = {
     'Payments are handled by Stripe. Card details go straight to Stripe and never reach us. The amount that governs is the one Stripe shows you at the moment of payment.',
   'legal.terms.s5.p3':
     'A scan pack is a single payment. A subscription renews automatically for a further period until you cancel it.',
+  'legal.terms.s5.p4':
+    'A VIP subscription starts with a {trialDays}-day free trial. You enter your card details when you order, but nothing is charged for the duration of the trial — the first payment is taken once it ends, and only if you have not cancelled by then.',
+  'legal.terms.s5.p5':
+    'The trial is offered once. If you have had a VIP subscription with us before, your next one starts as a paid subscription straight away.',
 
   'legal.terms.s6.h': 'Cancelling a subscription',
   'legal.terms.s6.p1':
     'You can cancel at any time in the app with the Manage subscription button, which takes you to the Stripe customer portal. Cancellation takes effect at the end of the period you have already paid for — until then the subscription keeps running.',
+  'legal.terms.s6.p1b':
+    'If you cancel during the free trial, the subscription ends when the trial does and nothing is charged.',
   'legal.terms.s6.p2':
     'Cancelling is not the same as withdrawing from the contract. Withdrawal and complaints are covered by a separate document.',
 
@@ -759,6 +811,12 @@ export const legalEn: LegalMessages = {
     'We do not ask for immediate-performance consent for the subscription, so your right to withdraw within 14 days of concluding the contract stays intact. If you withdraw within that period, we return the price of the period you have paid for.',
   'legal.refunds.s3.p2':
     'The subscription renews automatically for a further period. If you want to avoid a renewal, cancel before the period ends.',
+  'legal.refunds.s3.p3':
+    'The subscription starts with a {trialDays}-day free trial. Cancel during it and you pay nothing, so there is nothing to refund.',
+  'legal.refunds.s3.p4':
+    'The trial has no effect on the 14-day withdrawal period — it does not shorten it, delay its start, or use it up. The withdrawal period runs from the day the contract is concluded, that is the day you order, not the day of the first payment. Because we take the first payment only after the trial ends, that payment still falls inside it.',
+  'legal.refunds.s3.p5':
+    'If you withdraw after the first payment and still within the 14 days, we refund it. Under § 1834 of the Czech Civil Code we may keep a proportionate part of the price for the days you actually had the paid subscription before withdrawing; nothing is charged for the trial days, which are free.',
 
   'legal.refunds.s4.h': 'Cancelling is not withdrawing',
   'legal.refunds.s4.p1':

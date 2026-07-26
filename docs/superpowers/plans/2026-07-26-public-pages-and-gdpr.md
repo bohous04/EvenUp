@@ -866,6 +866,7 @@ git commit -m "feat(gdpr): purge expired sessions and their ip/user-agent data"
 
 - Set `BILLING_RETURN_URL=https://evenup.cz` — it currently defaults to `http://localhost:3000` and bypasses the fail-fast env module, so forgetting it sends paying customers to localhost with no startup error.
 - Create the Stripe products and prices in **both** CZK and EUR; register the webhook at `https://evenup.cz/api/stripe/webhook`.
+- Enable Stripe's **trial-ending reminder email** (Settings → Billing → Subscriptions and emails), set to **2 days before** the trial ends. It is a dashboard setting, not code, and it is the single best defence against the "I forgot to cancel" chargeback — the dispute the 7-day VIP trial will generate most of. Stripe also _requires_ the reminder for some payment methods, and without it the first charge arrives with no warning at all.
 - Enable OpenRouter **no-training / zero-retention** and pin the model.
 - Have the terms, privacy and refund pages reviewed before enabling live payments — Stripe also requires them present.
 - Coolify's env API updates **by key, not row id**; check for duplicate rows before trusting an update.

@@ -3,11 +3,12 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createTranslator, formatCurrency, DEFAULT_LOCALE } from '@evenup/i18n';
+import { createTranslator, formatCurrency, formatDate, DEFAULT_LOCALE } from '@evenup/i18n';
 import {
   displayPackPriceMinor,
   displaySubscriptionPriceMinor,
 } from '@evenup/api/billing/display-prices';
+import { TRIAL_PERIOD_DAYS } from '@evenup/api/billing/prices';
 import { VipPricing } from './vip-pricing';
 import { Providers } from './providers';
 
@@ -52,6 +53,11 @@ const summary = {
   // `billing.summary` carries the configured receipt retention so the storage
   // benefit can name a period instead of implying "forever".
   receiptRetentionDays: 30,
+  // "Has this user never had a subscription?" — reported by the server, not
+  // inferred from `subscription === null`, which is also true of somebody who
+  // cancelled and is no longer eligible.
+  trialEligible: true,
+  trialDays: TRIAL_PERIOD_DAYS,
 };
 
 // Mirrors production's `PACK_SIZES = [2, 5, 10]` (packages/api/src/billing/prices.ts)
@@ -178,6 +184,63 @@ describe('VipPricing', () => {
     });
     expect(screen.getByTestId('vip-manage')).toBeInTheDocument();
     expect(screen.queryByTestId('vip-payment-problem')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The trial's whole purpose is to be visible before the customer commits, so
+   * the panel has to distinguish three states the old one collapsed into two:
+   * never subscribed (offer the trial), subscribed before (plain subscribe),
+   * and currently trialing (portal, plus the date the charge lands).
+   */
+  it('offers the free trial to somebody who has never subscribed, card requirement included', () => {
+    renderPricing();
+    const subscribe = screen.getByTestId('vip-subscribe');
+    expect(subscribe).toHaveTextContent(
+      t('vip.trial.subscribe', { trialDays: TRIAL_PERIOD_DAYS }).replace(/\s+/g, ' '),
+    );
+    // "Free trial" without "we take your card now" is the complaint that
+    // generates chargebacks, so the note is asserted, not just the label.
+    expect(screen.getByTestId('vip-trial-note')).toHaveTextContent(
+      t('vip.trial.note', { trialDays: TRIAL_PERIOD_DAYS }).replace(/\s+/g, ' '),
+    );
+    expect(screen.queryByText(/\{trialDays\}/)).not.toBeInTheDocument();
+  });
+
+  it('offers the plain subscribe label to a returning subscriber, with no trial promise', () => {
+    // `subscription` is null for a former subscriber too — they cancelled —
+    // so the client cannot infer this and `billing.summary` reports it. The
+    // server refuses the trial for exactly these users (`hasEverSubscribed`);
+    // a button still promising one would be a false offer.
+    renderPricing({ trialEligible: false });
+    expect(screen.getByTestId('vip-subscribe')).toHaveTextContent(t('vip.subscribe'));
+    expect(screen.queryByTestId('vip-trial-note')).not.toBeInTheDocument();
+  });
+
+  it('shows a trialing subscription with its end date, not as a plain active one', () => {
+    // `trialing` is healthy — no payment-problem warning — but the customer
+    // needs the date the first charge lands, which is `currentPeriodEnd`
+    // while trialing.
+    const trialEnd = new Date('2026-08-02T00:00:00Z');
+    renderPricing({
+      trialEligible: false,
+      subscription: { status: 'trialing', currentPeriodEnd: trialEnd, cancelAtPeriodEnd: false },
+    });
+    expect(screen.getByTestId('vip-manage')).toBeInTheDocument();
+    expect(screen.queryByTestId('vip-payment-problem')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vip-trialing')).toHaveTextContent(
+      t('vip.subscription.trialing', { date: formatDate(trialEnd, DEFAULT_LOCALE) }).replace(
+        /\s+/g,
+        ' ',
+      ),
+    );
+  });
+
+  it('shows no trial notice for an ordinary active subscription', () => {
+    renderPricing({
+      trialEligible: false,
+      subscription: { status: 'active', currentPeriodEnd: new Date(), cancelAtPeriodEnd: false },
+    });
+    expect(screen.queryByTestId('vip-trialing')).not.toBeInTheDocument();
   });
 
   it('hides Subscribe when no VIP price is configured for this currency', () => {

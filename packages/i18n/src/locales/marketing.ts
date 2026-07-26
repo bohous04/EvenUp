@@ -101,6 +101,23 @@ const marketingOnlyCs = {
   // real values and „2 dnů" is wrong.
   'marketing.pricing.vip.body':
     '{scans} skenů účtenek měsíčně. Fotky zůstanou uložené a po {days} dnech od naskenování je smažeme. Zrušíte kdykoli.',
+  // Zkušební lhůta. `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts`,
+  // tedy totéž číslo, které checkout posílá Stripu – ceník nemůže nabízet
+  // lhůtu, kterou předplatné doopravdy nedostane.
+  //
+  // Jiný zástupný symbol než sousední `{days}` schválně: `{days}` znamená
+  // všude v tomto jmenném prostoru retenci fotek a `LegalDocument` ji dosazuje
+  // do každého klíče najednou. Dvě různá čísla pod jedním jménem by se dřív
+  // nebo později prohodila – a ceník by lhal o obojím.
+  //
+  // Tvar „{trialDays}denní“ je správný pro každou hodnotu (7denní, 3denní,
+  // 14denní), takže tady genitivní past nehrozí; „po {trialDays} dnech“ je
+  // lokál a sedí pro každou hodnotu ≥ 2.
+  //
+  // Že se kartou platí předem, musí být v ceníku vidět: „zkušební lhůta
+  // zdarma“ bez té věty čte většina lidí jako „nic nezadávám“.
+  'marketing.pricing.vip.trial':
+    '{trialDays}denní zkušební lhůta zdarma. Kartu zadáte hned, platit ale začnete až po {trialDays} dnech – a jen pokud předplatné nezrušíte.',
   'marketing.pricing.packs.title': 'Balíčky skenů',
   'marketing.pricing.packs.body':
     'Skenujete jen občas? Kupte si balíček bez předplatného. Skeny nevyprší.',
@@ -196,6 +213,8 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.pricing.vip.period': 'per month',
   'marketing.pricing.vip.body':
     '{scans} receipt scans a month. The photos stay saved, and {days} days after the scan we delete them. Cancel any time.',
+  'marketing.pricing.vip.trial':
+    'A {trialDays}-day free trial to start. We need your card up front, but the first payment only comes after {trialDays} days — and only if you have not cancelled.',
   'marketing.pricing.packs.title': 'Scan packs',
   'marketing.pricing.packs.body':
     'Only scan now and then? Buy a pack instead of subscribing. Scans do not expire.',

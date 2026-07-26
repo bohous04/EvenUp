@@ -48,9 +48,39 @@ export interface EntitlementInput {
 
 const DENIED: Entitlement = { allow: false, mayStoreImage: false, reason: 'NO_ENTITLEMENT' };
 
+/**
+ * Stripe subscription statuses that entitle the customer to VIP *right now*.
+ *
+ * `trialing` is here for a concrete reason, not for completeness: Stripe puts
+ * a subscription created with `trial_period_days` (see
+ * `buildSubscriptionCheckoutParams` in `routers/billing.ts`) into `trialing`
+ * until the first invoice is paid, and this function used to require
+ * `status === 'active'` alone. That combination grants a customer on the 7-day
+ * free trial exactly zero scans: checkout succeeds, the panel says VIP, and
+ * the first scan is refused. The whole trial feature is inert without this
+ * line.
+ *
+ * A trial gets the full experience — the same {@link VIP_SCANS_PER_PERIOD}
+ * allowance and the same `mayStoreImage: true` — because that is what is being
+ * trialled.
+ *
+ * Deliberately an allow-list, unlike `TERMINAL_SUBSCRIPTION_STATUSES` in
+ * `routers/billing.ts`, which is a deny-list. The two answer opposite
+ * questions and must fail in opposite directions: "may this person scan?"
+ * fails closed by denying an unrecognised status, while "does this person
+ * already have a subscription?" fails closed by treating an unrecognised
+ * status as one they have. A status Stripe adds later is refused here (they
+ * scan once we look at it) rather than silently granted.
+ */
+const USABLE_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing']);
+
 function isSubscriptionUsable(sub: EntitlementInput['subscription'], now: Date): boolean {
   if (!sub) return false;
-  if (sub.status !== 'active') return false;
+  if (!USABLE_SUBSCRIPTION_STATUSES.has(sub.status)) return false;
+  // Still bounded by the period window. While trialing, Stripe sets the
+  // subscription item's `current_period_start/end` to the trial window (the
+  // webhook copies exactly those onto the row), so a trial that lapsed without
+  // converting falls out of the window here and stops being usable.
   return sub.currentPeriodStart <= now && now < sub.currentPeriodEnd;
 }
 

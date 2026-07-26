@@ -28,6 +28,21 @@ export function subscriptionPriceId(currency: BillingCurrency): string | null {
 }
 
 /**
+ * Length of the free trial a first-time VIP subscriber is offered, in days.
+ *
+ * A commercial term rather than a Stripe price id, so it lives here with the
+ * rest of the offer and is the single number the copy interpolates: the
+ * landing page, the VIP panel, the terms and the withdrawal document all read
+ * it, so none of them can advertise a trial length checkout does not create.
+ *
+ * Not configurable per instance on purpose. The value shows up in consumer
+ * copy in two locales, and one of the Czech strings (`vip.trial.subscribe`)
+ * uses a genitive plural that is correct for 5 and above but not for 2–4 — see
+ * the comment beside it. Changing this constant means checking that string.
+ */
+export const TRIAL_PERIOD_DAYS = 7;
+
+/**
  * The pack sizes production can sell, smallest first. Exported so
  * `display-prices.ts`'s public price list can be *tested* against it: the two
  * lists are deliberately separate (amounts must not be inferred from what is

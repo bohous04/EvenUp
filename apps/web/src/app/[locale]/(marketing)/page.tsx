@@ -8,7 +8,7 @@ import {
   type Locale,
   type MarketingKey,
 } from '@evenup/i18n';
-import { currencyForLocale } from '@evenup/api/billing/prices';
+import { currencyForLocale, TRIAL_PERIOD_DAYS } from '@evenup/api/billing/prices';
 import {
   DISPLAY_PACK_SIZES,
   displayPackPriceMinor,
@@ -262,6 +262,17 @@ function Pricing({ locale }: { locale: Locale }) {
               scans: VIP_SCANS_PER_PERIOD,
               days: env.receiptRetentionDays,
             })}
+          </p>
+          {/* The trial belongs on the public price list, not only behind the
+              sign-in wall: it is the offer, and a visitor deciding whether to
+              register is exactly who needs to know a card is required up
+              front. `TRIAL_PERIOD_DAYS` is what checkout sends Stripe, so the
+              advertised length cannot drift from the granted one. */}
+          <p
+            className="mt-3 text-sm font-medium text-brand-700 dark:text-brand-100"
+            data-testid="pricing-vip-trial"
+          >
+            {tm('marketing.pricing.vip.trial', { trialDays: TRIAL_PERIOD_DAYS })}
           </p>
         </article>
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestUser, testPrisma, makeCaller, resetDb } from '../test/harness.js';
 import { resetStripeForTests } from '../billing/stripe.js';
+import { TRIAL_PERIOD_DAYS } from '../billing/prices.js';
 import {
   buildSubscriptionCheckoutParams,
   buildCreditCheckoutParams,
@@ -110,6 +111,43 @@ describe('billing router', () => {
     },
   );
 
+  it('reports a user who has never subscribed as eligible for the free trial', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const u = await createTestUser('a@example.com');
+    expect((await makeCaller(u).billing.summary()).trialEligible).toBe(true);
+  });
+
+  it.each([
+    'active',
+    'trialing',
+    'past_due',
+    'incomplete',
+    'unpaid',
+    'canceled',
+    'incomplete_expired',
+  ])('reports a user whose subscription is %s as no longer trial-eligible', async (status) => {
+    // The point of the `canceled` / `incomplete_expired` rows in this list:
+    // trial eligibility is a BROADER question than `openSubscription()`,
+    // which treats exactly those two as gone so a former subscriber can buy
+    // again. They must still burn the trial, or cancel-and-resubscribe is an
+    // unlimited free ride — Stripe does not enforce one trial per customer.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const u = await createTestUser('a@example.com');
+    await seedSubscription(u.id, status);
+    expect((await makeCaller(u).billing.summary()).trialEligible).toBe(false);
+  });
+
+  it('keeps selling a subscription to a former subscriber, just without the trial', async () => {
+    // The two questions pull in opposite directions for a terminal status and
+    // both answers have to hold at once: still purchasable, no longer free.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const u = await createTestUser('a@example.com');
+    await seedSubscription(u.id, 'canceled');
+    const res = await makeCaller(u).billing.summary();
+    expect(res.subscription).toBeNull();
+    expect(res.trialEligible).toBe(false);
+  });
+
   it('reports subscriptionAvailable per currency, not merely that Stripe is configured', async () => {
     // D7: `isBillingEnabled()` only checks STRIPE_SECRET_KEY, but the VIP
     // price id is a separate variable per currency. With CZK configured and
@@ -127,6 +165,14 @@ describe('billing router', () => {
 });
 
 describe('buildSubscriptionCheckoutParams', () => {
+  const args = {
+    customerId: 'cus_123',
+    priceId: 'price_123',
+    userId: 'user_abc',
+    successUrl: 'https://example.com/vip?checkout=success',
+    cancelUrl: 'https://example.com/vip?checkout=cancelled',
+  };
+
   it('puts userId on subscription_data.metadata so the Subscription Stripe creates carries it', () => {
     // Stripe does NOT copy Checkout Session-level metadata onto the
     // Subscription object it creates for `mode: 'subscription'` sessions.
@@ -134,18 +180,31 @@ describe('buildSubscriptionCheckoutParams', () => {
     // `customer.subscription.*` events, so without `subscription_data`,
     // that is always undefined in production and no Subscription row is
     // ever persisted.
-    const params = buildSubscriptionCheckoutParams({
-      customerId: 'cus_123',
-      priceId: 'price_123',
-      userId: 'user_abc',
-      successUrl: 'https://example.com/vip?checkout=success',
-      cancelUrl: 'https://example.com/vip?checkout=cancelled',
-    });
+    const params = buildSubscriptionCheckoutParams(args);
     expect(params.subscription_data?.metadata).toMatchObject({ userId: 'user_abc' });
     // Session-level metadata is kept too — harmless, useful for reconciliation.
     expect(params.metadata).toMatchObject({ userId: 'user_abc' });
     expect(params.mode).toBe('subscription');
     expect(params.customer).toBe('cus_123');
+  });
+
+  it('asks Stripe for the free trial when the caller says the user is eligible', () => {
+    const params = buildSubscriptionCheckoutParams({ ...args, trialPeriodDays: TRIAL_PERIOD_DAYS });
+    expect(params.subscription_data?.trial_period_days).toBe(TRIAL_PERIOD_DAYS);
+    // The trial must EXTEND `subscription_data`, never replace it: dropping
+    // the metadata is how the webhook stops seeing a userId and no
+    // Subscription row is ever written — VIP would silently never activate,
+    // and the trial with it.
+    expect(params.subscription_data?.metadata).toMatchObject({ userId: 'user_abc' });
+  });
+
+  it('omits trial_period_days entirely for a returning subscriber', () => {
+    // Not `trial_period_days: 0` — Stripe rejects that. The key must be
+    // absent, which is what a returning subscriber's checkout has to look
+    // like or the trial is repeatable by cancelling and buying again.
+    const params = buildSubscriptionCheckoutParams(args);
+    expect(params.subscription_data).not.toHaveProperty('trial_period_days');
+    expect(params.subscription_data?.metadata).toMatchObject({ userId: 'user_abc' });
   });
 });
 

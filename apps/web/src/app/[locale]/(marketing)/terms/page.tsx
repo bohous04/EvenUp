@@ -38,9 +38,21 @@ const SECTIONS: readonly LegalSection[] = [
   },
   {
     h: 'legal.terms.s5.h',
-    blocks: [{ p: 'legal.terms.s5.p1' }, { p: 'legal.terms.s5.p2' }, { p: 'legal.terms.s5.p3' }],
+    blocks: [
+      { p: 'legal.terms.s5.p1' },
+      { p: 'legal.terms.s5.p2' },
+      { p: 'legal.terms.s5.p3' },
+      // The free trial: what it costs (nothing), that a card is still needed
+      // up front, when the first charge lands, and that it is offered once —
+      // the last one because `checkoutSubscription` enforces exactly that.
+      { p: 'legal.terms.s5.p4' },
+      { p: 'legal.terms.s5.p5' },
+    ],
   },
-  { h: 'legal.terms.s6.h', blocks: [{ p: 'legal.terms.s6.p1' }, { p: 'legal.terms.s6.p2' }] },
+  {
+    h: 'legal.terms.s6.h',
+    blocks: [{ p: 'legal.terms.s6.p1' }, { p: 'legal.terms.s6.p1b' }, { p: 'legal.terms.s6.p2' }],
+  },
   { h: 'legal.terms.s7.h', blocks: [{ p: 'legal.terms.s7.p1' }] },
   {
     h: 'legal.terms.s8.h',

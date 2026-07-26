@@ -8,6 +8,16 @@ const activeSub = {
   currentPeriodStart: new Date('2026-07-01T00:00:00Z'),
   currentPeriodEnd: new Date('2026-08-01T00:00:00Z'),
 };
+/**
+ * A subscription inside its 7-day free trial. Stripe reports `trialing`, not
+ * `active`, and sets the period window to the trial window — so `now` sits
+ * inside it exactly as it does for `activeSub`.
+ */
+const trialingSub = {
+  status: 'trialing',
+  currentPeriodStart: new Date('2026-07-14T00:00:00Z'),
+  currentPeriodEnd: new Date('2026-07-21T00:00:00Z'),
+};
 const base = {
   billingEnabled: true,
   isVip: false,
@@ -73,6 +83,67 @@ describe('resolveScanEntitlement', () => {
         creditBalance: 3,
       }),
     ).toEqual({ allow: true, consume: 'CREDIT', mayStoreImage: true });
+  });
+
+  /**
+   * The trial is the full VIP experience, and the reason this block exists at
+   * all: Stripe puts a subscription created with `trial_period_days` into
+   * `trialing`, so a usability rule written as `status === 'active'` grants a
+   * trialing subscriber exactly zero scans. The 7-day trial would have shipped
+   * inert — the button would work, checkout would succeed, and the customer
+   * would be refused on their first scan.
+   */
+  it('consumes a VIP scan for a trialing subscriber under the cap', () => {
+    expect(resolveScanEntitlement({ ...base, subscription: trialingSub })).toEqual({
+      allow: true,
+      consume: 'VIP_SCAN',
+      mayStoreImage: true,
+    });
+  });
+
+  it('gives a trialing subscriber the same 150-scan allowance, then falls through to credits', () => {
+    // Same allowance and the same photo-storage rule as a paid period: a trial
+    // is the product, not a sample of it.
+    expect(
+      resolveScanEntitlement({
+        ...base,
+        subscription: trialingSub,
+        vipScansUsedThisPeriod: VIP_SCANS_PER_PERIOD,
+        creditBalance: 3,
+      }),
+    ).toEqual({ allow: true, consume: 'CREDIT', mayStoreImage: true });
+  });
+
+  it('refuses a trialing subscriber at the cap with no credits', () => {
+    expect(
+      resolveScanEntitlement({
+        ...base,
+        subscription: trialingSub,
+        vipScansUsedThisPeriod: VIP_SCANS_PER_PERIOD,
+      }),
+    ).toEqual({ allow: false, mayStoreImage: false, reason: 'NO_ENTITLEMENT' });
+  });
+
+  it('ignores a trialing subscription whose trial window has already ended', () => {
+    // Accepting `trialing` must not switch the period check off. Stripe sets
+    // the period to the trial window, so a `trialing` row left behind by a
+    // trial that ended without converting is out of window and unusable.
+    expect(
+      resolveScanEntitlement({
+        ...base,
+        subscription: { ...trialingSub, currentPeriodEnd: new Date('2026-07-10T00:00:00Z') },
+      }),
+    ).toEqual({ allow: false, mayStoreImage: false, reason: 'NO_ENTITLEMENT' });
+  });
+
+  it('stores no photo for a credit scan once the trial window has ended', () => {
+    expect(
+      resolveScanEntitlement({
+        ...base,
+        subscription: { ...trialingSub, currentPeriodEnd: new Date('2026-07-10T00:00:00Z') },
+        creditBalance: 2,
+      }),
+    ).toEqual({ allow: true, consume: 'CREDIT', mayStoreImage: false });
   });
 
   it('refuses at the cap with no credits', () => {

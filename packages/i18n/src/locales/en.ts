@@ -113,6 +113,9 @@ export const en: Messages = {
   'vip.benefit.storage': 'Receipt photos stay saved — we delete them {days} days after the scan',
   'vip.benefit.cancel': 'Cancel any time',
   'vip.subscribe': 'Subscribe to VIP',
+  'vip.trial.subscribe': 'Try {trialDays} days free',
+  'vip.trial.note':
+    'We need your card up front, but the first payment only comes after {trialDays} days. Cancel before then and you pay nothing.',
   'vip.manage': 'Manage subscription',
   'vip.balance': 'Scans remaining: {count}',
   'vip.credits.title': 'Or buy scans one pack at a time',
@@ -126,6 +129,8 @@ export const en: Messages = {
     'The subscription is not available right now. You can still buy scan packs below.',
   'vip.subscription.paymentProblem':
     "Your subscription payment didn't go through. Check your card in the billing portal or VIP will lapse.",
+  'vip.subscription.trialing':
+    'Your free trial runs until {date}. Unless you cancel before then, that is the day of your first payment.',
   'vip.checkout.success': 'Payment received, thank you. Your scans will appear in a moment.',
   'vip.checkout.cancelled': "Payment cancelled. You haven't been charged.",
   'vip.signedOut': 'Sign in to subscribe to VIP or buy scan packs.',

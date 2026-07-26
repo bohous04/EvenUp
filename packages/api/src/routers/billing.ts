@@ -14,6 +14,7 @@ import {
   subscriptionPriceId,
   currencyForLocale,
   isBillingEnabled,
+  TRIAL_PERIOD_DAYS,
 } from '../billing/prices.js';
 import { receiptRetentionDays } from '../config/retention.js';
 
@@ -102,6 +103,12 @@ export function buildSubscriptionCheckoutParams(args: {
   userId: string;
   successUrl: string;
   cancelUrl: string;
+  /**
+   * Length of the free trial to open the subscription with, or `undefined` for
+   * no trial. The caller decides eligibility (see `hasEverSubscribed`); this
+   * function only translates the answer into Stripe's shape.
+   */
+  trialPeriodDays?: number;
 }): Stripe.Checkout.SessionCreateParams {
   return {
     mode: 'subscription',
@@ -110,7 +117,18 @@ export function buildSubscriptionCheckoutParams(args: {
     success_url: args.successUrl,
     cancel_url: args.cancelUrl,
     metadata: { userId: args.userId },
-    subscription_data: { metadata: { userId: args.userId } },
+    subscription_data: {
+      metadata: { userId: args.userId },
+      // Spread-in rather than a literal `trial_period_days: args.trialPeriodDays`
+      // because Stripe rejects a zero and a null here — the field has to be
+      // absent for a returning subscriber, not present and falsy.
+      //
+      // And note this EXTENDS `subscription_data`; the `metadata` above is
+      // load-bearing (see this function's header). Replacing the object to add
+      // a trial would take the userId with it, and the webhook would then
+      // never persist a Subscription row at all.
+      ...(args.trialPeriodDays === undefined ? {} : { trial_period_days: args.trialPeriodDays }),
+    },
   };
 }
 
@@ -182,6 +200,31 @@ async function openSubscription(prisma: PrismaClient, userId: string) {
   });
 }
 
+/**
+ * Whether this user has *ever* had a subscription — the free trial is offered
+ * once, and only to someone who never has.
+ *
+ * **Read this next to `openSubscription` above, because the two look alike and
+ * are not.** `openSubscription` asks "do they have a subscription right now?"
+ * and deliberately excludes `TERMINAL_SUBSCRIPTION_STATUSES`, so a customer
+ * who cancelled can buy again. This asks "did one ever exist?" and counts
+ * those terminal rows, so the customer who cancelled buys again *without* a
+ * second free week. Reusing `openSubscription` here would make
+ * cancel-and-resubscribe an unlimited free ride: Stripe enforces no
+ * one-trial-per-customer rule of its own, and `trial_period_days` is granted
+ * on every session that asks for it.
+ *
+ * Scoped to the app's user id, which is the only identity this query has.
+ * Account deletion nulls `Subscription.userId` (accounting retention vs.
+ * erasure — see `services/account.ts`), so deleting the account and
+ * registering again does reset eligibility. That is a deliberate limit, not an
+ * oversight: closing it would mean matching on a Stripe customer that erasure
+ * has already detached.
+ */
+async function hasEverSubscribed(prisma: PrismaClient, userId: string): Promise<boolean> {
+  return (await prisma.subscription.count({ where: { userId } })) > 0;
+}
+
 export const billingRouter = router({
   /** Everything the pricing UI needs in one call. */
   summary: protectedProcedure.query(async ({ ctx }) => {
@@ -197,6 +240,18 @@ export const billingRouter = router({
       isVip: user.isVip,
       subscription,
       currency,
+      /**
+       * Whether this user would get the free trial if they subscribed now, so
+       * the panel can offer "Try 7 days free" to a first-time subscriber and
+       * the plain subscribe label to a returning one. Reported rather than
+       * inferred client-side: `subscription` is null for both a never-yet
+       * subscriber and a customer who cancelled, so the client cannot tell
+       * them apart, and this is the same predicate `checkoutSubscription`
+       * applies — the button cannot promise a trial checkout will not grant.
+       */
+      trialEligible: !(await hasEverSubscribed(ctx.prisma, ctx.user.id)),
+      /** Days of free trial a first-time subscriber gets; copy interpolates it. */
+      trialDays: TRIAL_PERIOD_DAYS,
       /**
        * Whether a subscription can actually be *bought* right now, in this
        * request's currency. `billingEnabled` only reports that
@@ -243,6 +298,14 @@ export const billingRouter = router({
         message: 'You already have a subscription; manage it in the billing portal.',
       });
     }
+    // The free trial, once per customer. Checked server-side against every
+    // Subscription row this user has ever had — including the terminal ones
+    // the guard above ignores — because Stripe grants `trial_period_days` to
+    // any session that asks, so cancel-and-resubscribe would otherwise be free
+    // forever. See `hasEverSubscribed` for why it is not `openSubscription`.
+    const trialPeriodDays = (await hasEverSubscribed(ctx.prisma, ctx.user.id))
+      ? undefined
+      : TRIAL_PERIOD_DAYS;
     const session = await stripe.checkout.sessions.create(
       buildSubscriptionCheckoutParams({
         customerId: await customerIdFor(ctx),
@@ -250,6 +313,7 @@ export const billingRouter = router({
         userId: ctx.user.id,
         successUrl: returnUrl('/vip?checkout=success'),
         cancelUrl: returnUrl('/vip?checkout=cancelled'),
+        trialPeriodDays,
       }),
     );
     return { url: session.url };

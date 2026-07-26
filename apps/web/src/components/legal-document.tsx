@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { tMarketing, formatDate, type Locale, type MarketingKey } from '@evenup/i18n';
 import { VIP_SCANS_PER_PERIOD } from '@evenup/api/billing/entitlement';
+import { TRIAL_PERIOD_DAYS } from '@evenup/api/billing/prices';
 import { env } from '@/server/env';
 import { localizedPath } from '@/lib/locale-path';
 
@@ -21,11 +22,17 @@ import { localizedPath } from '@/lib/locale-path';
  * `MarketingKey`, so a heading or paragraph that loses its catalog entry is a
  * type error rather than a blank line in a legal document.
  *
- * Two values are interpolated into every string rather than written into the
+ * Three values are interpolated into every string rather than written into the
  * copy, so the documents cannot describe a product that no longer exists:
  * `{scans}` is `VIP_SCANS_PER_PERIOD` (the constant that actually gates a
- * scan) and `{days}` is the configured receipt retention. Both are read from
- * the same places the running code reads them.
+ * scan), `{days}` is the configured receipt retention, and `{trialDays}` is
+ * `TRIAL_PERIOD_DAYS` (what checkout sends Stripe as `trial_period_days`). All
+ * three are read from the same places the running code reads them.
+ *
+ * `{trialDays}` is a separate name rather than a second use of `{days}`
+ * precisely because this bag goes to *every* key at once: two different
+ * numbers sharing one placeholder would mean the terms quoting the retention
+ * period as the trial length, or the reverse, with nothing to catch it.
  */
 
 /** The date this wording was last edited. Bump it when the copy changes. */
@@ -80,7 +87,11 @@ export function LegalDocument({
 }) {
   // Passed to every lookup: `interpolate` leaves unknown placeholders intact,
   // so handing both to a string that uses neither is a no-op.
-  const values = { scans: VIP_SCANS_PER_PERIOD, days: env.receiptRetentionDays };
+  const values = {
+    scans: VIP_SCANS_PER_PERIOD,
+    days: env.receiptRetentionDays,
+    trialDays: TRIAL_PERIOD_DAYS,
+  };
   const tm = (key: MarketingKey) => tMarketing(locale, key, values);
 
   return (
