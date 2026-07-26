@@ -27,7 +27,18 @@ function findOwnMembership(
   groupId: string,
   userId: string,
 ) {
-  return db.member.findFirst({ where: { groupId, userId } });
+  // `orderBy: { isActive: 'desc' }` is load-bearing, not cosmetic. Production
+  // already contains users who hold two rows in the same group -- that is
+  // exactly why @@unique([groupId, userId]) has never been added, since the
+  // index would fail to build over the existing duplicates -- and `findFirst`
+  // with no ordering picks an arbitrary one of them. If the arbitrary pick
+  // lands on the inactive row while an active one also exists, the caller
+  // below sees `own?.isActive === false` and reactivates that row in place --
+  // leaving the user with TWO active rows and widening the exact
+  // duplicate-member problem this guard exists to contain. Ordering by
+  // isActive descending guarantees an active row always wins when one exists,
+  // so "already a member" is judged on the row that is actually live.
+  return db.member.findFirst({ where: { groupId, userId }, orderBy: { isActive: 'desc' } });
 }
 
 export const inviteRouter = router({
@@ -193,12 +204,15 @@ export const inviteRouter = router({
 
         if (own) {
           // `own` exists but is deactivated: the caller was removed from this
-          // group (member.remove/member.update deactivate rather than delete,
-          // FR-2.4) and is coming back. Reactivate THEIR OWN row in place
-          // rather than creating a fresh one, so they land back with their
-          // original history and debts attached instead of a stranded orphan
-          // placeholder -- exactly the duplicate-member problem the
-          // member-merge feature exists to clean up (see
+          // group and is coming back. `own.userId` is always set here (that's
+          // how `findOwnMembership` found it), and `member.remove` never
+          // hard-deletes an account-linked member -- only an unlinked
+          // placeholder with no transaction history may be deleted -- so this
+          // row is guaranteed to still be here to reactivate. Reactivate
+          // THEIR OWN row in place rather than creating a fresh one, so they
+          // land back with their original history and debts attached instead
+          // of a stranded orphan placeholder -- exactly the duplicate-member
+          // problem the member-merge feature exists to clean up (see
           // docs/superpowers/specs/2026-07-25-duplicate-member-merge-design.md).
           // A `memberId` naming a DIFFERENT member is refused: the caller
           // already has a row in this group and must not take over someone

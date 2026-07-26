@@ -120,16 +120,30 @@ export const memberRouter = router({
   remove: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const groupId = await groupIdForMember(ctx, input.memberId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
-      // Members that appear in any transaction are deactivated, not deleted (FR-2.4).
+      const member = await ctx.prisma.member.findUnique({
+        where: { id: input.memberId },
+        select: { groupId: true, userId: true },
+      });
+      if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      await assertGroupAccess(ctx.prisma, ctx.user, member.groupId);
+      // Members that appear in any transaction are deactivated, not deleted
+      // (FR-2.4). Members linked to a user account (userId !== null) are
+      // deactivated too, for a second reason: invite.claim's "already a
+      // member" guard looks the caller up by { groupId, userId }, and a
+      // hard-deleted row is as invisible to that lookup as a self-deactivated
+      // one was before that variant was closed -- except irreversibly, since
+      // the row and its balance are simply gone. That let a non-admin remove
+      // their own (transaction-free) member, claim someone else's, then
+      // repeat the trick on the member they just took over, walking through
+      // the group one identity at a time. Only an unlinked placeholder with
+      // no transaction history may still be hard-deleted.
       const usage = await ctx.prisma.transactionSplit.count({
         where: { memberId: input.memberId },
       });
       const asPayer = await ctx.prisma.transactionPayer.count({
         where: { memberId: input.memberId },
       });
-      if (usage > 0 || asPayer > 0) {
+      if (usage > 0 || asPayer > 0 || member.userId !== null) {
         return ctx.prisma.member.update({
           where: { id: input.memberId },
           data: { isActive: false },

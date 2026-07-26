@@ -173,4 +173,102 @@ describe('invite.claim guards against an existing membership', () => {
     });
     expect(result.id).toBe(ownerMember.id);
   });
+
+  it('findOwnMembership prefers an active row when the caller holds a stray inactive duplicate', async () => {
+    const { ownerCaller, group, invite } = await setupInvite();
+    const dupUser = await createTestUser('dup@example.com');
+
+    // Build the exact production state this guards against directly in the
+    // DB: two rows for the same user in the same group (no unique index
+    // stops this). Insert the INACTIVE row first so an unordered `findFirst`
+    // -- the pre-fix behaviour -- would plausibly return it first.
+    const inactive = await ownerCaller.member.add({ groupId: group.id, displayName: 'Dup Old' });
+    await testPrisma.member.update({
+      where: { id: inactive.id },
+      data: { userId: dupUser.id, isActive: false },
+    });
+    const active = await ownerCaller.member.add({ groupId: group.id, displayName: 'Dup New' });
+    await testPrisma.member.update({
+      where: { id: active.id },
+      data: { userId: dupUser.id, isActive: true },
+    });
+
+    // If the arbitrary (pre-fix) pick had landed on `inactive`, this claim
+    // would have reactivated it, leaving dupUser with two active rows --
+    // increasing the duplicate count instead of containing it.
+    await expect(makeCaller(dupUser).invite.claim({ token: invite.token })).rejects.toMatchObject(
+      { code: 'CONFLICT' },
+    );
+
+    const inactiveAfter = await testPrisma.member.findUniqueOrThrow({
+      where: { id: inactive.id },
+    });
+    expect(inactiveAfter.isActive).toBe(false); // must not have been reactivated
+
+    const activeCount = await testPrisma.member.count({
+      where: { groupId: group.id, userId: dupUser.id, isActive: true },
+    });
+    expect(activeCount).toBe(1); // still exactly one active row for this user
+  });
+});
+
+describe('member.remove no longer hard-deletes an account-linked member', () => {
+  beforeEach(resetDb);
+
+  it('refuses the remove-then-claim attack: a non-admin cannot dodge the guard by removing themselves first', async () => {
+    const { placeholder, invite } = await setupInvite();
+
+    // Attacker joins as a genuine, non-admin newcomer with no transactions --
+    // exactly the state of anyone who has just joined.
+    const attacker = await createTestUser('attacker2@example.com');
+    const attackerCaller = makeCaller(attacker);
+    const attackerMember = await attackerCaller.invite.claim({ token: invite.token });
+    expect(attackerMember.role).toBe('MEMBER');
+
+    // Before the member.ts fix, a member with no split/payer rows was HARD
+    // DELETED here regardless of who removed them -- erasing the row
+    // `findOwnMembership` needs to see. Worse than the deactivate-then-claim
+    // variant: it destroys data and is repeatable (take over the next
+    // member, remove it, repeat).
+    await attackerCaller.member.remove({ memberId: attackerMember.id });
+
+    await expect(
+      attackerCaller.invite.claim({ token: invite.token, memberId: placeholder.id }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    // The victim's placeholder is untouched -- never hijacked.
+    const stillUnclaimed = await testPrisma.member.findUniqueOrThrow({
+      where: { id: placeholder.id },
+    });
+    expect(stillUnclaimed.userId).toBeNull();
+  });
+
+  it('deactivates an account-linked member with no transactions instead of deleting it', async () => {
+    const { placeholder, invite } = await setupInvite();
+    const newcomer = await createTestUser('linked@example.com');
+    const newcomerCaller = makeCaller(newcomer);
+    const member = await newcomerCaller.invite.claim({
+      token: invite.token,
+      memberId: placeholder.id,
+    });
+
+    const result = await newcomerCaller.member.remove({ memberId: member.id });
+    expect(result).toMatchObject({ isActive: false });
+
+    const stillThere = await testPrisma.member.findUnique({ where: { id: member.id } });
+    expect(stillThere).not.toBeNull();
+    expect(stillThere?.isActive).toBe(false);
+    expect(stillThere?.userId).toBe(newcomer.id);
+  });
+
+  it('still hard-deletes an unlinked placeholder with no transactions (no regression)', async () => {
+    const { ownerCaller, group } = await setupInvite();
+    const spare = await ownerCaller.member.add({ groupId: group.id, displayName: 'Spare' });
+
+    const result = await ownerCaller.member.remove({ memberId: spare.id });
+    expect(result).toEqual({ deleted: true });
+
+    const gone = await testPrisma.member.findUnique({ where: { id: spare.id } });
+    expect(gone).toBeNull();
+  });
 });
