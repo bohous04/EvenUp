@@ -595,45 +595,55 @@ export function AddExpenseForm({
         testId="add-expense-modal"
       >
         <form className="space-y-4" onSubmit={submit}>
-          {/* Amount first — the amount is centered (sits above the title), the
-              currency is pinned to the far right. */}
-          <div className="relative flex items-end justify-center">
-            <input
-              id="e-amount"
-              inputMode="decimal"
-              autoFocus={splitType !== 'ITEMIZED'}
-              value={displayAmount}
-              onChange={(e) => {
-                if (splitType !== 'ITEMIZED')
-                  setAmount(clampAmountDecimals(e.target.value, currency));
-              }}
-              readOnly={splitType === 'ITEMIZED'}
-              placeholder="0"
-              required
-              aria-label={t('expense.amount')}
-              data-testid="expense-amount-input"
-              className={`w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
-                splitType === 'ITEMIZED' ? 'cursor-default' : ''
-              }`}
-            />
-            <select
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                setFxRate('');
-              }}
-              aria-label={t('expense.currency')}
-              data-testid="expense-currency-select"
-              className="absolute bottom-1.5 right-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
-            >
-              {[baseCurrency, ...COMMON_CURRENCIES]
-                .filter((c, i, arr) => arr.indexOf(c) === i)
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-            </select>
+          {/* Amount — labelled, and the currency shares the number's optical
+              centre. `items-center` (not `items-baseline`) matters: against 40px
+              digits a baseline-aligned control sits ~14px low and reads as a
+              second line. No absolute positioning and no fixed width, so a long
+              amount has nothing to collide with. */}
+          <div>
+            <SectionLabel className="text-center">{t('expense.amount')}</SectionLabel>
+            <div className="flex items-center justify-center gap-2.5">
+              <input
+                id="e-amount"
+                inputMode="decimal"
+                autoFocus={splitType !== 'ITEMIZED'}
+                value={displayAmount}
+                onChange={(e) => {
+                  if (splitType !== 'ITEMIZED')
+                    setAmount(clampAmountDecimals(e.target.value, currency));
+                }}
+                readOnly={splitType === 'ITEMIZED'}
+                placeholder="0"
+                required
+                aria-label={t('expense.amount')}
+                data-testid="expense-amount-input"
+                className={`max-w-full bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
+                  splitType === 'ITEMIZED' ? 'cursor-default' : ''
+                }`}
+                // Grows with its content instead of the old fixed w-40. `ch` is
+                // the width of "0", and `tabular-nums` makes every digit that
+                // wide, so this tracks the real rendered width.
+                style={{ width: `${Math.max(displayAmount.length, 1)}ch` }}
+              />
+              <select
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  setFxRate('');
+                }}
+                aria-label={t('expense.currency')}
+                data-testid="expense-currency-select"
+                className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
+              >
+                {[baseCurrency, ...COMMON_CURRENCIES]
+                  .filter((c, i, arr) => arr.indexOf(c) === i)
+                  .map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           {/* FX rate, only for a foreign currency (kept next to the amount) */}
@@ -664,17 +674,20 @@ export function AddExpenseForm({
             </div>
           ) : null}
 
-          {/* Title */}
-          <input
-            id="e-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            placeholder={t('expense.title')}
-            aria-label={t('expense.title')}
-            data-testid="expense-title-input"
-            className="w-full border-b border-zinc-100 bg-transparent pb-2 text-center text-sm outline-none placeholder:text-zinc-400 focus:border-brand-500 dark:border-zinc-800"
-          />
+          {/* Title — a real labelled field, not a caption under the number. */}
+          <div>
+            <Label htmlFor="e-title">
+              {t('expense.titleLabel')} <span aria-hidden="true">*</span>
+            </Label>
+            <Input
+              id="e-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder={t('expense.title')}
+              data-testid="expense-title-input"
+            />
+          </div>
 
           {/* Paid by — chips exactly as today (radiogroup, payer-chip-<id> testids) */}
           <div>

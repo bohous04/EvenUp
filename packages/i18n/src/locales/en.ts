@@ -190,6 +190,7 @@ export const en: Messages = {
   'transfer.edit': 'Edit payment',
   'transfer.delete': 'Delete payment',
   'expense.title': 'Title',
+  'expense.titleLabel': 'What for?',
   'expense.amount': 'Amount',
   'expense.currency': 'Currency',
   'expense.date': 'Date',

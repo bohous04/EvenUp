@@ -195,6 +195,7 @@ export const cs = {
   'transfer.edit': 'Upravit platbu',
   'transfer.delete': 'Smazat platbu',
   'expense.title': 'Název',
+  'expense.titleLabel': 'Za co?',
   'expense.amount': 'Částka',
   'expense.currency': 'Měna',
   'expense.date': 'Datum',
