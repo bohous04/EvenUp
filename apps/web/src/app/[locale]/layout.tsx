@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
+import { notFound } from 'next/navigation';
+import { LOCALES } from '@evenup/i18n';
+import '../globals.css';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/header';
 import { ServiceWorker } from '@/components/service-worker';
@@ -34,9 +36,31 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/** Both locales are known up front, so every page prerenders for each of them. */
+export function generateStaticParams() {
+  return LOCALES.map((locale) => ({ locale }));
+}
+
+/**
+ * The app's single root layout. It lives under `[locale]` because the middleware
+ * rewrites every page URL into that segment — Czech unprefixed (`/groups` →
+ * `/cs/groups`), English under `/en`. Nothing at `app/` root is a page, only
+ * `api/` route handlers, which need no layout.
+ */
+export default async function RootLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  // In Next 15 `params` is a Promise; the synchronous form silently breaks.
+  const { locale } = await params;
+  // Without this, `/xx/groups` would render with a bogus `lang` attribute.
+  if (!(LOCALES as readonly string[]).includes(locale)) notFound();
+
   return (
-    <html lang="cs" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full">
         <Providers>
           <Header />
