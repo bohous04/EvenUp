@@ -7,8 +7,10 @@ import {
   displayPackPriceMinor,
   displaySubscriptionPriceMinor,
 } from '@evenup/api/billing/display-prices';
+import { VIP_SCANS_PER_PERIOD } from '@evenup/api/billing/entitlement';
 import { LandingCta } from '@/components/landing-cta';
 import { resolveLocale } from '@/lib/locale-param';
+import { localizedPath } from '@/lib/locale-path';
 
 /**
  * The public landing page — the product's front door, at `/` in Czech and
@@ -31,6 +33,11 @@ import { resolveLocale } from '@/lib/locale-param';
  *
  * Nothing here touches Stripe, so the page renders identically on a
  * self-hosted instance with billing switched off; the FAQ says as much.
+ *
+ * Every link out of this page goes through `localizedPath`. Czech is the
+ * unprefixed default and English lives under `/en`, so a literal `/sign-up`
+ * href is the *Czech* sign-up — writing one hands the entire English
+ * acquisition funnel to a Czech page.
  */
 export async function generateMetadata({
   params,
@@ -47,8 +54,26 @@ export async function generateMetadata({
       canonical: locale === 'cs' ? '/' : '/en',
       languages: { cs: '/', en: '/en', 'x-default': '/' },
     },
-    openGraph: { title, description },
-    twitter: { title, description },
+    // Next merges metadata *shallowly*: these two objects replace the root
+    // layout's wholesale rather than extending them, so everything inherited
+    // has to be restated here. Miss it and the one page anybody actually
+    // shares — this one — is the only page in the app without a social card,
+    // while `/groups`, which nobody shares, keeps the full one.
+    openGraph: {
+      type: 'website',
+      siteName: 'EvenUp',
+      title,
+      description,
+      locale: locale === 'cs' ? 'cs_CZ' : 'en_US',
+      alternateLocale: locale === 'cs' ? 'en_US' : 'cs_CZ',
+      images: ['/opengraph-image.png'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ['/twitter-image.png'],
+    },
   };
 }
 
@@ -88,6 +113,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{children}</h2>;
 }
 
+/** Shared with `components/vip-pricing.tsx` — see the note on `money()`. */
+const PRICE_FORMAT = { trimZeroFraction: true } as const;
+
 const cardClass =
   'rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900';
 const primaryButtonClass =
@@ -107,7 +135,7 @@ function Hero({ locale }: { locale: Locale }) {
       </p>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Link
-          href="/sign-up"
+          href={localizedPath('/sign-up', locale)}
           data-testid="landing-signup"
           className={`w-full sm:w-auto ${primaryButtonClass}`}
         >
@@ -115,6 +143,7 @@ function Hero({ locale }: { locale: Locale }) {
         </Link>
         <LandingCta
           testId="landing-hero-app"
+          href={localizedPath('/groups', locale)}
           signedOutLabel={tm('marketing.hero.ctaSignIn')}
           signedInLabel={tm('marketing.hero.ctaApp')}
           className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 sm:w-auto dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
@@ -160,7 +189,10 @@ function Pricing({ locale }: { locale: Locale }) {
   const tm = (key: MarketingKey, values?: Record<string, string | number>) =>
     tMarketing(locale, key, values);
   const currency = currencyForLocale(locale);
-  const money = (minor: number) => formatCurrency(minor, currency, locale);
+  // A price list advertises round numbers — "50 Kč", "€2" — so a whole amount
+  // sheds its ",00". The VIP panel in the app formats the same figures the
+  // same way; keep the two in step.
+  const money = (minor: number) => formatCurrency(minor, currency, locale, PRICE_FORMAT);
 
   return (
     <Section id="pricing">
@@ -183,7 +215,9 @@ function Pricing({ locale }: { locale: Locale }) {
         </article>
 
         <article className="rounded-2xl border-2 border-brand-600 bg-white p-5 dark:bg-zinc-900">
-          <h3 className="text-base font-bold tracking-tight">{tm('marketing.pricing.vip.title')}</h3>
+          <h3 className="text-base font-bold tracking-tight">
+            {tm('marketing.pricing.vip.title')}
+          </h3>
           <p className="mt-2 text-3xl font-extrabold tracking-tight" data-testid="pricing-vip">
             {money(displaySubscriptionPriceMinor(currency))}{' '}
             <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -191,7 +225,10 @@ function Pricing({ locale }: { locale: Locale }) {
             </span>
           </p>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
-            {tm('marketing.pricing.vip.body')}
+            {/* The scan allowance is a product constant, not copy — the
+                catalog interpolates it so the number cannot drift from
+                `VIP_SCANS_PER_PERIOD`, which is what actually gates a scan. */}
+            {tm('marketing.pricing.vip.body', { scans: VIP_SCANS_PER_PERIOD })}
           </p>
         </article>
 
@@ -223,8 +260,10 @@ function Pricing({ locale }: { locale: Locale }) {
         </article>
       </div>
 
-      <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">{tm('marketing.pricing.note')}</p>
-      <Link href="/sign-up" className={`mt-6 ${primaryButtonClass}`}>
+      <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+        {tm('marketing.pricing.note')}
+      </p>
+      <Link href={localizedPath('/sign-up', locale)} className={`mt-6 ${primaryButtonClass}`}>
         {tm('marketing.pricing.cta')}
       </Link>
     </Section>
@@ -267,7 +306,7 @@ function ClosingCta({ locale }: { locale: Locale }) {
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-brand-50">{tm('marketing.cta.body')}</p>
         <Link
-          href="/sign-up"
+          href={localizedPath('/sign-up', locale)}
           data-testid="landing-cta-signup"
           className="mt-6 inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-50"
         >

@@ -3,15 +3,21 @@ import { formatCurrency } from '@evenup/i18n';
 import {
   VIP_MONTHLY_DISPLAY_MINOR,
   PACK_DISPLAY_MINOR,
+  DISPLAY_PACK_SIZES,
   displaySubscriptionPriceMinor,
   displayPackPriceMinor,
 } from './display-prices.js';
-
-// The pack sizes production offers (`PACK_SIZES` in prices.ts). Kept literal
-// here on purpose: importing it would let both sides drift together silently.
-const PACK_SIZES = [2, 5, 10] as const;
+import { PACK_SIZES } from './prices.js';
 
 describe('display prices', () => {
+  it('advertises exactly the pack sizes production can sell', () => {
+    // The *amounts* are duplicated on purpose (see display-prices.ts) and are
+    // asserted literally below, so they cannot drift together silently. The
+    // set of *sizes* is a different matter: adding one to `PACK_SIZES` without
+    // adding it here would drop it off the public price list without a word.
+    expect(new Set(DISPLAY_PACK_SIZES)).toEqual(new Set(PACK_SIZES));
+  });
+
   it('prices the VIP subscription in both billing currencies', () => {
     expect(displaySubscriptionPriceMinor('CZK')).toBe(5000);
     expect(displaySubscriptionPriceMinor('EUR')).toBe(200);

@@ -21,6 +21,10 @@
     "./billing/display-prices": {
       "types": "./src/billing/display-prices.ts",
       "default": "./src/billing/display-prices.ts"
+    },
+    "./billing/entitlement": {
+      "types": "./src/billing/entitlement.ts",
+      "default": "./src/billing/entitlement.ts"
     }
   },
   "scripts": {

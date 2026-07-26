@@ -41,12 +41,22 @@ describe('tMarketing', () => {
   });
 
   test('returns the English string', () => {
-    expect(tMarketing('en', 'marketing.hero.title')).toBe('Settle up in the fewest payments');
+    expect(tMarketing('en', 'marketing.hero.title')).toBe('Send two payments instead of eight.');
   });
 
   test('interpolates named placeholders', () => {
     expect(tMarketing('en', 'marketing.pricing.packs.item', { scans: 5 })).toBe('Pack of 5 scans');
     expect(tMarketing('cs', 'marketing.pricing.packs.item', { scans: 5 })).toBe('Balíček 5 skenů');
+  });
+
+  test('the VIP allowance is interpolated, never written into the copy', () => {
+    // Guards MINOR 6: the number is `VIP_SCANS_PER_PERIOD`, and a hardcoded
+    // "150" here would silently outlive a change to it.
+    for (const locale of LOCALES) {
+      const body = tMarketing(locale, 'marketing.pricing.vip.body', { scans: 42 });
+      expect(body, locale).toContain('42');
+      expect(body, locale).not.toContain('150');
+    }
   });
 
   test('falls back to the default locale for an unknown locale', () => {

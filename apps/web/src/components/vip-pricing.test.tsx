@@ -28,7 +28,7 @@ const t = createTranslator(DEFAULT_LOCALE);
  * strings that render identically. Normalize both sides.
  */
 const money = (minor: number, currency: 'CZK' | 'EUR') =>
-  formatCurrency(minor, currency, DEFAULT_LOCALE).replace(/\s+/g, ' ');
+  formatCurrency(minor, currency, DEFAULT_LOCALE, { trimZeroFraction: true }).replace(/\s+/g, ' ');
 
 const summary = {
   billingEnabled: true,

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { t, LOCALES, DEFAULT_LOCALE, type Locale } from '@evenup/i18n';
 import { AppShell } from '@/components/app-shell';
+import { localizedPath } from '@/lib/locale-path';
 
 /**
  * Rendered for any 404 inside the `[locale]` tree (typo'd URLs, an
@@ -40,7 +41,9 @@ export default async function NotFound() {
       <div className="space-y-4 py-12 text-center">
         <h1 className="text-2xl font-extrabold tracking-tight">{t(locale, 'notFound.title')}</h1>
         <p className="text-zinc-600 dark:text-zinc-400">{t(locale, 'notFound.body')}</p>
-        <Link href="/" className="inline-block text-brand-700 underline">
+        {/* Czech is unprefixed, English lives under `/en` — a literal `/`
+            would send an English visitor home to the Czech landing page. */}
+        <Link href={localizedPath('/', locale)} className="inline-block text-brand-700 underline">
           {t(locale, 'notFound.home')}
         </Link>
       </div>

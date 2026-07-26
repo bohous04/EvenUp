@@ -13,15 +13,44 @@ const INTL_LOCALE: Record<Locale, string> = {
   en: 'en-US',
 };
 
-/** Format integer minor units as a localized currency string (e.g. `1 234,50 Kč`). */
-export function formatCurrency(minorUnits: number, currency: CurrencyCode, locale: Locale): string {
+export interface FormatCurrencyOptions {
+  /**
+   * Drop the fraction on an amount that lands exactly on a whole unit, so a
+   * price list reads "50 Kč" / "€2" rather than "50,00 Kč" / "€2.00".
+   *
+   * Opt-in, and only for *prices* — a ledger amount must keep its minor units
+   * so a column of figures stays aligned and 50 is never confused with 50,00.
+   *
+   * The trim is all-or-nothing per amount: either both fraction digits print
+   * or neither does. Setting `minimumFractionDigits: 0` with
+   * `maximumFractionDigits: exp` instead would render 1234.50 as "1 234,5 Kč",
+   * which is not how money is written.
+   */
+  readonly trimZeroFraction?: boolean;
+}
+
+/**
+ * Format integer minor units as a localized currency string (e.g. `1 234,50 Kč`).
+ *
+ * The fraction-digit count is handed to `Intl` rather than trimmed off the
+ * formatted string afterwards: Czech puts the symbol last (`50,00 Kč`) and
+ * English first (`€2.00`), so only `Intl` places it correctly in both.
+ */
+export function formatCurrency(
+  minorUnits: number,
+  currency: CurrencyCode,
+  locale: Locale,
+  options: FormatCurrencyOptions = {},
+): string {
   const exp = currencyExponent(currency);
   const major = minorUnits / 10 ** exp;
+  const isWhole = minorUnits % 10 ** exp === 0;
+  const digits = options.trimZeroFraction && isWhole ? 0 : exp;
   return new Intl.NumberFormat(INTL_LOCALE[locale], {
     style: 'currency',
     currency: currency.toUpperCase(),
-    minimumFractionDigits: exp,
-    maximumFractionDigits: exp,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(major);
 }
 

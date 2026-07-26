@@ -3,10 +3,16 @@ import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 
 /**
- * The landing page's one link into the app. It always points at `/groups` —
- * which renders the dashboard for a signed-in visitor and the sign-in form for
- * everyone else — and only the label changes: "sign in" for a visitor,
- * "open the app" once a session exists.
+ * The landing page's one link into the app. It points at the caller's
+ * `/groups` — which renders the dashboard for a signed-in visitor and the
+ * sign-in form for everyone else — and only the label changes: "sign in" for a
+ * visitor, "open the app" once a session exists.
+ *
+ * The href is resolved by the (server) caller through `localizedPath`, not
+ * built here, so the island stays label-only and no locale has to cross the
+ * client boundary. An English visitor must land on `/en/groups`: a bare
+ * `/groups` is the Czech route, so hardcoding it dropped every visitor to the
+ * English page into a Czech app.
  *
  * A client island rather than a `cookies()` read in the page, deliberately.
  * Touching `cookies()` in a server component opts the whole route out of
@@ -21,11 +27,14 @@ import { useSession } from '@/lib/auth-client';
  * there is no hydration mismatch, only a label that may swap once.
  */
 export function LandingCta({
+  href,
   signedOutLabel,
   signedInLabel,
   className,
   testId,
 }: {
+  /** The locale-resolved app entry point, e.g. `/groups` or `/en/groups`. */
+  href: string;
   signedOutLabel: string;
   signedInLabel: string;
   className?: string;
@@ -33,7 +42,7 @@ export function LandingCta({
 }) {
   const { data: session } = useSession();
   return (
-    <Link href="/groups" className={className} data-testid={testId}>
+    <Link href={href} className={className} data-testid={testId}>
       {session?.user ? signedInLabel : signedOutLabel}
     </Link>
   );

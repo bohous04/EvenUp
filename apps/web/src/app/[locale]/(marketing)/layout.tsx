@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { t, tMarketing, LOCALES, type Locale, type MarketingKey } from '@evenup/i18n';
 import { LandingCta } from '@/components/landing-cta';
 import { resolveLocale } from '@/lib/locale-param';
+import { localizedPath } from '@/lib/locale-path';
 
 /**
  * The public marketing chrome: its own compact header and footer, and
@@ -28,13 +29,17 @@ export default async function MarketingLayout({
   const { locale: raw } = await params;
   const locale = resolveLocale(raw);
   const tm = (key: MarketingKey) => tMarketing(locale, key);
+  // Czech is unprefixed and English lives under `/en`, so every in-app link
+  // has to be built for the locale of the page it sits on — a bare `/` or
+  // `/groups` in the English header would walk the visitor into the Czech app.
+  const path = (to: string) => localizedPath(to, locale);
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/85 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-4 py-3">
           <Link
-            href="/"
+            href={path('/')}
             aria-label={t(locale, 'app.name')}
             className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100"
           >
@@ -57,6 +62,7 @@ export default async function MarketingLayout({
             <LocaleSwitch locale={locale} />
             <LandingCta
               testId="landing-signin"
+              href={path('/groups')}
               signedOutLabel={tm('marketing.hero.ctaSignIn')}
               signedInLabel={tm('marketing.hero.ctaApp')}
               className="rounded-xl px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-50 dark:text-brand-100 dark:hover:bg-brand-600/10"

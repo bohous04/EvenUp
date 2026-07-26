@@ -9,13 +9,21 @@ import {
   type Locale,
   type MessageKey,
   type InterpolationValues,
+  type FormatCurrencyOptions,
 } from '@evenup/i18n';
 
 interface I18nValue {
   locale: Locale;
   t: (key: MessageKey, values?: InterpolationValues) => string;
   plural: (base: string, count: number, values?: InterpolationValues) => string;
-  formatCurrency: (minor: number, currency: string) => string;
+  /**
+   * `options` is additive and every existing caller omits it — an expense
+   * amount keeps its minor units. Only price displays pass
+   * `{ trimZeroFraction: true }`, and the VIP panel and the public price list
+   * must pass the same thing or one page would read "50 Kč" and the other
+   * "50,00 Kč" for the identical product.
+   */
+  formatCurrency: (minor: number, currency: string, options?: FormatCurrencyOptions) => string;
   formatDate: (date: string | Date) => string;
   formatNameList: (names: readonly string[], type: 'conjunction' | 'disjunction') => string;
 }
@@ -43,7 +51,7 @@ export function I18nProvider({ children, locale }: { children: React.ReactNode; 
       locale,
       t: translator,
       plural: (base, count, values) => pluralize(locale, base, count, values),
-      formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
+      formatCurrency: (minor, currency, options) => fmtCurrency(minor, currency, locale, options),
       formatDate: (date) => fmtDate(date, locale),
       formatNameList: (names, type) => fmtNameList(names, locale, type),
     };

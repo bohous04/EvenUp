@@ -19,6 +19,7 @@ export {
   formatNameList,
   pluralCategory,
   type Locale,
+  type FormatCurrencyOptions,
 } from './format.js';
 export { cs } from './locales/cs.js';
 export { en } from './locales/en.js';

@@ -11,6 +11,14 @@ import type { RouterOutputs } from '@/lib/trpc';
 export type BillingSummary = RouterOutputs['billing']['summary'];
 
 /**
+ * Prices are advertised as round numbers — "50 Kč", "€2" — not as ledger
+ * amounts. The public price list (`app/[locale]/(marketing)/page.tsx`) formats
+ * the very same figures, so both must pass this or the two pages would quote
+ * different-looking prices for one product.
+ */
+const PRICE_FORMAT = { trimZeroFraction: true } as const;
+
+/**
  * Presentational pricing panel — takes its data and callbacks as props (no
  * tRPC of its own) so it's testable in isolation. The withdrawal-right
  * checkbox is local state shared by every pack row: none of them may fire a
@@ -66,6 +74,7 @@ export function VipPricing({
             price: formatCurrency(
               displaySubscriptionPriceMinor(summary.currency),
               summary.currency,
+              PRICE_FORMAT,
             ),
           })}
         </p>
@@ -129,7 +138,7 @@ export function VipPricing({
                         className="ml-2 font-semibold text-zinc-600 dark:text-zinc-300"
                         data-testid={`vip-price-${pack.id}`}
                       >
-                        {formatCurrency(priceMinor, summary.currency)}
+                        {formatCurrency(priceMinor, summary.currency, PRICE_FORMAT)}
                       </span>
                     )}
                   </span>

@@ -27,7 +27,15 @@ export function subscriptionPriceId(currency: BillingCurrency): string | null {
   return process.env[`STRIPE_PRICE_${currency}_VIP`] ?? null;
 }
 
-const PACK_SIZES = [2, 5, 10] as const;
+/**
+ * The pack sizes production can sell, smallest first. Exported so
+ * `display-prices.ts`'s public price list can be *tested* against it: the two
+ * lists are deliberately separate (amounts must not be inferred from what is
+ * purchasable, and a self-hosted instance has neither), but the set of sizes
+ * must not drift, or a new size would silently be missing a price on the
+ * landing page.
+ */
+export const PACK_SIZES = [2, 5, 10] as const;
 
 /** Packs with a configured price id, smallest first. */
 export function creditPacks(currency: BillingCurrency): CreditPack[] {

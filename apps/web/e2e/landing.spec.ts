@@ -8,8 +8,8 @@ import AxeBuilder from '@axe-core/playwright';
  * here; key parity and non-emptiness are covered by `marketing.test.ts` in
  * that package instead. Keep these two strings in step with the catalog.
  */
-const CS_HERO = 'Vyrovnejte se na co nejmíň převodů';
-const EN_HERO = 'Settle up in the fewest payments';
+const CS_HERO = 'Místo osmi plateb pošlete dvě.';
+const EN_HERO = 'Send two payments instead of eight.';
 
 test('serves the Czech landing page server-side at the root', async ({ page }) => {
   const res = await page.goto('/');
@@ -65,16 +65,38 @@ test('prices the landing page in the locale currency', async ({ page }) => {
   await expect(page.getByTestId('pricing')).toContainText('€');
 });
 
-test('the landing page is the front door to the app, not the app itself', async ({ page }) => {
-  await page.goto('/');
-  // No app chrome: the signed-in header (settings / sign-out / admin) belongs
-  // to the `(app)` route group, not here.
-  await expect(page.getByTestId('new-group-btn')).toHaveCount(0);
+/**
+ * Runs on BOTH locales, which is the whole point: the English page once linked
+ * to `/groups` and `/sign-up` — the *Czech* routes — so every CTA on it, and
+ * the wordmark, dropped an English visitor into a Czech app. A `/`-only test
+ * passed throughout. Czech is unprefixed and English lives under `/en`, so the
+ * assertions are on the exact path, never a `/groups$` suffix that both match.
+ */
+for (const { landing, app, signUp, wordmark } of [
+  { landing: '/', app: '/groups', signUp: '/sign-up', wordmark: 'dlužníček' },
+  { landing: '/en', app: '/en/groups', signUp: '/en/sign-up', wordmark: 'EvenUp' },
+]) {
+  test(`the landing page at ${landing} is the front door to the app, not the app itself`, async ({
+    page,
+  }) => {
+    await page.goto(landing);
+    // No app chrome: the signed-in header (settings / sign-out / admin) belongs
+    // to the `(app)` route group, not here.
+    await expect(page.getByTestId('new-group-btn')).toHaveCount(0);
 
-  await page.getByTestId('landing-signin').click();
-  await expect(page).toHaveURL(/\/groups$/);
-  await expect(page.getByTestId('signin-submit')).toBeVisible();
-});
+    // All three sign-up CTAs (hero, pricing, closing), both app links (header,
+    // hero) and the wordmark, by href rather than by clicking each: the bug
+    // was that these were written as literals, and a literal is right for
+    // exactly one of the two locales.
+    await expect(page.locator(`a[href="${signUp}"]`)).toHaveCount(3);
+    await expect(page.locator(`a[href="${app}"]`)).toHaveCount(2);
+    await expect(page.getByRole('link', { name: wordmark })).toHaveAttribute('href', landing);
+
+    await page.getByTestId('landing-signin').click();
+    await expect(page).toHaveURL(app);
+    await expect(page.getByTestId('signin-submit')).toBeVisible();
+  });
+}
 
 test('the landing page is accessible (§9.4)', async ({ page }) => {
   await page.goto('/');
@@ -89,9 +111,21 @@ test('the landing page is accessible (§9.4)', async ({ page }) => {
  * layouts only, never a sibling route group's, so `not-found.tsx` had to ask
  * for that chrome itself — this is the regression guard for that.
  */
-test('a 404 keeps the app chrome after the chrome moved into the (app) group', async ({ page }) => {
+test('a 404 keeps the app chrome once JavaScript has run', async ({ page, request }) => {
   const res = await page.goto('/nonexistent-page');
   expect(res?.status()).toBe(404);
+
+  // Known limitation, asserted rather than left implied: the 404's content is
+  // NOT in the server HTML — it arrives only in the RSC flight payload, so a
+  // no-JS visitor or a crawler still gets a blank page. That predates the
+  // (app)/(marketing) split (the whole `[locale]` layout already sat inside
+  // the suspended not-found boundary), and it is why everything below this
+  // line proves the chrome only for a JavaScript-enabled browser — unlike the
+  // landing page, which has its own no-JS test above. Flip this to `toContain`
+  // the day the 404 renders server-side; do not read it as no-JS coverage.
+  const serverHtml = await (await request.get('/nonexistent-page')).text();
+  expect(serverHtml).not.toContain('<h1');
+
   // The app header's logo — its accessible name is `app.name`, "dlužníček".
   await expect(page.getByRole('link', { name: 'dlužníček' })).toBeVisible();
   await expect(page.getByRole('group', { name: /jazyk|language/i })).toBeVisible();

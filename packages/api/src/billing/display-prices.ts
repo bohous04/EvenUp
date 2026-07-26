@@ -39,6 +39,10 @@ export const VIP_MONTHLY_DISPLAY_MINOR: Readonly<Record<BillingCurrency, number>
  * actually *purchasable* — that one is filtered by which Stripe price ids are
  * configured, so it can be empty (self-hosting, no Stripe key) while the
  * public price list still has something to show.
+ *
+ * The two lists must hold the same *sizes*, and `display-prices.test.ts`
+ * asserts exactly that, so a size added to `PACK_SIZES` cannot quietly go
+ * missing here. Only the amounts stay independent.
  */
 export const DISPLAY_PACK_SIZES = [2, 5, 10] as const;
 
