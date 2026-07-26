@@ -27,22 +27,22 @@ store IDs and a placeholder icon.
 
 ### 1.1 tRPC surface the mobile app must reach
 
-| Router | Procedures | Mobile today |
-|---|---|---|
-| `group` | create, list, get, update, archive | list, create, get |
-| `member` | add, list, update, remove, setBankDetail | add |
-| `transaction` | createExpense, recordTransfer, updateExpense, updateTransfer, list, setRecurrence, materializeDue, importCsv, delete | createExpense, recordTransfer |
-| `balance` | get, memberBreakdown, nextPayer | get |
-| `settlement` | generateSpayd | — |
-| `invite` | create, preview, claim | — |
-| `user` | me, getBankAccount, updateSettings, updateProfile, setAvatar, clearAvatar, setBankAccount, clearBankAccount, setOpenRouterKey, clearOpenRouterKey, exportData, deleteAccount | — |
-| `ocr` | scan | scan |
-| `fx` | resolve, latest, setManual | — |
-| `stats` | byCategory | — |
-| `activity` | list | — |
-| `admin` | listUsers, setVip, setAdmin, setDisabled, deleteUser, getInstanceConfig, setInstanceOpenRouterKey, clearInstanceOpenRouterKey, setInstanceOcrModel, listErrors | — |
-| `category` | list, create, update, remove | — |
-| `notification` | getSettings, setEnabled, getGroupMute, setGroupMute | — |
+| Router         | Procedures                                                                                                                                                                   | Mobile today                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `group`        | create, list, get, update, archive                                                                                                                                           | list, create, get             |
+| `member`       | add, list, update, remove, setBankDetail                                                                                                                                     | add                           |
+| `transaction`  | createExpense, recordTransfer, updateExpense, updateTransfer, list, setRecurrence, materializeDue, importCsv, delete                                                         | createExpense, recordTransfer |
+| `balance`      | get, memberBreakdown, nextPayer                                                                                                                                              | get                           |
+| `settlement`   | generateSpayd                                                                                                                                                                | —                             |
+| `invite`       | create, preview, claim                                                                                                                                                       | —                             |
+| `user`         | me, getBankAccount, updateSettings, updateProfile, setAvatar, clearAvatar, setBankAccount, clearBankAccount, setOpenRouterKey, clearOpenRouterKey, exportData, deleteAccount | —                             |
+| `ocr`          | scan                                                                                                                                                                         | scan                          |
+| `fx`           | resolve, latest, setManual                                                                                                                                                   | —                             |
+| `stats`        | byCategory                                                                                                                                                                   | —                             |
+| `activity`     | list                                                                                                                                                                         | —                             |
+| `admin`        | listUsers, setVip, setAdmin, setDisabled, deleteUser, getInstanceConfig, setInstanceOpenRouterKey, clearInstanceOpenRouterKey, setInstanceOcrModel, listErrors               | —                             |
+| `category`     | list, create, update, remove                                                                                                                                                 | —                             |
+| `notification` | getSettings, setEnabled, getGroupMute, setGroupMute                                                                                                                          | —                             |
 
 Almost every gap is a screen, not an endpoint.
 
@@ -82,23 +82,27 @@ Full parity is too large for one implementation plan. It is split into epics, ea
 non-screenshot parts early but its screenshots depend on finished screens.
 
 ### E0 — Foundation
+
 UI kit, light/dark theming, locale persistence + device detection, tab navigation shell, deep-link
 routing. **Acceptance:** existing screens re-skinned onto the kit with no behavior regression; tabs
 render; dark mode legible; locale survives relaunch; `evenup://invite/<token>` opens a claim route.
 
 ### E1 — Auth parity
+
 Sign-up with Google + Apple; email-verification pending screen; reset-password screen; invite
 deep-link claim (`invite.preview`/`invite.claim`) letting a signed-in user claim a virtual member.
 **Acceptance:** a new user can sign up (email/Google/Apple), verify, reset password, and claim an
 invited member end-to-end.
 
 ### E2 — Groups & members
+
 Group detail as tabs (Balances / Expenses / Members / Activity). Member CRUD: add with color +
 default share + role; edit; deactivate/remove; bank IBAN (`member.setBankDetail`). Group settings
 (rename, base currency, simplify-debts toggle, archive/restore). Invite create + native share sheet.
 **Acceptance:** full member lifecycle and group settings match web; invite link shareable.
 
 ### E3 — Expenses (largest)
+
 Full add/edit expense form: all 5 split types (equal / exact / shares / percentage / itemized),
 multi-payer with per-payer amounts (validated to sum to total), category picker, date, currency +
 FX override/lock (`fx.resolve`/`fx.setManual`), note, receipt attach. Transaction list with
@@ -107,6 +111,7 @@ computes shares identically to web (same `@evenup/core`), payer-sum validation e
 logged.
 
 ### E4 — OCR itemized chip-assignment
+
 Consume `ocr.scan` into an itemized editor: each item shown with colored member chips; tap toggles
 who shares it; edit/merge/split/delete items; allocate tax/tip proportionally or to members;
 reconcile `sum(items)` vs total; save as itemized expense. Receipt viewer + multi-page import.
@@ -114,12 +119,14 @@ On-device Apple Vision path already spiked. **Acceptance:** scan → assign via 
 correct itemized expense; manual fallback always available (FR-5.6).
 
 ### E5 — Settlements
+
 SPAYD QR rendering (`settlement.generateSpayd` → `react-native-qrcode-svg` + `react-native-svg`);
 settle sheet with method cash/bank/qr; edit-transfer sheet; next-round card (`balance.nextPayer`);
 member breakdown sheet (`balance.memberBreakdown`). **Acceptance:** QR scans in a CZ banking app for
 a creditor with an IBAN; cash/manual settle always available (FR-7.4); balances update immediately.
 
 ### E6 — Settings & account
+
 Profile (name/avatar), locale switch (persisted), security 2FA/TOTP (Better Auth `twoFactor`),
 connected accounts (Apple/Google link), BYO OpenRouter key, bank account (IBAN), notification prefs,
 GDPR export/delete. Plus category manager, spend stats (`stats.byCategory`), CSV import
@@ -127,11 +134,13 @@ GDPR export/delete. Plus category manager, spend stats (`stats.byCategory`), CSV
 every settings surface on web has a working mobile equivalent.
 
 ### E7 — Push notifications
+
 Register the Expo push token on sign-in, persist server-side, deliver foreground/background, tap →
 deep-link to the relevant group/transaction, honor per-group mute + global opt-out. **Acceptance:**
 an expense affecting you / a settlement request / a debt reminder pushes and deep-links; mute works.
 
 ### E8 — Store submission prep (both platforms)
+
 - **Assets:** branded 1024px app icon, Android adaptive icon, splash — replace the single
   placeholder PNG. (Generated, brand blue `#2563eb`.)
 - **Config:** `app.config.ts` — version/buildNumber source, permission usage strings (already
@@ -154,9 +163,11 @@ stores by following `SUBMISSION.md`; no code placeholders remain except the stor
 exist after the user creates the records.
 
 ### Cross-cutting — tests, a11y, dark mode
+
 Per epic: React Native Testing Library component tests (forms, chip assignment, split editors,
 amount input), expanded Maestro critical-flow E2E, a11y labels + "color-not-alone" chips (initials
-+ label), dark-mode verification. Matches the PRD Definition of Done (§10.3).
+
+- label), dark-mode verification. Matches the PRD Definition of Done (§10.3).
 
 ---
 

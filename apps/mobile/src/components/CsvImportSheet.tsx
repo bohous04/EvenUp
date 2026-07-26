@@ -90,7 +90,9 @@ export function CsvImportSheet({
           title={t('csv.import')}
           loading={importCsv.isPending}
           disabled={!csv.trim() || !payerId}
-          onPress={() => payerId && importCsv.mutate({ groupId, csv: csv.trim(), payerMemberId: payerId })}
+          onPress={() =>
+            payerId && importCsv.mutate({ groupId, csv: csv.trim(), payerMemberId: payerId })
+          }
         />
       </View>
     </BottomSheet>

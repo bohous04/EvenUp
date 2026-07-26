@@ -1,6 +1,7 @@
 # Universal / App Links (invite + reset deep links)
 
 `app.config.ts` declares:
+
 - iOS: `associatedDomains: ['applinks:evenup.lnrt.cz']`
 - Android: an `intentFilter` with `autoVerify` for `https://evenup.lnrt.cz/invite`
 
@@ -47,7 +48,7 @@ Serve at `https://evenup.lnrt.cz/.well-known/assetlinks.json`:
 ]
 ```
 
-Get the fingerprint from Play Console → *App integrity → App signing* after the
+Get the fingerprint from Play Console → _App integrity → App signing_ after the
 first upload, or from EAS: `eas credentials` → Android → the SHA-256.
 
 ## Serving from the web app (Next.js)

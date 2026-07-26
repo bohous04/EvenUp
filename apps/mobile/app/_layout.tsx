@@ -43,7 +43,10 @@ function ThemedStack() {
       <Stack.Screen name="scan" options={{ title: t('ocr.scan'), presentation: 'modal' }} />
       <Stack.Screen name="expense" options={{ title: t('expense.add'), presentation: 'modal' }} />
       <Stack.Screen name="admin" options={{ title: t('nav.admin') }} />
-      <Stack.Screen name="invite/[token]" options={{ title: t('invite.claim'), presentation: 'modal' }} />
+      <Stack.Screen
+        name="invite/[token]"
+        options={{ title: t('invite.claim'), presentation: 'modal' }}
+      />
     </Stack>
   );
 }

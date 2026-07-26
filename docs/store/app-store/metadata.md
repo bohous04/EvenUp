@@ -5,16 +5,16 @@ English is provided as a secondary localization.
 
 ## App information
 
-| Field | Value |
-|---|---|
-| **Name** | EvenUp |
-| **Subtitle** (CZ) | Rozúčtování výdajů ve skupině |
-| **Subtitle** (EN) | Split group expenses fairly |
-| **Bundle ID** | company.lnrt.evenup |
-| **SKU** | evenup-ios |
-| **Primary category** | Finance |
-| **Secondary category** | Utilities |
-| **Price** | Free |
+| Field                  | Value                         |
+| ---------------------- | ----------------------------- |
+| **Name**               | EvenUp                        |
+| **Subtitle** (CZ)      | Rozúčtování výdajů ve skupině |
+| **Subtitle** (EN)      | Split group expenses fairly   |
+| **Bundle ID**          | company.lnrt.evenup           |
+| **SKU**                | evenup-ios                    |
+| **Primary category**   | Finance                       |
+| **Secondary category** | Utilities                     |
+| **Price**              | Free                          |
 
 ## Promotional text (≤170 chars)
 
@@ -24,6 +24,7 @@ English is provided as a secondary localization.
 ## Description
 
 **CZ**
+
 ```
 EvenUp (dlužníček) je jednoduchá aplikace pro rozúčtování společných výdajů —
 na výletě, ve sdíleném bytě nebo na akci.
@@ -40,6 +41,7 @@ Zdarma. Žádné reklamy, žádné předplatné. Otevřený zdrojový kód.
 ```
 
 **EN**
+
 ```
 EvenUp is a clean, fast app for splitting shared group expenses — on a trip, in
 a shared flat, or at an event.
@@ -63,23 +65,23 @@ split,expenses,group,bill,receipt,ocr,debt,settle,QR,SPAYD,roommates,trip,dlužn
 
 ## URLs
 
-| Field | Value |
-|---|---|
-| **Support URL** | https://evenup.lnrt.cz |
-| **Marketing URL** | https://evenup.lnrt.cz |
-| **Privacy Policy URL** | https://evenup.lnrt.cz/privacy *(publish a page before submitting)* |
+| Field                  | Value                                                               |
+| ---------------------- | ------------------------------------------------------------------- |
+| **Support URL**        | https://evenup.lnrt.cz                                              |
+| **Marketing URL**      | https://evenup.lnrt.cz                                              |
+| **Privacy Policy URL** | https://evenup.lnrt.cz/privacy _(publish a page before submitting)_ |
 
 ## App Privacy (data collection questionnaire)
 
 Answer **"Yes, we collect data"**. Declare only what the app actually stores:
 
-| Data type | Collected? | Linked to identity? | Used for tracking? | Purpose |
-|---|---|---|---|---|
-| Email address | Yes | Yes | No | App Functionality (account) |
-| Name | Yes | Yes | No | App Functionality |
-| Photos (receipts) | Yes* | Yes | No | App Functionality (OCR) |
-| Payment info (IBAN) | Yes | Yes | No | App Functionality (QR payment string) |
-| User ID | Yes | Yes | No | App Functionality |
+| Data type           | Collected? | Linked to identity? | Used for tracking? | Purpose                               |
+| ------------------- | ---------- | ------------------- | ------------------ | ------------------------------------- |
+| Email address       | Yes        | Yes                 | No                 | App Functionality (account)           |
+| Name                | Yes        | Yes                 | No                 | App Functionality                     |
+| Photos (receipts)   | Yes\*      | Yes                 | No                 | App Functionality (OCR)               |
+| Payment info (IBAN) | Yes        | Yes                 | No                 | App Functionality (QR payment string) |
+| User ID             | Yes        | Yes                 | No                 | App Functionality                     |
 
 \* Receipt images are sent to OpenRouter for OCR using the **user's own API key**
 and are **optionally auto-deleted** after extraction (instance/user setting). No

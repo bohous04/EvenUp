@@ -26,9 +26,7 @@ const transformAllow = [
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  transformIgnorePatterns: [
-    `node_modules/.pnpm/(?!(${transformAllow.join('|')})[^/]*/)`,
-  ],
+  transformIgnorePatterns: [`node_modules/.pnpm/(?!(${transformAllow.join('|')})[^/]*/)`],
   moduleNameMapper: {
     // @evenup/* packages are consumed as TS source with NodeNext ".js" import
     // specifiers; strip the extension so jest resolves the ".ts" file.

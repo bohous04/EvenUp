@@ -83,10 +83,7 @@ export function MemberList({ groupId }: { groupId: string }) {
               {m.displayName}
               {!m.isActive ? ` · ${t('group.archived')}` : ''}
             </Text>
-            <Text
-              numberOfLines={1}
-              style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}
-            >
+            <Text numberOfLines={1} style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}>
               {m.role === 'ADMIN' ? t('member.role.admin') : t('member.role.member')}
               {m.userId ? ` · ${t('member.connected')}` : ` · ${t('member.notConnected')}`}
             </Text>

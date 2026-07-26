@@ -29,21 +29,27 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t('nav.groups'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title: t('nav.activity'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pulse-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: t('nav.settings'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>

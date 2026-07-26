@@ -26,8 +26,8 @@ actions only you can perform, plus the two build+submit commands.
 - [x] App icon `apps/mobile/assets/icon.png` (1024×1024, no alpha for iOS).
 - [x] Android adaptive icon foreground + `#2563eb` background (in `app.config.ts`).
 - [x] Splash uses the icon on the brand-blue background.
-> If you replace the icon, keep it 1024×1024 PNG, square, no transparency (Apple
-> rejects alpha in the marketing icon).
+  > If you replace the icon, keep it 1024×1024 PNG, square, no transparency (Apple
+  > rejects alpha in the marketing icon).
 
 ## 2. Apple — create the App Store Connect record
 
@@ -64,7 +64,7 @@ actions only you can perform, plus the two build+submit commands.
       Prefer an **App Store Connect API key** (`ascApiKeyPath`/`-Id`/`-IssuerId`)
       for non-interactive CI submits.
 - [ ] Android: create a Google Play **service account** JSON with the
-      *Release manager* role, save it outside the repo, and point
+      _Release manager_ role, save it outside the repo, and point
       `serviceAccountKeyPath` at it (or pass `--service-account-key-path`).
 
 ## 5. Build
@@ -101,7 +101,8 @@ eas submit --platform android --profile production  # → Play internal testing 
 
 Reviewers can't create virtual members without an account. Provide a seeded
 login in the review notes:
-- Email: `review@evenup.lnrt.cz` · Password: *(set one and record it here)*
+
+- Email: `review@evenup.lnrt.cz` · Password: _(set one and record it here)_
 - Or note: "Tap Sign up → any email; email verification is required — use the
   magic link, or set `AUTH_DEV_ECHO` on a staging instance for the reviewer."
 

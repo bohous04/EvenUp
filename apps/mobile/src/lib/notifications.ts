@@ -23,9 +23,7 @@ Notifications.setNotificationHandler({
  * this resolves to null. The OS only ever shows its prompt once, so the
  * settings toggle asks explicitly rather than spending it on app launch.
  */
-export async function registerForPushNotifications(
-  promptIfNeeded = true,
-): Promise<string | null> {
+export async function registerForPushNotifications(promptIfNeeded = true): Promise<string | null> {
   const settings = await Notifications.getPermissionsAsync();
   let granted = settings.granted;
   if (!granted) {

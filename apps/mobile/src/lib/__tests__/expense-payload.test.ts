@@ -42,7 +42,13 @@ test('SHARES rounds weights and defaults missing to 1', () => {
   const r = buildSplitPayload({ ...base, splitType: 'SHARES', weightById: { a: '2' } });
   expect(r).toMatchObject({
     ok: true,
-    split: { type: 'SHARES', members: [{ memberId: 'a', weight: 2 }, { memberId: 'b', weight: 1 }] },
+    split: {
+      type: 'SHARES',
+      members: [
+        { memberId: 'a', weight: 2 },
+        { memberId: 'b', weight: 1 },
+      ],
+    },
   });
 });
 

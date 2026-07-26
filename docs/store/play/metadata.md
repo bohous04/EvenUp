@@ -4,15 +4,15 @@ Ready-to-paste copy and questionnaire answers for the EvenUp Android listing.
 
 ## Store listing
 
-| Field | Value |
-|---|---|
-| **App name** | EvenUp |
+| Field                       | Value                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| **App name**                | EvenUp                                                                       |
 | **Short description** (≤80) | Split group expenses, scan receipts, settle up with a QR code. Free, no ads. |
-| **Category** | Finance |
-| **Tags** | Expenses, Budgeting |
-| **Email** | misalenert@gmail.com |
-| **Website** | https://evenup.lnrt.cz |
-| **Privacy Policy** | https://evenup.lnrt.cz/privacy |
+| **Category**                | Finance                                                                      |
+| **Tags**                    | Expenses, Budgeting                                                          |
+| **Email**                   | misalenert@gmail.com                                                         |
+| **Website**                 | https://evenup.lnrt.cz                                                       |
+| **Privacy Policy**          | https://evenup.lnrt.cz/privacy                                               |
 
 ## Full description (≤4000 chars)
 
@@ -35,18 +35,18 @@ pay yourself. Free, no ads, no subscriptions, open source.
 
 - **Does your app collect or share user data?** Yes (collect), **No sharing**
   with third parties for their own use. (Receipt images go to OpenRouter as a
-  *service provider* using the user's own key — declare as processing, not
+  _service provider_ using the user's own key — declare as processing, not
   third-party sharing.)
 - **Is all data encrypted in transit?** Yes (HTTPS/TLS).
 - **Can users request deletion?** Yes (Settings → Delete account).
 
-| Data type | Collected | Shared | Optional | Purpose |
-|---|---|---|---|---|
-| Email address | Yes | No | No | Account management |
-| Name | Yes | No | Yes | App functionality |
-| Photos (receipts) | Yes | No | Yes | App functionality (OCR) |
-| Financial info (IBAN) | Yes | No | Yes | App functionality (QR payment) |
-| App activity (expenses) | Yes | No | No | App functionality |
+| Data type               | Collected | Shared | Optional | Purpose                        |
+| ----------------------- | --------- | ------ | -------- | ------------------------------ |
+| Email address           | Yes       | No     | No       | Account management             |
+| Name                    | Yes       | No     | Yes      | App functionality              |
+| Photos (receipts)       | Yes       | No     | Yes      | App functionality (OCR)        |
+| Financial info (IBAN)   | Yes       | No     | Yes      | App functionality (QR payment) |
+| App activity (expenses) | Yes       | No     | No       | App functionality              |
 
 No advertising or analytics SDKs. No location, contacts, or device identifiers
 collected. IBAN and API keys encrypted at rest.

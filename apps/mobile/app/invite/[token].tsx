@@ -62,7 +62,9 @@ export default function InviteScreen() {
           </Text>
           <Button
             title={t('auth.signInBtn')}
-            onPress={() => router.push({ pathname: '/sign-in', params: { next: `/invite/${token}` } })}
+            onPress={() =>
+              router.push({ pathname: '/sign-in', params: { next: `/invite/${token}` } })
+            }
           />
         </Card>
       ) : (
@@ -75,9 +77,7 @@ export default function InviteScreen() {
                   initials={m.initials}
                   color={m.color}
                   name={m.displayName}
-                  onPress={() =>
-                    claim.mutate({ token: String(token), memberId: m.id })
-                  }
+                  onPress={() => claim.mutate({ token: String(token), memberId: m.id })}
                 />
                 <Text style={{ color: c.textMuted, fontSize: c.type.caption.fontSize }}>
                   {m.displayName}

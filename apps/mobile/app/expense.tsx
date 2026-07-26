@@ -133,7 +133,10 @@ export default function ExpenseScreen() {
         Object.fromEntries(
           editing.splits.map((s) => [
             s.memberId,
-            minorToDecimalString(Number(s.exactMinorUnits ?? s.computedMinorUnits), editing.currency),
+            minorToDecimalString(
+              Number(s.exactMinorUnits ?? s.computedMinorUnits),
+              editing.currency,
+            ),
           ]),
         ),
       );
@@ -304,7 +307,14 @@ export default function ExpenseScreen() {
       ) : null}
 
       {currencyOpen ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: c.spacing[2], justifyContent: 'center' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: c.spacing[2],
+            justifyContent: 'center',
+          }}
+        >
           {CURRENCIES.map((cur) => (
             <Chip
               key={cur}
@@ -406,7 +416,12 @@ export default function ExpenseScreen() {
           {splitType !== 'EQUAL'
             ? selectedMembers.map((m) => (
                 <View key={m.id} style={styles.memberRow}>
-                  <MemberChip initials={m.initials} color={m.color} name={m.displayName} size={28} />
+                  <MemberChip
+                    initials={m.initials}
+                    color={m.color}
+                    name={m.displayName}
+                    size={28}
+                  />
                   <View style={{ flex: 1 }}>
                     <Input
                       keyboardType="decimal-pad"
@@ -447,7 +462,11 @@ export default function ExpenseScreen() {
 
         <DisclosureRow
           label={t('expense.recurring')}
-          value={recurrence === 'none' ? t('recurrence.none') : t(`recurrence.${recurrence}` as MessageKey)}
+          value={
+            recurrence === 'none'
+              ? t('recurrence.none')
+              : t(`recurrence.${recurrence}` as MessageKey)
+          }
         >
           <SegmentedControl<Recurrence>
             options={[

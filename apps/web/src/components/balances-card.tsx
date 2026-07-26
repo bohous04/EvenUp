@@ -38,42 +38,42 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
                 aria-label={b.displayName}
                 className="flex w-full items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
               >
-              <span className="flex w-28 min-w-0 shrink-0 items-center gap-1.5">
-                <MemberChip
-                  initials={b.initials}
-                  color={b.color}
-                  name={b.displayName}
-                  imageUrl={b.image}
-                  size="sm"
-                />
-                <span className="truncate text-sm" title={b.displayName}>
-                  {label}
-                </span>
-              </span>
-              <span
-                className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
-                aria-hidden
-              >
-                <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-200 dark:bg-zinc-700" />
-                {b.balanceMinorUnits !== 0 ? (
-                  <span
-                    className={`absolute inset-y-0 rounded-full ${
-                      positive ? 'left-1/2 bg-green-400' : 'right-1/2 bg-red-400'
-                    }`}
-                    style={{ width: `${Math.max(pct, 2)}%` }}
+                <span className="flex w-28 min-w-0 shrink-0 items-center gap-1.5">
+                  <MemberChip
+                    initials={b.initials}
+                    color={b.color}
+                    name={b.displayName}
+                    imageUrl={b.image}
+                    size="sm"
                   />
-                ) : null}
-              </span>
-              {/* Amount never shrinks below its content, so large 4-digit balances
+                  <span className="truncate text-sm" title={b.displayName}>
+                    {label}
+                  </span>
+                </span>
+                <span
+                  className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
+                  aria-hidden
+                >
+                  <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-200 dark:bg-zinc-700" />
+                  {b.balanceMinorUnits !== 0 ? (
+                    <span
+                      className={`absolute inset-y-0 rounded-full ${
+                        positive ? 'left-1/2 bg-green-400' : 'right-1/2 bg-red-400'
+                      }`}
+                      style={{ width: `${Math.max(pct, 2)}%` }}
+                    />
+                  ) : null}
+                </span>
+                {/* Amount never shrinks below its content, so large 4-digit balances
                   (e.g. "1 761,05 Kč") render in full instead of clipping the
                   thousands digit; the min width keeps the bars' right edge aligned. */}
-              <AmountText
-                minorUnits={b.balanceMinorUnits}
-                currency={baseCurrency}
-                colored
-                className="min-w-[7rem] shrink-0 text-right text-sm font-semibold"
-                testId={`balance-${b.memberId}`}
-              />
+                <AmountText
+                  minorUnits={b.balanceMinorUnits}
+                  currency={baseCurrency}
+                  colored
+                  className="min-w-[7rem] shrink-0 text-right text-sm font-semibold"
+                  testId={`balance-${b.memberId}`}
+                />
               </button>
             </li>
           );

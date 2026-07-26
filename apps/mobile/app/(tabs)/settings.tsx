@@ -96,9 +96,12 @@ export default function SettingsScreen() {
   /** Matches web's transient "saved" confirmation on the notifications toggle. */
   const [notifSaved, setNotifSaved] = useState(false);
   const notifSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (notifSavedTimer.current) clearTimeout(notifSavedTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (notifSavedTimer.current) clearTimeout(notifSavedTimer.current);
+    },
+    [],
+  );
 
   const [name, setName] = useState('');
   const [account, setAccount] = useState('');
@@ -218,10 +221,15 @@ export default function SettingsScreen() {
     ]);
   }
 
-  const twoFactorEnabled = (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
+  const twoFactorEnabled =
+    (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
   const notifEnabled = notif.data?.notificationsEnabled ?? true;
   const hint = { color: c.textMuted, fontSize: c.type.meta.fontSize };
-  const savedRow = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: c.spacing[1] };
+  const savedRow = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: c.spacing[1],
+  };
 
   return (
     <Screen scroll>
@@ -273,7 +281,12 @@ export default function SettingsScreen() {
       <Card>
         <SectionLabel>{t('profile.bankAccount')}</SectionLabel>
         <Text style={hint}>{t('profile.bankAccountHint')}</Text>
-        <Input value={account} onChangeText={setAccount} placeholder="19-2000145399/0800" autoCapitalize="none" />
+        <Input
+          value={account}
+          onChangeText={setAccount}
+          placeholder="19-2000145399/0800"
+          autoCapitalize="none"
+        />
         <Button
           title={t('common.save')}
           loading={setBank.isPending}

@@ -84,12 +84,7 @@ export function PasswordInput({ label, ...props }: Omit<Props, 'secureTextEntry'
 
   return (
     <View style={{ position: 'relative' }}>
-      <Input
-        {...props}
-        label={label}
-        secureTextEntry={!shown}
-        style={{ paddingRight: 44 }}
-      />
+      <Input {...props} label={label} secureTextEntry={!shown} style={{ paddingRight: 44 }} />
       <Pressable
         onPress={() => setShown((s) => !s)}
         accessibilityRole="button"
@@ -98,11 +93,7 @@ export function PasswordInput({ label, ...props }: Omit<Props, 'secureTextEntry'
         hitSlop={8}
         style={[styles.eye, { top: label ? c.type.label.fontSize + c.spacing[1] : 0 }]}
       >
-        <Ionicons
-          name={shown ? 'eye-off-outline' : 'eye-outline'}
-          size={20}
-          color={c.textMuted}
-        />
+        <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.textMuted} />
       </Pressable>
     </View>
   );

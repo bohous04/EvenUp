@@ -41,7 +41,12 @@ export function Button({
     secondary: c.rowPressed,
     ghost: c.brandTint,
   }[variant];
-  const fg = variant === 'primary' || variant === 'danger' ? c.onBrand : variant === 'secondary' ? c.text : c.brandText;
+  const fg =
+    variant === 'primary' || variant === 'danger'
+      ? c.onBrand
+      : variant === 'secondary'
+        ? c.text
+        : c.brandText;
 
   return (
     <Pressable

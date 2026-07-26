@@ -71,14 +71,12 @@ export function DisclosureRow({
               {value}
             </Text>
           ) : null}
-          <Ionicons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={c.brandText}
-          />
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={c.brandText} />
         </View>
       </Pressable>
-      {open ? <View style={{ paddingBottom: c.spacing[3], gap: c.spacing[2] }}>{children}</View> : null}
+      {open ? (
+        <View style={{ paddingBottom: c.spacing[3], gap: c.spacing[2] }}>{children}</View>
+      ) : null}
     </View>
   );
 }

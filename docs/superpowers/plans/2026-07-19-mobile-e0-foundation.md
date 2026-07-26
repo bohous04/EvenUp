@@ -23,17 +23,20 @@
 ### Task 1: Test infrastructure
 
 **Files:**
+
 - Modify: `apps/mobile/package.json` (add devDeps + `test` script)
 - Create: `apps/mobile/jest.config.js`
 - Create: `apps/mobile/jest.setup.js`
 - Test: `apps/mobile/src/lib/__tests__/smoke.test.ts`
 
 **Interfaces:**
+
 - Produces: a working `pnpm --filter @evenup/mobile test` command using the `jest-expo` preset.
 
 - [ ] **Step 1: Install dev dependencies**
 
 Run (from repo root):
+
 ```bash
 pnpm --filter @evenup/mobile add -D jest-expo jest @testing-library/react-native @types/jest react-test-renderer@18.3.1
 ```
@@ -41,6 +44,7 @@ pnpm --filter @evenup/mobile add -D jest-expo jest @testing-library/react-native
 - [ ] **Step 2: Add jest config**
 
 Create `apps/mobile/jest.config.js`:
+
 ```js
 module.exports = {
   preset: 'jest-expo',
@@ -53,6 +57,7 @@ module.exports = {
 ```
 
 Create `apps/mobile/jest.setup.js`:
+
 ```js
 // Placeholder for future global mocks (SecureStore, expo-notifications, etc.).
 ```
@@ -60,6 +65,7 @@ Create `apps/mobile/jest.setup.js`:
 - [ ] **Step 3: Add the test script**
 
 In `apps/mobile/package.json` `scripts`, add:
+
 ```json
 "test": "jest"
 ```
@@ -67,6 +73,7 @@ In `apps/mobile/package.json` `scripts`, add:
 - [ ] **Step 4: Write a smoke test**
 
 Create `apps/mobile/src/lib/__tests__/smoke.test.ts`:
+
 ```ts
 import { minorToDecimalString } from '@evenup/core';
 
@@ -92,6 +99,7 @@ git commit -m "test(mobile): add jest-expo + RN Testing Library runner"
 ### Task 2: Theme tokens (light/dark) + `useTheme()`
 
 **Files:**
+
 - Create: `apps/mobile/src/ui/tokens.ts`
 - Create: `apps/mobile/src/ui/theme.tsx`
 - Modify: `apps/mobile/src/theme.ts` (re-export light tokens as `theme` for back-compat)
@@ -99,6 +107,7 @@ git commit -m "test(mobile): add jest-expo + RN Testing Library runner"
 - Test: `apps/mobile/src/ui/__tests__/theme.test.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `type ThemeTokens = { brand; bg; card; text; textMuted; border; green; red; radius; space; danger; overlay }`
   - `lightTokens: ThemeTokens`, `darkTokens: ThemeTokens`
@@ -109,6 +118,7 @@ git commit -m "test(mobile): add jest-expo + RN Testing Library runner"
 - [ ] **Step 1: Define tokens**
 
 Create `apps/mobile/src/ui/tokens.ts`:
+
 ```ts
 export interface ThemeTokens {
   brand: string;
@@ -159,6 +169,7 @@ export const darkTokens: ThemeTokens = {
 - [ ] **Step 2: Provider + hook**
 
 Create `apps/mobile/src/ui/theme.tsx`:
+
 ```tsx
 import { createContext, useContext, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
@@ -180,6 +191,7 @@ export function useTheme(): ThemeTokens {
 - [ ] **Step 3: Back-compat `theme`**
 
 Replace `apps/mobile/src/theme.ts` contents with:
+
 ```ts
 import { lightTokens } from './ui/tokens';
 
@@ -191,10 +203,13 @@ export const theme = lightTokens;
 - [ ] **Step 4: Wrap providers**
 
 In `apps/mobile/src/providers.tsx`, import `ThemeProvider` and wrap the innermost content:
+
 ```tsx
 import { ThemeProvider } from './ui/theme';
 ```
+
 Change the `I18nProvider` line to:
+
 ```tsx
 <I18nProvider>
   <ThemeProvider>{children}</ThemeProvider>
@@ -204,6 +219,7 @@ Change the `I18nProvider` line to:
 - [ ] **Step 5: Write the test**
 
 Create `apps/mobile/src/ui/__tests__/theme.test.tsx`:
+
 ```tsx
 import { Text } from 'react-native';
 import { render } from '@testing-library/react-native';
@@ -242,12 +258,14 @@ git commit -m "feat(mobile): light/dark theme tokens + useTheme() provider"
 ### Task 3: Locale persistence + device detection
 
 **Files:**
+
 - Modify: `apps/mobile/package.json` (add `expo-localization`)
 - Create: `apps/mobile/src/lib/resolve-locale.ts`
 - Modify: `apps/mobile/src/lib/i18n.tsx` (load persisted/device locale, persist on change)
 - Test: `apps/mobile/src/lib/__tests__/resolve-locale.test.ts`
 
 **Interfaces:**
+
 - Consumes: `DEFAULT_LOCALE`, `type Locale` from `@evenup/i18n`.
 - Produces: `resolveInitialLocale(stored: string | null, deviceTag: string | null): Locale` — pure.
 
@@ -258,6 +276,7 @@ Run: `pnpm --filter @evenup/mobile exec expo install expo-localization`
 - [ ] **Step 2: Pure resolver + test (write test first)**
 
 Create `apps/mobile/src/lib/__tests__/resolve-locale.test.ts`:
+
 ```ts
 import { resolveInitialLocale } from '../resolve-locale';
 
@@ -281,6 +300,7 @@ Expected: FAIL — module not found.
 - [ ] **Step 4: Implement the resolver**
 
 Create `apps/mobile/src/lib/resolve-locale.ts`:
+
 ```ts
 import { DEFAULT_LOCALE, type Locale } from '@evenup/i18n';
 
@@ -306,6 +326,7 @@ Expected: PASS. (If `DEFAULT_LOCALE` is not `'cs'`, adjust the third test to the
 - [ ] **Step 6: Wire persistence into the provider**
 
 In `apps/mobile/src/lib/i18n.tsx`, replace the `useState`/`useMemo` body so it loads and persists:
+
 ```tsx
 import { useEffect, useMemo, useState, createContext, useContext, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
@@ -322,7 +343,9 @@ import { resolveInitialLocale } from './resolve-locale';
 
 const LOCALE_KEY = 'evenup.locale';
 ```
+
 Inside `I18nProvider`, replace the `const [locale, setLocale] = useState(...)` line and add an effect:
+
 ```tsx
 const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
 
@@ -339,6 +362,7 @@ const setLocale = (l: Locale) => {
   void SecureStore.setItemAsync(LOCALE_KEY, l).catch(() => {});
 };
 ```
+
 Keep the existing `value`/`translator` `useMemo` (it already depends on `locale`), and pass `setLocale` through unchanged.
 
 - [ ] **Step 7: Run tests + typecheck**
@@ -358,6 +382,7 @@ git commit -m "feat(mobile): persist locale to SecureStore + detect device langu
 ### Task 4: UI kit primitives
 
 **Files:**
+
 - Create: `apps/mobile/src/ui/Screen.tsx`
 - Create: `apps/mobile/src/ui/Button.tsx`
 - Create: `apps/mobile/src/ui/Card.tsx`
@@ -368,6 +393,7 @@ git commit -m "feat(mobile): persist locale to SecureStore + detect device langu
 - Test: `apps/mobile/src/ui/__tests__/kit.test.tsx`
 
 **Interfaces:**
+
 - Produces (all consume `useTheme()`):
   - `Screen({ children, scroll?, padded?, style? })`
   - `Button({ title, onPress, variant?: 'primary'|'secondary'|'ghost'|'danger', loading?, disabled?, icon?, testID? })`
@@ -380,6 +406,7 @@ git commit -m "feat(mobile): persist locale to SecureStore + detect device langu
 - [ ] **Step 1: Screen**
 
 Create `apps/mobile/src/ui/Screen.tsx`:
+
 ```tsx
 import type { ReactNode } from 'react';
 import { ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -416,6 +443,7 @@ export function Screen({
 - [ ] **Step 2: Button**
 
 Create `apps/mobile/src/ui/Button.tsx`:
+
 ```tsx
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ReactNode } from 'react';
@@ -453,7 +481,12 @@ export function Button({
       testID={testID}
       style={[
         styles.base,
-        { backgroundColor: bg, borderColor: border, borderWidth: variant === 'secondary' ? 1 : 0, borderRadius: t.radius },
+        {
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth: variant === 'secondary' ? 1 : 0,
+          borderRadius: t.radius,
+        },
         (disabled || loading) && styles.disabled,
       ]}
     >
@@ -480,6 +513,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 3: Card**
 
 Create `apps/mobile/src/ui/Card.tsx`:
+
 ```tsx
 import type { ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
@@ -490,7 +524,14 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
   return (
     <View
       style={[
-        { backgroundColor: t.card, borderRadius: t.radius, borderWidth: 1, borderColor: t.border, padding: t.space, gap: 10 },
+        {
+          backgroundColor: t.card,
+          borderRadius: t.radius,
+          borderWidth: 1,
+          borderColor: t.border,
+          padding: t.space,
+          gap: 10,
+        },
         style,
       ]}
     >
@@ -503,6 +544,7 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 - [ ] **Step 4: Input**
 
 Create `apps/mobile/src/ui/Input.tsx`:
+
 ```tsx
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useTheme } from './theme';
@@ -534,11 +576,20 @@ const styles = StyleSheet.create({
 - [ ] **Step 5: Chip + SegmentedControl**
 
 Create `apps/mobile/src/ui/Chip.tsx`:
+
 ```tsx
 import { Pressable, Text } from 'react-native';
 import { useTheme } from './theme';
 
-export function Chip({ label, active = false, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
+export function Chip({
+  label,
+  active = false,
+  onPress,
+}: {
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
   const t = useTheme();
   return (
     <Pressable
@@ -554,13 +605,16 @@ export function Chip({ label, active = false, onPress }: { label: string; active
         paddingHorizontal: 12,
       }}
     >
-      <Text style={{ color: active ? '#fff' : t.text, fontWeight: active ? '700' : '600' }}>{label}</Text>
+      <Text style={{ color: active ? '#fff' : t.text, fontWeight: active ? '700' : '600' }}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 ```
 
 Create `apps/mobile/src/ui/SegmentedControl.tsx`:
+
 ```tsx
 import { View } from 'react-native';
 import { Chip } from './Chip';
@@ -577,7 +631,12 @@ export function SegmentedControl<T extends string>({
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((o) => (
-        <Chip key={o.value} label={o.label} active={o.value === value} onPress={() => onChange(o.value)} />
+        <Chip
+          key={o.value}
+          label={o.label}
+          active={o.value === value}
+          onPress={() => onChange(o.value)}
+        />
       ))}
     </View>
   );
@@ -587,6 +646,7 @@ export function SegmentedControl<T extends string>({
 - [ ] **Step 6: Barrel export**
 
 Create `apps/mobile/src/ui/index.ts`:
+
 ```ts
 export { Screen } from './Screen';
 export { Button } from './Button';
@@ -598,11 +658,13 @@ export { useTheme, ThemeProvider } from './theme';
 export { AmountInput } from './AmountInput';
 export { BottomSheet } from './BottomSheet';
 ```
+
 > Note: `AmountInput` and `BottomSheet` are added in Tasks 5–6; if executing strictly in order, add their exports when those files exist (or create empty stubs first). The barrel is finalized in Task 6.
 
 - [ ] **Step 7: Kit render test**
 
 Create `apps/mobile/src/ui/__tests__/kit.test.tsx`:
+
 ```tsx
 import { render, fireEvent } from '@testing-library/react-native';
 import { ThemeProvider } from '../theme';
@@ -622,7 +684,10 @@ test('SegmentedControl selects a value', () => {
   const onChange = jest.fn();
   const { getByText } = wrap(
     <SegmentedControl
-      options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]}
+      options={[
+        { value: 'a', label: 'A' },
+        { value: 'b', label: 'B' },
+      ]}
       value="a"
       onChange={onChange}
     />,
@@ -649,16 +714,19 @@ git commit -m "feat(mobile): core UI kit (Screen, Button, Card, Input, Chip, Seg
 ### Task 5: AmountInput
 
 **Files:**
+
 - Create: `apps/mobile/src/ui/AmountInput.tsx`
 - Test: `apps/mobile/src/ui/__tests__/amount-input.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, `Input`, `currencyExponent` from `@evenup/core`.
 - Produces: `AmountInput({ value, onChangeText, currency, label?, testID? })` — a numeric TextInput that clamps fraction digits to the currency exponent, plus the pure helper `clampAmountDecimals(raw, currency)`.
 
 - [ ] **Step 1: Write the failing test**
 
 Create `apps/mobile/src/ui/__tests__/amount-input.test.tsx`:
+
 ```tsx
 import { clampAmountDecimals } from '../AmountInput';
 
@@ -681,6 +749,7 @@ Expected: FAIL — module not found.
 - [ ] **Step 3: Implement (port from web `lib/amount-input.ts`)**
 
 Create `apps/mobile/src/ui/AmountInput.tsx`:
+
 ```tsx
 import { currencyExponent } from '@evenup/core';
 import { Input } from './Input';
@@ -740,17 +809,20 @@ git commit -m "feat(mobile): AmountInput with currency-aware decimal clamping"
 ### Task 6: BottomSheet
 
 **Files:**
+
 - Create: `apps/mobile/src/ui/BottomSheet.tsx`
 - Modify: `apps/mobile/src/ui/index.ts` (ensure barrel exports resolve)
 - Test: `apps/mobile/src/ui/__tests__/bottom-sheet.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useTheme()`.
 - Produces: `BottomSheet({ visible, onClose, title?, children })` — a themed modal sheet over a scrim (RN `Modal`, no extra native deps).
 
 - [ ] **Step 1: Implement**
 
 Create `apps/mobile/src/ui/BottomSheet.tsx`:
+
 ```tsx
 import type { ReactNode } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
@@ -786,8 +858,18 @@ export function BottomSheet({
             gap: 12,
           }}
         >
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: t.border }} />
-          {title ? <Text style={{ fontSize: 18, fontWeight: '700', color: t.text }}>{title}</Text> : null}
+          <View
+            style={{
+              alignSelf: 'center',
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: t.border,
+            }}
+          />
+          {title ? (
+            <Text style={{ fontSize: 18, fontWeight: '700', color: t.text }}>{title}</Text>
+          ) : null}
           {children}
         </Pressable>
       </Pressable>
@@ -799,6 +881,7 @@ export function BottomSheet({
 - [ ] **Step 2: Test open/close**
 
 Create `apps/mobile/src/ui/__tests__/bottom-sheet.test.tsx`:
+
 ```tsx
 import { Text } from 'react-native';
 import { render } from '@testing-library/react-native';
@@ -834,6 +917,7 @@ git commit -m "feat(mobile): BottomSheet primitive"
 ### Task 7: Tab navigation shell
 
 **Files:**
+
 - Create: `apps/mobile/app/(tabs)/_layout.tsx`
 - Move: `apps/mobile/app/index.tsx` → `apps/mobile/app/(tabs)/index.tsx`
 - Create: `apps/mobile/app/(tabs)/activity.tsx`
@@ -842,6 +926,7 @@ git commit -m "feat(mobile): BottomSheet primitive"
 - Test: `apps/mobile/app/__tests__/tabs-layout.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, `useI18n()`, `useSession()`.
 - Produces: a `Tabs` layout with three tabs (Groups / Activity / Settings) using `nav.*` i18n keys; `activity` and `settings` are placeholder screens filled by E6/E2.
 
@@ -853,6 +938,7 @@ Expected: keys like `nav.groups`, `nav.activity`, `nav.settings` (or similar). U
 - [ ] **Step 2: Tabs layout**
 
 Create `apps/mobile/app/(tabs)/_layout.tsx`:
+
 ```tsx
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -876,27 +962,34 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t('nav.groups'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title: t('nav.activity'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pulse-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: t('nav.settings'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>
   );
 }
 ```
+
 > If `sceneStyle` is not supported by the installed expo-router version, drop it (the tab screens set their own background via `Screen`).
 
 - [ ] **Step 3: Move the groups screen**
@@ -910,6 +1003,7 @@ git mv apps/mobile/app/index.tsx apps/mobile/app/(tabs)/index.tsx
 - [ ] **Step 4: Placeholder Activity + Settings screens**
 
 Create `apps/mobile/app/(tabs)/activity.tsx`:
+
 ```tsx
 import { Text } from 'react-native';
 import { Screen } from '@/ui';
@@ -926,9 +1020,11 @@ export default function ActivityScreen() {
   );
 }
 ```
+
 > If `activity.empty` does not exist, use an existing neutral key (e.g. `common.loading`) or add `activity.empty` to both catalogs. Grep first: `grep "'activity\." packages/i18n/src/locales/en.ts`.
 
 Create `apps/mobile/app/(tabs)/settings.tsx`:
+
 ```tsx
 import { Text } from 'react-native';
 import { Screen } from '@/ui';
@@ -949,14 +1045,17 @@ export default function SettingsScreen() {
 - [ ] **Step 5: Update the root layout**
 
 In `apps/mobile/app/_layout.tsx`, replace the `<Stack.Screen name="index" ... />` line with a `(tabs)` group entry and keep the rest (sign-in, sign-up, forgot-password, group/[id], scan):
+
 ```tsx
 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 ```
+
 Remove the now-duplicated `index` screen registration. Leave `group/[id]` and `scan` (modal) as-is.
 
 - [ ] **Step 6: Smoke-test the tabs layout renders**
 
 Create `apps/mobile/app/__tests__/tabs-layout.test.tsx`:
+
 ```tsx
 import { render } from '@testing-library/react-native';
 import { I18nProvider } from '@/lib/i18n';
@@ -974,6 +1073,7 @@ test('tabs layout renders without crashing', () => {
   expect(tree).toBeTruthy();
 });
 ```
+
 > expo-router `Tabs` may need a navigation context in tests; if this render throws in jest, downgrade this to a `jest.mock('expo-router', ...)` shallow test that asserts the component is a function — do not block the task on router internals.
 
 - [ ] **Step 7: Run tests + typecheck + start Metro sanity**
@@ -993,17 +1093,20 @@ git commit -m "feat(mobile): tab navigation shell (Groups / Activity / Settings)
 ### Task 8: Invite deep-link route
 
 **Files:**
+
 - Create: `apps/mobile/app/invite/[token].tsx`
 - Modify: `apps/mobile/app/_layout.tsx` (register the route)
 - Test: `apps/mobile/app/__tests__/invite-route.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useLocalSearchParams`, `useI18n()`, `useTheme()`.
 - Produces: a route that reads the `token` param and renders an invite preview placeholder. The actual `invite.preview`/`invite.claim` wiring lands in **E1**; this task only proves the deep link resolves and surfaces the token.
 
 - [ ] **Step 1: Route screen**
 
 Create `apps/mobile/app/invite/[token].tsx`:
+
 ```tsx
 import { Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -1027,19 +1130,23 @@ export default function InviteScreen() {
   );
 }
 ```
+
 > Grep `grep "'invite\." packages/i18n/src/locales/en.ts` and use a real key for the heading; if none fits, add `invite.title` to both catalogs.
 
 - [ ] **Step 2: Register the route + verify the scheme**
 
 In `apps/mobile/app/_layout.tsx` add inside the `Stack`:
+
 ```tsx
 <Stack.Screen name="invite/[token]" options={{ title: 'Invite', presentation: 'modal' }} />
 ```
+
 The `scheme: 'evenup'` in `app.config.ts` already makes `evenup://invite/<token>` resolve to this route via expo-router's file-based linking — no extra linking config needed.
 
 - [ ] **Step 3: Test the param renders**
 
 Create `apps/mobile/app/__tests__/invite-route.test.tsx`:
+
 ```tsx
 import { render } from '@testing-library/react-native';
 import { I18nProvider } from '@/lib/i18n';
@@ -1079,6 +1186,7 @@ git commit -m "feat(mobile): evenup://invite/<token> deep-link route (preview st
 ## Self-Review
 
 **Spec coverage (E0 slice of the design doc §3):**
+
 - UI kit → Tasks 4–6 ✓
 - Light/dark theming → Task 2 ✓
 - Locale persistence + device detection → Task 3 ✓

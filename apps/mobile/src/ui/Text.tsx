@@ -73,9 +73,7 @@ export function EmptyState({ title, icon }: { title: string; icon?: ReactNode })
   return (
     <View style={{ alignItems: 'center', gap: c.spacing[2], paddingVertical: c.spacing[6] }}>
       {icon}
-      <Text
-        style={{ color: c.textMuted, fontSize: c.type.label.fontSize, textAlign: 'center' }}
-      >
+      <Text style={{ color: c.textMuted, fontSize: c.type.label.fontSize, textAlign: 'center' }}>
         {title}
       </Text>
     </View>

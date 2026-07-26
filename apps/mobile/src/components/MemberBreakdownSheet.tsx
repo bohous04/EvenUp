@@ -39,7 +39,9 @@ export function MemberBreakdownSheet({
   );
 
   const data = breakdown.data;
-  const entries = (data?.entries ?? []).filter((e) => (filter === 'all' ? true : e.kind === filter));
+  const entries = (data?.entries ?? []).filter((e) =>
+    filter === 'all' ? true : e.kind === filter,
+  );
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'all', label: t('balance.breakdown.filterAll') },
@@ -94,7 +96,10 @@ export function MemberBreakdownSheet({
             different treatment from the tinted `Chip` used for payer/split
             selection, so they're built here rather than pulled from the kit.
           */}
-          <View style={{ flexDirection: 'row', gap: c.spacing[1.5] }} accessibilityRole="radiogroup">
+          <View
+            style={{ flexDirection: 'row', gap: c.spacing[1.5] }}
+            accessibilityRole="radiogroup"
+          >
             {filters.map((f) => {
               const active = filter === f.key;
               return (
@@ -247,9 +252,7 @@ export function MemberBreakdownSheet({
                               gap: c.spacing[2],
                             }}
                           >
-                            <Text
-                              style={{ color: c.textFaint, fontSize: c.type.caption.fontSize }}
-                            >
+                            <Text style={{ color: c.textFaint, fontSize: c.type.caption.fontSize }}>
                               {t('balance.breakdown.shared')}
                             </Text>
                             <AmountText

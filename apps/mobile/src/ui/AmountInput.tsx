@@ -61,7 +61,14 @@ export function HeroAmountInput({
 }) {
   const c = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: c.spacing[2] }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        gap: c.spacing[2],
+      }}
+    >
       <TextInput
         value={value}
         onChangeText={(v) => onChangeText(clampAmountDecimals(v, currency))}
