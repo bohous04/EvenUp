@@ -209,9 +209,15 @@ requires invoices and payment records to be retained, and that obligation
 (GDPR Art. 17(3)(b)).
 
 Deletion therefore splits in two: purge personal data as it does today, but
-retain the minimum billing record, stripped of identifiers beyond what the law
-requires. Both halves need tests — the failure modes are symmetrical and both are
-legal violations.
+retain the minimum billing record with its local `userId` nulled. Both halves need
+tests — the failure modes are symmetrical and both are legal violations.
+
+**This is pseudonymization, not anonymization**, and the distinction matters: the
+retained rows keep `stripeEventId` and `stripeSubscriptionId`, which resolve via
+Stripe to a Customer record holding the person's email and name. The data remains
+personal data under GDPR; it is retained lawfully under Art. 17(3)(b), not because
+it has ceased to identify anyone. Anything written for users or regulators must not
+claim otherwise.
 
 ### Stripe is a new processor
 
