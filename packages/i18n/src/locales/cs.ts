@@ -53,6 +53,7 @@ export const cs = {
   'errors.inviteNotFound': 'Pozvánka nenalezena',
   'errors.inviteExpired': 'Platnost pozvánky vypršela',
   'errors.inviteLimitReached': 'Byl dosažen limit použití pozvánky',
+  'errors.alreadyGroupMember': 'V této skupině už člena máš',
   'errors.memberAlreadyClaimed': 'Tento člen už byl obsazen',
   'errors.invalidAccountNumber': 'Neplatné číslo účtu',
   'errors.unknownCategory': 'Neznámá kategorie',

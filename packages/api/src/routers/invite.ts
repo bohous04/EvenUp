@@ -2,11 +2,27 @@
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { deriveInitials, colorForIndex } from '@evenup/core';
+import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { assertGroupAdmin } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
+
+/**
+ * The viewer's own active member in this group, if any.
+ *
+ * `isActive: true` is deliberate: `member.remove` deactivates rather than
+ * deletes (FR-2.4), so someone removed from the group may legitimately rejoin
+ * through a fresh link.
+ */
+function findOwnMembership(
+  db: PrismaClient | Prisma.TransactionClient,
+  groupId: string,
+  userId: string,
+) {
+  return db.member.findFirst({ where: { groupId, userId, isActive: true } });
+}
 
 export const inviteRouter = router({
   create: protectedProcedure
@@ -77,10 +93,31 @@ export const inviteRouter = router({
         throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Invite expired' });
       }
 
+      const own = await findOwnMembership(ctx.prisma, invite.groupId, ctx.user.id);
+      if (own) {
+        // Nothing to pick — the page redirects into the group. Skip the balance
+        // query entirely rather than computing a list nobody will see.
+        return {
+          groupId: invite.groupId,
+          alreadyMember: true,
+          groupName: invite.group.name,
+          baseCurrency: invite.group.baseCurrency,
+          members: [] as {
+            id: string;
+            displayName: string;
+            initials: string;
+            color: string;
+            balanceMinorUnits: number;
+          }[],
+        };
+      }
+
       const { balances } = await getGroupBalances(ctx.prisma, invite.groupId, invite.group);
       const balanceById = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
 
       return {
+        groupId: invite.groupId,
+        alreadyMember: false,
         groupName: invite.group.name,
         baseCurrency: invite.group.baseCurrency,
         members: invite.group.members
@@ -117,7 +154,18 @@ export const inviteRouter = router({
         throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Invite usage limit reached' });
       }
 
-      const member = await ctx.prisma.$transaction(async (tx) => {
+      const { member, joined } = await ctx.prisma.$transaction(async (tx) => {
+        const own = await findOwnMembership(tx, invite.groupId, ctx.user.id);
+        if (own) {
+          // Re-claiming the member you already hold is a retried request, not a
+          // second join: no usage bump, no duplicate activity entry.
+          if (input.memberId === own.id) return { member: own, joined: false };
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'You are already a member of this group',
+          });
+        }
+
         let claimed;
         if (input.memberId) {
           const target = await tx.member.findFirst({
@@ -150,15 +198,17 @@ export const inviteRouter = router({
           where: { id: invite.id },
           data: { usedCount: { increment: 1 } },
         });
-        return claimed;
+        return { member: claimed, joined: true };
       });
 
       // Claiming an invite is the only way a Member ever gains a userId, and it
       // left no trace in the activity log (FR-9.1). The group's other members
       // learn about it in their next digest.
-      await logActivity(ctx.prisma, invite.groupId, ctx.user.id, 'member.joined', {
-        name: member.displayName,
-      });
+      if (joined) {
+        await logActivity(ctx.prisma, invite.groupId, ctx.user.id, 'member.joined', {
+          name: member.displayName,
+        });
+      }
       return member;
     }),
 });

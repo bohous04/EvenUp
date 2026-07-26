@@ -97,12 +97,16 @@ describe('member.merge preflight', () => {
   test('a non-admin may not merge two of their own members when the target is already claimed', async () => {
     const { caller, group, marek, jana } = await seed();
     const petr = await createTestUser('petr@example.com');
-    // Same non-admin user claims BOTH placeholders, so source.userId ===
+    // Same non-admin user holds BOTH placeholders, so source.userId ===
     // target.userId === ctx.user.id and the cross-account check does not
     // fire — this is the only way to reach the `target.userId !== null`
-    // "already claimed" guard as a non-admin.
+    // "already claimed" guard as a non-admin. invite.claim now refuses a
+    // second claim by someone already in the group (that guard is what this
+    // task adds), so this state — a defensive case merge.ts must still
+    // handle, e.g. from data predating that guard — is built directly in the
+    // DB instead of by claiming twice through the invite endpoint.
     await claimPlaceholder(group.id, caller, petr, marek.id);
-    await claimPlaceholder(group.id, caller, petr, jana.id);
+    await testPrisma.member.update({ where: { id: jana.id }, data: { userId: petr.id } });
     await expect(
       makeCaller(petr).member.merge({ sourceMemberId: marek.id, targetMemberId: jana.id }),
     ).rejects.toMatchObject({ code: 'CONFLICT', message: 'Member already claimed' });

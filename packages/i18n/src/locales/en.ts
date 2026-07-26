@@ -50,6 +50,7 @@ export const en: Messages = {
   'errors.inviteNotFound': 'Invite not found',
   'errors.inviteExpired': 'Invite expired',
   'errors.inviteLimitReached': 'Invite usage limit reached',
+  'errors.alreadyGroupMember': 'You are already a member of this group',
   'errors.memberAlreadyClaimed': 'Member already claimed',
   'errors.invalidAccountNumber': 'Invalid account number',
   'errors.unknownCategory': 'Unknown category',
