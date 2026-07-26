@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-
-const siteUrl = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
+import { SITE_URL } from '@/lib/site-url';
 
 /**
  * A metadata-only root layout — it renders no `<html>`/`<body>` of its own
@@ -17,7 +16,7 @@ const siteUrl = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
  * `page.js`/`not-found.js` files), not cosmetic.
  */
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

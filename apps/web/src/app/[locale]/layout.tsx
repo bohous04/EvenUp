@@ -5,11 +5,10 @@ import '../globals.css';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/header';
 import { ServiceWorker } from '@/components/service-worker';
-
-const siteUrl = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
+import { SITE_URL } from '@/lib/site-url';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: 'EvenUp',
   description: 'Open-source group expense splitter that minimizes debts.',
   manifest: '/manifest.webmanifest',
@@ -42,10 +41,16 @@ export function generateStaticParams() {
 }
 
 /**
- * The app's single root layout. It lives under `[locale]` because the middleware
- * rewrites every page URL into that segment — Czech unprefixed (`/groups` →
- * `/cs/groups`), English under `/en`. Nothing at `app/` root is a page, only
- * `api/` route handlers, which need no layout.
+ * The layout that owns `<html>` and `<body>` for every page. It lives under
+ * `[locale]` because the middleware rewrites every page URL into that segment
+ * — Czech unprefixed (`/groups` → `/cs/groups`), English under `/en` — and
+ * only here is the resolved locale known, which `lang` needs.
+ *
+ * There is a second, deliberately minimal layout at `app/layout.tsx`. It
+ * renders no markup at all; it exists solely to give the root-level
+ * `opengraph-image.png`/`twitter-image.png` a layout to inherit
+ * `metadataBase` from, since they sit one level above this segment. Do not
+ * delete either file without reading the comment in the other.
  */
 export default async function RootLayout({
   children,
