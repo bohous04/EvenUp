@@ -186,15 +186,138 @@ describe('user.exportData', () => {
 
     expect(exported.billing.subscriptions).toEqual([
       {
+        stripeSubscriptionId: `sub_export_${user.id}`,
         status: 'active',
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
         cancelAtPeriodEnd: false,
+        createdAt: expect.any(Date),
       },
     ]);
     expect(exported.billing.ledger).toEqual([
-      { delta: 5, reason: 'PURCHASE', createdAt: expect.any(Date) },
-      { delta: -1, reason: 'CREDIT_SCAN', createdAt: expect.any(Date) },
+      {
+        delta: 5,
+        reason: 'PURCHASE',
+        stripeEventId: 'evt_export_1',
+        withdrawalConsentAt: null,
+        createdAt: expect.any(Date),
+      },
+      {
+        delta: -1,
+        reason: 'CREDIT_SCAN',
+        stripeEventId: null,
+        withdrawalConsentAt: null,
+        createdAt: expect.any(Date),
+      },
     ]);
+  });
+
+  /**
+   * The export is described to users as "complete" (`legal.privacy.s9.li1`),
+   * which makes an omission a false statement in a privacy policy rather than
+   * a missing field. These four went missing when billing and OCR consent
+   * landed: the consent record spec 2 names explicitly, the balance the
+   * customer paid for, the identifier that resolves to them at Stripe, and the
+   * distance-selling waiver recorded against a purchase.
+   */
+  it('carries the OCR consent record, the credit balance, the Stripe customer id and the withdrawal consent', async () => {
+    const user = await createTestUser('export-consent@example.com');
+    const caller = makeCaller(user);
+    await caller.user.setOcrConsent({ granted: true });
+
+    const consentedAt = new Date('2026-03-04T09:00:00Z');
+    await testPrisma.user.update({
+      where: { id: user.id },
+      data: { creditBalance: 7, stripeCustomerId: `cus_export_${user.id}` },
+    });
+    await testPrisma.scanLedger.create({
+      data: {
+        userId: user.id,
+        delta: 5,
+        reason: 'PURCHASE',
+        stripeEventId: `evt_consent_${user.id}`,
+        withdrawalConsentAt: consentedAt,
+      },
+    });
+
+    const exported = await caller.user.exportData();
+
+    expect(exported.profile.ocrConsentAt).toBeInstanceOf(Date);
+    expect(exported.profile.creditBalance).toBe(7);
+    expect(exported.profile.stripeCustomerId).toBe(`cus_export_${user.id}`);
+    expect(exported.billing.ledger).toEqual([
+      expect.objectContaining({ withdrawalConsentAt: consentedAt }),
+    ]);
+  });
+
+  /**
+   * Every remaining category the privacy policy's §2 declares, so "complete"
+   * stays true as the schema grows: sign-in records (li2, with the IP address
+   * and browser its retention line now promises to delete), linked social
+   * accounts (s8.p2), notification settings and sends (li8), and error records
+   * (li9).
+   */
+  it('covers sign-in records, connected accounts, notifications and error records', async () => {
+    const user = await createTestUser('export-categories@example.com');
+    const caller = makeCaller(user);
+    const { group } = await createGroupWithLinkedMember(user, 'Export');
+
+    await testPrisma.session.create({
+      data: {
+        userId: user.id,
+        token: `tok_export_${user.id}`,
+        expiresAt: new Date('2030-01-01T00:00:00Z'),
+        ipAddress: '203.0.113.9',
+        userAgent: 'Mozilla/5.0 (export test)',
+      },
+    });
+    await testPrisma.account.create({
+      data: { userId: user.id, providerId: 'google', accountId: `acct_${user.id}` },
+    });
+    await testPrisma.notificationPreference.create({
+      data: { userId: user.id, groupId: group.id, muted: true },
+    });
+    await testPrisma.notificationDelivery.create({
+      data: {
+        userId: user.id,
+        kind: 'digest',
+        channel: 'email',
+        idempotencyKey: `idem_export_${user.id}`,
+        status: 'sent',
+        payload: {},
+      },
+    });
+    await testPrisma.errorLog.create({
+      data: { userId: user.id, source: 'ocr', code: 'INTERNAL_SERVER_ERROR', message: 'boom' },
+    });
+
+    const exported = await caller.user.exportData();
+
+    expect(exported.sessions).toEqual([
+      expect.objectContaining({ ipAddress: '203.0.113.9', userAgent: 'Mozilla/5.0 (export test)' }),
+    ]);
+    expect(exported.connectedAccounts).toEqual([expect.objectContaining({ providerId: 'google' })]);
+    expect(exported.notifications.preferences).toEqual([
+      expect.objectContaining({ groupId: group.id, muted: true }),
+    ]);
+    expect(exported.notifications.deliveries).toEqual([
+      expect.objectContaining({ kind: 'digest', channel: 'email', status: 'sent' }),
+    ]);
+    expect(exported.errorLogs).toEqual([
+      expect.objectContaining({ source: 'ocr', message: 'boom' }),
+    ]);
+
+    // Credentials are never exported, however "complete" the export is: a
+    // session token is a live login, and the OAuth tokens and password hash
+    // let somebody act as this person somewhere else. (The replacer is for the
+    // BigInt money columns an exported transaction carries — `JSON.stringify`
+    // throws on those rather than returning a string to search.)
+    const serialized = JSON.stringify(exported, (_key, value: unknown) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    );
+    expect(serialized).not.toContain(`tok_export_${user.id}`);
+    for (const field of ['accessToken', 'refreshToken', 'password', 'token']) {
+      expect(serialized, field).not.toContain(`"${field}"`);
+    }
   });
 });

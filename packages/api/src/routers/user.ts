@@ -156,17 +156,78 @@ export const userRouter = router({
       return { ok: true as const };
     }),
 
-  /** GDPR export of the user's personal data (FR-1.6). */
+  /**
+   * GDPR export of the user's personal data (FR-1.6, Art. 15 and Art. 20).
+   *
+   * **The privacy policy calls this a "complete export"** (`legal.privacy.s9.li1`),
+   * so the selection below is deliberately organised against the categories
+   * that document declares in its §2 rather than against whatever happened to
+   * be convenient. Each category maps to one key here:
+   *
+   * | Policy (`legal.privacy.s2.*`) | Exported as |
+   * |---|---|
+   * | li1 account, profile photo | `profile` |
+   * | li2 sign-in, IP address, browser | `sessions` |
+   * | li3 groups and expenses | `groups` |
+   * | li4 bank details | `profile.bankAccount`, `bankDetails` |
+   * | li5 receipts and what was read from them | `groups[].receipts`, `groups[].transactions[].receiptItems` |
+   * | li6 payments | `profile.creditBalance`/`stripeCustomerId`, `billing` |
+   * | li7 scanning consent | `profile.ocrConsentAt`, `billing.ledger[].withdrawalConsentAt` |
+   * | li8 email and notifications | `notifications` |
+   * | li9 error records | `errorLogs` |
+   * | (s8.p2) Google/Apple links | `connectedAccounts` |
+   *
+   * Whole rows are never spread in: every query names its columns, because the
+   * secrets live beside the data. `Session.token` is a live credential,
+   * `Account.password`/`accessToken`/`refreshToken` are credentials for another
+   * service, and `User.bankAccountEncrypted` is ciphertext the owner cannot use
+   * — the account number is decrypted into `profile.bankAccount` instead.
+   *
+   * **Known limitation, deliberately not addressed here:** `groups` carries
+   * shared groups whole, so it includes other members' names and the
+   * transactions, payers and splits of people who are not the requester. That
+   * predates billing and is a design question (a member-scoped projection, or
+   * an aggregate of only the requester's share), not a select-list fix.
+   */
   exportData: protectedProcedure.query(async ({ ctx }) => {
-    const [profile, groups, bankDetails, subscriptions, ledger] = await Promise.all([
+    const [
+      profile,
+      groups,
+      bankDetails,
+      subscriptions,
+      ledger,
+      sessions,
+      connectedAccounts,
+      notificationPreferences,
+      notificationDeliveries,
+      errorLogs,
+    ] = await Promise.all([
       ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
         select: {
           id: true,
           email: true,
+          emailVerified: true,
           name: true,
+          image: true,
           locale: true,
           defaultCurrency: true,
+          ocrModel: true,
+          hideProfilePhoto: true,
+          notificationsEnabled: true,
+          twoFactorEnabled: true,
+          isAdmin: true,
+          isVip: true,
+          // The Art. 7(1) consent record. Named by spec 2 as belonging in the
+          // export, and a timestamp rather than a boolean precisely so the
+          // person can see *when* they agreed.
+          ocrConsentAt: true,
+          // Billing state held on the user row. `creditBalance` is a balance
+          // the person paid for; `stripeCustomerId` is the identifier that
+          // resolves to their record at Stripe, which the policy (s8.p5) tells
+          // them exists — so it cannot be missing from their own copy.
+          creditBalance: true,
+          stripeCustomerId: true,
           createdAt: true,
           bankAccountEncrypted: true,
         },
@@ -177,9 +238,22 @@ export const userRouter = router({
         },
         include: {
           members: true,
-          transactions: { include: { payers: true, splits: true } },
+          // `receiptItems` are the recognised receipt lines the policy's li5
+          // promises ("položky, částky") — the expense rows alone carried only
+          // totals.
+          transactions: { include: { payers: true, splits: true, receiptItems: true } },
           receipts: {
-            select: { id: true, merchant: true, detectedCurrency: true, createdAt: true },
+            select: {
+              id: true,
+              merchant: true,
+              detectedCurrency: true,
+              detectedTotalMinorUnits: true,
+              // The second copy of the OCR result that the policy warns
+              // survives a deleted expense (s2.li5). Held about the person,
+              // therefore theirs to receive.
+              rawJson: true,
+              createdAt: true,
+            },
           },
         },
       }),
@@ -190,15 +264,67 @@ export const userRouter = router({
       ctx.prisma.subscription.findMany({
         where: { userId: ctx.user.id },
         select: {
+          stripeSubscriptionId: true,
           status: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
+          createdAt: true,
         },
+        orderBy: { createdAt: 'asc' },
       }),
       ctx.prisma.scanLedger.findMany({
         where: { userId: ctx.user.id },
-        select: { delta: true, reason: true, createdAt: true },
+        select: {
+          delta: true,
+          reason: true,
+          stripeEventId: true,
+          // The distance-selling consent recorded against a purchase: the
+          // moment the customer waived the 14-day withdrawal right. It is the
+          // evidence used against them if they ever dispute the purchase, so
+          // withholding it from their own export is indefensible.
+          withdrawalConsentAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // Personal data under the policy's li2, and — since `session-cleanup.ts`
+      // landed — a category with a stated retention period (s7.li3).
+      // `token` is excluded: it is a live credential, not a fact about them.
+      ctx.prisma.session.findMany({
+        where: { userId: ctx.user.id },
+        select: {
+          createdAt: true,
+          updatedAt: true,
+          expiresAt: true,
+          ipAddress: true,
+          userAgent: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // Which Google/Apple accounts are linked — s8.p2 promises to delete
+      // these, so they exist and belong in the export. Tokens and the password
+      // hash are credentials and stay out.
+      ctx.prisma.account.findMany({
+        where: { userId: ctx.user.id },
+        select: { providerId: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      ctx.prisma.notificationPreference.findMany({
+        where: { userId: ctx.user.id },
+        select: { groupId: true, muted: true, lastDigestAt: true },
+      }),
+      // What was sent to them and when. The rendered `payload` is deliberately
+      // omitted: it holds other members' names and amounts, which is the wider
+      // problem noted above rather than something to widen here.
+      ctx.prisma.notificationDelivery.findMany({
+        where: { userId: ctx.user.id },
+        select: { kind: true, channel: true, status: true, sentAt: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      ctx.prisma.errorLog.findMany({
+        where: { userId: ctx.user.id },
+        select: { source: true, path: true, code: true, message: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
       }),
     ]);
@@ -216,6 +342,10 @@ export const userRouter = router({
       groups,
       bankDetails,
       billing: { subscriptions, ledger },
+      sessions,
+      connectedAccounts,
+      notifications: { preferences: notificationPreferences, deliveries: notificationDeliveries },
+      errorLogs,
     };
   }),
 
