@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { SITE_URL } from '@/lib/site-url';
+import { requestOrigin } from '@/lib/site-url';
 
 /**
  * The five marketing routes, in both locales — the ten URLs a search engine
@@ -14,7 +14,9 @@ import { SITE_URL } from '@/lib/site-url';
  * `robots: { index: false, follow: false }` from
  * `app/[locale]/(app)/layout.tsx`, so listing them here would contradict that
  * and hand a crawler URLs — `/invite/<token>` chief among them — it was just
- * told not to index.
+ * told not to index. `/vip` is absent for the same reason and stays that way:
+ * it is an account page in `(app)`, and the public pricing story lives on the
+ * landing page, which *is* listed.
  */
 const MARKETING_SLUGS = ['', 'terms', 'privacy', 'refunds', 'contact'] as const;
 
@@ -25,10 +27,23 @@ const MARKETING_SLUGS = ['', 'terms', 'privacy', 'refunds', 'contact'] as const;
  * would never be reachable at `/sitemap.xml`. `app/layout.tsx` (the
  * metadata-only root layout) exists for the same structural reason.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+
+/**
+ * Rendered per request. Every `<loc>` here is an absolute URL, and building
+ * them from the module-scope `SITE_URL` meant baking in whatever
+ * `BETTER_AUTH_URL` held at `next build` — so a container built without it
+ * and configured at runtime (the Coolify/Docker norm) served ten
+ * `http://localhost:3000` URLs to Google. See `requestOrigin()` for why the
+ * request's own host is the right source, and `robots.ts` for the sibling
+ * fix.
+ */
+export const dynamic = 'force-dynamic';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const origin = await requestOrigin();
   return MARKETING_SLUGS.flatMap((slug) => {
-    const cs = `${SITE_URL}${slug === '' ? '/' : `/${slug}`}`;
-    const en = `${SITE_URL}${slug === '' ? '/en' : `/en/${slug}`}`;
+    const cs = `${origin}${slug === '' ? '/' : `/${slug}`}`;
+    const en = `${origin}${slug === '' ? '/en' : `/en/${slug}`}`;
     const alternates = { languages: { cs, en } };
     return [
       { url: cs, alternates },

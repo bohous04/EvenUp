@@ -31,13 +31,50 @@ test('sitemap lists both locales and robots points at it', async ({ request }) =
   expect(await robots.text()).toContain('Sitemap');
 });
 
+/**
+ * The origin has to come from the *request*, never from the sitemap's own
+ * first `<loc>` — deriving it from the body is how this file used to agree
+ * with itself no matter what the server emitted, and it let a build that
+ * baked `http://localhost:3000` into all ten URLs pass unnoticed.
+ */
+test('sitemap and robots use the request origin, not a build-time one', async ({ request }) => {
+  const res = await request.get('/sitemap.xml');
+  const origin = new URL(res.url()).origin;
+  const locs = [...(await res.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  expect(locs).toHaveLength(10);
+  for (const loc of locs) expect(new URL(loc!).origin).toBe(origin);
+
+  const robots = await request.get('/robots.txt');
+  expect(await robots.text()).toContain(`Sitemap: ${new URL(robots.url()).origin}/sitemap.xml`);
+});
+
+/**
+ * The proxied case, which is the one that actually breaks in production: the
+ * container is reached over a Traefik/Coolify hop, so the public origin is
+ * only knowable from `x-forwarded-*`. A prerendered sitemap ignores these
+ * headers entirely and keeps emitting the build-time origin, so this is the
+ * assertion that fails if `sitemap.ts`/`robots.ts` ever go static again.
+ */
+test('sitemap and robots follow x-forwarded-host/proto', async ({ request }) => {
+  const headers = { 'x-forwarded-host': 'evenup.example', 'x-forwarded-proto': 'https' };
+
+  const body = await (await request.get('/sitemap.xml', { headers })).text();
+  const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  expect(locs).toHaveLength(10);
+  for (const loc of locs) expect(new URL(loc!).origin).toBe('https://evenup.example');
+
+  const robots = await (await request.get('/robots.txt', { headers })).text();
+  expect(robots).toContain('Sitemap: https://evenup.example/sitemap.xml');
+});
+
 test('sitemap lists all five marketing routes in both locales, and never /cs', async ({
   request,
 }) => {
-  const body = await (await request.get('/sitemap.xml')).text();
+  const res = await request.get('/sitemap.xml');
+  const body = await res.text();
   const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   expect(locs).toHaveLength(10);
-  const origin = new URL(locs[0]).origin;
+  const origin = new URL(res.url()).origin;
   for (const slug of ['terms', 'privacy', 'refunds', 'contact']) {
     expect(locs).toContain(`${origin}/${slug}`);
     expect(locs).toContain(`${origin}/en/${slug}`);
