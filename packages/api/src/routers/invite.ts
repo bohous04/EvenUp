@@ -5,7 +5,7 @@ import { deriveInitials, colorForIndex } from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
-import { assertGroupAdmin } from '../access.js';
+import { assertGroupAccess } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
@@ -51,7 +51,7 @@ export const inviteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAdmin(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
       const token = randomBytes(18).toString('base64url');
       const expiresAt = input.expiresInDays
         ? new Date(Date.now() + input.expiresInDays * 86_400_000)

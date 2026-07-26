@@ -73,33 +73,36 @@ describe('group access requires an active member link', () => {
     const ownerMember = await testPrisma.member.findFirstOrThrow({
       where: { groupId: group.id, userId: owner.id },
     });
-    // Not going through member.remove: the owner is the sole ADMIN, and
-    // deactivating their own row directly is the scenario the carve-out
-    // exists for -- the group's creator must never be able to lock themselves
-    // out.
+    // Not going through member.remove: deactivating the creator's own row
+    // directly is the scenario the carve-out exists for -- the group's creator
+    // must never be able to lock themselves out.
     await testPrisma.member.update({ where: { id: ownerMember.id }, data: { isActive: false } });
 
     await expect(ownerCaller.group.get({ groupId: group.id })).resolves.toBeTruthy();
     expect((await ownerCaller.group.list()).map((g) => g.id)).toContain(group.id);
-    // The carve-out grants admin access too (assertGroupAdmin), not just read.
+    // The carve-out grants write access, not just read.
     await expect(
       ownerCaller.group.update({ groupId: group.id, name: 'Renamed by owner' }),
     ).resolves.toBeTruthy();
   });
 
-  it('a deactivated ADMIN loses admin rights', async () => {
+  it('a removed member loses write access that every active member has', async () => {
     const { ownerCaller, group, memberCaller, memberRow } = await setupGroup();
-    await ownerCaller.member.update({ memberId: memberRow.id, role: 'ADMIN' });
 
-    // Sanity: an active ADMIN can perform an admin-only action.
+    // Groups are flat: an ordinary active member may rename the group, create
+    // invites and merge -- there is no admin tier gating any of it.
     await expect(
       memberCaller.group.update({ groupId: group.id, name: 'Renamed while active' }),
     ).resolves.toBeTruthy();
+    await expect(memberCaller.invite.create({ groupId: group.id })).resolves.toBeTruthy();
 
     await ownerCaller.member.remove({ memberId: memberRow.id });
 
     await expect(
       memberCaller.group.update({ groupId: group.id, name: 'Renamed after removal' }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Admin access required' });
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'You are not a member of this group' });
+    await expect(memberCaller.invite.create({ groupId: group.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });

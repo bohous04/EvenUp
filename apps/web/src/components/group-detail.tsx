@@ -115,7 +115,6 @@ export function GroupDetail({
     // Whether a user account is linked, and (admin-gated server-side) its email —
     // so the roster shows who is connected and, for admins, with which address.
     connected: m.userId != null,
-    linkedEmail: m.user?.email ?? null,
   }));
   // Payer chips on transaction rows use the raw member (incl. inactive), so map
   // memberId → profile picture separately from the active-only memberLite.
