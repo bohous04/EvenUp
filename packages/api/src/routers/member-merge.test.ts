@@ -111,7 +111,8 @@ describe('member.merge preflight', () => {
   test('blocks the merge when a transfer exists directly between the two members', async () => {
     const { caller, group, marek, jana } = await seed();
     // The procedure is `recordTransfer` (not createTransfer) and has NO `title`
-    // field — it stores `title: input.note ?? 'Settlement'`.
+    // field — it stores `title: input.note ?? ''` (an empty title renders
+    // localized via `transaction.settlement`, not the English literal).
     await caller.transaction.recordTransfer({
       groupId: group.id,
       fromMemberId: jana.id,

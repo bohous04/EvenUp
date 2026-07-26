@@ -223,7 +223,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         />
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{tx.title}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {tx.title || t('transaction.settlement')}
+                        </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           {tx.type === 'TRANSFER'
                             ? t('expense.transfer')

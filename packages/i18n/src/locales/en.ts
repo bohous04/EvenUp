@@ -25,6 +25,7 @@ export const en: Messages = {
   'common.showAll': 'Show all',
   'common.language': 'Language',
   'transactions.showMore': 'Show more transactions',
+  'transaction.settlement': 'Settlement',
   'settings.openRouterKey': 'OpenRouter API key',
   'settings.apiKey': 'API key',
   'qr.alt': 'QR payment',

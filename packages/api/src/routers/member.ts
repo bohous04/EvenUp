@@ -9,6 +9,7 @@ import {
 } from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
+import { t as translate } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
 import { assertGroupAccess, isGroupAdmin } from '../access.js';
@@ -201,10 +202,11 @@ export const memberRouter = router({
         select: { id: true, title: true, date: true },
       });
       if (selfTransfers.length > 0) {
+        const label = translate(ctx.locale, 'transaction.settlement');
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message: `Resolve the transfer(s) between these members first: ${selfTransfers
-            .map((tr) => `${tr.title} (${tr.date.toISOString().slice(0, 10)})`)
+            .map((tr) => `${tr.title || label} (${tr.date.toISOString().slice(0, 10)})`)
             .join(', ')}`,
         });
       }

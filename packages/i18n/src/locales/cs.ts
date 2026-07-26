@@ -25,6 +25,9 @@ export const cs = {
   'common.showAll': 'Zobrazit vše',
   'common.language': 'Jazyk',
   'transactions.showMore': 'Zobrazit další transakce',
+  // Fallback label for a settlement with no note of its own — never persisted
+  // to the DB (that used to leak the English word into the Czech UI).
+  'transaction.settlement': 'Vyrovnání',
   'settings.openRouterKey': 'OpenRouter API klíč',
   'settings.apiKey': 'API klíč',
   'qr.alt': 'QR platba',

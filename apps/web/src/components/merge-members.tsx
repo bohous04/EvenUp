@@ -72,7 +72,12 @@ export function MergeDialog({
           {blocked ? (
             <p role="alert" className="mb-4 text-sm text-red-700 dark:text-red-400">
               {t('merge.blocked', {
-                titles: preview.data.blockingTransfers.map((tr) => tr.title).join(', '),
+                // A settlement recorded with no note stores '' (see
+                // group-detail.tsx / activity-message.ts) — without this
+                // fallback the common case renders a title-shaped hole here.
+                titles: preview.data.blockingTransfers
+                  .map((tr) => tr.title || t('transaction.settlement'))
+                  .join(', '),
               })}
             </p>
           ) : (

@@ -227,7 +227,9 @@ export const transactionRouter = router({
       data: {
         groupId: input.groupId,
         type: 'TRANSFER',
-        title: input.note ?? 'Settlement',
+        // No note means no title of its own — the UI localizes it via
+        // `transaction.settlement`. Storing English here leaked into the Czech UI.
+        title: input.note ?? '',
         currency: input.currency,
         totalMinorUnits: fromMinor(input.amountMinorUnits),
         baseMinorUnits: fromMinor(baseAmount),
@@ -392,7 +394,9 @@ export const transactionRouter = router({
     const transaction = await ctx.prisma.transaction.update({
       where: { id: input.transactionId },
       data: {
-        title: input.note ?? 'Settlement',
+        // No note means no title of its own — the UI localizes it via
+        // `transaction.settlement`. Storing English here leaked into the Czech UI.
+        title: input.note ?? '',
         currency: input.currency,
         totalMinorUnits: fromMinor(input.amountMinorUnits),
         baseMinorUnits: fromMinor(baseAmount),
