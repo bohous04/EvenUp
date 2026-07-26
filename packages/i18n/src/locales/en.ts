@@ -60,6 +60,10 @@ export const en: Messages = {
   'errors.billingNotConfigured': 'Billing is not configured on this instance.',
   'errors.acknowledgeImmediate': 'Acknowledge immediate delivery to continue.',
   'errors.unknownPack': 'Unknown credit pack.',
+  // Must match `billing.checkoutSubscription`'s thrown message verbatim — the
+  // tRPC error formatter localizes by reverse-mapping the English text back
+  // to its key (see packages/api/src/trpc.ts).
+  'errors.subscriptionExists': 'You already have a subscription; manage it in the billing portal.',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
@@ -96,6 +100,7 @@ export const en: Messages = {
   'nav.transactions': 'Transactions',
   'nav.settings': 'Settings',
   'nav.admin': 'Admin',
+  'nav.vip': 'VIP',
   'nav.signOut': 'Sign out',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
@@ -117,6 +122,13 @@ export const en: Messages = {
   'vip.credits.ack':
     'I agree the scans are delivered immediately, and I understand this means I lose my right to withdraw within 14 days.',
   'vip.disabled': 'Paid features are not enabled on this instance.',
+  'vip.subscription.unavailable':
+    'The subscription is not available right now. You can still buy scan packs below.',
+  'vip.subscription.paymentProblem':
+    "Your subscription payment didn't go through. Check your card in the billing portal or VIP will lapse.",
+  'vip.checkout.success': 'Payment received, thank you. Your scans will appear in a moment.',
+  'vip.checkout.cancelled': "Payment cancelled. You haven't been charged.",
+  'vip.signedOut': 'Sign in to subscribe to VIP or buy scan packs.',
   'admin.instanceKey': 'Shared OpenRouter key',
   'admin.instanceKey.desc': 'Used by VIP users to scan receipts.',
   'admin.ocrModel': 'OCR model',
@@ -297,6 +309,7 @@ export const en: Messages = {
   'ocr.receiptTitle': 'Receipt',
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
+  'ocr.buyScans': 'Buy scans',
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',

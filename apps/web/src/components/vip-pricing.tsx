@@ -54,6 +54,11 @@ export function VipPricing({
   const { t, formatCurrency } = useI18n();
   const [acknowledged, setAcknowledged] = useState(false);
   const ackId = useId();
+  // `trialing` is healthy; `past_due`, `unpaid` and `incomplete` all mean a
+  // payment needs the customer's attention before the subscription lapses.
+  const status = summary.subscription?.status;
+  const needsPaymentAttention =
+    status !== undefined && status !== 'active' && status !== 'trialing';
 
   if (!summary.billingEnabled) {
     return (
@@ -85,14 +90,42 @@ export function VipPricing({
         <p className="mb-4 text-sm font-medium" data-testid="vip-balance">
           {t('vip.balance', { count: summary.creditBalance })}
         </p>
+        {/* A subscription in ANY non-terminal state — `past_due` and
+            `unpaid` included — means the customer already has one, so the
+            portal is the only thing to offer. Keying this on `status ===
+            'active'` is what used to invite a customer whose card had just
+            expired to buy a *second* subscription; `billing.summary` now
+            reports the whole set (see `OPEN_SUBSCRIPTION_STATUSES`), and
+            `checkoutSubscription` refuses server-side regardless of what
+            this renders — the UI alone cannot fix the two-tab race. */}
         {summary.subscription ? (
-          <Button onClick={onPortal} disabled={pending} data-testid="vip-manage">
-            {pending ? t('common.loading') : t('vip.manage')}
-          </Button>
-        ) : (
+          <>
+            {needsPaymentAttention ? (
+              <p
+                role="status"
+                className="mb-3 rounded-lg border border-amber-300 bg-amber-50/70 px-3 py-2 text-sm font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-200"
+                data-testid="vip-payment-problem"
+              >
+                {t('vip.subscription.paymentProblem')}
+              </p>
+            ) : null}
+            <Button onClick={onPortal} disabled={pending} data-testid="vip-manage">
+              {pending ? t('common.loading') : t('vip.manage')}
+            </Button>
+          </>
+        ) : summary.subscriptionAvailable ? (
           <Button onClick={onSubscribe} disabled={pending} data-testid="vip-subscribe">
             {pending ? t('common.loading') : t('vip.subscribe')}
           </Button>
+        ) : (
+          // `billingEnabled` is only "STRIPE_SECRET_KEY is set"; the VIP price
+          // id is a separate variable per currency. Rendering the button when
+          // the price for THIS request's currency is missing meant every
+          // English user's click came back PRECONDITION_FAILED. Packs are a
+          // separate configuration, so the pack card below still stands.
+          <p className="text-sm text-zinc-600 dark:text-zinc-300" data-testid="vip-unavailable">
+            {t('vip.subscription.unavailable')}
+          </p>
         )}
       </Card>
 

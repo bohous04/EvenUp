@@ -103,6 +103,10 @@ const marketingOnlyCs = {
   'marketing.pricing.packs.item': 'Balíček {scans} skenů',
   'marketing.pricing.note': 'Platby zpracovává Stripe. Předplatné zrušíte kdykoli v aplikaci.',
   'marketing.pricing.cta': 'Vyzkoušet zdarma',
+  // The price list's second CTA, pointing at `/vip` — the only route to
+  // checkout in the whole product. Until it existed nothing linked there and a
+  // customer had to type the address to pay.
+  'marketing.pricing.ctaVip': 'Předplatit VIP',
 
   'marketing.faq.title': 'Časté otázky',
   'marketing.faq.q1': 'Je dlužníček zdarma?',
@@ -191,6 +195,7 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.pricing.note':
     'Payments are handled by Stripe. Cancel your subscription any time in the app.',
   'marketing.pricing.cta': 'Try it free',
+  'marketing.pricing.ctaVip': 'Subscribe to VIP',
 
   'marketing.faq.title': 'Frequently asked questions',
   'marketing.faq.q1': 'Is EvenUp free?',

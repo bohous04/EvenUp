@@ -20,6 +20,7 @@ import { parseLocalDate } from '@/lib/local-date';
 import { expandItemQuantities } from '@/lib/expand-items';
 import { type EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
 import { OcrConsentDialog } from '@/components/ocr-consent-dialog';
+import { AppLink } from '@/components/app-link';
 
 interface MemberLite {
   id: string;
@@ -115,7 +116,22 @@ export function OcrScan({
   // prices is overriding, so their item sum wins unless they opt back in.
   const [reconcile, setReconcile] = useState(false);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // True only while the *current* error is the entitlement refusal
+  // (PAYMENT_REQUIRED), which is the one the user can fix by buying. The
+  // error banner then offers a link to `/vip`; the message alone says
+  // "Subscribe or buy credits" and used to point nowhere.
+  const [outOfScans, setOutOfScans] = useState(false);
+  /**
+   * Every other error path goes through this and clears the flag, so a later,
+   * unrelated failure (a save validation, a failed expense create) can never
+   * inherit the previous error's "buy scans" link.
+   */
+  function setError(message: string | null) {
+    setErrorMessage(message);
+    setOutOfScans(false);
+  }
+  const error = errorMessage;
   // Multi-page picker preview (FR-5.4/5.9): screenshots + a PDF collected here,
   // reordered/removed by the user, then sent as `pages[]` to `ocr.scan`.
   const [pages, setPages] = useState<PagePreview[]>([]);
@@ -202,8 +218,12 @@ export function OcrScan({
     // (PAYMENT_REQUIRED) are config/entitlement problems the user can act on —
     // both come back already localized via the server's errors.* catalog — not
     // an unreadable photo.
-    onError: (e) =>
-      setError(
+    onError: (e) => {
+      // "No scans remaining. Subscribe or buy credits to continue." is the one
+      // refusal that names an action, and until now it named one the user had
+      // no way to take: nothing in the app linked to `/vip`. Flag it so the
+      // banner below can offer the link.
+      setErrorMessage(
         e.data?.code === 'PRECONDITION_FAILED' ||
           e.data?.code === 'PAYMENT_REQUIRED' ||
           // The consent gate throws FORBIDDEN. Without this branch the user is
@@ -212,7 +232,9 @@ export function OcrScan({
           e.data?.code === 'FORBIDDEN'
           ? e.message
           : t('ocr.failed'),
-      ),
+      );
+      setOutOfScans(e.data?.code === 'PAYMENT_REQUIRED');
+    },
   });
 
   const createExpense = trpc.transaction.createExpense.useMutation({
@@ -610,7 +632,21 @@ export function OcrScan({
             aria-hidden
             className="mt-0.5 shrink-0 text-red-500 dark:text-red-400"
           />
-          <span>{error}</span>
+          <span>
+            {error}
+            {outOfScans ? (
+              <>
+                {' '}
+                <AppLink
+                  href="/vip"
+                  className="font-semibold underline"
+                  data-testid="ocr-buy-scans-link"
+                >
+                  {t('ocr.buyScans')}
+                </AppLink>
+              </>
+            ) : null}
+          </span>
         </div>
       ) : null}
 

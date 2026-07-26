@@ -60,6 +60,7 @@ export const cs = {
   'errors.billingNotConfigured': 'Platby nejsou na této instanci nastavené.',
   'errors.acknowledgeImmediate': 'Potvrďte okamžité dodání a pokračujte.',
   'errors.unknownPack': 'Neznámý balíček kreditů.',
+  'errors.subscriptionExists': 'Předplatné už máte, spravujte ho v zákaznickém portálu.',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',
@@ -96,6 +97,9 @@ export const cs = {
   'nav.transactions': 'Transakce',
   'nav.settings': 'Nastavení',
   'nav.admin': 'Správa',
+  // The header's route to the purchase page. Nothing in the app linked there
+  // before, so the only way to pay was to type the address.
+  'nav.vip': 'VIP',
   'nav.signOut': 'Odhlásit se',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
@@ -119,6 +123,17 @@ export const cs = {
   'vip.credits.ack':
     'Souhlasím, aby skeny byly dodány ihned, a beru na vědomí, že tím ztrácím právo na odstoupení od smlouvy do 14 dnů.',
   'vip.disabled': 'Placené funkce nejsou na této instanci zapnuté.',
+  // Replaces the Subscribe button when no VIP price is configured for the
+  // request's currency — `STRIPE_PRICE_{CZK,EUR}_VIP` is a separate variable
+  // per currency, so a partially-configured instance really does hit this.
+  'vip.subscription.unavailable': 'Předplatné teď není k dispozici. Skeny si můžete dokoupit níž.',
+  // `past_due` / `unpaid` / `incomplete`: the subscription exists but its
+  // payment failed. Offering "Subscribe" here would sell a second one.
+  'vip.subscription.paymentProblem':
+    'Platba předplatného neprošla. Zkontrolujte si kartu v zákaznickém portálu, jinak vám VIP zanikne.',
+  'vip.checkout.success': 'Zaplaceno, díky. Skeny se připíšou během chviličky.',
+  'vip.checkout.cancelled': 'Platbu jste zrušili. Nic jsme vám nestrhli.',
+  'vip.signedOut': 'Přihlaste se a můžete si předplatit VIP nebo dokoupit skeny.',
   'admin.instanceKey': 'Sdílený OpenRouter klíč',
   'admin.instanceKey.desc': 'Používají ho VIP uživatelé pro skenování účtenek.',
   'admin.ocrModel': 'OCR model',
@@ -302,6 +317,7 @@ export const cs = {
   'ocr.receiptTitle': 'Účtenka',
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
+  'ocr.buyScans': 'Dokoupit skeny',
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',

@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
@@ -21,10 +21,35 @@ function goTo(url: string | null | undefined): boolean {
   return true;
 }
 
+/** The `checkout` query parameter Stripe sends the customer back with. */
+type CheckoutOutcome = 'success' | 'cancelled';
+
 export default function VipPage() {
   const { t } = useI18n();
   const { data: session, isPending } = useSession();
   const summary = trpc.billing.summary.useQuery(undefined, { enabled: !!session?.user });
+  // Stripe returns every customer to `/vip?checkout=success|cancelled` (see
+  // `returnUrl` in routers/billing.ts) and this page used to ignore both: a
+  // customer who had just paid landed on an unchanged page and — because the
+  // credit only lands when the webhook arrives, moments later — often on an
+  // unchanged balance too, with nothing saying the payment had worked.
+  //
+  // Read from `window.location` in an effect rather than `useSearchParams()`,
+  // which would force this route out of static generation unless wrapped in
+  // Suspense (same reasoning as the header's locale switch — see
+  // `lib/locale-path.ts`). An effect also means server and first client render
+  // agree, so there is nothing for hydration to mismatch on.
+  const [checkout, setCheckout] = useState<CheckoutOutcome | null>(null);
+  const refetchSummary = summary.refetch;
+  useEffect(() => {
+    const outcome = new URLSearchParams(window.location.search).get('checkout');
+    if (outcome !== 'success' && outcome !== 'cancelled') return;
+    setCheckout(outcome);
+    // The webhook that grants the credit races this navigation, so whatever
+    // the query cached before checkout is stale by definition. Refetch — and
+    // tell the customer the credits are moments away, which the copy does.
+    if (outcome === 'success') void refetchSummary();
+  }, [refetchSummary]);
   // Shared by all three purchase mutations below: whichever one fails (an
   // unconfigured price, an expired checkout session, a transient Stripe or
   // network error, or a success response with no url) leaves a legible
@@ -56,11 +81,23 @@ export default function VipPage() {
 
   if (isPending) return <p className="text-zinc-500 dark:text-zinc-400">…</p>;
   if (!session?.user) {
+    // The public landing page's pricing section links here, so this is a real
+    // destination for a signed-out visitor now, not just somewhere a session
+    // can expire. A bare "Back" told them nothing about why the page was
+    // empty or what to do; `/groups` serves the sign-in form when signed out.
     return (
       <Card>
-        <Link href="/groups" className="text-brand-700 underline">
-          {t('common.back')}
-        </Link>
+        <h1 className="mb-2 text-2xl font-extrabold tracking-tight">{t('vip.title')}</h1>
+        <p className="mb-4 text-zinc-600 dark:text-zinc-300" data-testid="vip-signed-out">
+          {t('vip.signedOut')}
+        </p>
+        <AppLink
+          href="/groups"
+          className="font-medium text-brand-700 underline dark:text-brand-100"
+          data-testid="vip-signin-link"
+        >
+          {t('auth.signInBtn')}
+        </AppLink>
       </Card>
     );
   }
@@ -68,6 +105,19 @@ export default function VipPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-extrabold tracking-tight">{t('vip.title')}</h1>
+      {checkout ? (
+        <p
+          role="status"
+          className={
+            checkout === 'success'
+              ? 'rounded-lg border border-emerald-300 bg-emerald-50/70 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/20 dark:text-emerald-200'
+              : 'rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'
+          }
+          data-testid={`vip-checkout-${checkout}`}
+        >
+          {t(checkout === 'success' ? 'vip.checkout.success' : 'vip.checkout.cancelled')}
+        </p>
+      ) : null}
       {error ? (
         <p
           role="alert"
@@ -118,9 +168,9 @@ export default function VipPage() {
           }}
         />
       )}
-      <Link href="/groups" className="inline-block text-brand-700 underline">
+      <AppLink href="/groups" className="inline-block text-brand-700 underline">
         ← {t('nav.groups')}
-      </Link>
+      </AppLink>
     </div>
   );
 }

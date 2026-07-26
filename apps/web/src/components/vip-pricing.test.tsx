@@ -34,7 +34,16 @@ const summary = {
   billingEnabled: true,
   creditBalance: 3,
   isVip: false,
-  subscription: null,
+  // Typed loosely so cases below can hand back a `past_due` row — `status` is
+  // a free-form Stripe status string on the wire, not a union.
+  subscription: null as {
+    status: string;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+  } | null,
+  // "A VIP price is configured for this currency", separate from
+  // `billingEnabled` ("STRIPE_SECRET_KEY is set") — see billing.summary.
+  subscriptionAvailable: true,
   // Widened rather than `as const` so a case below can override it with EUR —
   // `billing.summary` resolves the currency from the caller's locale, and the
   // panel has to price in whichever one it gets back.
@@ -129,6 +138,43 @@ describe('VipPricing', () => {
     renderPricing({ packs: [{ id: 'pack7', scans: 7, priceId: 'price_7' }] });
     expect(screen.getByText(t('vip.credits.pack', { scans: 7 }))).toBeInTheDocument();
     expect(screen.queryByTestId('vip-price-pack7')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /buy|koupit/i })).toBeInTheDocument();
+  });
+
+  /**
+   * The `past_due` regression: Stripe moves a subscription whose card expired
+   * to `past_due`, `billing.summary` used to look for `'active'` alone, and
+   * the panel therefore offered "Subscribe to VIP" to somebody who already had
+   * a subscription — a second one, billed alongside the first the moment
+   * Stripe's smart retries recovered it.
+   */
+  it.each(['past_due', 'unpaid', 'incomplete'])(
+    'offers the portal and a payment-problem hint, never Subscribe, when the subscription is %s',
+    (status) => {
+      renderPricing({
+        subscription: { status, currentPeriodEnd: new Date(), cancelAtPeriodEnd: false },
+      });
+      expect(screen.getByTestId('vip-manage')).toBeInTheDocument();
+      expect(screen.getByTestId('vip-payment-problem')).toBeInTheDocument();
+      expect(screen.queryByTestId('vip-subscribe')).not.toBeInTheDocument();
+    },
+  );
+
+  it('offers the portal with no payment warning while the subscription is healthy', () => {
+    renderPricing({
+      subscription: { status: 'active', currentPeriodEnd: new Date(), cancelAtPeriodEnd: false },
+    });
+    expect(screen.getByTestId('vip-manage')).toBeInTheDocument();
+    expect(screen.queryByTestId('vip-payment-problem')).not.toBeInTheDocument();
+  });
+
+  it('hides Subscribe when no VIP price is configured for this currency', () => {
+    // `STRIPE_SECRET_KEY` set but `STRIPE_PRICE_EUR_VIP` missing: the button
+    // used to render for every English user and every click came back
+    // PRECONDITION_FAILED. Packs are configured separately, so they stay.
+    renderPricing({ currency: 'EUR', subscriptionAvailable: false });
+    expect(screen.queryByTestId('vip-subscribe')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vip-unavailable')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /buy|koupit/i })).toBeInTheDocument();
   });
 
