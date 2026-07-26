@@ -15,7 +15,7 @@ import { isSupportedCurrency } from '@evenup/core';
 import { emailButton, emailShell, sendEmail, type EmailMessage } from './email.js';
 import { env } from './env.js';
 
-function localeOf(user: NotifiableUser): Locale {
+export function localeOf(user: NotifiableUser): Locale {
   return user.locale === 'en' ? 'en' : 'cs';
 }
 
@@ -25,7 +25,7 @@ function localeOf(user: NotifiableUser): Locale {
  * an unknown key, which would fail the whole digest; fall back to the raw
  * action instead. An ugly line beats a silent email outage.
  */
-function activityLabel(locale: Locale, action: string): string {
+export function activityLabel(locale: Locale, action: string): string {
   const key = `activityType.${action}`;
   return key in catalogs[locale] ? t(locale, key as MessageKey) : action;
 }
@@ -52,14 +52,14 @@ function shell(title: string, bodyHtml: string, ctaUrl: string, ctaLabel: string
   );
 }
 
-interface Rendered {
+export interface Rendered {
   readonly subject: string;
   readonly title: string;
   readonly lines: readonly string[];
   readonly ctaPath: string;
 }
 
-function render(payload: NotificationPayload, locale: Locale): Rendered {
+export function render(payload: NotificationPayload, locale: Locale): Rendered {
   switch (payload.kind) {
     case 'digest': {
       const lines = payload.items.map((item) =>

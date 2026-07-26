@@ -15,15 +15,21 @@ Notifications.setNotificationHandler({
  * Register the device for Expo push notifications (PRD §4.11). Returns the Expo
  * push token, or null if permission was denied.
  *
- * NOTE: delivering pushes needs a server endpoint to store this token and an
- * Expo push sender in the notification service. The web app ships email digests
- * only, so that backend piece is a follow-up; this returns the token so the
- * client half is ready the moment the endpoint lands.
+ * The caller is responsible for handing the token to
+ * `notification.registerPushToken` — without that the server has nothing to
+ * send to. `PushRegistrar` does this on sign-in.
+ *
+ * @param promptIfNeeded when false, an undecided permission is left alone and
+ * this resolves to null. The OS only ever shows its prompt once, so the
+ * settings toggle asks explicitly rather than spending it on app launch.
  */
-export async function registerForPushNotifications(): Promise<string | null> {
+export async function registerForPushNotifications(
+  promptIfNeeded = true,
+): Promise<string | null> {
   const settings = await Notifications.getPermissionsAsync();
   let granted = settings.granted;
   if (!granted) {
+    if (!promptIfNeeded) return null;
     const req = await Notifications.requestPermissionsAsync();
     granted = req.granted;
   }
@@ -39,6 +45,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
  * notification's data payload so the app can deep-link to that group. Returns an
  * unsubscribe function.
  */
+/** Whether the OS has already granted notification permission. */
+export async function hasPushPermission(): Promise<boolean> {
+  const settings = await Notifications.getPermissionsAsync();
+  return settings.granted;
+}
+
 export function addNotificationTapListener(onGroup: (groupId: string) => void): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as { groupId?: string } | undefined;

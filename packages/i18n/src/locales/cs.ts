@@ -204,6 +204,7 @@ export const cs = {
   'category.custom.duplicate': 'Kategorie s tímto názvem už existuje.',
   'category.custom.empty': 'Zatím žádné vlastní kategorie.',
 
+  'split.type': 'Rozdělení',
   'split.equal': 'Rovným dílem',
   'split.exact': 'Přesné částky',
   'split.shares': 'Podíly',
@@ -352,12 +353,19 @@ export const cs = {
   'notify.settlement.subject': '{payer} vám poslal(a) platbu',
   'notify.settlement.title': 'Platba zaznamenána',
   'notify.settlement.body': '{payer} označil(a) platbu {amount} ve skupině {group} jako odeslanou.',
+  'notify.push.reminder': 'Máte nevyrovnaný dluh — {creditor}.',
+  'notify.push.settlement': '{payer} označil(a) platbu ve skupině {group} jako odeslanou.',
 
   'settings.notifications.title': 'Oznámení',
   'settings.notifications.enabled': 'Posílat e-mailová oznámení',
   'settings.notifications.hint':
     'Souhrn aktivity a připomínky nevyrovnaných dluhů. Vypnutím umlčíte vše.',
   'settings.notifications.saved': 'Nastavení oznámení uloženo.',
+  'settings.push.enabled': 'Posílat push oznámení do tohoto telefonu',
+  'settings.push.hint':
+    'Platí pro jedno zařízení a jen když je zapnutý přepínač výše. Vypnutím zastavíte push jen na tomto telefonu, ostatní zařízení to neovlivní.',
+  'settings.push.blocked':
+    'Oznámení pro EvenUp jsou vypnutá v nastavení telefonu — nejdřív je povolte tam.',
   'group.notifications.mute': 'Ztlumit oznámení pro tuto skupinu',
 
   // Security settings

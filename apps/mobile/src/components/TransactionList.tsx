@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
+import { AmountText, EmptyState, IconButton } from '@/ui';
+import { MemberChip } from '@/components/MemberChip';
 
 /** Read-only transaction feed with tap-to-edit and a delete action (FR-3.4). */
 export function TransactionList({
@@ -13,7 +15,7 @@ export function TransactionList({
   groupId: string;
   baseCurrency: string;
 }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, formatDate } = useI18n();
   const c = useTheme();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -39,13 +41,19 @@ export function TransactionList({
 
   const rows = list.data ?? [];
   if (rows.length === 0) {
-    return <Text style={{ color: c.textMuted }}>{t('activity.empty')}</Text>;
+    return (
+      <EmptyState
+        title={t('activity.empty')}
+        icon={<Ionicons name="receipt-outline" size={28} color={c.textFaint} />}
+      />
+    );
   }
 
   return (
-    <View style={{ gap: 4 }}>
-      {rows.map((tx) => {
+    <View>
+      {rows.map((tx, i) => {
         const isTransfer = tx.type === 'TRANSFER';
+        const payer = tx.payers[0]?.member;
         return (
           <Pressable
             key={tx.id}
@@ -55,38 +63,61 @@ export function TransactionList({
             }
             onLongPress={() => confirmDelete(tx.id)}
             accessibilityRole="button"
-            style={{
+            style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingVertical: 10,
-              borderBottomWidth: 1,
-              borderBottomColor: c.border,
-            }}
+              gap: c.spacing[3],
+              paddingVertical: c.spacing[2],
+              paddingHorizontal: c.spacing[1],
+              borderRadius: c.radii.lg,
+              backgroundColor: pressed ? c.rowPressed : 'transparent',
+              borderBottomWidth: i === rows.length - 1 ? 0 : c.control.hairline,
+              borderBottomColor: c.divider,
+            })}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontWeight: '600' }}>
+            {payer ? (
+              <MemberChip
+                initials={payer.initials}
+                color={payer.color}
+                name={payer.displayName}
+                size="sm"
+              />
+            ) : null}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: c.text,
+                  fontSize: c.type.bodySemibold.fontSize,
+                  fontWeight: c.type.bodySemibold.fontWeight,
+                }}
+              >
                 {isTransfer ? t('expense.transfer') : tx.title}
               </Text>
-              <Text style={{ color: c.textMuted, fontSize: 12 }}>{formatDate(new Date(tx.date))}</Text>
+              <Text
+                numberOfLines={1}
+                style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}
+              >
+                {/* `payer · date`; transfers carry no payer row, so they show
+                    the date alone rather than an empty leading separator. */}
+                {[payer?.displayName, formatDate(new Date(tx.date))].filter(Boolean).join(' · ')}
+              </Text>
             </View>
-            <Text
+            <AmountText
+              minorUnits={Number(tx.totalMinorUnits)}
+              currency={tx.currency ?? baseCurrency}
               style={{
                 color: tx.type === 'INCOME' ? c.green : c.text,
-                fontWeight: '700',
-                marginRight: 8,
+                fontWeight: c.type.bodySemibold.fontWeight,
+                textAlign: 'right',
               }}
-            >
-              {formatCurrency(Number(tx.totalMinorUnits), tx.currency ?? baseCurrency)}
-            </Text>
-            <Pressable
+            />
+            <IconButton
+              icon="trash-outline"
+              size={18}
               onPress={() => confirmDelete(tx.id)}
-              accessibilityRole="button"
               accessibilityLabel={t('expense.delete')}
-              hitSlop={10}
-            >
-              <Ionicons name="trash-outline" size={18} color={c.textMuted} />
-            </Pressable>
+            />
           </Pressable>
         );
       })}

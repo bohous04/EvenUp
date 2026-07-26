@@ -4,7 +4,7 @@ import { useSession } from '@/lib/auth';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Card, Screen } from '@/ui';
+import { Button, Card, ErrorText, Screen, SectionLabel, Title, Wordmark } from '@/ui';
 import { MemberChip } from '@/components/MemberChip';
 
 // Deep-link target for evenup://invite/<token>. Preview is public so a
@@ -33,7 +33,7 @@ export default function InviteScreen() {
     return (
       <Screen>
         <Card>
-          <Text style={{ color: c.danger }}>{t('invite.expired')}</Text>
+          <ErrorText>{t('invite.expired')}</ErrorText>
         </Card>
       </Screen>
     );
@@ -43,16 +43,23 @@ export default function InviteScreen() {
 
   return (
     <Screen scroll>
+      {/* Branding first — this is often the invitee's first sight of the app. */}
+      <View style={{ alignItems: 'center', gap: c.spacing[1] }}>
+        <Wordmark />
+      </View>
+
       <Card>
-        <Text style={{ color: c.text, fontWeight: '800', fontSize: 20 }}>
-          {preview.data.groupName}
+        <Title numberOfLines={2}>{preview.data.groupName}</Title>
+        <Text style={{ color: c.textMuted, fontSize: c.type.label.fontSize }}>
+          {t('invite.claim')}
         </Text>
-        <Text style={{ color: c.textMuted }}>{t('invite.claim')}</Text>
       </Card>
 
       {!signedIn ? (
         <Card>
-          <Text style={{ color: c.textMuted }}>{t('invite.signInToClaim')}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: c.type.label.fontSize }}>
+            {t('invite.signInToClaim')}
+          </Text>
           <Button
             title={t('auth.signInBtn')}
             onPress={() => router.push({ pathname: '/sign-in', params: { next: `/invite/${token}` } })}
@@ -60,10 +67,10 @@ export default function InviteScreen() {
         </Card>
       ) : (
         <Card>
-          <Text style={{ color: c.text, fontWeight: '700' }}>{t('invite.claim')}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <SectionLabel>{t('invite.claim')}</SectionLabel>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: c.spacing[3] }}>
             {preview.data.members.map((m) => (
-              <View key={m.id} style={{ alignItems: 'center', gap: 4 }}>
+              <View key={m.id} style={{ alignItems: 'center', gap: c.spacing[1] }}>
                 <MemberChip
                   initials={m.initials}
                   color={m.color}
@@ -72,15 +79,13 @@ export default function InviteScreen() {
                     claim.mutate({ token: String(token), memberId: m.id })
                   }
                 />
-                <Text style={{ color: c.textMuted, fontSize: 12 }}>{m.displayName}</Text>
+                <Text style={{ color: c.textMuted, fontSize: c.type.caption.fontSize }}>
+                  {m.displayName}
+                </Text>
               </View>
             ))}
           </View>
-          {claim.error ? (
-            <Text style={{ color: c.danger }} accessibilityRole="alert">
-              {claim.error.message}
-            </Text>
-          ) : null}
+          {claim.error ? <ErrorText>{claim.error.message}</ErrorText> : null}
           <Button
             title={t('invite.joinAsNew')}
             variant="secondary"

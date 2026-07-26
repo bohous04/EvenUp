@@ -35,6 +35,56 @@ export const notificationRouter = router({
       return { muted: pref?.muted ?? false };
     }),
 
+  /**
+   * Store this device's Expo push token (PRD §4.11).
+   *
+   * Upserts on `token`, not on `(userId, token)`: a shared phone that signs out
+   * and into a second account must move to that account, or the first user goes
+   * on receiving pushes on a device they no longer control.
+   *
+   * SECURITY: Accepted risk — possession of a token is treated as authority to
+   * claim it, so anyone who obtained someone else's token could redirect that
+   * user's pushes to their own account (a denial of notifications, plus the
+   * ability to display their own content on that device). Binding to
+   * `(userId, token)` instead would leave a resold or shared handset silently
+   * receiving the previous owner's notifications, which is worse, and Expo's
+   * own guidance is this upsert. The format check below at least keeps
+   * arbitrary strings out of the table.
+   */
+  registerPushToken: protectedProcedure
+    .input(
+      z.object({
+        // Expo tokens are `ExponentPushToken[...]` (or `ExpoPushToken[...]`).
+        // Anchored so nothing else can be stored and later handed to Expo.
+        token: z
+          .string()
+          .max(255)
+          .regex(/^Ex(ponent)?PushToken\[[A-Za-z0-9_-]+\]$/, 'not an Expo push token'),
+        platform: z.enum(['ios', 'android']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.pushToken.upsert({
+        where: { token: input.token },
+        create: { userId: ctx.user.id, token: input.token, platform: input.platform },
+        update: { userId: ctx.user.id, platform: input.platform },
+      });
+      return { registered: true };
+    }),
+
+  /** Drop this device's token — called on sign-out and when push is switched off. */
+  unregisterPushToken: protectedProcedure
+    .input(z.object({ token: z.string().min(1).max(255) }))
+    // Intentionally no format check here: a token stored before the rule
+    // tightened must still be removable by the device that owns it.
+    .mutation(async ({ ctx, input }) => {
+      // Scoped to the caller so one account cannot unregister another's device.
+      await ctx.prisma.pushToken.deleteMany({
+        where: { token: input.token, userId: ctx.user.id },
+      });
+      return { registered: false };
+    }),
+
   setGroupMute: protectedProcedure
     .input(z.object({ groupId: z.string(), muted: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

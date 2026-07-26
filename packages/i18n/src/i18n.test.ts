@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   t,
   plural,
@@ -91,6 +91,36 @@ describe('plural (CLDR plural selection)', () => {
 
   test('falls back: unknown base → the base string itself', () => {
     expect(plural('en', 'totally.unknown', 2)).toBe('totally.unknown');
+  });
+
+  // React Native's Hermes engine ships `Intl.NumberFormat`/`DateTimeFormat` but
+  // NOT `Intl.PluralRules`, so `pluralCategory` has a hand-written CLDR fallback.
+  // Node has the real thing, which lets us assert the two agree exactly —
+  // otherwise the fallback could drift and only ever break on device.
+  test('the no-Intl.PluralRules fallback matches Intl exactly', async () => {
+    const { pluralCategory } = await import('./format.js');
+    const intlLocale = { cs: 'cs-CZ', en: 'en-US' } as const;
+    const counts = [0, 1, 2, 3, 4, 5, 6, 10, 11, 21, 100, 101, 1000, 0.5, 1.5, 2.5];
+
+    const real = Intl.PluralRules;
+    try {
+      for (const locale of ['en', 'cs'] as const) {
+        const expected = counts.map((n) => new real(intlLocale[locale]).select(n));
+        // Hide Intl.PluralRules so `format.ts` takes the fallback branch.
+        (Intl as { PluralRules?: unknown }).PluralRules = undefined;
+        vi.resetModules();
+        const { pluralCategory: fallbackImpl } = await import('./format.js');
+        const actual = counts.map((n) => fallbackImpl(n, locale));
+        (Intl as { PluralRules?: unknown }).PluralRules = real;
+        expect(actual).toEqual(expected);
+      }
+    } finally {
+      (Intl as { PluralRules?: unknown }).PluralRules = real;
+      vi.resetModules();
+    }
+
+    // And the live (Intl-backed) export still works after the swap.
+    expect(pluralCategory(3, 'cs')).toBe('few');
   });
 });
 

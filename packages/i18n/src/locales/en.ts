@@ -201,6 +201,8 @@ export const en: Messages = {
   'category.custom.duplicate': 'A category with this name already exists.',
   'category.custom.empty': 'No custom categories yet.',
 
+  /** Label for the collapsed "how is this split" row on the expense form. */
+  'split.type': 'Split',
   'split.equal': 'Equally',
   'split.exact': 'Exact amounts',
   'split.shares': 'Shares',
@@ -349,12 +351,25 @@ export const en: Messages = {
   'notify.settlement.subject': '{payer} sent you a payment',
   'notify.settlement.title': 'Settlement recorded',
   'notify.settlement.body': '{payer} marked {amount} in {group} as paid to you.',
+  /**
+   * Amount-free variants for push. A push preview renders on the lock screen of
+   * an unattended phone, so the figure stays out of it — email keeps the number,
+   * and opening the app shows it.
+   */
+  'notify.push.reminder': 'You have an unsettled debt to {creditor}.',
+  'notify.push.settlement': '{payer} marked a payment in {group} as paid to you.',
 
   'settings.notifications.title': 'Notifications',
   'settings.notifications.enabled': 'Send email notifications',
   'settings.notifications.hint':
     'An activity digest and reminders for unsettled debts. Turning this off silences everything.',
   'settings.notifications.saved': 'Notification settings saved.',
+  /** Mobile only — the web app has no push transport. */
+  'settings.push.enabled': 'Send push notifications to this phone',
+  'settings.push.hint':
+    'Per device, and only while the switch above is on. Turning it off here stops pushes to this phone but leaves your other devices alone.',
+  'settings.push.blocked':
+    'Notifications are turned off for EvenUp in your phone’s settings — enable them there first.',
   'group.notifications.mute': 'Mute notifications for this group',
 
   // Security settings

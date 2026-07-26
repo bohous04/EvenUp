@@ -1,12 +1,13 @@
-import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import { deriveInitials } from '@evenup/core';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, BottomSheet, SegmentedControl } from '@/ui';
-
-type Method = 'CASH' | 'BANK' | 'QR';
+import { lightTokens } from '@/ui/tokens';
+import { AmountText, Button, BottomSheet } from '@/ui';
+import { MemberChip } from '@/components/MemberChip';
 
 export interface PendingPayment {
   fromMemberId: string;
@@ -14,9 +15,15 @@ export interface PendingPayment {
   fromName: string;
   toName: string;
   amountMinorUnits: number;
+  /** Chip colours, when the caller has the roster to hand. Optional so the
+   *  sheet degrades to a plain name pair rather than inventing a colour. */
+  fromColor?: string;
+  toColor?: string;
+  fromInitials?: string;
+  toInitials?: string;
 }
 
-/** Settle a suggested payment: cash / bank / QR, with a SPAYD QR when the creditor has an IBAN (FR-7.1/7.3). */
+/** Settle a suggested payment: cash or QR, with a SPAYD QR when the creditor has an IBAN (FR-7.1/7.3). */
 export function SettleSheet({
   visible,
   onClose,
@@ -30,10 +37,9 @@ export function SettleSheet({
   currency: string;
   payment: PendingPayment | null;
 }) {
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const c = useTheme();
   const utils = trpc.useUtils();
-  const [method, setMethod] = useState<Method>('CASH');
 
   const spayd = trpc.settlement.generateSpayd.useQuery(
     {
@@ -42,7 +48,7 @@ export function SettleSheet({
       amountMinorUnits: payment?.amountMinorUnits ?? 0,
       currency,
     },
-    { enabled: !!payment && method === 'QR', retry: false },
+    { enabled: visible && !!payment, retry: false },
   );
 
   const record = trpc.transaction.recordTransfer.useMutation({
@@ -53,55 +59,131 @@ export function SettleSheet({
     },
   });
 
+  const settle = (method: 'CASH' | 'QR') => {
+    if (!payment) return;
+    record.mutate({
+      groupId,
+      fromMemberId: payment.fromMemberId,
+      toMemberId: payment.toMemberId,
+      amountMinorUnits: payment.amountMinorUnits,
+      currency,
+      method,
+    });
+  };
+
+  const party = (name: string, color?: string, initials?: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: c.spacing[2] }}>
+      {color ? (
+        <MemberChip
+          initials={initials ?? deriveInitials(name)}
+          color={color}
+          name={name}
+          size="sm"
+        />
+      ) : null}
+      <Text
+        numberOfLines={1}
+        style={{
+          color: c.text,
+          fontSize: c.type.label.fontSize,
+          fontWeight: c.type.bodySemibold.fontWeight,
+        }}
+      >
+        {name}
+      </Text>
+    </View>
+  );
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={t('settle.title')}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={t('settle.title')}
+      closeLabel={t('receipt.close')}
+    >
       {payment ? (
-        <View style={{ gap: 14 }}>
-          <Text style={{ color: c.text, fontWeight: '600' }}>
-            {payment.fromName} → {payment.toName}:{' '}
-            {formatCurrency(payment.amountMinorUnits, currency)}
-          </Text>
+        <View style={{ alignItems: 'center', gap: c.spacing[4] }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: c.spacing[2],
+            }}
+          >
+            {party(payment.fromName, payment.fromColor, payment.fromInitials)}
+            <Ionicons name="arrow-forward" size={14} color={c.textFaint} />
+            {party(payment.toName, payment.toColor, payment.toInitials)}
+          </View>
 
-          <SegmentedControl<Method>
-            options={[
-              { value: 'CASH', label: t('settle.method.cash') },
-              { value: 'BANK', label: t('settle.method.bank') },
-              { value: 'QR', label: t('settle.method.qr') },
-            ]}
-            value={method}
-            onChange={setMethod}
+          <AmountText
+            minorUnits={payment.amountMinorUnits}
+            currency={currency}
+            style={{
+              fontSize: c.type.amount.fontSize,
+              fontWeight: c.type.amount.fontWeight,
+              letterSpacing: c.type.amount.letterSpacing,
+            }}
           />
 
-          {method === 'QR' ? (
-            spayd.isLoading ? (
-              <Text style={{ color: c.textMuted }}>{t('common.loading')}</Text>
-            ) : spayd.data ? (
-              <View style={{ alignItems: 'center', gap: 8 }}>
-                <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 8 }}>
-                  <QRCode value={spayd.data.spayd} size={200} />
-                </View>
-                <Text style={{ color: c.textMuted, fontSize: 12 }}>{t('settle.qrCode')}</Text>
+          {spayd.data ? (
+            <>
+              {/* The QR always prints on light "paper": its modules are drawn
+                  dark, and banking scanners don't reliably read an inverted
+                  code, so this one surface stays light in both schemes (web
+                  hardcodes `bg-white` here for the same reason). */}
+              <View
+                style={{
+                  backgroundColor: lightTokens.card,
+                  padding: c.spacing[2],
+                  borderRadius: c.radii.lg,
+                }}
+              >
+                <QRCode value={spayd.data.spayd} size={200} />
               </View>
-            ) : (
-              <Text style={{ color: c.danger }}>{t('settle.noIban')}</Text>
-            )
-          ) : null}
+              <Text
+                selectable
+                style={{
+                  color: c.textMuted,
+                  fontSize: c.type.caption.fontSize,
+                  textAlign: 'center',
+                }}
+              >
+                {spayd.data.spayd}
+              </Text>
+            </>
+          ) : spayd.isError ? (
+            <Text
+              style={{ color: c.textMuted, fontSize: c.type.meta.fontSize, textAlign: 'center' }}
+            >
+              {t('settle.noIban')}
+            </Text>
+          ) : (
+            <Text
+              style={{ color: c.textMuted, fontSize: c.type.meta.fontSize, textAlign: 'center' }}
+            >
+              {t('common.loading')}
+            </Text>
+          )}
 
-          <Button
-            title={t('settle.markPaid')}
-            loading={record.isPending}
-            onPress={() =>
-              record.mutate({
-                groupId,
-                fromMemberId: payment.fromMemberId,
-                toMemberId: payment.toMemberId,
-                amountMinorUnits: payment.amountMinorUnits,
-                currency,
-                method,
-              })
-            }
-            testID="settle-confirm"
-          />
+          <View style={{ flexDirection: 'row', gap: c.spacing[2], alignSelf: 'stretch' }}>
+            <Button
+              title={t('settle.method.cash')}
+              variant="secondary"
+              disabled={record.isPending}
+              onPress={() => settle('CASH')}
+              testID="settle-cash"
+              style={{ flex: 1 }}
+            />
+            <Button
+              title={t('settle.markPaid')}
+              loading={record.isPending}
+              onPress={() => settle('QR')}
+              testID="settle-confirm"
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
       ) : null}
     </BottomSheet>

@@ -1,9 +1,15 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ReactNode } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from './theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
+/**
+ * Mirrors web's `Button` (`apps/web/src/components/ui.tsx`) variant for variant.
+ * Web's `hover:` states become `pressed` here — touch has no hover, and a
+ * latched hover colour is the classic mobile-web bug we don't want to inherit.
+ */
 export function Button({
   title,
   onPress,
@@ -12,6 +18,7 @@ export function Button({
   disabled = false,
   icon,
   testID,
+  style,
 }: {
   title: string;
   onPress: () => void;
@@ -20,28 +27,41 @@ export function Button({
   disabled?: boolean;
   icon?: ReactNode;
   testID?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const t = useTheme();
-  const solid = variant === 'primary' || variant === 'danger';
-  const bg = variant === 'primary' ? t.brand : variant === 'danger' ? t.danger : 'transparent';
-  const fg = solid ? '#fff' : t.brand;
-  const border = variant === 'secondary' ? t.border : 'transparent';
+  const c = useTheme();
+  const off = disabled || loading;
+
+  const fill = { primary: c.brand, danger: c.danger, secondary: c.card, ghost: 'transparent' }[
+    variant
+  ];
+  const fillPressed = {
+    primary: c.brand700,
+    danger: c.dangerPressed,
+    secondary: c.rowPressed,
+    ghost: c.brandTint,
+  }[variant];
+  const fg = variant === 'primary' || variant === 'danger' ? c.onBrand : variant === 'secondary' ? c.text : c.brandText;
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={off}
       accessibilityRole="button"
-      accessibilityState={{ disabled: disabled || loading }}
+      accessibilityState={{ disabled: off }}
       testID={testID}
-      style={[
+      style={({ pressed }) => [
         styles.base,
         {
-          backgroundColor: bg,
-          borderColor: border,
-          borderWidth: variant === 'secondary' ? 1 : 0,
-          borderRadius: t.radius,
+          minHeight: c.control.height,
+          paddingHorizontal: c.control.paddingX,
+          borderRadius: c.radii.lg,
+          backgroundColor: pressed && !off ? fillPressed : fill,
+          borderWidth: variant === 'secondary' ? c.control.hairline : 0,
+          borderColor: c.borderInput,
         },
-        (disabled || loading) && styles.disabled,
+        off && styles.disabled,
+        style,
       ]}
     >
       {loading ? (
@@ -49,7 +69,15 @@ export function Button({
       ) : (
         <View style={styles.row}>
           {icon}
-          <Text style={[styles.text, { color: fg }]}>{title}</Text>
+          <Text
+            style={{
+              color: fg,
+              fontSize: c.type.bodySemibold.fontSize,
+              fontWeight: c.type.bodySemibold.fontWeight,
+            }}
+          >
+            {title}
+          </Text>
         </View>
       )}
     </Pressable>
@@ -57,8 +85,7 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
-  base: { padding: 14, alignItems: 'center', justifyContent: 'center' },
+  base: { alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  text: { fontWeight: '700', fontSize: 16 },
   disabled: { opacity: 0.5 },
 });

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { authClient } from '@/lib/auth';
 import { apiUrl } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Input, Screen } from '@/ui';
+import { Button, Card, Input, Screen, Title } from '@/ui';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -27,41 +27,54 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <Screen padded={false} style={styles.container}>
-      <Text style={[styles.heading, { color: c.text }]}>{t('auth.forgotTitle')}</Text>
-      {sent ? (
-        <Text style={{ color: c.text, textAlign: 'center' }}>{t('auth.forgotSent')}</Text>
-      ) : (
-        <>
-          <Input
-            placeholder="you@example.com"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            label={t('auth.email')}
-          />
-          <Button
-            title={loading ? t('common.loading') : t('auth.forgotBtn')}
-            onPress={submit}
-            loading={loading}
-          />
-        </>
-      )}
-      <Text
-        style={[styles.link, { color: c.brand }]}
-        onPress={() => router.replace('/sign-in')}
-        accessibilityRole="button"
-      >
-        {t('common.back')}
-      </Text>
+    <Screen scroll padded style={styles.centered}>
+      {/* Web's forgot-password leads with a `text-2xl` heading, not the wordmark. */}
+      <View style={styles.brand}>
+        <Title>{t('auth.forgotTitle')}</Title>
+      </View>
+
+      <Card gap={16}>
+        {sent ? (
+          <Text
+            style={[styles.center, { color: c.textSecondary, fontSize: c.type.label.fontSize }]}
+          >
+            {t('auth.forgotSent')}
+          </Text>
+        ) : (
+          <>
+            <Input
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              label={t('auth.email')}
+            />
+            <Button
+              title={loading ? t('common.loading') : t('auth.forgotBtn')}
+              onPress={submit}
+              loading={loading}
+            />
+          </>
+        )}
+        <Text
+          style={[styles.link, { color: c.brandText, fontSize: c.type.label.fontSize }]}
+          onPress={() => router.replace('/sign-in')}
+          accessibilityRole="button"
+        >
+          {t('common.back')}
+        </Text>
+      </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
-  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  link: { textAlign: 'center', marginTop: 8, fontWeight: '600' },
+  // `flexGrow` (not `flex`) so the card centres on tall screens but the content
+  // still scrolls once the keyboard is up.
+  centered: { flexGrow: 1, justifyContent: 'center' },
+  brand: { alignItems: 'center', gap: 4 },
+  center: { textAlign: 'center' },
+  link: { textAlign: 'center', fontWeight: '500' },
 });

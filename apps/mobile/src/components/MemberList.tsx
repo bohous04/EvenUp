@@ -41,9 +41,11 @@ export function MemberList({ groupId }: { groupId: string }) {
     },
   });
 
+  const rows = members.data ?? [];
+
   return (
-    <View style={{ gap: 8 }}>
-      {(members.data ?? []).map((m) => (
+    <View>
+      {rows.map((m, i) => (
         <Pressable
           key={m.id}
           onPress={() =>
@@ -56,15 +58,35 @@ export function MemberList({ groupId }: { groupId: string }) {
             })
           }
           accessibilityRole="button"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: c.spacing[3],
+            paddingVertical: c.spacing[2],
+            paddingHorizontal: c.spacing[1],
+            borderRadius: c.radii.lg,
+            backgroundColor: pressed ? c.rowPressed : 'transparent',
+            borderBottomWidth: i === rows.length - 1 ? 0 : c.control.hairline,
+            borderBottomColor: c.divider,
+          })}
         >
-          <MemberChip initials={m.initials} color={m.color} name={m.displayName} size={32} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: m.isActive ? c.text : c.textMuted, fontWeight: '600' }}>
+          <MemberChip initials={m.initials} color={m.color} name={m.displayName} size="sm" />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                color: m.isActive ? c.text : c.textMuted,
+                fontSize: c.type.bodySemibold.fontSize,
+                fontWeight: c.type.bodySemibold.fontWeight,
+              }}
+            >
               {m.displayName}
               {!m.isActive ? ` · ${t('group.archived')}` : ''}
             </Text>
-            <Text style={{ color: c.textMuted, fontSize: 12 }}>
+            <Text
+              numberOfLines={1}
+              style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}
+            >
               {m.role === 'ADMIN' ? t('member.role.admin') : t('member.role.member')}
               {m.userId ? ` · ${t('member.connected')}` : ` · ${t('member.notConnected')}`}
             </Text>
@@ -72,9 +94,14 @@ export function MemberList({ groupId }: { groupId: string }) {
         </Pressable>
       ))}
 
-      <BottomSheet visible={!!edit} onClose={() => setEdit(null)} title={edit?.displayName}>
+      <BottomSheet
+        visible={!!edit}
+        onClose={() => setEdit(null)}
+        title={edit?.displayName}
+        closeLabel={t('receipt.close')}
+      >
         {edit ? (
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: c.spacing[3] }}>
             <Input
               label={t('member.name')}
               value={edit.displayName}

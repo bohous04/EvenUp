@@ -2,7 +2,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Card, Screen } from '@/ui';
+import { Button, Card, Checkbox, EmptyState, Screen, Title } from '@/ui';
 
 /** Instance admin dashboard: manage users' VIP / admin / disabled state (spec 2026-07-08). */
 export default function AdminScreen() {
@@ -26,28 +26,42 @@ export default function AdminScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: c.text, fontWeight: '800', fontSize: 20 }}>{t('admin.users')}</Text>
+      <Title>{t('admin.users')}</Title>
+      {(users.data?.users ?? []).length === 0 ? (
+        <Card>
+          <EmptyState title={t('admin.users')} />
+        </Card>
+      ) : null}
       {(users.data?.users ?? []).map((u) => (
         <Card key={u.id}>
-          <Text style={{ color: c.text, fontWeight: '600' }}>{u.name ?? u.email}</Text>
-          <Text style={{ color: c.textMuted, fontSize: 12 }}>{u.email}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-            <Button
-              title={`${t('admin.col.vip')}: ${u.isVip ? t('security.2fa.on') : t('security.2fa.off')}`}
-              variant="secondary"
-              onPress={() => setVip.mutate({ userId: u.id, isVip: !u.isVip })}
-            />
-            <Button
-              title={`${t('admin.col.admin')}: ${u.isAdmin ? t('security.2fa.on') : t('security.2fa.off')}`}
-              variant="secondary"
-              onPress={() => setAdmin.mutate({ userId: u.id, isAdmin: !u.isAdmin })}
-            />
-            <Button
-              title={u.disabledAt ? t('group.restore') : t('admin.col.disabled')}
-              variant={u.disabledAt ? 'secondary' : 'danger'}
-              onPress={() => setDisabled.mutate({ userId: u.id, disabled: !u.disabledAt })}
-            />
+          <View>
+            <Text
+              style={{
+                color: c.text,
+                fontSize: c.type.bodySemibold.fontSize,
+                fontWeight: c.type.bodySemibold.fontWeight,
+              }}
+            >
+              {u.name ?? u.email}
+            </Text>
+            <Text style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}>{u.email}</Text>
           </View>
+          {/* Toggles, so they read as state rather than as three competing actions. */}
+          <Checkbox
+            label={t('admin.col.vip')}
+            checked={u.isVip}
+            onChange={(next) => setVip.mutate({ userId: u.id, isVip: next })}
+          />
+          <Checkbox
+            label={t('admin.col.admin')}
+            checked={u.isAdmin}
+            onChange={(next) => setAdmin.mutate({ userId: u.id, isAdmin: next })}
+          />
+          <Button
+            title={u.disabledAt ? t('group.restore') : t('admin.col.disabled')}
+            variant={u.disabledAt ? 'secondary' : 'danger'}
+            onPress={() => setDisabled.mutate({ userId: u.id, disabled: !u.disabledAt })}
+          />
         </Card>
       ))}
     </Screen>

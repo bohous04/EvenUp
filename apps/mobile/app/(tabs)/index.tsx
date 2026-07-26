@@ -1,36 +1,59 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
+import { plural } from '@evenup/i18n';
 import { useSession } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { MemberChip } from '@/components/MemberChip';
-import { theme } from '@/theme';
+import {
+  BottomSheet,
+  Button,
+  Card,
+  EmptyState,
+  Fab,
+  Input,
+  Label,
+  Screen,
+  SegmentedControl,
+  Title,
+} from '@/ui';
+import { useTheme } from '@/ui/theme';
 
-const TEMPLATES = ['TRIP', 'HOUSEHOLD', 'COUPLE', 'EVENT', 'OTHER'] as const;
 const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN'] as const;
-const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+
+/**
+ * Web's create sheet has no template picker, but the mobile create call still
+ * sends one — so it stays, with the catalog labels web uses elsewhere rather
+ * than the title-cased enum value it used to render.
+ */
+const TEMPLATES = [
+  { value: 'TRIP', labelKey: 'group.template.trip' },
+  { value: 'HOUSEHOLD', labelKey: 'group.template.household' },
+  { value: 'COUPLE', labelKey: 'group.template.couple' },
+  { value: 'EVENT', labelKey: 'group.template.event' },
+  { value: 'OTHER', labelKey: 'group.template.other' },
+] as const;
+
+type Template = (typeof TEMPLATES)[number]['value'];
+
+/** Web's `AvatarStack`: `size="sm"` (28px) avatars, max 5, then a `+N` badge. */
+const AVATAR_SIZE = 28;
+const AVATAR_MAX = 5;
 
 export default function GroupsScreen() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const c = useTheme();
   const utils = trpc.useUtils();
   const groups = trpc.group.list.useQuery(undefined, { enabled: !!session?.user });
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('CZK');
-  const [template, setTemplate] = useState<(typeof TEMPLATES)[number]>('TRIP');
+  const [template, setTemplate] = useState<Template>('TRIP');
 
   const createGroup = trpc.group.create.useMutation({
     onSuccess: (group) => {
@@ -47,191 +70,181 @@ export default function GroupsScreen() {
 
   if (isPending || !session?.user) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={theme.brand} />
-      </View>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={c.brand} />
+      </Screen>
     );
   }
 
   const canCreate = name.trim().length > 0 && !createGroup.isPending;
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        contentContainerStyle={{ padding: theme.space, gap: 12 }}
-        data={groups.data ?? []}
-        keyExtractor={(g) => g.id}
-        ListHeaderComponent={
-          <View style={{ gap: 12, marginBottom: 4 }}>
-            <Pressable
-              style={styles.newButton}
-              onPress={() => setShowForm((v) => !v)}
-              accessibilityRole="button"
-              testID="new-group-btn"
-            >
-              <Ionicons name={showForm ? 'close' : 'add'} size={18} color="#fff" />
-              <Text style={styles.newButtonText}>{t('group.create')}</Text>
-            </Pressable>
+    <View style={{ flex: 1 }}>
+      <Screen scroll fabClearance>
+        <Title>{t('nav.groups')}</Title>
 
-            {showForm ? (
-              <View style={styles.form}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('group.name')}
-                  placeholderTextColor={theme.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                  autoFocus
-                  accessibilityLabel={t('group.name')}
-                  testID="group-name-input"
-                />
-
-                <Text style={styles.label}>{t('group.baseCurrency')}</Text>
-                <View style={styles.chipRow}>
-                  {CURRENCIES.map((c) => {
-                    const active = c === currency;
-                    return (
-                      <Pressable
-                        key={c}
-                        onPress={() => setCurrency(c)}
-                        style={[styles.chip, active && styles.chipActive]}
-                        accessibilityRole="button"
-                      >
-                        <Text style={active ? styles.chipTextActive : styles.chipText}>{c}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <Text style={styles.label}>{t('group.template')}</Text>
-                <View style={styles.chipRow}>
-                  {TEMPLATES.map((tpl) => {
-                    const active = tpl === template;
-                    return (
-                      <Pressable
-                        key={tpl}
-                        onPress={() => setTemplate(tpl)}
-                        style={[styles.chip, active && styles.chipActive]}
-                        accessibilityRole="button"
-                      >
-                        <Text style={active ? styles.chipTextActive : styles.chipText}>
-                          {titleCase(tpl)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <Pressable
-                  style={[styles.button, !canCreate && styles.buttonDisabled]}
-                  onPress={() =>
-                    createGroup.mutate({ name: name.trim(), template, baseCurrency: currency })
-                  }
-                  disabled={!canCreate}
-                  accessibilityRole="button"
-                  testID="group-create-submit"
-                >
-                  <Text style={styles.buttonText}>
-                    {createGroup.isPending ? t('common.loading') : t('group.create')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
-        }
-        ListEmptyComponent={
-          <Text style={styles.muted}>
-            {groups.isLoading ? t('common.loading') : t('group.empty')}
+        {groups.isLoading ? (
+          <Text style={{ color: c.textMuted, fontSize: c.type.body.fontSize }}>
+            {t('common.loading')}
           </Text>
-        }
-        renderItem={({ item }) => (
-          <Link href={`/group/${item.id}`} asChild>
-            <Pressable style={styles.card} accessibilityRole="button">
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>{item.name}</Text>
-                <Text style={styles.muted}>{item.baseCurrency}</Text>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                {item.members.slice(0, 4).map((m, i) => (
-                  <MemberChip
-                    key={m.id}
-                    initials={m.initials}
-                    color={m.color}
-                    name={m.displayName}
-                    size={28}
-                    style={{ marginLeft: i === 0 ? 0 : -8 }}
-                  />
-                ))}
-              </View>
-            </Pressable>
-          </Link>
+        ) : groups.data && groups.data.length > 0 ? (
+          // Web's `<ul className="space-y-3">` — tighter than the screen's own gap.
+          <View style={{ gap: c.spacing[3] }}>
+            {groups.data.map((g) => (
+              <Link key={g.id} href={`/group/${g.id}`} asChild>
+                {/* `group-row` gives the E2E flow a stable handle — it used to
+                    tap `index: 0, text: '.*'`, which matches whatever happens
+                    to render first. */}
+                <Pressable accessibilityRole="button" testID="group-row">
+                  {({ pressed }) => (
+                    <Card
+                      style={[
+                        { flexDirection: 'row', alignItems: 'center' },
+                        pressed && { backgroundColor: c.rowPressed, borderColor: c.borderInput },
+                      ]}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color: c.text,
+                            fontSize: c.type.bodyBold.fontSize,
+                            fontWeight: c.type.bodyBold.fontWeight,
+                          }}
+                        >
+                          {g.name}
+                        </Text>
+                        <Text style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}>
+                          {`${plural(locale, 'group.transactions', g._count.transactions)} · ${g.baseCurrency}`}
+                        </Text>
+                      </View>
+                      <AvatarStack members={g.members} />
+                    </Card>
+                  )}
+                </Pressable>
+              </Link>
+            ))}
+          </View>
+        ) : (
+          <Card>
+            <EmptyState
+              icon={<Ionicons name="people-outline" size={28} color={c.textFaint} />}
+              title={t('group.empty')}
+            />
+          </Card>
         )}
+      </Screen>
+
+      <Fab
+        onPress={() => setShowForm(true)}
+        accessibilityLabel={t('group.create')}
+        testID="new-group-btn"
       />
+
+      <BottomSheet
+        visible={showForm}
+        onClose={() => setShowForm(false)}
+        title={t('group.create')}
+        closeLabel={t('common.cancel')}
+      >
+        <Input
+          label={t('group.name')}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          testID="group-name-input"
+        />
+
+        <View style={{ gap: c.spacing[1] }}>
+          <Label>{t('group.baseCurrency')}</Label>
+          <SegmentedControl
+            options={CURRENCIES.map((cur) => ({ value: cur, label: cur }))}
+            value={currency}
+            onChange={setCurrency}
+          />
+        </View>
+
+        <View style={{ gap: c.spacing[1] }}>
+          <Label>{t('group.template')}</Label>
+          <SegmentedControl
+            options={TEMPLATES.map((tpl) => ({ value: tpl.value, label: t(tpl.labelKey) }))}
+            value={template}
+            onChange={setTemplate}
+          />
+        </View>
+
+        <Button
+          title={t('common.save')}
+          onPress={() =>
+            createGroup.mutate({ name: name.trim(), template, baseCurrency: currency })
+          }
+          loading={createGroup.isPending}
+          disabled={!canCreate}
+          testID="group-create-submit"
+        />
+      </BottomSheet>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  newButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: theme.brand,
-    borderRadius: theme.radius,
-    padding: 14,
-  },
-  newButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  form: {
-    backgroundColor: theme.card,
-    borderRadius: theme.radius,
-    borderWidth: 1,
-    borderColor: theme.border,
-    padding: theme.space,
-    gap: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.bg,
-    borderRadius: theme.radius,
-    padding: 12,
-    fontSize: 16,
-    color: theme.text,
-  },
-  label: { color: theme.textMuted, fontSize: 13, marginTop: 2 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: theme.bg,
-  },
-  chipActive: { backgroundColor: theme.brand, borderColor: theme.brand },
-  chipText: { color: theme.text, fontWeight: '600' },
-  chipTextActive: { color: '#fff', fontWeight: '700' },
-  button: {
-    backgroundColor: theme.brand,
-    borderRadius: theme.radius,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: theme.radius,
-    padding: theme.space,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  title: { fontSize: 16, fontWeight: '600', color: theme.text },
-  muted: { color: theme.textMuted, marginTop: 2 },
-});
+/**
+ * Web's `AvatarStack` — overlapping avatars with a `+N` overflow badge.
+ *
+ * The separating ring is a card-coloured pad around each chip rather than web's
+ * `ring-2`: RN draws borders *inside* the box, so a border would eat into the
+ * member colour instead of sitting outside it.
+ */
+function AvatarStack({
+  members,
+}: {
+  members: { id: string; initials: string; color: string; displayName: string }[];
+}) {
+  const c = useTheme();
+  const shown = members.slice(0, AVATAR_MAX);
+  const extra = members.length - shown.length;
+  const ring = {
+    backgroundColor: c.card,
+    borderRadius: c.radii.full,
+    padding: c.spacing[0.5],
+  };
+  const overlap = { marginLeft: -c.spacing[1.5] };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {shown.map((m, i) => (
+        <View key={m.id} style={[ring, i === 0 ? null : overlap]}>
+          <MemberChip
+            initials={m.initials}
+            color={m.color}
+            name={m.displayName}
+            size={AVATAR_SIZE}
+          />
+        </View>
+      ))}
+      {extra > 0 ? (
+        <View style={[ring, overlap]}>
+          <View
+            style={{
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
+              borderRadius: c.radii.full,
+              backgroundColor: c.track,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                color: c.textMuted,
+                fontSize: c.type.caption.fontSize,
+                fontWeight: c.type.section.fontWeight,
+              }}
+            >
+              +{extra}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}

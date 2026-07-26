@@ -6,6 +6,7 @@ import { createSecretBox } from '@evenup/api';
 import { auth } from './auth.js';
 import { env } from './env.js';
 import { emailChannel } from './notification-channel.js';
+import { pushChannel } from './push-channel.js';
 import { getObjectStore } from './object-store.js';
 import { ocrRateLimit } from './rate-limit.js';
 
@@ -29,6 +30,7 @@ export async function createTrpcContext(headers: Headers): Promise<Context> {
     ocrRateLimit,
     // Powers the immediate lane (settlement recorded). A send failure here can
     // never fail the mutation; the cron's retry sweep picks it up.
-    notificationChannels: [emailChannel],
+    // Push first, matching the cron — see the ordering note there.
+    notificationChannels: [pushChannel, emailChannel],
   });
 }

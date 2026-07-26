@@ -5,7 +5,17 @@ import { authClient, signIn } from '@/lib/auth';
 import { SocialAuth } from '@/components/SocialAuth';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Input, Screen } from '@/ui';
+import {
+  Button,
+  Card,
+  Checkbox,
+  ErrorText,
+  Input,
+  PasswordInput,
+  Screen,
+  Title,
+  Wordmark,
+} from '@/ui';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -57,115 +67,114 @@ export default function SignInScreen() {
 
   if (twoFactor) {
     return (
-      <Screen padded={false} style={styles.container}>
-        <Text style={[styles.heading, { color: c.text }]}>
-          {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.title')}
-        </Text>
-        <Input
-          label={useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
-          keyboardType={useBackup ? 'default' : 'number-pad'}
-          autoCapitalize="none"
-          value={code}
-          onChangeText={setCode}
-          autoFocus
-          testID="signin-2fa-code"
-        />
-        {!useBackup ? (
-          <Button
-            title={`${trustDevice ? '☑' : '☐'}  ${t('security.2fa.trustDevice')}`}
-            variant="ghost"
-            onPress={() => setTrustDevice((v) => !v)}
+      <Screen scroll padded style={styles.centered}>
+        <View style={styles.brand}>
+          <Wordmark />
+        </View>
+        <Card>
+          <Title>{useBackup ? t('security.2fa.backupTitle') : t('security.2fa.title')}</Title>
+          <Input
+            label={useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
+            keyboardType={useBackup ? 'default' : 'number-pad'}
+            autoCapitalize="none"
+            value={code}
+            onChangeText={setCode}
+            autoFocus
+            testID="signin-2fa-code"
           />
-        ) : null}
-        {error ? (
-          <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
-            {error}
-          </Text>
-        ) : null}
-        <Button
-          title={loading ? t('common.loading') : t('security.2fa.confirm')}
-          onPress={submitTwoFactor}
-          loading={loading}
-          testID="signin-2fa-submit"
-        />
-        <Button
-          title={useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
-          variant="ghost"
-          onPress={() => {
-            setUseBackup((v) => !v);
-            setCode('');
-            setError(null);
-          }}
-        />
+          {!useBackup ? (
+            <Checkbox
+              label={t('security.2fa.trustDevice')}
+              checked={trustDevice}
+              onChange={setTrustDevice}
+              testID="signin-2fa-trust"
+            />
+          ) : null}
+          {error ? <ErrorText>{error}</ErrorText> : null}
+          <Button
+            title={loading ? t('common.loading') : t('security.2fa.confirm')}
+            onPress={submitTwoFactor}
+            loading={loading}
+            testID="signin-2fa-submit"
+          />
+          <Button
+            title={useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
+            variant="ghost"
+            onPress={() => {
+              setUseBackup((v) => !v);
+              setCode('');
+              setError(null);
+            }}
+          />
+        </Card>
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={styles.container}>
-      <Text style={[styles.heading, { color: c.text }]}>{t('app.name')}</Text>
-      <Text style={[styles.tagline, { color: c.textMuted }]}>{t('app.tagline')}</Text>
-      <Input
-        placeholder="you@example.com"
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        label={t('auth.email')}
-      />
-      <Input
-        placeholder={t('auth.password')}
-        autoCapitalize="none"
-        autoComplete="current-password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        label={t('auth.password')}
-      />
-      {error ? (
-        <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
-      <Button
-        title={loading ? t('common.loading') : t('auth.signInBtn')}
-        onPress={submit}
-        loading={loading}
-        testID="signin-submit"
-      />
-      <View style={styles.linkRow}>
-        <Text
-          style={[styles.link, { color: c.brand }]}
-          onPress={() => router.push('/forgot-password')}
-          accessibilityRole="button"
-        >
-          {t('auth.forgotLink')}
-        </Text>
-        <Text
-          style={[styles.link, { color: c.brand }]}
-          onPress={() => router.push('/sign-up')}
-          accessibilityRole="button"
-        >
-          {t('auth.signUpLink')}
+    <Screen scroll padded style={styles.centered}>
+      {/* Web's `mb-6 text-center` branding block: two-tone wordmark + tagline. */}
+      <View style={styles.brand}>
+        <Wordmark />
+        <Text style={[styles.tagline, { color: c.textMuted, fontSize: c.type.label.fontSize }]}>
+          {t('app.tagline')}
         </Text>
       </View>
-      <SocialAuth onSuccess={() => router.replace('/')} />
-      <Text
-        style={[styles.link, { color: c.brand, textAlign: 'center' }]}
-        onPress={() => router.replace('/')}
-        accessibilityRole="button"
-      >
-        {t('common.back')}
-      </Text>
+
+      <Card gap={16}>
+        <Input
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          label={t('auth.email')}
+        />
+        <PasswordInput
+          autoCapitalize="none"
+          autoComplete="current-password"
+          value={password}
+          onChangeText={setPassword}
+          label={t('auth.password')}
+        />
+        {error ? <ErrorText>{error}</ErrorText> : null}
+        <Button
+          title={loading ? t('common.loading') : t('auth.signInBtn')}
+          onPress={submit}
+          loading={loading}
+          testID="signin-submit"
+        />
+
+        {/* Web stacks these on mobile widths (`flex-col`, spread only at `sm`+). */}
+        <View style={{ gap: c.spacing[2] }}>
+          <Text
+            style={[styles.link, { color: c.brandText, fontSize: c.type.label.fontSize }]}
+            onPress={() => router.push('/forgot-password')}
+            accessibilityRole="button"
+          >
+            {t('auth.forgotLink')}
+          </Text>
+          <Text
+            style={[styles.link, { color: c.brandText, fontSize: c.type.label.fontSize }]}
+            onPress={() => router.push('/sign-up')}
+            accessibilityRole="button"
+          >
+            {t('auth.signUpLink')}
+          </Text>
+        </View>
+
+        <SocialAuth onSuccess={() => router.replace('/')} />
+      </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
-  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  tagline: { textAlign: 'center', marginBottom: 16 },
-  linkRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  link: { marginTop: 8, fontWeight: '600' },
+  // `flexGrow` (not `flex`) so the card centres on tall screens but the content
+  // still scrolls once the keyboard is up.
+  centered: { flexGrow: 1, justifyContent: 'center' },
+  brand: { alignItems: 'center', gap: 4 },
+  tagline: { textAlign: 'center' },
+  link: { fontWeight: '500' },
 });

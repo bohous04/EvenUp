@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   EXPENSE_CATEGORIES,
@@ -12,7 +13,19 @@ import { useSession } from '@/lib/auth';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Card, Chip, Input, AmountInput, Screen, SegmentedControl } from '@/ui';
+import {
+  AmountText,
+  Button,
+  Card,
+  Chip,
+  DisclosureRow,
+  ErrorText,
+  HeroAmountInput,
+  Input,
+  Screen,
+  SectionLabel,
+  SegmentedControl,
+} from '@/ui';
 import { MemberChip } from '@/components/MemberChip';
 import { buildSplitPayload, type SplitType } from '@/lib/expense-payload';
 import type { MessageKey } from '@evenup/i18n';
@@ -40,7 +53,7 @@ export default function ExpenseScreen() {
   const gid = String(groupId);
   const editingId = transactionId ? String(transactionId) : null;
   const router = useRouter();
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const c = useTheme();
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -48,11 +61,16 @@ export default function ExpenseScreen() {
   const group = trpc.group.get.useQuery({ groupId: gid });
   const customCategories = trpc.category.list.useQuery({ groupId: gid });
 
+  // No longer user-selectable — web's form creates expenses only, so the
+  // EXPENSE/INCOME toggle was dropped. The state stays because editing hydrates
+  // it from the existing transaction below; without it, opening an income entry
+  // and saving would silently convert it to an expense.
   const [kind, setKind] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('CZK');
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const [payerId, setPayerId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [splitType, setSplitType] = useState<SplitType>('EQUAL');
@@ -226,53 +244,100 @@ export default function ExpenseScreen() {
     else setPercentById((p) => ({ ...p, [id]: v }));
   };
 
+  const categoryLabel = !category
+    ? undefined
+    : EXPENSE_CATEGORIES.some((x) => x.key === category)
+      ? t(`category.${category}` as MessageKey)
+      : category;
+
   return (
     <Screen scroll>
-      <SegmentedControl
-        options={[
-          { value: 'EXPENSE', label: t('expense.add') },
-          { value: 'INCOME', label: t('expense.income') },
-        ]}
-        value={kind}
-        onChange={(v) => setKind(v as 'EXPENSE' | 'INCOME')}
-      />
-
-      <Input label={t('expense.title')} value={title} onChangeText={setTitle} testID="expense-title" />
-
+      {/*
+        Amount first, exactly as on web: the hero figure with the currency
+        pinned beside it, then the title on a bare underline. EXACT splits have
+        no single total to type — the per-member fields below are the input.
+      */}
       {splitType !== 'EXACT' ? (
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
-          <View style={{ flex: 1 }}>
-            <AmountInput
-              label={t('expense.amount')}
-              value={amount}
-              onChangeText={setAmount}
-              currency={currency}
-              testID="expense-amount"
+        <HeroAmountInput
+          value={amount}
+          onChangeText={setAmount}
+          currency={currency}
+          testID="expense-amount"
+          trailing={
+            // Web pins a bordered `select` here — a permanently "selected" Chip
+            // would read as a filter that can't be turned off.
+            <Pressable
+              onPress={() => setCurrencyOpen((o) => !o)}
+              accessibilityRole="button"
+              accessibilityLabel={t('expense.currency')}
+              testID="expense-currency"
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: c.spacing[1],
+                borderWidth: 1,
+                borderColor: c.borderInput,
+                borderRadius: c.radii.md,
+                backgroundColor: pressed ? c.rowPressed : c.inputBg,
+                paddingHorizontal: c.spacing[2],
+                minHeight: 36,
+                marginBottom: c.spacing[2],
+              })}
+            >
+              <Text
+                style={{
+                  color: c.text,
+                  fontSize: c.type.label.fontSize,
+                  fontWeight: c.type.label.fontWeight,
+                }}
+              >
+                {currency}
+              </Text>
+              <Ionicons
+                name={currencyOpen ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={c.textMuted}
+              />
+            </Pressable>
+          }
+        />
+      ) : null}
+
+      {currencyOpen ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: c.spacing[2], justifyContent: 'center' }}>
+          {CURRENCIES.map((cur) => (
+            <Chip
+              key={cur}
+              label={cur}
+              active={cur === currency}
+              onPress={() => {
+                setCurrency(cur);
+                setCurrencyOpen(false);
+              }}
             />
-          </View>
+          ))}
         </View>
       ) : null}
 
-      <Card>
-        <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('expense.currency')}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {CURRENCIES.map((cur) => (
-            <Chip key={cur} label={cur} active={cur === currency} onPress={() => setCurrency(cur)} />
-          ))}
-        </View>
-        {currency !== baseCurrency ? (
-          <Input
-            label={`${t('fx.rate')} → ${baseCurrency}`}
-            keyboardType="decimal-pad"
-            value={fxRate}
-            onChangeText={setFxRate}
-          />
-        ) : null}
-      </Card>
+      {currency !== baseCurrency ? (
+        <Input
+          label={`${t('fx.rate')} → ${baseCurrency}`}
+          keyboardType="decimal-pad"
+          value={fxRate}
+          onChangeText={setFxRate}
+        />
+      ) : null}
+
+      <Input
+        label={t('expense.title')}
+        value={title}
+        onChangeText={setTitle}
+        testID="expense-title"
+      />
 
       <Card>
-        <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('expense.paidBy')}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <SectionLabel>{t('expense.paidBy')}</SectionLabel>
+        <View style={styles.chipWrap}>
           {members.map((m) => (
             <MemberChip
               key={m.id}
@@ -287,10 +352,11 @@ export default function ExpenseScreen() {
       </Card>
 
       <Card>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('expense.splitBetween')}</Text>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>{t('expense.splitBetween')}</SectionLabel>
           <Text
-            style={{ color: c.brand, fontWeight: '600' }}
+            style={{ color: c.brandText, fontSize: c.type.caption.fontSize, fontWeight: '500' }}
+            accessibilityRole="button"
             onPress={() =>
               setSelected(
                 selected.size === members.length ? new Set() : new Set(members.map((m) => m.id)),
@@ -300,7 +366,7 @@ export default function ExpenseScreen() {
             {selected.size === members.length ? t('expense.selectNone') : t('expense.selectAll')}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <View style={styles.chipWrap}>
           {members.map((m) => (
             <MemberChip
               key={m.id}
@@ -313,86 +379,125 @@ export default function ExpenseScreen() {
           ))}
         </View>
 
-        <SegmentedControl<SplitType>
-          options={SPLIT_TYPES.map((s) => ({ value: s, label: t(SPLIT_LABEL[s]) }))}
-          value={splitType}
-          onChange={setSplitType}
-        />
-
-        {splitType !== 'EQUAL'
+        {/* Live per-person share under an equal split — web shows this inline. */}
+        {splitType === 'EQUAL' && preview
           ? selectedMembers.map((m) => (
-              <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MemberChip initials={m.initials} color={m.color} name={m.displayName} size={28} />
-                <View style={{ flex: 1 }}>
-                  <Input
-                    keyboardType="decimal-pad"
-                    value={perMemberValue(m.id)}
-                    onChangeText={(v) => setPerMember(m.id, v)}
-                    placeholder={splitType === 'PERCENTAGE' ? '%' : undefined}
-                  />
-                </View>
+              <View key={m.id} style={styles.previewRow}>
+                <Text style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}>
+                  {m.displayName}
+                </Text>
+                <AmountText minorUnits={preview![m.id] ?? 0} currency={currency} />
               </View>
             ))
-          : preview
+          : null}
+      </Card>
+
+      {/*
+        Web collapses everything below into single-line disclosure rows showing
+        the current value, so the form stays short until you need a setting.
+      */}
+      <Card gap={0}>
+        <DisclosureRow label={t('split.type')} value={t(SPLIT_LABEL[splitType])}>
+          <SegmentedControl<SplitType>
+            options={SPLIT_TYPES.map((s) => ({ value: s, label: t(SPLIT_LABEL[s]) }))}
+            value={splitType}
+            onChange={setSplitType}
+          />
+          {splitType !== 'EQUAL'
             ? selectedMembers.map((m) => (
-                <View
-                  key={m.id}
-                  style={{ flexDirection: 'row', justifyContent: 'space-between' }}
-                >
-                  <Text style={{ color: c.textMuted }}>{m.displayName}</Text>
-                  <Text style={{ color: c.text }}>
-                    {formatCurrency(preview![m.id] ?? 0, currency)}
-                  </Text>
+                <View key={m.id} style={styles.memberRow}>
+                  <MemberChip initials={m.initials} color={m.color} name={m.displayName} size={28} />
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      keyboardType="decimal-pad"
+                      value={perMemberValue(m.id)}
+                      onChangeText={(v) => setPerMember(m.id, v)}
+                      placeholder={splitType === 'PERCENTAGE' ? '%' : undefined}
+                    />
+                  </View>
                 </View>
               ))
             : null}
+        </DisclosureRow>
+
+        <DisclosureRow label={t('expense.category')} value={categoryLabel}>
+          <View style={styles.chipWrap}>
+            {EXPENSE_CATEGORIES.map((cat) => (
+              <Chip
+                key={cat.key}
+                label={t(`category.${cat.key}` as MessageKey)}
+                active={category === cat.key}
+                onPress={() => setCategory(category === cat.key ? undefined : cat.key)}
+              />
+            ))}
+            {(customCategories.data ?? []).map((cat) => (
+              <Chip
+                key={cat.id}
+                label={cat.name}
+                active={category === cat.name}
+                onPress={() => setCategory(category === cat.name ? undefined : cat.name)}
+              />
+            ))}
+          </View>
+        </DisclosureRow>
+
+        <DisclosureRow label={t('expense.date')} value={date}>
+          <Input value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
+        </DisclosureRow>
+
+        <DisclosureRow
+          label={t('expense.recurring')}
+          value={recurrence === 'none' ? t('recurrence.none') : t(`recurrence.${recurrence}` as MessageKey)}
+        >
+          <SegmentedControl<Recurrence>
+            options={[
+              { value: 'none', label: t('recurrence.none') },
+              ...RECURRENCE_INTERVALS.map((i) => ({
+                value: i,
+                label: t(`recurrence.${i}` as MessageKey),
+              })),
+            ]}
+            value={recurrence}
+            onChange={setRecurrence}
+          />
+        </DisclosureRow>
+
+        <DisclosureRow label={t('expense.note')} value={note.trim() || undefined}>
+          <Input value={note} onChangeText={setNote} multiline />
+        </DisclosureRow>
+
+        {/*
+          Receipt scan lives here rather than on the group screen, matching web:
+          the same row shape as a DisclosureRow header, but it navigates instead
+          of expanding. Scanning is a way to *fill in* an expense, so it belongs
+          with the expense.
+        */}
+        <Pressable
+          onPress={() => router.push({ pathname: '/scan', params: { groupId: gid } })}
+          accessibilityRole="button"
+          testID="expense-receipt-row"
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            minHeight: 48,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Text
+            style={{
+              color: c.textSecondary,
+              fontSize: c.type.label.fontSize,
+              fontWeight: c.type.label.fontWeight,
+            }}
+          >
+            {t('ocr.scan')}
+          </Text>
+          <Ionicons name="camera-outline" size={18} color={c.brandText} />
+        </Pressable>
       </Card>
 
-      <Card>
-        <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('expense.category')}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {EXPENSE_CATEGORIES.map((cat) => (
-            <Chip
-              key={cat.key}
-              label={t(`category.${cat.key}` as MessageKey)}
-              active={category === cat.key}
-              onPress={() => setCategory(category === cat.key ? undefined : cat.key)}
-            />
-          ))}
-          {(customCategories.data ?? []).map((cat) => (
-            <Chip
-              key={cat.id}
-              label={cat.name}
-              active={category === cat.name}
-              onPress={() => setCategory(category === cat.name ? undefined : cat.name)}
-            />
-          ))}
-        </View>
-      </Card>
-
-      <Input label={t('expense.date')} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
-      <Input label={t('expense.note')} value={note} onChangeText={setNote} multiline />
-
-      <Card>
-        <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('expense.recurring')}</Text>
-        <SegmentedControl<Recurrence>
-          options={[
-            { value: 'none', label: t('recurrence.none') },
-            ...RECURRENCE_INTERVALS.map((i) => ({
-              value: i,
-              label: t(`recurrence.${i}` as MessageKey),
-            })),
-          ]}
-          value={recurrence}
-          onChange={setRecurrence}
-        />
-      </Card>
-
-      {error ? (
-        <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
-          {t(error)}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{t(error)}</ErrorText> : null}
 
       <Button
         title={t('common.save')}
@@ -404,3 +509,10 @@ export default function ExpenseScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  previewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+});

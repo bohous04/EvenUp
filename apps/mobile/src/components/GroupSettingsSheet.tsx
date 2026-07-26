@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View } from 'react-native';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, BottomSheet, Input } from '@/ui';
+import { Button, BottomSheet, Checkbox, Input } from '@/ui';
 
 /** Group settings: rename, simplify-debts toggle, archive/restore (FR-2.7/2.8). */
 export function GroupSettingsSheet({
@@ -41,9 +40,14 @@ export function GroupSettingsSheet({
   });
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={t('group.menu')}>
-      <View style={{ gap: 14 }}>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={t('group.menu')}
+      closeLabel={t('receipt.close')}
+    >
+      <View style={{ gap: c.spacing[4] }}>
+        <View style={{ flexDirection: 'row', gap: c.spacing[2], alignItems: 'flex-end' }}>
           <View style={{ flex: 1 }}>
             <Input label={t('group.name')} value={draftName} onChangeText={setDraftName} />
           </View>
@@ -55,19 +59,11 @@ export function GroupSettingsSheet({
           />
         </View>
 
-        <Pressable
-          onPress={() => update.mutate({ groupId, simplifyDebts: !simplifyDebts })}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: simplifyDebts }}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <Text style={{ color: c.text, fontWeight: '600' }}>{t('group.simplifyDebts')}</Text>
-          <Ionicons
-            name={simplifyDebts ? 'toggle' : 'toggle-outline'}
-            size={32}
-            color={simplifyDebts ? c.brand : c.textMuted}
-          />
-        </Pressable>
+        <Checkbox
+          label={t('group.simplifyDebts')}
+          checked={simplifyDebts}
+          onChange={(next) => update.mutate({ groupId, simplifyDebts: next })}
+        />
 
         <Button
           title={archived ? t('group.restore') : t('group.archive')}

@@ -29,6 +29,11 @@ export interface NotifiableUser {
   readonly name: string | null;
   /** `User.locale` — the channel renders in this language (FR-10.1). */
   readonly locale: string;
+  /**
+   * Expo push tokens for this user's signed-in devices. Empty for a web-only
+   * user, which is exactly what `pushChannel.supports()` keys off.
+   */
+  readonly pushTokens: readonly string[];
 }
 
 /**
@@ -36,8 +41,19 @@ export interface NotifiableUser {
  * goes through this, so adding a field (a push token, say) is one edit rather
  * than a hunt through three call sites.
  */
-export function toNotifiableUser(user: NotifiableUser): NotifiableUser {
-  return { id: user.id, email: user.email, name: user.name, locale: user.locale };
+export function toNotifiableUser(
+  user: Omit<NotifiableUser, 'pushTokens'> & {
+    /** As Prisma returns it — flattened to bare tokens here, once. */
+    readonly pushTokens?: readonly { token: string }[];
+  },
+): NotifiableUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    locale: user.locale,
+    pushTokens: (user.pushTokens ?? []).map((t) => t.token),
+  };
 }
 
 /** "Here is what happened in this group since we last wrote to you." */

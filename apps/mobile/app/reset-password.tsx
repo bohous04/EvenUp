@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { authClient } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Input, Screen } from '@/ui';
+import { Button, Card, ErrorText, PasswordInput, Screen, Title } from '@/ui';
 
 // Native target for a password-reset deep link (evenup://reset-password?token=…).
 // Universal-link wiring of the reset email into the app is set up in E8; this
@@ -33,44 +33,50 @@ export default function ResetPasswordScreen() {
   }
 
   return (
-    <Screen padded={false} style={styles.container}>
-      <Text style={[styles.heading, { color: c.text }]}>{t('auth.resetTitle')}</Text>
-      {done ? (
-        <>
-          <Text style={{ color: c.text, textAlign: 'center' }} testID="reset-done">
-            {t('auth.resetDone')}
-          </Text>
-          <Button title={t('auth.signInBtn')} onPress={() => router.replace('/sign-in')} />
-        </>
-      ) : (
-        <>
-          <Input
-            label={t('auth.newPassword')}
-            placeholder={t('auth.newPassword')}
-            autoCapitalize="none"
-            autoComplete="new-password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          {error ? (
-            <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityRole="alert">
-              {error}
+    <Screen scroll padded style={styles.centered}>
+      {/* Web's reset-password leads with a `text-2xl` heading, not the wordmark. */}
+      <View style={styles.brand}>
+        <Title>{t('auth.resetTitle')}</Title>
+      </View>
+
+      <Card gap={16}>
+        {done ? (
+          <>
+            <Text
+              style={[styles.center, { color: c.textSecondary, fontSize: c.type.label.fontSize }]}
+              testID="reset-done"
+            >
+              {t('auth.resetDone')}
             </Text>
-          ) : null}
-          <Button
-            title={loading ? t('common.loading') : t('auth.resetBtn')}
-            onPress={submit}
-            loading={loading}
-            testID="reset-submit"
-          />
-        </>
-      )}
+            <Button title={t('auth.signInBtn')} onPress={() => router.replace('/sign-in')} />
+          </>
+        ) : (
+          <>
+            <PasswordInput
+              label={t('auth.newPassword')}
+              autoCapitalize="none"
+              autoComplete="new-password"
+              value={password}
+              onChangeText={setPassword}
+            />
+            {error ? <ErrorText>{error}</ErrorText> : null}
+            <Button
+              title={loading ? t('common.loading') : t('auth.resetBtn')}
+              onPress={submit}
+              loading={loading}
+              testID="reset-submit"
+            />
+          </>
+        )}
+      </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
-  heading: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  // `flexGrow` (not `flex`) so the card centres on tall screens but the content
+  // still scrolls once the keyboard is up.
+  centered: { flexGrow: 1, justifyContent: 'center' },
+  brand: { alignItems: 'center', gap: 4 },
+  center: { textAlign: 'center' },
 });

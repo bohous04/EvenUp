@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { MEMBER_COLORS, deriveInitials } from '@evenup/core';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Input, SegmentedControl } from '@/ui';
+import { Button, Input, Label, SegmentedControl } from '@/ui';
 import { MemberChip } from '@/components/MemberChip';
 
 type Role = 'ADMIN' | 'MEMBER';
@@ -33,9 +33,14 @@ export function AddMemberForm({ groupId }: { groupId: string }) {
   const shareNum = Math.max(1, Math.min(1000, parseInt(share || '1', 10) || 1));
 
   return (
-    <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <MemberChip initials={trimmed ? deriveInitials(trimmed) : '?'} color={color} name={trimmed} />
+    <View style={{ gap: c.spacing[3] }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: c.spacing[3] }}>
+        <MemberChip
+          initials={trimmed ? deriveInitials(trimmed) : '?'}
+          color={color}
+          name={trimmed}
+          size="lg"
+        />
         <View style={{ flex: 1 }}>
           <Input
             placeholder={t('member.name')}
@@ -48,25 +53,30 @@ export function AddMemberForm({ groupId }: { groupId: string }) {
         </View>
       </View>
 
-      <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('common.optional')}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {MEMBER_COLORS.map((col) => (
-          <Pressable
-            key={col}
-            onPress={() => setColor(col)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: col === color }}
-            accessibilityLabel={col}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              backgroundColor: col,
-              borderWidth: col === color ? 3 : 0,
-              borderColor: c.text,
-            }}
-          />
-        ))}
+      <View style={{ gap: c.spacing[2] }}>
+        <Label>{t('common.optional')}</Label>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: c.spacing[2] }}>
+          {MEMBER_COLORS.map((col) => (
+            <Pressable
+              key={col}
+              onPress={() => setColor(col)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: col === color }}
+              accessibilityLabel={col}
+              hitSlop={6}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: c.radii.full,
+                backgroundColor: col,
+                // Same 2px selection ring the member chips use.
+                borderWidth: col === color ? 2 : 0,
+                borderColor: c.text,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              })}
+            />
+          ))}
+        </View>
       </View>
 
       <Input

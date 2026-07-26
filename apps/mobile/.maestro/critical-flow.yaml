@@ -22,8 +22,8 @@ appId: company.lnrt.evenup
 - assertVisible:
     id: 'Groups'
 - tapOn:
+    id: 'group-row'
     index: 0
-    text: '.*'
 
 # --- Add an expense via the full form ---
 - tapOn: 'Add expense'
@@ -37,14 +37,21 @@ appId: company.lnrt.evenup
     id: 'expense-save'
 
 # --- Back on the group: balances recomputed ---
-- assertVisible: 'Balances'
+# Asserted by testID, not the "Balances" heading: card section headers render
+# through `SectionLabel`, which applies `textTransform: 'uppercase'`, so the
+# visible text is "BALANCES" and a literal match would fail.
+- assertVisible:
+    id: 'balance-row'
 
 # --- Settle a suggested payment (opens the settle sheet) ---
 - runFlow:
     when:
-      visible: 'Settle up'
+      visible:
+        id: 'settle-btn'
     commands:
-      - tapOn: 'Settle up'
+      - tapOn:
+          id: 'settle-btn'
+          index: 0
       - assertVisible:
           id: 'settle-confirm'
       - tapOn:

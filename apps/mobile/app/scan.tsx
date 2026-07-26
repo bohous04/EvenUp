@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { useSession } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { useTheme } from '@/ui/theme';
-import { Button, Screen } from '@/ui';
+import { Button, Card, Chip, EmptyState, ErrorText, Screen, SectionLabel } from '@/ui';
 import { ItemizedEditor } from '@/components/ItemizedEditor';
 import { buildItemizedItems, type EditorItem } from '@/lib/itemized';
 import { MemberChip } from '@/components/MemberChip';
@@ -20,6 +21,16 @@ interface ScannedItem {
   totalMinorUnits: number;
 }
 
+/** Avatar tucked into a payer `Chip`. Hidden from the a11y tree so the chip
+ *  announces once, with the member's name (web renders it `aria-hidden`). */
+function ChipAvatar({ initials, color }: { initials: string; color: string }) {
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <MemberChip initials={initials} color={color} size={28} />
+    </View>
+  );
+}
+
 /** Receipt OCR → itemized chip assignment → save as an itemized expense (PRD §4.5, FR-5.4). */
 export default function ScanScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
@@ -27,6 +38,7 @@ export default function ScanScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const c = useTheme();
+  const insets = useSafeAreaInsets();
   const { data: session } = useSession();
   const utils = trpc.useUtils();
 
@@ -72,7 +84,10 @@ export default function ScanScreen() {
     setBusy(true);
     setError(null);
     try {
-      const res = await scan.mutateAsync({ groupId: gid, imageDataUrl: `data:image/jpeg;base64,${base64}` });
+      const res = await scan.mutateAsync({
+        groupId: gid,
+        imageDataUrl: `data:image/jpeg;base64,${base64}`,
+      });
       enterReview(
         res.result.items.map((it) => ({
           name: it.nameTranslated ?? it.name,
@@ -100,7 +115,9 @@ export default function ScanScreen() {
 
   async function pickFromGallery() {
     if (busy) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: true }).catch(() => null);
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: true }).catch(
+      () => null,
+    );
     if (!result || result.canceled) return;
     const base64 = result.assets?.[0]?.base64;
     if (!base64) return setError(t('ocr.failed'));
@@ -109,7 +126,9 @@ export default function ScanScreen() {
 
   async function scanOnDevice() {
     if (busy) return;
-    const picked = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true }).catch(() => null);
+    const picked = await ImagePicker.launchImageLibraryAsync({ quality: 0.8, base64: true }).catch(
+      () => null,
+    );
     if (!picked || picked.canceled) return;
     const base64 = picked.assets?.[0]?.base64;
     if (!base64) return setError(t('ocr.failed'));
@@ -147,30 +166,42 @@ export default function ScanScreen() {
   if (phase === 'review') {
     return (
       <Screen scroll>
-        {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
-        <View style={{ gap: 6 }}>
-          <Text style={{ color: c.textMuted, fontSize: 12 }}>{t('expense.paidBy')}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {error ? <ErrorText>{error}</ErrorText> : null}
+        <Card>
+          <SectionLabel>{t('expense.paidBy')}</SectionLabel>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: c.spacing[2] }}>
             {members.map((m) => (
-              <MemberChip
+              <Chip
                 key={m.id}
-                initials={m.initials}
-                color={m.color}
-                name={m.displayName}
-                selected={payerId === m.id}
+                label={m.displayName}
+                active={payerId === m.id}
                 onPress={() => setPayerId(m.id)}
+                leading={<ChipAvatar initials={m.initials} color={m.color} />}
               />
             ))}
           </View>
-        </View>
-        <ItemizedEditor items={items} onChange={setItems} members={members} currency={baseCurrency} />
-        <Button
-          title={t('common.save')}
-          onPress={save}
-          loading={create.isPending}
-          testID="ocr-save"
+        </Card>
+        <ItemizedEditor
+          items={items}
+          onChange={setItems}
+          members={members}
+          currency={baseCurrency}
         />
-        <Button title={t('common.cancel')} variant="ghost" onPress={() => router.back()} />
+        <View style={{ flexDirection: 'row', gap: c.spacing[2] }}>
+          <Button
+            title={t('common.save')}
+            onPress={save}
+            loading={create.isPending}
+            testID="ocr-save"
+            style={{ flex: 1 }}
+          />
+          <Button
+            title={t('common.cancel')}
+            variant="ghost"
+            onPress={() => router.back()}
+            style={{ flex: 1 }}
+          />
+        </View>
       </Screen>
     );
   }
@@ -178,7 +209,7 @@ export default function ScanScreen() {
   // ---- Capture phase ----
   if (!permission) {
     return (
-      <Screen>
+      <Screen style={{ alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={c.brand} />
       </Screen>
     );
@@ -187,73 +218,83 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <Screen>
-        <Text style={{ color: c.text }}>{t('ocr.scan')}</Text>
-        <Button title={t('common.confirm')} onPress={requestPermission} />
-        <Button
-          title={busy ? t('ocr.processing') : t('ocr.fromGallery')}
-          variant="secondary"
-          onPress={pickFromGallery}
-          loading={busy}
-        />
-        <Button title={t('ocr.addItem')} variant="ghost" onPress={() => enterReview([])} />
-        {error ? <Text style={{ color: c.danger }}>{error}</Text> : null}
+        <Card>
+          <EmptyState
+            title={t('ocr.scan')}
+            icon={<Ionicons name="camera-outline" size={28} color={c.textFaint} />}
+          />
+          <Button title={t('common.confirm')} onPress={requestPermission} />
+          <Button
+            title={busy ? t('ocr.processing') : t('ocr.fromGallery')}
+            variant="secondary"
+            onPress={pickFromGallery}
+            loading={busy}
+            icon={<Ionicons name="images-outline" size={18} color={c.text} />}
+          />
+          <Button title={t('ocr.addItem')} variant="ghost" onPress={() => enterReview([])} />
+        </Card>
+        {error ? <ErrorText>{error}</ErrorText> : null}
       </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-      <View style={styles.controls}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable style={styles.button} onPress={capture} disabled={busy}>
-          <Text style={styles.buttonText}>{busy ? t('ocr.processing') : t('ocr.scan')}</Text>
-        </Pressable>
-        <Pressable style={styles.galleryButton} onPress={pickFromGallery} disabled={busy}>
-          <Ionicons name="images-outline" size={18} color="#fff" />
-          <Text style={styles.buttonText}>{t('ocr.fromGallery')}</Text>
-        </Pressable>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* The viewfinder letterbox stays absolute black on purpose: it frames a
+          live camera feed rather than sitting in the app's surface hierarchy, and
+          a themed (light) letterbox would flash white while the camera warms up
+          and skew how the preview's exposure reads. */}
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+      </View>
+      <View
+        style={{
+          backgroundColor: c.card,
+          borderTopWidth: c.control.hairline,
+          borderTopColor: c.border,
+          padding: c.spacing[4],
+          paddingBottom: c.spacing[4] + insets.bottom,
+          gap: c.spacing[3],
+        }}
+      >
+        {error ? <ErrorText>{error}</ErrorText> : null}
+        <Button
+          title={busy ? t('ocr.processing') : t('ocr.scan')}
+          onPress={capture}
+          disabled={busy}
+          icon={<Ionicons name="camera-outline" size={18} color={c.onBrand} />}
+        />
+        <Button
+          title={t('ocr.fromGallery')}
+          variant="secondary"
+          onPress={pickFromGallery}
+          disabled={busy}
+          icon={<Ionicons name="images-outline" size={18} color={c.text} />}
+        />
         {isVisionOcrAvailable() ? (
-          <Pressable style={styles.deviceButton} onPress={scanOnDevice} disabled={busy}>
-            <Ionicons name="scan-outline" size={18} color="#fff" />
-            <Text style={styles.buttonText}>Apple Vision (on-device)</Text>
-          </Pressable>
+          <Button
+            title="Apple Vision (on-device)"
+            variant="secondary"
+            onPress={scanOnDevice}
+            disabled={busy}
+            icon={<Ionicons name="scan-outline" size={18} color={c.text} />}
+          />
         ) : null}
-        <Pressable onPress={() => enterReview([])}>
-          <Text style={styles.link}>{t('ocr.addItem')}</Text>
-        </Pressable>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.link}>{t('common.cancel')}</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: c.spacing[2] }}>
+          <Button
+            title={t('ocr.addItem')}
+            variant="ghost"
+            onPress={() => enterReview([])}
+            style={{ flex: 1 }}
+          />
+          <Button
+            title={t('common.cancel')}
+            variant="ghost"
+            onPress={() => router.back()}
+            style={{ flex: 1 }}
+          />
+        </View>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  camera: { flex: 1 },
-  controls: { padding: 20, gap: 12, backgroundColor: '#000' },
-  error: { color: '#fca5a5', textAlign: 'center' },
-  button: { backgroundColor: '#2563eb', borderRadius: 12, padding: 14, alignItems: 'center' },
-  galleryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#4b5563',
-    borderRadius: 12,
-    padding: 14,
-  },
-  deviceButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    padding: 14,
-  },
-  buttonText: { color: '#fff', fontWeight: '700' },
-  link: { color: '#fff', textAlign: 'center' },
-});

@@ -4,7 +4,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { authClient } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, Card, Input } from '@/ui';
+import { Button, Card, ErrorText, Input, PasswordInput, SectionLabel } from '@/ui';
 
 type Phase = 'idle' | 'enabling' | 'verify';
 
@@ -67,8 +67,15 @@ export function TwoFactorSection({ enabled }: { enabled: boolean }) {
   return (
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: c.text, fontWeight: '700' }}>{t('security.2fa.title')}</Text>
-        <Text style={{ color: isOn ? c.green : c.textMuted, fontWeight: '600' }}>
+        <SectionLabel>{t('security.2fa.title')}</SectionLabel>
+        <Text
+          testID="2fa-status"
+          style={{
+            color: isOn ? c.green : c.textMuted,
+            fontSize: c.type.label.fontSize,
+            fontWeight: c.type.bodySemibold.fontWeight,
+          }}
+        >
           {isOn ? t('security.2fa.on') : t('security.2fa.off')}
         </Text>
       </View>
@@ -76,9 +83,8 @@ export function TwoFactorSection({ enabled }: { enabled: boolean }) {
       {phase === 'idle' ? (
         isOn ? (
           <>
-            <Input
+            <PasswordInput
               label={t('security.password.current')}
-              secureTextEntry
               value={password}
               onChangeText={setPassword}
             />
@@ -96,9 +102,8 @@ export function TwoFactorSection({ enabled }: { enabled: boolean }) {
 
       {phase === 'enabling' ? (
         <>
-          <Input
+          <PasswordInput
             label={t('security.password.current')}
-            secureTextEntry
             value={password}
             onChangeText={setPassword}
             autoFocus
@@ -109,12 +114,29 @@ export function TwoFactorSection({ enabled }: { enabled: boolean }) {
 
       {phase === 'verify' && totpUri ? (
         <>
-          <Text style={{ color: c.textMuted, fontSize: 13 }}>{t('security.2fa.scan')}</Text>
-          <View style={{ alignSelf: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: c.textMuted, fontSize: c.type.label.fontSize }}>
+            {t('security.2fa.scan')}
+          </Text>
+          {/* The quiet zone stays white in *both* schemes — a dark card behind a
+              black-on-transparent code kills scanner contrast. Web hardcodes
+              `bg-white` here for the same reason; `onBrand` is the token that
+              holds white across schemes. */}
+          <View
+            style={{
+              alignSelf: 'center',
+              backgroundColor: c.onBrand,
+              padding: c.spacing[3],
+              borderRadius: c.radii.md,
+            }}
+          >
             <QRCode value={totpUri} size={180} />
           </View>
           {secret ? (
-            <Text selectable style={{ color: c.textMuted, fontSize: 12, textAlign: 'center' }}>
+            <Text
+              selectable
+              testID="2fa-secret"
+              style={{ color: c.textMuted, fontSize: c.type.caption.fontSize, textAlign: 'center' }}
+            >
               {t('security.2fa.secret')}: {secret}
             </Text>
           ) : null}
@@ -128,11 +150,7 @@ export function TwoFactorSection({ enabled }: { enabled: boolean }) {
         </>
       ) : null}
 
-      {error ? (
-        <Text style={{ color: c.danger }} accessibilityRole="alert">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </Card>
   );
 }

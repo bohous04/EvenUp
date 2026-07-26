@@ -60,6 +60,12 @@ interface LinkedUser {
   readonly name: string | null;
   readonly locale: string;
   readonly notificationsEnabled: boolean;
+  /**
+   * As selected from Prisma; `toNotifiableUser` flattens these to bare tokens.
+   * Not a `readonly` array — the narrowing predicate below has to stay
+   * assignable to Prisma's own mutable row type.
+   */
+  readonly pushTokens: { token: string }[];
 }
 
 interface LinkedMember {
@@ -80,7 +86,14 @@ async function loadLinkedMembers(prisma: PrismaClient, groupId: string): Promise
     select: {
       id: true,
       user: {
-        select: { id: true, email: true, name: true, locale: true, notificationsEnabled: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          locale: true,
+          notificationsEnabled: true,
+          pushTokens: { select: { token: true } },
+        },
       },
     },
   });
@@ -341,6 +354,7 @@ async function remindGroup(
           locale: true,
           notificationsEnabled: true,
           bankAccountEncrypted: true,
+          pushTokens: { select: { token: true } },
         },
       },
     },

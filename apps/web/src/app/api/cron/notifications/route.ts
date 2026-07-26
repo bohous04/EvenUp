@@ -11,6 +11,7 @@ import { createSecretBox, runNotifications } from '@evenup/api';
 import { rejectUnauthorizedCron } from '@/server/cron-auth';
 import { env } from '@/server/env';
 import { emailChannel } from '@/server/notification-channel';
+import { pushChannel } from '@/server/push-channel';
 
 export async function POST(req: Request) {
   const unauthorized = rejectUnauthorizedCron(req);
@@ -19,7 +20,13 @@ export async function POST(req: Request) {
   try {
     const result = await runNotifications({
       prisma,
-      channels: [emailChannel],
+      // Order matters: the spine picks the *first* channel that supports the
+      // user (`pickChannel` is a `find`, and the idempotency key has no channel
+      // component, so a notification goes out exactly once). Push first means a
+      // registered device gets the push and everyone else falls back to email —
+      // and switching the per-device toggle off removes the token, which puts
+      // that user back on email automatically.
+      channels: [pushChannel, emailChannel],
       secretBox: createSecretBox(env.encryptionKey),
       now: new Date(),
       config: env.notifications,

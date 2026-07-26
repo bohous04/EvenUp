@@ -4,7 +4,7 @@ import { trpc } from '@/lib/trpc';
 import { apiUrl } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
-import { Button, BottomSheet } from '@/ui';
+import { Button, BottomSheet, Label } from '@/ui';
 
 /** Create a tokenized invite link and hand it to the native share sheet (FR-2.5). */
 export function InviteSheet({
@@ -40,13 +40,33 @@ export function InviteSheet({
         onClose();
       }}
       title={t('invite.create')}
+      closeLabel={t('receipt.close')}
     >
-      <View style={{ gap: 12 }}>
+      <View style={{ gap: c.spacing[3] }}>
         {url ? (
           <>
-            <Text selectable style={{ color: c.text }} testID="invite-url">
-              {url}
-            </Text>
+            <View style={{ gap: c.spacing[1] }}>
+              <Label>{t('invite.link')}</Label>
+              {/* Web renders the token URL in a muted code block; the same
+                  treatment keeps a long link from reading as body copy. */}
+              <View
+                style={{
+                  backgroundColor: c.inputBg,
+                  borderWidth: c.control.hairline,
+                  borderColor: c.borderInput,
+                  borderRadius: c.radii.lg,
+                  padding: c.spacing[3],
+                }}
+              >
+                <Text
+                  selectable
+                  style={{ color: c.textSecondary, fontSize: c.type.meta.fontSize }}
+                  testID="invite-url"
+                >
+                  {url}
+                </Text>
+              </View>
+            </View>
             <Button title={t('invite.share')} onPress={share} />
           </>
         ) : (

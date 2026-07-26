@@ -31,10 +31,38 @@ export function formatNumber(value: number, locale: Locale): string {
 }
 
 /**
+ * `Intl.PluralRules` is absent from Hermes (React Native) even though
+ * `Intl.NumberFormat`/`DateTimeFormat` are present, so calling it there throws
+ * "Cannot read property 'prototype' of undefined". Probed once at module load.
+ */
+const hasIntlPluralRules = typeof Intl !== 'undefined' && typeof Intl.PluralRules === 'function';
+
+/**
+ * CLDR plural rules for the two locales we ship, for engines without
+ * `Intl.PluralRules`. Mirrors the CLDR spec exactly:
+ * `i` = integer digits, `v` = number of visible fraction digits.
+ */
+function pluralCategoryFallback(count: number, locale: Locale): Intl.LDMLPluralRule {
+  const hasFraction = !Number.isInteger(count);
+  const i = Math.abs(Math.trunc(count));
+
+  if (locale === 'en') {
+    // en: one → i = 1 and v = 0; otherwise other.
+    return i === 1 && !hasFraction ? 'one' : 'other';
+  }
+  // cs: one → i = 1, v = 0 · few → i = 2..4, v = 0 · many → v ≠ 0 · other → rest.
+  if (hasFraction) return 'many';
+  if (i === 1) return 'one';
+  if (i >= 2 && i <= 4) return 'few';
+  return 'other';
+}
+
+/**
  * The CLDR plural category (`one` / `few` / `many` / `other`) for `count` in the
  * locale — Czech uses `one` (1), `few` (2–4), `other` (0, 5+); English `one`/`other`.
  */
 export function pluralCategory(count: number, locale: Locale): Intl.LDMLPluralRule {
+  if (!hasIntlPluralRules) return pluralCategoryFallback(count, locale);
   return new Intl.PluralRules(INTL_LOCALE[locale]).select(count);
 }
 
