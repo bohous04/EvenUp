@@ -300,6 +300,12 @@ export const cs = {
   'ocr.assignAll': 'Přiřadit ke všem položkám',
   'ocr.totalMatches': 'Položky sedí na částku z účtenky',
 
+  'ocr.consent.title': 'Souhlas se skenováním účtenek',
+  'ocr.consent.body':
+    'Fotku účtenky odešleme poskytovateli umělé inteligence, který ji přečte. Zpracování může probíhat mimo EU. Účtenka může prozradit citlivé údaje — třeba nákup v lékárně. Souhlas můžete kdykoli odvolat v Nastavení.',
+  'ocr.consent.accept': 'Souhlasím, naskenovat',
+  'ocr.consent.cancel': 'Zrušit',
+
   'receipt.view': 'Zobrazit účtenku',
   'receipt.viewCount': 'Zobrazit účtenku ({count})',
   'receipt.prev': 'Předchozí',
@@ -344,6 +350,11 @@ export const cs = {
   'settings.data.export': 'Exportovat moje data',
   'settings.data.delete': 'Smazat účet',
   'settings.data.deleteConfirm': 'Opravdu smazat účet? Tuto akci nelze vzít zpět.',
+
+  'settings.ocrConsent.title': 'Skenování účtenek',
+  'settings.ocrConsent.granted': 'Souhlas udělen {date}',
+  'settings.ocrConsent.notGranted': 'Souhlas zatím neudělen',
+  'settings.ocrConsent.revoke': 'Odvolat souhlas',
 
   'profile.title': 'Profil',
   'profile.nickname': 'Přezdívka',

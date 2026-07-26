@@ -45,7 +45,7 @@ function fileToAvatarDataUrl(file: File, size = 256, quality = 0.8): Promise<str
 const MAX_AVATAR_CHARS = 290_000;
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const { data: session, isPending } = useSession();
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
   // The full account is fetched only here (settings), not in the app-wide `me`.
@@ -119,6 +119,11 @@ export default function SettingsPage() {
       void utils.user.me.invalidate();
       void utils.user.getBankAccount.invalidate();
     },
+  });
+  // Revocation lives here (Settings), separately from the scan flow's grant —
+  // consent must be genuinely revocable, not just a one-way opt-in dialog.
+  const setOcrConsent = trpc.user.setOcrConsent.useMutation({
+    onSuccess: () => void utils.user.me.invalidate(),
   });
 
   const exportData = trpc.user.exportData.useQuery(undefined, { enabled: false });
@@ -373,6 +378,29 @@ export default function SettingsPage() {
       </Card>
       <Card>
         <SectionLabel>{t('settings.data.title')}</SectionLabel>
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+          <div>
+            <p className="font-medium">{t('settings.ocrConsent.title')}</p>
+            <p
+              className="mt-1 text-sm text-zinc-500 dark:text-zinc-400"
+              data-testid="ocr-consent-status"
+            >
+              {me.data?.ocrConsentAt
+                ? t('settings.ocrConsent.granted', { date: formatDate(me.data.ocrConsentAt) })
+                : t('settings.ocrConsent.notGranted')}
+            </p>
+          </div>
+          {me.data?.ocrConsentAt ? (
+            <Button
+              variant="danger"
+              onClick={() => setOcrConsent.mutate({ granted: false })}
+              disabled={setOcrConsent.isPending}
+              data-testid="ocr-consent-revoke"
+            >
+              {t('settings.ocrConsent.revoke')}
+            </Button>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={handleExport} data-testid="export-data-btn">
             {t('settings.data.export')}

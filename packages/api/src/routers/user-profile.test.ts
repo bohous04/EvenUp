@@ -131,6 +131,16 @@ describe('user.setOcrConsent', () => {
     const revoked = await testPrisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(revoked.ocrConsentAt).toBeNull();
   });
+
+  it('exposes ocrConsentAt on me so the client can prompt for consent', async () => {
+    const u = await createTestUser('consent2@example.com');
+    const before = await makeCaller(u).user.me();
+    expect(before.ocrConsentAt).toBeNull();
+
+    await makeCaller(u).user.setOcrConsent({ granted: true });
+    const after = await makeCaller(u).user.me();
+    expect(after.ocrConsentAt).toBeInstanceOf(Date);
+  });
 });
 
 describe('user.exportData', () => {

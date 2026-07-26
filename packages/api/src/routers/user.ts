@@ -24,6 +24,9 @@ export const userRouter = router({
         isAdmin: true,
         isVip: true,
         twoFactorEnabled: true,
+        // Needed by the client to decide whether to prompt for OCR consent.
+        // A timestamp, not a boolean, so support can see when it was given.
+        ocrConsentAt: true,
       },
     });
     // Expose only derived, non-sensitive facts here — `me` is fetched on many

@@ -19,6 +19,7 @@ import { moveItem } from '@/lib/move-item';
 import { parseLocalDate } from '@/lib/local-date';
 import { expandItemQuantities } from '@/lib/expand-items';
 import { type EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
+import { OcrConsentDialog } from '@/components/ocr-consent-dialog';
 
 interface MemberLite {
   id: string;
@@ -91,6 +92,7 @@ export function OcrScan({
   // purchased credits) against the shared instance key — there is no per-user
   // key to check client-side, so we don't gate the button; a blocked scan
   // reports the reason via `scan`'s onError below.
+  const me = trpc.user.me.useQuery();
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -118,6 +120,22 @@ export function OcrScan({
   // reordered/removed by the user, then sent as `pages[]` to `ocr.scan`.
   const [pages, setPages] = useState<PagePreview[]>([]);
   const MAX_PAGES = 10;
+  // Holds the action (open the camera/gallery/PDF picker, or send already-picked
+  // pages) the user was trying to do when we discovered consent was missing, so
+  // it can resume automatically once they agree — no second tap.
+  const [consentPrompt, setConsentPrompt] = useState<null | (() => void)>(null);
+  const setOcrConsent = trpc.user.setOcrConsent.useMutation({
+    onError: () => setError(t('error.generic')),
+  });
+
+  /** Run `action` now if consent is already granted, else prompt for it first. */
+  function withConsent(action: () => void) {
+    if (me.data && !me.data.ocrConsentAt) {
+      setConsentPrompt(() => action);
+    } else {
+      action();
+    }
+  }
 
   /** Clear the review state back to the pre-scan screen (after save or cancel). */
   function resetScan() {
@@ -169,7 +187,12 @@ export function OcrScan({
     // an unreadable photo.
     onError: (e) =>
       setError(
-        e.data?.code === 'PRECONDITION_FAILED' || e.data?.code === 'PAYMENT_REQUIRED'
+        e.data?.code === 'PRECONDITION_FAILED' ||
+          e.data?.code === 'PAYMENT_REQUIRED' ||
+          // The consent gate throws FORBIDDEN. Without this branch the user is
+          // told "Recognition failed. Enter the items manually", which is a lie
+          // and gives them no way to fix it.
+          e.data?.code === 'FORBIDDEN'
           ? e.message
           : t('ocr.failed'),
       ),
@@ -367,7 +390,7 @@ export function OcrScan({
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               variant="secondary"
-              onClick={() => cameraRef.current?.click()}
+              onClick={() => withConsent(() => cameraRef.current?.click())}
               disabled={scan.isPending}
               className="flex-1"
               data-testid="ocr-upload-btn"
@@ -377,7 +400,7 @@ export function OcrScan({
             </Button>
             <Button
               variant="secondary"
-              onClick={() => galleryRef.current?.click()}
+              onClick={() => withConsent(() => galleryRef.current?.click())}
               disabled={scan.isPending}
               className="flex-1"
               data-testid="ocr-gallery-btn"
@@ -390,7 +413,7 @@ export function OcrScan({
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <Button
               variant="secondary"
-              onClick={() => pdfRef.current?.click()}
+              onClick={() => withConsent(() => pdfRef.current?.click())}
               disabled={scan.isPending}
               className="flex-1"
               data-testid="ocr-add-pdf-btn"
@@ -444,7 +467,7 @@ export function OcrScan({
                 </div>
               ))}
               <Button
-                onClick={scanPages}
+                onClick={() => withConsent(scanPages)}
                 disabled={scan.isPending}
                 data-testid="ocr-scan-pages-btn"
               >
@@ -572,6 +595,26 @@ export function OcrScan({
           />
           <span>{error}</span>
         </div>
+      ) : null}
+
+      {consentPrompt ? (
+        <OcrConsentDialog
+          pending={setOcrConsent.isPending}
+          onCancel={() => setConsentPrompt(null)}
+          onAccept={() => {
+            const action = consentPrompt;
+            setOcrConsent.mutate(
+              { granted: true },
+              {
+                onSuccess: () => {
+                  void utils.user.me.invalidate();
+                  setConsentPrompt(null);
+                  action();
+                },
+              },
+            );
+          }}
+        />
       ) : null}
     </div>
   );

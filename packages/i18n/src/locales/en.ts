@@ -297,6 +297,12 @@ export const en: Messages = {
   'ocr.assignAll': 'Assign to all items',
   'ocr.totalMatches': 'Items match the receipt total',
 
+  'ocr.consent.title': 'Consent to receipt scanning',
+  'ocr.consent.body':
+    'We send the receipt photo to an AI provider that reads it. Processing may take place outside the EU. A receipt can reveal sensitive information — a pharmacy purchase, for example. You can withdraw consent at any time in Settings.',
+  'ocr.consent.accept': 'Agree and scan',
+  'ocr.consent.cancel': 'Cancel',
+
   'receipt.view': 'View receipt',
   'receipt.viewCount': 'View receipt ({count})',
   'receipt.prev': 'Previous',
@@ -341,6 +347,11 @@ export const en: Messages = {
   'settings.data.export': 'Export my data',
   'settings.data.delete': 'Delete account',
   'settings.data.deleteConfirm': 'Really delete your account? This cannot be undone.',
+
+  'settings.ocrConsent.title': 'Receipt scanning',
+  'settings.ocrConsent.granted': 'Consent given {date}',
+  'settings.ocrConsent.notGranted': 'Consent not given yet',
+  'settings.ocrConsent.revoke': 'Withdraw consent',
 
   'profile.title': 'Profile',
   'profile.nickname': 'Nickname',
