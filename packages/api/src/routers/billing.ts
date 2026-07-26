@@ -15,6 +15,7 @@ import {
   currencyForLocale,
   isBillingEnabled,
 } from '../billing/prices.js';
+import { receiptRetentionDays } from '../config/retention.js';
 
 function returnUrl(path: string): string {
   const base = process.env.BILLING_RETURN_URL ?? 'http://localhost:3000';
@@ -203,6 +204,15 @@ export const billingRouter = router({
        */
       subscriptionAvailable: isBillingEnabled() && subscriptionPriceId(currency) !== null,
       packs: isBillingEnabled() ? creditPacks(currency) : [],
+      /**
+       * How long a stored receipt photo survives. Part of the pricing summary
+       * because photo storage is what the subscription sells, and the panel
+       * advertises it: the terms already quote this number, and the VIP panel
+       * quoting a different one — or none, as it used to — is the kind of
+       * mismatch a customer reads as a broken promise. Same source as the
+       * cleanup job and the legal pages (`config/retention.ts`).
+       */
+      receiptRetentionDays: receiptRetentionDays(),
     };
   }),
 

@@ -28,7 +28,7 @@ afterEach(cleanup);
 
 const SECTIONS: readonly LegalSection[] = [{ h: 'legal.contact.s1.h', blocks: [{ entity: true }] }];
 
-async function renderDoc() {
+async function renderDoc(sections: readonly LegalSection[] = SECTIONS) {
   vi.resetModules();
   const { LegalDocument } = await import('./legal-document');
   render(
@@ -37,7 +37,7 @@ async function renderDoc() {
       slug="contact"
       title="legal.contact.title"
       intro="legal.contact.intro"
-      sections={SECTIONS}
+      sections={sections}
     />,
   );
 }
@@ -79,6 +79,44 @@ describe('the operator identification block', () => {
 
     expect(screen.getByTestId('legal-entity-missing')).toBeVisible();
     expect(screen.queryByTestId('legal-entity')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The retention period is the one number these documents promise a paying
+ * customer, and the terms shipped without it: `legal.terms.s4.li1` said photos
+ * "zůstávají uložené" full stop, in the section defining what the subscription
+ * buys, while `receipt-cleanup.ts` deleted them at `RECEIPT_RETENTION_DAYS` and
+ * the privacy policy stated 30 days — the two shipped documents contradicting
+ * each other. It is interpolated rather than written, from the same
+ * `config/retention.ts` the cleanup job reads.
+ */
+describe('the receipt-retention period', () => {
+  const RETENTION_SECTIONS: readonly LegalSection[] = [
+    {
+      h: 'legal.terms.s4.h',
+      blocks: [
+        { ul: ['legal.terms.s4.li1'] },
+        { p: 'legal.privacy.s2.li5' },
+        { p: 'legal.privacy.s7.li1' },
+        { p: 'legal.privacy.s8.p3b' },
+      ],
+    },
+  ];
+
+  it('follows RECEIPT_RETENTION_DAYS in every document that quotes it', async () => {
+    vi.stubEnv('RECEIPT_RETENTION_DAYS', '14');
+    await renderDoc(RETENTION_SECTIONS);
+
+    // Four claims, one number, and none of them left as a literal placeholder.
+    expect(screen.getAllByText(/14 dnech/)).toHaveLength(4);
+    expect(screen.queryByText(/\{days\}/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/30 dnech/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to 30 days when the variable is unset', async () => {
+    await renderDoc(RETENTION_SECTIONS);
+    expect(screen.getAllByText(/30 dnech/)).toHaveLength(4);
   });
 });
 

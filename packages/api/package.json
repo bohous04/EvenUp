@@ -25,6 +25,10 @@
     "./billing/entitlement": {
       "types": "./src/billing/entitlement.ts",
       "default": "./src/billing/entitlement.ts"
+    },
+    "./config/retention": {
+      "types": "./src/config/retention.ts",
+      "default": "./src/config/retention.ts"
     }
   },
   "scripts": {

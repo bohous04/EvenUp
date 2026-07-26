@@ -84,7 +84,12 @@ export function VipPricing({
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">{t('vip.subtitle')}</p>
         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
           <li>{t('vip.benefit.scans')}</li>
-          <li>{t('vip.benefit.storage')}</li>
+          {/* The retention window comes from `billing.summary`, which reads the
+              same `config/retention.ts` helper as the cleanup job and the legal
+              pages. This bullet used to promise storage with no end date while
+              the cron deleted the photos on schedule — and the terms, which
+              sell exactly this benefit, quote the same number. */}
+          <li>{t('vip.benefit.storage', { days: summary.receiptRetentionDays })}</li>
           <li>{t('vip.benefit.cancel')}</li>
         </ul>
         <p className="mb-4 text-sm font-medium" data-testid="vip-balance">

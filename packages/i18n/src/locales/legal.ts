@@ -21,9 +21,11 @@
  * |---|---|
  * | OCR goes to OpenRouter, single instance key | `api/src/routers/ocr.ts`, `api/src/ocr/openrouter-adapter.ts` |
  * | A scan is refused without explicit consent | `api/src/routers/ocr.ts` (the `ocrConsentAt` gate) |
- * | Receipt photos expire, default 30 days | `RECEIPT_RETENTION_DAYS`, `api/src/services/receipt-cleanup.ts` |
- * | Credit-funded scans store no photo | `api/src/billing/entitlement.ts` (`mayStoreImage`) |
+ * | Receipt photos expire, default 30 days | `api/src/config/retention.ts`, `api/src/services/receipt-cleanup.ts` |
+ * | Photo storage follows the subscription, not the funding bucket | `api/src/billing/entitlement.ts` (`mayStoreImage`) |
  * | Allowance first, then credits | `api/src/billing/entitlement.ts` |
+ * | Expired sessions (with their IP address) are purged | `api/src/services/session-cleanup.ts`, `web/src/app/api/cron/receipt-cleanup/route.ts` |
+ * | Deletion leaves shared groups' receipts, photos and OCR results in place | `api/src/services/account.ts` — keys are collected only when `others === 0` |
  * | Credits never expire | `schema.prisma` `User.creditBalance` |
  * | A failed scan refunds the credit | `api/src/routers/ocr.ts` → `refundCredit` |
  * | Cancellation is the Stripe portal | `api/src/routers/billing.ts` `portal` |
@@ -40,9 +42,8 @@
  * and scopes the concrete provider to evenup.cz, rather than hardcoding one
  * the self-hosting instructions contradict.
  *
- * Four things the copy must NOT say, and does not:
+ * Three things the copy must NOT say, and does not:
  * - that retained billing rows are anonymous (they are not — see above);
- * - that expired sessions are purged automatically (no such job exists yet);
  * - that a user can delete a group. They cannot: `routers/group.ts` exposes
  *   create/list/get/update/archive, and `archive` only stamps `archivedAt`.
  *   The only `group.delete` in the repo is account deletion, for solo groups.
@@ -122,13 +123,17 @@ export const legalCs = {
   // Czech needs „122 skeny“. Move this string to `plural()` if that ever
   // happens. `{days}` is deliberately phrased to avoid the trap: see `s7.li1`.
   'legal.terms.s4.li1':
-    'Předplatné VIP: {scans} skenů účtenek za každé zúčtovací období. Fotky naskenovaných účtenek zůstávají uložené, ať se k nim můžete vrátit.',
+    'Předplatné VIP: {scans} skenů účtenek za každé zúčtovací období. Fotky naskenovaných účtenek zůstávají uložené, ať se k nim můžete vrátit; po {days} dnech od naskenování je smažeme.',
   'legal.terms.s4.li2':
     'Balíček skenů: jednorázový nákup bez předplatného. Zakoupené skeny nevyprší.',
   'legal.terms.s4.p2':
     'Skeny se čerpají v tomto pořadí: nejprve limit z předplatného, a teprve když ho vyčerpáte, ubírají se skeny zakoupené v balíčku. Nevyčerpaný limit z předplatného se do dalšího období nepřevádí; zakoupené skeny zůstávají, dokud je nevyužijete.',
+  // Ukládání fotky se řídí předplatným, ne tím, z čeho je sken zaplacený
+  // (`entitlement.ts`, `mayStoreImage`). Předplatiteli, který vyčerpá limit,
+  // se tedy ukládá dál – dřívější znění tvrdilo opak a bralo mu uprostřed
+  // období výhodu, kterou si zaplatil.
   'legal.terms.s4.p3':
-    'Sken hrazený z balíčku fotku účtenky neukládá – zůstanou jen rozpoznané položky u výdaje. Ukládání fotek patří k předplatnému.',
+    'Ukládání fotek patří k předplatnému: dokud vám předplatné běží, ukládáme fotku ke každému skenu – i k tomu, který se po vyčerpání limitu hradí z balíčku. Nemáte-li předplatné, sken z balíčku fotku neukládá a zůstanou jen rozpoznané položky u výdaje.',
   // The refund fires only for `consume === 'CREDIT'` (`ocr.ts`), so this is
   // about a pack-funded scan — a failed VIP-allowance scan is not returned.
   'legal.terms.s4.p4':
@@ -232,8 +237,15 @@ export const legalCs = {
     'Souhlas se skenováním: datum a čas, kdy jste ho udělili. Účel: doložit, že souhlas existoval. Právní základ: plnění právní povinnosti.',
   'legal.privacy.s2.li8':
     'E-maily: adresa příjemce a obsah zprávy u ověření e-mailu, obnovení hesla a oznámení o dění ve skupině. Do oznámení záměrně nedáváme bankovní spojení.',
+  // Zmírněno oproti dřívějšímu „vstupy požadavku do nich neukládáme“, což bylo
+  // pravdivé zvykem, ne konstrukcí: `trpc.ts` předává do `services/error-log.ts`
+  // `error.message` (a text příčiny) bez filtru. Vlastní chybová hlášení
+  // routerů jsou psaná ručně a nic ze vstupu neobsahují, ale text neočekávané
+  // chyby přichází z Prismy, úložiště nebo poskytovatele OCR a ten do něj může
+  // vložit hodnotu, na které selhal. Slíbit v zásadách jistotu, kterou kód
+  // nevynucuje, je horší než popsat skutečný stav.
   'legal.privacy.s2.li9':
-    'Chybové záznamy: kód a text chyby, název volané funkce a identifikátor uživatele, kterému se chyba stala. Vstupy požadavku, hesla ani klíče do nich neukládáme. Účel: hledání závad.',
+    'Chybové záznamy: kód a text chyby, název volané funkce a identifikátor uživatele, kterému se chyba stala. Hesla ani šifrovací klíče do nich neukládáme a vstupy požadavku do nich záměrně nezapisujeme; text neočekávané chyby ale přebíráme od systému, který ji vyvolal, a ten může výjimečně obsahovat útržek zpracovávaných dat. Účel: hledání závad.',
 
   'legal.privacy.s3.h': 'Cookies',
   'legal.privacy.s3.p1':
@@ -254,8 +266,14 @@ export const legalCs = {
   // Resendu, když je nastavený RESEND_API_KEY, a teprve pak po SMTP. Bez této
   // výhrady by si samostatný provozovatel vykreslil zásady se zpracovatelem,
   // kterého vůbec nepoužívá.
+  //
+  // Druhá výhrada, „v současné době“, míří jinam: přepnutí evenup.cz ze
+  // Seznamu na Resend je jediná proměnná prostředí, nikoli změna kódu. Věta
+  // bez ní tvrdí o provozu něco, co může přestat platit bez jediného commitu –
+  // a nikdo by si nevšiml, že se tím zásady staly nepravdivými. Aktuální
+  // seznam zpracovatelů slibuje `s4.p3` na vyžádání.
   'legal.privacy.s4.li3':
-    'Poskytovatel e-mailu – adresa příjemce a obsah zprávy. Na evenup.cz odesíláme e-maily z adresy noreply@evenup.cz přes SMTP server Seznam.cz (Email Profi); instance provozovaná někým jiným může použít jiného poskytovatele.',
+    'Poskytovatel e-mailu – adresa příjemce a obsah zprávy. Na evenup.cz v současné době odesíláme e-maily z adresy noreply@evenup.cz přes SMTP server Seznam.cz (Email Profi); instance provozovaná někým jiným může použít jiného poskytovatele.',
   'legal.privacy.s4.li4':
     'Poskytovatel objektového úložiště – fotky účtenek. Úložiště je kompatibilní s S3; u instance, kterou si provozujete sami, jde o úložiště jejího provozovatele.',
   'legal.privacy.s4.li5':
@@ -290,20 +308,36 @@ export const legalCs = {
   'legal.privacy.s7.li1':
     'Fotky účtenek: po {days} dnech od naskenování je pravidelná úloha smaže z úložiště.',
   'legal.privacy.s7.li2':
-    'Údaje o účtu, skupinách a útratách: dokud je nesmažete, nebo dokud nesmažete účet.',
+    'Údaje o účtu, skupinách a útratách: dokud je nesmažete, nebo dokud nesmažete účet. Co ve sdílených skupinách zůstává ostatním, popisuje následující oddíl.',
+  // Období nevyjadřujeme počtem dnů schválně. Relace vyprší podle nastavení
+  // přihlašovací knihovny (dnes výchozích sedm dnů) a `session-cleanup.ts`
+  // maže řádky, kterým `expiresAt` uplynul; úlohu spouští denní cron
+  // (`api/cron/receipt-cleanup`). Konkrétní číslo by tedy bylo tvrzení o
+  // výchozí hodnotě knihovny, které se může změnit bez zásahu do těchto
+  // zásad. Takto je věta pravdivá konstrukcí, ne shodou okolností.
   'legal.privacy.s7.li3':
-    'Záznamy o zaplacených nákupech a o předplatném: po dobu, kterou vyžadují české účetní a daňové předpisy, i když účet mezitím smažete.',
+    'Záznamy o přihlášení včetně IP adresy a údajů o prohlížeči: jakmile relace vyprší, smaže záznam pravidelná úloha; smažete-li účet, zaniknou s ním i relace dosud platné.',
   'legal.privacy.s7.li4':
-    'Záznamy o odeslaných oznámeních: dokud nesmažete účet, pak zanikají s ním.',
+    'Záznamy o zaplacených nákupech a o předplatném: po dobu, kterou vyžadují české účetní a daňové předpisy, i když účet mezitím smažete.',
   'legal.privacy.s7.li5':
+    'Záznamy o odeslaných oznámeních: dokud nesmažete účet, pak zanikají s ním.',
+  'legal.privacy.s7.li6':
     'Chybové záznamy: uchováváme je pro hledání závad; při smazání účtu z nich odpojíme vaši totožnost.',
 
   'legal.privacy.s8.h': 'Co se stane, když smažete účet',
   'legal.privacy.s8.p1': 'Účet smažete sami v Nastavení. Smazání proběhne hned a je nevratné.',
   'legal.privacy.s8.p2':
     'Smažeme profil a přihlašovací údaje, propojení s Googlem či Apple, uložené bankovní spojení, nastavení oznámení, souhlas se skenováním i záznamy o čerpání skenů. Skupiny, ve kterých jste byli sami, smažeme celé včetně účtenek a jejich fotek v úložišti.',
+  // Smazání účtu sbírá klíče k fotkám jen u skupin, kde je uživatel sám
+  // (`account.ts`, podmínka `others === 0`). Ve sdílené skupině tedy přežívá
+  // řádek `Receipt` i s `rawJson` – celým výsledkem rozpoznání – a fotka mizí
+  // až v běžné retenční lhůtě. Dřívější znění mluvilo jen o útratách a
+  // rozdělení a účtenky nezmiňovalo vůbec; mlčení o nich je u žádosti o výmaz
+  // to nejhorší možné.
   'legal.privacy.s8.p3':
     'Ve sdílených skupinách zůstává to, co patří ostatním: útraty a rozdělení, které se vás týkaly, ostatní členové dál uvidí. Vaše členství deaktivujeme a odpojíme od účtu a bankovní spojení smažeme, ale jméno, pod kterým jste ve skupině vystupovali, ostatním zůstane – bez něj by jejich vyrovnání nedávalo smysl.',
+  'legal.privacy.s8.p3b':
+    'Ve sdílené skupině zůstávají i účtenky, které jste do ní naskenovali: záznam o účtence i výsledek jejího rozpoznání jsou podkladem k útratám ostatních, a proto zanikají teprve se skupinou. Fotku smaže pravidelná úloha po {days} dnech od naskenování stejně jako u kterékoli jiné účtenky – smazání účtu ji neodstraní dřív.',
   'legal.privacy.s8.p4':
     'Nesmažeme záznamy o zaplacených nákupech a o předplatném. Jejich uchování nám ukládají účetní a daňové předpisy a čl. 17 odst. 3 písm. b) GDPR nám to umožňuje i tehdy, když požádáte o výmaz.',
   'legal.privacy.s8.p5':
@@ -493,13 +527,13 @@ export const legalEn: LegalMessages = {
   'legal.terms.s4.p1':
     'Groups, expenses, debt settlement, QR payments and members without accounts are free and unlimited. You only pay for scanning receipts.',
   'legal.terms.s4.li1':
-    'VIP subscription: {scans} receipt scans per billing period. Photos of scanned receipts stay saved so you can look back at them.',
+    'VIP subscription: {scans} receipt scans per billing period. Photos of scanned receipts stay saved so you can look back at them; {days} days after the scan we delete them.',
   'legal.terms.s4.li2':
     'Scan pack: a one-off purchase with no subscription. Purchased scans do not expire.',
   'legal.terms.s4.p2':
     'Scans are used in this order: the subscription allowance first, and only once it is exhausted do purchased scans come off a pack. Unused allowance does not carry into the next period; purchased scans stay until you use them.',
   'legal.terms.s4.p3':
-    'A scan paid for from a pack does not store the receipt photo — only the recognised line items stay with the expense. Storing photos belongs to the subscription.',
+    'Storing photos belongs to the subscription: while yours is running we store a photo for every scan — including one paid for from a pack after the allowance runs out. Without a subscription, a scan paid for from a pack stores no photo, and only the recognised line items stay with the expense.',
   'legal.terms.s4.p4':
     'If a scan paid for from a pack fails, it is returned to your scan balance automatically and you can enter the receipt by hand.',
   'legal.terms.s4.p5':
@@ -595,7 +629,7 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s2.li8':
     'Email: the recipient address and message content for email verification, password resets and notifications about group activity. Notifications deliberately never carry bank details.',
   'legal.privacy.s2.li9':
-    'Error records: the error code and text, the name of the operation called, and the identifier of the user it happened to. Request inputs, passwords and keys are never written to them. Purpose: fixing faults.',
+    'Error records: the error code and text, the name of the operation called, and the identifier of the user it happened to. Passwords and encryption keys are never written to them, and we deliberately do not write request inputs into them; the text of an unexpected error, though, is taken from whatever system raised it, and that can occasionally carry a fragment of the data being processed. Purpose: fixing faults.',
 
   'legal.privacy.s3.h': 'Cookies',
   'legal.privacy.s3.p1':
@@ -611,7 +645,7 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s4.li2':
     'Stripe — your email address, customer identifier and payment and subscription details. Card details go straight to Stripe.',
   'legal.privacy.s4.li3':
-    'An email provider — the recipient address and message content. On evenup.cz we send mail from noreply@evenup.cz through the SMTP server of Seznam.cz (Email Profi); an instance run by somebody else may use a different provider.',
+    'An email provider — the recipient address and message content. On evenup.cz we currently send mail from noreply@evenup.cz through the SMTP server of Seznam.cz (Email Profi); an instance run by somebody else may use a different provider.',
   'legal.privacy.s4.li4':
     'An object storage provider — receipt photos. The storage is S3-compatible; on an instance you run yourself it is that operator’s own storage.',
   'legal.privacy.s4.li5':
@@ -641,12 +675,14 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s7.li1':
     'Receipt photos: {days} days after the scan a scheduled job deletes them from storage.',
   'legal.privacy.s7.li2':
-    'Account, group and expense data: until you delete it, or until you delete the account.',
+    'Account, group and expense data: until you delete it, or until you delete the account. What stays with the other members of a shared group is set out in the next section.',
   'legal.privacy.s7.li3':
-    'Records of completed purchases and subscriptions: for as long as Czech accounting and tax law requires, even if you delete the account in the meantime.',
+    'Sign-in records, including your IP address and browser details: once a session expires a scheduled job deletes the record; if you delete your account, any still-valid sessions go with it.',
   'legal.privacy.s7.li4':
-    'Records of notifications sent: until you delete the account, at which point they go with it.',
+    'Records of completed purchases and subscriptions: for as long as Czech accounting and tax law requires, even if you delete the account in the meantime.',
   'legal.privacy.s7.li5':
+    'Records of notifications sent: until you delete the account, at which point they go with it.',
+  'legal.privacy.s7.li6':
     'Error records: kept for fault-finding; deleting your account detaches your identity from them.',
 
   'legal.privacy.s8.h': 'What happens when you delete your account',
@@ -656,6 +692,8 @@ export const legalEn: LegalMessages = {
     'We delete your profile and credentials, any Google or Apple link, saved bank details, notification settings, your scanning consent and the records of scans used. Groups where you were the only member are deleted entirely — receipts included, and their photos removed from storage.',
   'legal.privacy.s8.p3':
     'In shared groups, what belongs to the others stays: the expenses and splits that involved you remain visible to them. Your membership is deactivated and detached from the account and your bank details are deleted, but the name you appeared under in the group remains — without it their settlement would stop making sense.',
+  'legal.privacy.s8.p3b':
+    'Receipts you scanned into a shared group stay as well: the receipt record and the result of reading it are the evidence behind the other members’ expenses, so they go only when the group does. The scheduled job deletes the photo {days} days after the scan, exactly as it does for any other receipt — deleting your account does not remove it any sooner.',
   'legal.privacy.s8.p4':
     'We do not delete the records of completed purchases and subscriptions. Accounting and tax law requires us to keep them, and GDPR Art. 17(3)(b) permits that even against a request for erasure.',
   'legal.privacy.s8.p5':
@@ -683,7 +721,7 @@ export const legalEn: LegalMessages = {
     'Only a member can reach a group’s data; the check runs on every request.',
   'legal.privacy.s10.li4': 'You can turn on two-factor authentication (TOTP).',
   'legal.privacy.s10.li5':
-    'Nothing that is encrypted at rest is ever written into a notification or an error record — a bank account from a QR payment, for instance.',
+    'Anything encrypted at rest is deliberately kept out of notifications and error records — a bank account from a QR payment, for instance.',
 
   'legal.privacy.s11.h': 'Children',
   'legal.privacy.s11.p1':

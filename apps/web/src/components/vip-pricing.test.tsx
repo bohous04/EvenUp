@@ -49,6 +49,9 @@ const summary = {
   // panel has to price in whichever one it gets back.
   currency: 'CZK' as 'CZK' | 'EUR',
   packs: [{ id: 'pack5', scans: 5, priceId: 'price_x' }],
+  // `billing.summary` carries the configured receipt retention so the storage
+  // benefit can name a period instead of implying "forever".
+  receiptRetentionDays: 30,
 };
 
 // Mirrors production's `PACK_SIZES = [2, 5, 10]` (packages/api/src/billing/prices.ts)
@@ -89,6 +92,15 @@ describe('VipPricing', () => {
   it('shows the current credit balance', () => {
     renderPricing();
     expect(screen.getByText(t('vip.balance', { count: 3 }))).toBeInTheDocument();
+  });
+
+  it('names the configured retention window in the storage benefit', () => {
+    // The bullet used to promise stored photos with no period at all, while
+    // `receipt-cleanup.ts` deleted them on schedule and the terms quoted a
+    // number. An unsubstituted `{days}` would fail this too.
+    renderPricing({ receiptRetentionDays: 14 });
+    expect(screen.getByText(t('vip.benefit.storage', { days: 14 }))).toBeInTheDocument();
+    expect(screen.queryByText(/\{days\}/)).not.toBeInTheDocument();
   });
 
   it('degrades gracefully when billing is disabled (self-hosting)', () => {

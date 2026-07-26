@@ -53,9 +53,32 @@ describe('tMarketing', () => {
     // Guards MINOR 6: the number is `VIP_SCANS_PER_PERIOD`, and a hardcoded
     // "150" here would silently outlive a change to it.
     for (const locale of LOCALES) {
-      const body = tMarketing(locale, 'marketing.pricing.vip.body', { scans: 42 });
+      const body = tMarketing(locale, 'marketing.pricing.vip.body', { scans: 42, days: 30 });
       expect(body, locale).toContain('42');
       expect(body, locale).not.toContain('150');
+    }
+  });
+
+  test('every claim about how long a receipt photo is kept interpolates the real retention', () => {
+    // The price list, the terms and the privacy policy each quote the photo
+    // retention at a paying customer. All three read `RECEIPT_RETENTION_DAYS`
+    // through the page, so a hardcoded "30" — or, as shipped, no period at all
+    // where the terms promised photos simply "stay saved" — puts a claim in
+    // front of a consumer that the cleanup job contradicts.
+    const RETENTION_KEYS = [
+      'marketing.pricing.vip.body',
+      'legal.terms.s4.li1',
+      'legal.privacy.s2.li5',
+      'legal.privacy.s7.li1',
+      'legal.privacy.s8.p3b',
+    ] as const;
+    for (const locale of LOCALES) {
+      for (const key of RETENTION_KEYS) {
+        const text = tMarketing(locale, key, { scans: 150, days: 14 });
+        expect(text, `${locale}/${key}`).toContain('14');
+        expect(text, `${locale}/${key}`).not.toContain('{days}');
+        expect(text, `${locale}/${key}`).not.toContain('30');
+      }
     }
   });
 

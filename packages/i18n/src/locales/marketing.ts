@@ -91,8 +91,16 @@ const marketingOnlyCs = {
   // `VIP_SCANS_PER_PERIOD` of 122 would render „122 skenů" where Czech needs
   // „122 skeny". If the constant ever moves to such a value, this string has
   // to become a `plural()` call rather than a template.
+  //
+  // `{days}` is the configured receipt retention (`config/retention.ts`), the
+  // same number the terms and the privacy policy quote. Without it the price
+  // list advertised storage with no end date while the cleanup job deleted the
+  // photos on schedule. Phrased „po {days} dnech" (locative) rather than
+  // „{days} dnů" (genitive) for the reason set out beside
+  // `legal.privacy.s7.li1`: the retention is configurable, so 2, 3 and 4 are
+  // real values and „2 dnů" is wrong.
   'marketing.pricing.vip.body':
-    '{scans} skenů účtenek měsíčně. Fotky zůstanou uložené, ať se k nim můžete vrátit. Zrušíte kdykoli.',
+    '{scans} skenů účtenek měsíčně. Fotky zůstanou uložené a po {days} dnech od naskenování je smažeme. Zrušíte kdykoli.',
   'marketing.pricing.packs.title': 'Balíčky skenů',
   'marketing.pricing.packs.body':
     'Skenujete jen občas? Kupte si balíček bez předplatného. Skeny nevyprší.',
@@ -187,7 +195,7 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.pricing.vip.title': 'VIP',
   'marketing.pricing.vip.period': 'per month',
   'marketing.pricing.vip.body':
-    '{scans} receipt scans a month. The photos stay saved so you can look back at them. Cancel any time.',
+    '{scans} receipt scans a month. The photos stay saved, and {days} days after the scan we delete them. Cancel any time.',
   'marketing.pricing.packs.title': 'Scan packs',
   'marketing.pricing.packs.body':
     'Only scan now and then? Buy a pack instead of subscribing. Scans do not expire.',

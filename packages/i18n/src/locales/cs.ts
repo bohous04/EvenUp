@@ -109,7 +109,13 @@ export const cs = {
   'vip.subscription.title': 'Předplatné VIP',
   'vip.subtitle': 'Skenujte účtenky, my je přečteme za vás.',
   'vip.benefit.scans': '150 skenů účtenek měsíčně',
-  'vip.benefit.storage': 'Uložené fotky účtenek k pozdějšímu nahlédnutí',
+  // `{days}` je RECEIPT_RETENTION_DAYS ze `config/retention.ts`, stejné číslo,
+  // jaké uvádějí obchodní podmínky i zásady ochrany osobních údajů – bez něj
+  // panel sliboval uložení bez konce, zatímco úklidová úloha fotky maže.
+  // „po {days} dnech“ (lokál), ne „{days} dnů“ (genitiv): retence je
+  // nastavitelná, takže hodnoty 2, 3 a 4 jsou reálné a „2 dnů“ je špatně.
+  // Stejná úvaha jako u `legal.privacy.s7.li1`.
+  'vip.benefit.storage': 'Fotky účtenek zůstanou uložené – po {days} dnech je smažeme',
   'vip.benefit.cancel': 'Zrušíte kdykoli',
   'vip.subscribe': 'Předplatit VIP',
   'vip.manage': 'Spravovat předplatné',

@@ -15,6 +15,7 @@ import {
   displaySubscriptionPriceMinor,
 } from '@evenup/api/billing/display-prices';
 import { VIP_SCANS_PER_PERIOD } from '@evenup/api/billing/entitlement';
+import { env } from '@/server/env';
 import { LandingCta } from '@/components/landing-cta';
 import { resolveLocale } from '@/lib/locale-param';
 import { localizedPath } from '@/lib/locale-path';
@@ -250,10 +251,17 @@ function Pricing({ locale }: { locale: Locale }) {
             </span>
           </p>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
-            {/* The scan allowance is a product constant, not copy — the
-                catalog interpolates it so the number cannot drift from
-                `VIP_SCANS_PER_PERIOD`, which is what actually gates a scan. */}
-            {tm('marketing.pricing.vip.body', { scans: VIP_SCANS_PER_PERIOD })}
+            {/* Both numbers are product constants, not copy — the catalog
+                interpolates them so neither can drift from what the code does:
+                `VIP_SCANS_PER_PERIOD` is what actually gates a scan, and
+                `receiptRetentionDays` is what the cleanup job actually deletes
+                on. Advertising stored photos without the second one promised
+                storage the product does not provide, and disagreed with the
+                terms, which quote the same value. */}
+            {tm('marketing.pricing.vip.body', {
+              scans: VIP_SCANS_PER_PERIOD,
+              days: env.receiptRetentionDays,
+            })}
           </p>
         </article>
 

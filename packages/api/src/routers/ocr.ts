@@ -8,6 +8,7 @@ import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-a
 import { parseDataUrl } from '../storage/object-store.js';
 import { loadEntitlement } from '../billing/scan-access.js';
 import { reserveCredit, refundCredit, recordVipScan } from '../billing/ledger.js';
+import { receiptRetentionDays } from '../config/retention.js';
 
 const MAX_PAGES = 10;
 // ~15 MB decoded; clears the client 10 MB PDF guard with margin while bounding abuse.
@@ -123,8 +124,7 @@ export const ocrRouter = router({
         // OCR. Storing the receipt photo is subscription-scoped (mayStoreImage),
         // not comp-VIP-scoped.
         const storageKeys: string[] = [];
-        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
+        const retentionDays = receiptRetentionDays();
         if (ctx.objectStore && entitlement.mayStoreImage) {
           for (const page of pages) {
             try {

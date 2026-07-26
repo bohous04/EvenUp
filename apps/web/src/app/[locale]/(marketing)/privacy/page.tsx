@@ -17,10 +17,14 @@ import { LegalDocument, legalMetadata, type LegalSection } from '@/components/le
  *   to a Customer holding the person's email. They stay personal data; the
  *   retention is lawful under Art. 17(3)(b), not because it has become
  *   anonymous. Do not "simplify" that paragraph.
- * - **Nothing here claims expired sessions are purged.** No such job exists
- *   yet (it is the next task). Section 2 says only what is true today: the
- *   session record lasts as long as the session and goes at the latest when
- *   the account does.
+ * - **Section 7 states the session/IP retention, and the purge behind it is
+ *   real.** `services/session-cleanup.ts` deletes sessions whose `expiresAt`
+ *   has passed, and the daily cron at `api/cron/receipt-cleanup` runs it. The
+ *   line deliberately names no number of days: the session lifetime comes from
+ *   the auth library's own default, which could change without anyone editing
+ *   this document, whereas "once it expires, a scheduled job deletes it" is
+ *   true by construction. (This bullet used to say no such job existed; it
+ *   shipped in `1e3a5ac` while the policy still denied it.)
  * - **Nothing here offers group deletion as a way to erase data.** There is no
  *   such procedure: `routers/group.ts` stops at `archive`, which only stamps
  *   `archivedAt`. Sections 2 and 6 route erasure through the individual record
@@ -88,6 +92,7 @@ const SECTIONS: readonly LegalSection[] = [
           'legal.privacy.s7.li3',
           'legal.privacy.s7.li4',
           'legal.privacy.s7.li5',
+          'legal.privacy.s7.li6',
         ],
       },
     ],
@@ -98,6 +103,7 @@ const SECTIONS: readonly LegalSection[] = [
       { p: 'legal.privacy.s8.p1' },
       { p: 'legal.privacy.s8.p2' },
       { p: 'legal.privacy.s8.p3' },
+      { p: 'legal.privacy.s8.p3b' },
       { p: 'legal.privacy.s8.p4' },
       { p: 'legal.privacy.s8.p5' },
     ],

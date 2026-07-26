@@ -1,5 +1,6 @@
 /** Centralized, validated environment access (server-only). */
 import 'server-only';
+import { receiptRetentionDays } from '@evenup/api/config/retention';
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -92,13 +93,12 @@ export const env = {
     secretKey: process.env.STORAGE_SECRET_KEY,
     bucket: process.env.STORAGE_BUCKET ?? 'evenup-receipts',
   },
-  // Days to retain the stored receipt image before the cleanup cron deletes it (privacy).
-  // A malformed value (e.g. "" or "abc") parses to NaN, which would crash the
-  // cleanup query, so fall back to the default instead.
-  receiptRetentionDays: (() => {
-    const n = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-    return Number.isFinite(n) ? n : 30;
-  })(),
+  // Days to retain the stored receipt image before the cleanup cron deletes it
+  // (privacy). Read through the shared helper rather than parsed again here:
+  // this value is quoted at the customer in the terms, the privacy policy and
+  // the price list, and the scan path and the VIP panel read the same helper,
+  // so there is exactly one number and it cannot drift between documents.
+  receiptRetentionDays: receiptRetentionDays(),
   /**
    * Company identification for the legal pages, and the switch that retires
    * their "draft, pending legal review" banner.

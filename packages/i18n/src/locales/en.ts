@@ -110,7 +110,7 @@ export const en: Messages = {
   'vip.subscription.title': 'VIP subscription',
   'vip.subtitle': 'Photograph a receipt; we read it for you.',
   'vip.benefit.scans': '150 receipt scans a month',
-  'vip.benefit.storage': 'Receipt photos kept so you can look back at them',
+  'vip.benefit.storage': 'Receipt photos stay saved — we delete them {days} days after the scan',
   'vip.benefit.cancel': 'Cancel any time',
   'vip.subscribe': 'Subscribe to VIP',
   'vip.manage': 'Manage subscription',
