@@ -22,10 +22,12 @@ export function SettleCard({
   groupId,
   members,
   baseCurrency,
+  groupName,
 }: {
   groupId: string;
   members: MemberLite[];
   baseCurrency: string;
+  groupName: string;
 }) {
   const { t } = useI18n();
   const balances = trpc.balance.get.useQuery({ groupId });
@@ -51,6 +53,7 @@ export function SettleCard({
               key={`${p.fromMemberId}-${p.toMemberId}-${i}`}
               groupId={groupId}
               baseCurrency={baseCurrency}
+              groupName={groupName}
               from={byId.get(p.fromMemberId)}
               to={byId.get(p.toMemberId)}
               amount={p.amountMinorUnits}
@@ -65,12 +68,14 @@ export function SettleCard({
 function SettleRow({
   groupId,
   baseCurrency,
+  groupName,
   from,
   to,
   amount,
 }: {
   groupId: string;
   baseCurrency: string;
+  groupName: string;
   from?: MemberLite;
   to?: MemberLite;
   amount: number;
@@ -80,7 +85,15 @@ function SettleRow({
   const [open, setOpen] = useState(false);
 
   const spayd = trpc.settlement.generateSpayd.useQuery(
-    { groupId, toMemberId: to?.id ?? '', amountMinorUnits: amount, currency: baseCurrency },
+    {
+      groupId,
+      toMemberId: to?.id ?? '',
+      amountMinorUnits: amount,
+      currency: baseCurrency,
+      // SPAYD strips diacritics and caps MSG at 60 chars, so this reaches the
+      // bank as e.g. "Vyrovnani dluhu Vikend na horach".
+      message: t('settle.qrMessage', { group: groupName }),
+    },
     { enabled: open && !!to, retry: false },
   );
   const recordTransfer = trpc.transaction.recordTransfer.useMutation({

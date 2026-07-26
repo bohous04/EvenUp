@@ -263,6 +263,7 @@ export const cs = {
   'settle.method.bank': 'Bankovním převodem',
   'settle.method.qr': 'QR platbou',
   'settle.qrCode': 'QR platba',
+  'settle.qrMessage': 'Vyrovnání dluhu {group}',
   'settle.noIban': 'Příjemce nemá uložený IBAN — zaplaťte hotově nebo ručně',
 
   'ocr.scan': 'Naskenovat účtenku',

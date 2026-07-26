@@ -293,7 +293,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
       </Card>
 
-      <SettleCard groupId={groupId} members={memberLite} baseCurrency={group.data.baseCurrency} />
+      <SettleCard
+        groupId={groupId}
+        members={memberLite}
+        baseCurrency={group.data.baseCurrency}
+        groupName={group.data.name}
+      />
 
       {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it). */}
       {activeMembers.length > 0 ? (

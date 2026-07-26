@@ -259,6 +259,7 @@ export const en: Messages = {
   'settle.method.bank': 'Bank transfer',
   'settle.method.qr': 'QR payment',
   'settle.qrCode': 'QR payment',
+  'settle.qrMessage': 'Debt settlement {group}',
   'settle.noIban': 'The recipient has no saved IBAN — pay in cash or manually',
 
   'ocr.scan': 'Scan receipt',
