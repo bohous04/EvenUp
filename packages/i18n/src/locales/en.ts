@@ -17,6 +17,7 @@ export const en: Messages = {
   'common.back': 'Back',
   'common.confirm': 'Confirm',
   'common.loading': 'Loading…',
+  'common.retry': 'Retry',
   'common.search': 'Search',
   'common.required': 'Required',
   'common.optional': 'Optional',
@@ -98,6 +99,10 @@ export const en: Messages = {
   'nav.signOut': 'Sign out',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
+  // Distinct from `vip.title` (the page's own `<h1>`) so the subscription
+  // card doesn't repeat the page heading verbatim — see settings.page's
+  // `profile.title` vs `nav.settings` for the same pattern.
+  'vip.subscription.title': 'VIP subscription',
   'vip.subtitle': 'Photograph a receipt; we read it for you.',
   'vip.benefit.scans': '150 receipt scans a month',
   'vip.benefit.storage': 'Receipt photos kept so you can look back at them',

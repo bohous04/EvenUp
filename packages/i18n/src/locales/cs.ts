@@ -17,6 +17,7 @@ export const cs = {
   'common.back': 'Zpět',
   'common.confirm': 'Potvrdit',
   'common.loading': 'Načítání…',
+  'common.retry': 'Zkusit znovu',
   'common.search': 'Hledat',
   'common.required': 'Povinné',
   'common.optional': 'Nepovinné',
@@ -98,6 +99,10 @@ export const cs = {
   'nav.signOut': 'Odhlásit se',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
+  // Distinct from `vip.title` (the page's own `<h1>`) so the subscription
+  // card doesn't repeat the page heading verbatim — see settings.page's
+  // `profile.title` vs `nav.settings` for the same pattern.
+  'vip.subscription.title': 'Předplatné VIP',
   'vip.subtitle': 'Skenujte účtenky, my je přečteme za vás.',
   'vip.benefit.scans': '150 skenů účtenek měsíčně',
   'vip.benefit.storage': 'Uložené fotky účtenek k pozdějšímu nahlédnutí',
