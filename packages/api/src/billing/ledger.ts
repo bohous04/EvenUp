@@ -49,9 +49,14 @@ export async function recordVipScan(prisma: PrismaClient, userId: string): Promi
 }
 
 /**
- * Apply a completed purchase. Returns false if this Stripe event was already
- * applied — the unique constraint on `stripeEventId` makes replay a no-op at
- * the database rather than in application logic.
+ * Apply a completed purchase. Returns false if this idempotency key was
+ * already applied — the unique constraint on `stripeEventId` makes replay a
+ * no-op at the database rather than in application logic.
+ *
+ * `stripeEventId` need not be a literal Stripe event id: callers should pass
+ * whatever value is stable for one purchase across every event that could
+ * report it as paid. See `webhook.ts`, which keys checkout purchases on the
+ * checkout session id rather than `event.id` for exactly this reason.
  */
 export async function creditPurchase(
   prisma: PrismaClient,
