@@ -17,8 +17,26 @@
 - **Server error messages are localized by exact English text match.** `packages/api/src/trpc.ts:15-19` builds a reverse map from every `errors.*` value in the **en** catalog to its key. A `TRPCError` message must match its `errors.*` English string **character for character** or it reaches the user untranslated.
 - **Money is always integer minor units.** Never introduce floats.
 - **Existing `data-testid` attributes are contracts with the Playwright suite.** Do not rename one without updating every spec that uses it (Task 7 does exactly this, deliberately).
-- **Test database setup:** API tests need `DATABASE_URL` pointing at a migrated Postgres, and `prisma generate` must have run. Playwright needs `PLAYWRIGHT_BROWSERS_PATH=/home/dev/.cache/ms-playwright` and a prior `next build`; only the chromium project is installed, so always pass `--project=chromium`.
-- **Green baseline before any change:** core 262, i18n 31, web 62, api 195, e2e 29 (chromium).
+- **Test environment — source this before ANY test command:**
+
+  ```bash
+  . .superpowers/sdd/testenv.sh
+  ```
+
+  It exports `DATABASE_URL`, `ENCRYPTION_KEY`, `BETTER_AUTH_SECRET` and
+  `PLAYWRIGHT_BROWSERS_PATH`. Shell state does not persist between tool calls, so
+  source it in **every** shell that runs tests. Without it the api suite fails with
+  `Environment variable not found: DATABASE_URL`.
+
+  This branch uses its **own** database (`evenup_uxfixes`). The default `evenup`
+  database is shared with a concurrent `feat/billing-and-metering` worktree that has
+  applied migrations which do not exist on this branch. **Never point this branch's
+  tests at `evenup`, and never run `prisma db push` / `migrate reset` against it.**
+  `prisma migrate deploy` against `evenup_uxfixes` (Task 3) is fine and expected.
+- **Playwright:** chromium is the only installed browser — always pass
+  `--project=chromium` and say so when reporting coverage. e2e needs a prior
+  `pnpm --filter @evenup/web build`.
+- **Green baseline before any change:** core 262, i18n 31, web 62, **api 200**, e2e 29 (chromium). Verified on `feat/four-ux-fixes` at c955ce3.
 
 ## File Structure
 
@@ -549,7 +567,7 @@ reports the schema up to date with no drift. Re-running `deploy` is a no-op.
 pnpm --filter @evenup/i18n test && pnpm --filter @evenup/api test && pnpm --filter @evenup/web test
 ```
 
-Expected: i18n 31, api 198 (195 baseline + 3 new), web 62.
+Expected: i18n 31, api 203 (200 baseline + 3 new), web 62.
 
 - [ ] **Step 12: Commit**
 
@@ -868,8 +886,8 @@ Expected: PASS, 6 tests.
 pnpm --filter @evenup/i18n test && pnpm --filter @evenup/api test
 ```
 
-Expected: i18n 31, api 204 (198 after Task 3 + 6 new). If Task 3 has not been
-done yet, expect 201.
+Expected: i18n 31, api 209 (203 after Task 3 + 6 new). If Task 3 has not been
+done yet, expect 206.
 
 - [ ] **Step 9: Commit**
 
@@ -1478,7 +1496,7 @@ PLAYWRIGHT_BROWSERS_PATH=/home/dev/.cache/ms-playwright \
   pnpm --filter @evenup/web exec playwright test --project=chromium
 ```
 
-Expected totals: core 264, i18n 31, web 62, api 204, e2e 29. Report chromium-only
+Expected totals: core 264, i18n 31, web 62, api 209, e2e 29. Report chromium-only
 e2e coverage explicitly — firefox, webkit and the mobile projects are declared in
 the config but not installed in this environment.
 
