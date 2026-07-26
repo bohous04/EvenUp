@@ -41,7 +41,7 @@ describe('tMarketing', () => {
   });
 
   test('returns the English string', () => {
-    expect(tMarketing('en', 'marketing.hero.title')).toBe('Send two payments instead of eight.');
+    expect(tMarketing('en', 'marketing.hero.title')).toBe('Send two payments instead of eight');
   });
 
   test('interpolates named placeholders', () => {

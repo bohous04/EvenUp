@@ -1,5 +1,6 @@
 'use client';
 import { useId, useState } from 'react';
+import { TRIMMED_PRICE_FORMAT } from '@evenup/i18n';
 import {
   displayPackPriceMinor,
   displaySubscriptionPriceMinor,
@@ -9,14 +10,6 @@ import { Button, Card, SectionLabel } from '@/components/ui';
 import type { RouterOutputs } from '@/lib/trpc';
 
 export type BillingSummary = RouterOutputs['billing']['summary'];
-
-/**
- * Prices are advertised as round numbers — "50 Kč", "€2" — not as ledger
- * amounts. The public price list (`app/[locale]/(marketing)/page.tsx`) formats
- * the very same figures, so both must pass this or the two pages would quote
- * different-looking prices for one product.
- */
-const PRICE_FORMAT = { trimZeroFraction: true } as const;
 
 /**
  * Presentational pricing panel — takes its data and callbacks as props (no
@@ -31,6 +24,11 @@ const PRICE_FORMAT = { trimZeroFraction: true } as const;
  * `formatCurrency` in the currency `billing.summary` resolved for this user,
  * so the panel shows CZK or EUR exactly as checkout will. A pack size with no
  * display price renders without one rather than with a wrong one.
+ *
+ * Prices are advertised as round numbers — "50 Kč", "€2" — not as ledger
+ * amounts, via `TRIMMED_PRICE_FORMAT`. The public price list
+ * (`app/[locale]/(marketing)/page.tsx`) imports the very same constant, so the
+ * two pages cannot quote different-looking prices for one product.
  */
 export function VipPricing({
   summary,
@@ -74,7 +72,7 @@ export function VipPricing({
             price: formatCurrency(
               displaySubscriptionPriceMinor(summary.currency),
               summary.currency,
-              PRICE_FORMAT,
+              TRIMMED_PRICE_FORMAT,
             ),
           })}
         </p>
@@ -138,7 +136,7 @@ export function VipPricing({
                         className="ml-2 font-semibold text-zinc-600 dark:text-zinc-300"
                         data-testid={`vip-price-${pack.id}`}
                       >
-                        {formatCurrency(priceMinor, summary.currency, PRICE_FORMAT)}
+                        {formatCurrency(priceMinor, summary.currency, TRIMMED_PRICE_FORMAT)}
                       </span>
                     )}
                   </span>

@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { t, tMarketing, formatCurrency, type Locale, type MarketingKey } from '@evenup/i18n';
+import {
+  t,
+  tMarketing,
+  formatCurrency,
+  TRIMMED_PRICE_FORMAT,
+  type Locale,
+  type MarketingKey,
+} from '@evenup/i18n';
 import { currencyForLocale } from '@evenup/api/billing/prices';
 import {
   DISPLAY_PACK_SIZES,
@@ -47,6 +54,12 @@ export async function generateMetadata({
   const locale = resolveLocale((await params).locale);
   const title = tMarketing(locale, 'marketing.meta.title');
   const description = tMarketing(locale, 'marketing.meta.description');
+  const imageAlt = tMarketing(locale, 'marketing.meta.ogImageAlt');
+  // The dimensions of `app/opengraph-image.png` / `twitter-image.png` (both
+  // 2400×1260 PNGs — see the note above `generateMetadata` on where they
+  // live) — declared explicitly below because a bare URL string in `images`
+  // loses them.
+  const imageProps = { width: 2400, height: 1260, type: 'image/png', alt: imageAlt } as const;
   return {
     title,
     description,
@@ -59,6 +72,18 @@ export async function generateMetadata({
     // has to be restated here. Miss it and the one page anybody actually
     // shares — this one — is the only page in the app without a social card,
     // while `/groups`, which nobody shares, keeps the full one.
+    //
+    // `images` must be the full object, not a bare URL string: a string loses
+    // `width`/`height`/`type`/`alt` entirely, and — the one that matters most
+    // — Next's own auto-discovered file-convention metadata (which `/groups`
+    // gets, because it never overrides `openGraph.images`) also carries a
+    // `?<contenthash>` query on the URL, so a social platform's cached copy
+    // busts itself the moment the image file changes. This handwritten object
+    // cannot reproduce that hash — it is computed by Next's build pipeline
+    // from the file's contents, not something to fake here — so a redesign of
+    // `opengraph-image.png` will need a cache-busting nudge of its own (e.g. a
+    // renamed file, or a manual `?v=` query) until this is generated rather
+    // than declared.
     openGraph: {
       type: 'website',
       siteName: 'EvenUp',
@@ -66,13 +91,13 @@ export async function generateMetadata({
       description,
       locale: locale === 'cs' ? 'cs_CZ' : 'en_US',
       alternateLocale: locale === 'cs' ? 'en_US' : 'cs_CZ',
-      images: ['/opengraph-image.png'],
+      images: [{ url: '/opengraph-image.png', ...imageProps }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/twitter-image.png'],
+      images: [{ url: '/twitter-image.png', ...imageProps }],
     },
   };
 }
@@ -112,9 +137,6 @@ function Section({
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{children}</h2>;
 }
-
-/** Shared with `components/vip-pricing.tsx` — see the note on `money()`. */
-const PRICE_FORMAT = { trimZeroFraction: true } as const;
 
 const cardClass =
   'rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900';
@@ -191,8 +213,9 @@ function Pricing({ locale }: { locale: Locale }) {
   const currency = currencyForLocale(locale);
   // A price list advertises round numbers — "50 Kč", "€2" — so a whole amount
   // sheds its ",00". The VIP panel in the app formats the same figures the
-  // same way; keep the two in step.
-  const money = (minor: number) => formatCurrency(minor, currency, locale, PRICE_FORMAT);
+  // same way; `TRIMMED_PRICE_FORMAT` is shared with it, so the two stay in
+  // step by construction rather than by convention.
+  const money = (minor: number) => formatCurrency(minor, currency, locale, TRIMMED_PRICE_FORMAT);
 
   return (
     <Section id="pricing">

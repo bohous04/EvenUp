@@ -36,6 +36,17 @@ export interface FormatCurrencyOptions {
  * formatted string afterwards: Czech puts the symbol last (`50,00 Kč`) and
  * English first (`€2.00`), so only `Intl` places it correctly in both.
  */
+/**
+ * The `FormatCurrencyOptions` a *price list* uses — round numbers like
+ * "50 Kč" / "€2" rather than ledger amounts like "50,00 Kč" / "€2.00".
+ *
+ * Shared by the public landing page (`app/[locale]/(marketing)/page.tsx`) and
+ * the in-app VIP panel (`components/vip-pricing.tsx`), which price the exact
+ * same figures and must render them identically — a duplicated literal in
+ * each file would let the two silently drift.
+ */
+export const TRIMMED_PRICE_FORMAT: FormatCurrencyOptions = { trimZeroFraction: true };
+
 export function formatCurrency(
   minorUnits: number,
   currency: CurrencyCode,

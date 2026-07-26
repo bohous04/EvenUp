@@ -18,6 +18,7 @@ export {
   formatDate,
   formatNameList,
   pluralCategory,
+  TRIMMED_PRICE_FORMAT,
   type Locale,
   type FormatCurrencyOptions,
 } from './format.js';

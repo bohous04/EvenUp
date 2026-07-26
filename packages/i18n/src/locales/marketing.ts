@@ -28,14 +28,20 @@ export const marketingCs = {
   'marketing.meta.title': 'dlužníček – vyrovnejte se pár platbami',
   'marketing.meta.description':
     'Zapište, kdo co zaplatil, a dlužníček spočítá nejmenší počet plateb, kterými se celá skupina vyrovná. Účtenky z fotky, QR platba, více měn, členové i bez účtu.',
+  // Alt text for the social-share image (`opengraph-image.png` /
+  // `twitter-image.png`), per locale — the file convention's own
+  // `opengraph-image.alt.txt` is English-only, so the Czech landing page needs
+  // its own description rather than inheriting that one.
+  'marketing.meta.ogImageAlt':
+    'dlužníček – open source dělení útraty ve skupině, spočítá nejmenší počet plateb, kterými se všichni vyrovnají.',
 
   'marketing.nav.features': 'Funkce',
   'marketing.nav.pricing': 'Ceník',
   'marketing.nav.faq': 'Časté otázky',
 
-  'marketing.hero.title': 'Místo osmi plateb pošlete dvě.',
+  'marketing.hero.title': 'Místo osmi plateb pošlete dvě',
   'marketing.hero.subtitle':
-    'Chata, dovolená, spolubydlení. Zapíšete, kdo co zaplatil, a dlužníček dluhy proti sobě vyruší a spočítá nejmenší počet plateb, kterými se celá skupina vyrovná.',
+    'Chata, dovolená, spolubydlení. Zapíšete, kdo co zaplatil, a dlužníček spočítá, kdo má komu kolik poslat, aby byli všichni vyrovnaní.',
   'marketing.hero.ctaPrimary': 'Začít zdarma',
   'marketing.hero.ctaSignIn': 'Přihlásit se',
   'marketing.hero.ctaApp': 'Přejít do aplikace',
@@ -55,7 +61,7 @@ export const marketingCs = {
     'Zaplaťte v eurech, zapište v korunách. Kurz doplníme podle data výdaje. Skupina má jednu hlavní měnu, ve které vidíte konečný výsledek.',
   'marketing.feature.guests.title': 'Účet nepotřebují všichni',
   'marketing.feature.guests.body':
-    'Kvůli jedné chatě si účet nikdo zakládat nechce. Stačí zadat jméno a hned se s ním můžete dělit o útratu; když se zaregistruje později, jen ho spárujete s jeho účtem.',
+    'Kvůli jedné chatě si účet nikdo zakládat nechce. Člena přidáte jenom jménem a hned se s ním můžete dělit o útratu; když se zaregistruje později, jen ho spárujete s jeho účtem.',
 
   'marketing.pricing.title': 'Ceník',
   'marketing.pricing.subtitle':
@@ -68,9 +74,14 @@ export const marketingCs = {
   'marketing.pricing.vip.period': 'měsíčně',
   // `{scans}` is `VIP_SCANS_PER_PERIOD` — the constant that actually gates a
   // scan — so the advertised allowance cannot drift from the enforced one. Its
-  // genitive plural („150 skenů") is right for every value the product uses.
+  // genitive plural („150 skenů") is right for every value the product
+  // currently uses, but not for every possible one: it breaks for a value
+  // whose final digit is 2, 3 or 4 (excluding 12–14) — a
+  // `VIP_SCANS_PER_PERIOD` of 122 would render „122 skenů" where Czech needs
+  // „122 skeny". If the constant ever moves to such a value, this string has
+  // to become a `plural()` call rather than a template.
   'marketing.pricing.vip.body':
-    '{scans} skenů účtenek měsíčně a jejich fotky uložené, ať se k nim můžete vrátit. Zrušíte kdykoli.',
+    '{scans} skenů účtenek měsíčně. Fotky zůstanou uložené, ať se k nim můžete vrátit. Zrušíte kdykoli.',
   'marketing.pricing.packs.title': 'Balíčky skenů',
   'marketing.pricing.packs.body':
     'Skenujete jen občas? Kupte si balíček bez předplatného. Skeny nevyprší.',
@@ -88,7 +99,7 @@ export const marketingCs = {
     'Dělení útraty, vyrovnání i QR platby jsou zdarma a bez limitu. Platí se jen za skenování účtenek – buď měsíčním VIP, nebo jednorázovým balíčkem skenů.',
   'marketing.faq.q2': 'Musí si všichni ve skupině založit účet?',
   'marketing.faq.a2':
-    'Nemusí. Stačí zadat jméno a hned se s nimi můžete dělit o útratu. Účet potřebuje jen ten, kdo si chce skupinu sám otevřít.',
+    'Nemusí. Členy přidáte jenom jménem a hned se s nimi můžete dělit o útratu. Účet potřebuje jen ten, kdo si chce skupinu sám otevřít.',
   'marketing.faq.q3': 'Jak funguje QR platba?',
   'marketing.faq.a3':
     'U každé navržené platby najdete QR kód podle českého standardu QR Platba. Číslo účtu, částka i zpráva pro příjemce jsou v něm předvyplněné, takže v bankovní aplikaci stačí platbu potvrdit.',
@@ -112,14 +123,16 @@ export const marketingEn: MarketingMessages = {
   'marketing.meta.title': 'EvenUp — settle up in a couple of payments',
   'marketing.meta.description':
     'Log who paid for what and EvenUp works out the smallest number of payments that clears the whole group. Receipts from a photo, Czech QR payments, several currencies, members without accounts.',
+  'marketing.meta.ogImageAlt':
+    "EvenUp — open-source group expense splitter that settles everyone's debts in the fewest payments.",
 
   'marketing.nav.features': 'Features',
   'marketing.nav.pricing': 'Pricing',
   'marketing.nav.faq': 'FAQ',
 
-  'marketing.hero.title': 'Send two payments instead of eight.',
+  'marketing.hero.title': 'Send two payments instead of eight',
   'marketing.hero.subtitle':
-    'A cabin weekend, a holiday, a flatshare. Log who paid for what and EvenUp nets the debts against each other, then works out the smallest number of payments that clears the whole group.',
+    'A cabin weekend, a holiday, a flatshare. Log who paid for what and EvenUp works out who owes whom how much, so everyone ends up square.',
   'marketing.hero.ctaPrimary': 'Start for free',
   'marketing.hero.ctaSignIn': 'Sign in',
   'marketing.hero.ctaApp': 'Open the app',
@@ -151,7 +164,7 @@ export const marketingEn: MarketingMessages = {
   'marketing.pricing.vip.title': 'VIP',
   'marketing.pricing.vip.period': 'per month',
   'marketing.pricing.vip.body':
-    '{scans} receipt scans a month, and the photos kept so you can look back at them. Cancel any time.',
+    '{scans} receipt scans a month. The photos stay saved so you can look back at them. Cancel any time.',
   'marketing.pricing.packs.title': 'Scan packs',
   'marketing.pricing.packs.body':
     'Only scan now and then? Buy a pack instead of subscribing. Scans do not expire.',

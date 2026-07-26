@@ -8,8 +8,8 @@ import AxeBuilder from '@axe-core/playwright';
  * here; key parity and non-emptiness are covered by `marketing.test.ts` in
  * that package instead. Keep these two strings in step with the catalog.
  */
-const CS_HERO = 'Místo osmi plateb pošlete dvě.';
-const EN_HERO = 'Send two payments instead of eight.';
+const CS_HERO = 'Místo osmi plateb pošlete dvě';
+const EN_HERO = 'Send two payments instead of eight';
 
 test('serves the Czech landing page server-side at the root', async ({ page }) => {
   const res = await page.goto('/');
@@ -52,17 +52,22 @@ test('the copy is in the server HTML itself, per locale', async ({ request }) =>
   expect(en).not.toContain(CS_HERO);
 });
 
-test('prices the landing page in the locale currency', async ({ page }) => {
+test('prices the landing page in the locale currency, trimmed to a round number', async ({
+  page,
+}) => {
   // Czech pages are priced in CZK, everything else in EUR
   // (`currencyForLocale`); the amounts come from `display-prices.ts` and are
   // rendered through `formatCurrency`, never written into the copy.
+  //
+  // Asserting the exact trimmed strings, not just substrings: `toContainText('50')`
+  // passes for both "50 Kč" and "50,00 Kč", so it would not catch the price
+  // list silently reverting to the untrimmed format while the VIP panel
+  // (`vip-pricing.test.tsx`) stayed trimmed.
   await page.goto('/');
-  const pricing = page.getByTestId('pricing');
-  await expect(pricing).toContainText('Kč');
-  await expect(pricing).toContainText('50');
+  await expect(page.getByTestId('pricing-vip')).toContainText('50 Kč');
 
   await page.goto('/en');
-  await expect(page.getByTestId('pricing')).toContainText('€');
+  await expect(page.getByTestId('pricing-vip')).toContainText('€2');
 });
 
 /**
