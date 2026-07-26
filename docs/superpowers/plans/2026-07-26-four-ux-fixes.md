@@ -36,7 +36,13 @@
 - **Playwright:** chromium is the only installed browser — always pass
   `--project=chromium` and say so when reporting coverage. e2e needs a prior
   `pnpm --filter @evenup/web build`.
-- **Green baseline before any change:** core 262, i18n 31, web 62, **api 200**, e2e 29 (chromium). Verified on `feat/four-ux-fixes` at c955ce3.
+- **Green baseline before any change:** core 262, i18n 31, web 62, **api 200**, e2e **28 passed / 1 failed** (chromium). Verified on `feat/four-ux-fixes` at c955ce3.
+- **Known pre-existing e2e failure — do NOT try to fix it, and do not treat it as your regression:**
+  `e2e/member-breakdown.spec.ts:5` ("opens from a Zůstatky row and shows a filterable ledger")
+  expects 2 `breakdown-row` elements and finds 1. It **passes when run alone** and fails only in
+  full-suite order, so it is test-order pollution. Proven pre-existing: it reproduces on this
+  branch with every code change reverted. A task's e2e run is clean if this is the **only**
+  failure. If any *other* spec fails, that is yours.
 
 ## File Structure
 
@@ -1248,9 +1254,10 @@ PLAYWRIGHT_BROWSERS_PATH=/home/dev/.cache/ms-playwright \
   pnpm --filter @evenup/web exec playwright test --project=chromium
 ```
 
-Expected: 29 passing. This task changes markup around three test ids the suite
-uses heavily; if any spec fails here it is a real regression, not an expected
-update (Task 7 owns the intentional spec changes).
+Expected: 28 passed, 1 failed — and the one failure must be the known pre-existing
+`member-breakdown.spec.ts:5` described in Global Constraints. This task changes markup
+around three test ids the suite uses heavily; if any OTHER spec fails here it is a real
+regression, not an expected update (Task 7 owns the intentional spec changes).
 
 - [ ] **Step 7: Commit**
 
@@ -1466,12 +1473,13 @@ Expected: `clean`.
 - [ ] **Step 10: Run the e2e suite**
 
 ```bash
+. .superpowers/sdd/testenv.sh
 pnpm --filter @evenup/web build
-PLAYWRIGHT_BROWSERS_PATH=/home/dev/.cache/ms-playwright \
-  pnpm --filter @evenup/web exec playwright test --project=chromium
+pnpm --filter @evenup/web exec playwright test --project=chromium
 ```
 
-Expected: 29 passing.
+Expected: 28 passed, 1 failed — and that one failure must be the known pre-existing
+`member-breakdown.spec.ts:5` from Global Constraints, nothing else.
 
 - [ ] **Step 11: Commit**
 
@@ -1496,7 +1504,8 @@ PLAYWRIGHT_BROWSERS_PATH=/home/dev/.cache/ms-playwright \
   pnpm --filter @evenup/web exec playwright test --project=chromium
 ```
 
-Expected totals: core 264, i18n 31, web 62, api 209, e2e 29. Report chromium-only
+Expected totals: core 264, i18n 31, web 62, api 209, e2e 28 passed + the 1 known
+pre-existing failure. Report chromium-only
 e2e coverage explicitly — firefox, webkit and the mobile projects are declared in
 the config but not installed in this environment.
 
