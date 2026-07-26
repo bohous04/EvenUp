@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import {
   createTranslator,
   plural as pluralize,
@@ -13,7 +13,6 @@ import {
 
 interface I18nValue {
   locale: Locale;
-  setLocale: (l: Locale) => void;
   t: (key: MessageKey, values?: InterpolationValues) => string;
   plural: (base: string, count: number, values?: InterpolationValues) => string;
   formatCurrency: (minor: number, currency: string) => string;
@@ -25,39 +24,30 @@ const I18nContext = createContext<I18nValue | null>(null);
 
 /**
  * The URL is the single source of truth for locale (see `locale-path.ts` and
- * the middleware) — `initialLocale` comes from the already-validated route
- * segment. There is deliberately no `useEffect` reading `localStorage`
- * anymore: that used to flip `/en` back to Czech after hydration, which is
- * exactly the bug this task fixes. `setLocale` only updates local state for
- * the copy/`lang` attribute; the caller (the header's language switcher) is
- * responsible for navigating to the new locale's URL.
+ * the middleware) — `locale` comes from the already-validated route segment.
+ * There is deliberately no local state here: a locale change is always a
+ * navigation (see the header's language switcher), which remounts this
+ * whole subtree with a fresh `locale` prop (Next keys the segment provider
+ * on the router cache key), so `useState` would only add a stale copy to
+ * keep in sync. For the same reason there's no `setLocale` in the context
+ * value and no manual `document.documentElement.lang` write — React already
+ * owns `<html lang>` via the `[locale]` layout, and a `setLocale` that
+ * changed the copy without navigating would silently desync it from the URL
+ * (and from the tRPC `x-locale` header), which is exactly the bug this
+ * module used to have.
  */
-export function I18nProvider({
-  children,
-  initialLocale,
-}: {
-  children: React.ReactNode;
-  initialLocale: Locale;
-}) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale);
-
-  const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
-    document.documentElement.lang = l;
-  }, []);
-
+export function I18nProvider({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   const value = useMemo<I18nValue>(() => {
     const translator = createTranslator(locale);
     return {
       locale,
-      setLocale,
       t: translator,
       plural: (base, count, values) => pluralize(locale, base, count, values),
       formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
       formatDate: (date) => fmtDate(date, locale),
       formatNameList: (names, type) => fmtNameList(names, locale, type),
     };
-  }, [locale, setLocale]);
+  }, [locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

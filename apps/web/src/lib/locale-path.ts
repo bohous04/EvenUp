@@ -16,3 +16,22 @@ export function localizedPath(pathname: string, locale: Locale): string {
   }
   return bare;
 }
+
+/**
+ * Builds the target URL for a locale switch, preserving the query string and
+ * hash. `usePathname()` (the header's only other option) strips both, so a
+ * switch from e.g. `/reset-password?token=…` silently dropped the token and
+ * dead-ended the reset flow — switch languages on `/sign-up?callbackURL=…`
+ * or `/verify-email/pending?email=…` and the same thing happened. Read
+ * `search`/`hash` from `window.location` at the call site instead of pulling
+ * in `useSearchParams()`, which would force every prerendered route out of
+ * static generation unless wrapped in Suspense.
+ */
+export function localizedUrl(
+  pathname: string,
+  search: string,
+  hash: string,
+  locale: Locale,
+): string {
+  return `${localizedPath(pathname, locale)}${search}${hash}`;
+}

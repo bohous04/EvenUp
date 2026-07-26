@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { localizedPath } from './locale-path';
+import { localizedPath, localizedUrl } from './locale-path';
 
 describe('localizedPath', () => {
   it('prefixes /en for English', () => {
@@ -27,5 +27,29 @@ describe('localizedPath', () => {
       '/en/invite/AbCdEf-_0123456789xyz',
     );
     expect(localizedPath('/en/groups/clx123abc', 'cs')).toBe('/groups/clx123abc');
+  });
+});
+
+describe('localizedUrl', () => {
+  it('preserves the query string across a locale switch', () => {
+    expect(localizedUrl('/reset-password', '?token=SECRET-TOKEN-123', '', 'en')).toBe(
+      '/en/reset-password?token=SECRET-TOKEN-123',
+    );
+  });
+
+  it('preserves the hash across a locale switch', () => {
+    expect(localizedUrl('/groups/clx123abc', '', '#activity', 'en')).toBe(
+      '/en/groups/clx123abc#activity',
+    );
+  });
+
+  it('preserves both query string and hash together', () => {
+    expect(localizedUrl('/en/sign-up', '?callbackURL=%2Fgroups', '#top', 'cs')).toBe(
+      '/sign-up?callbackURL=%2Fgroups#top',
+    );
+  });
+
+  it('is a no-op passthrough when there is neither query nor hash', () => {
+    expect(localizedUrl('/groups', '', '', 'en')).toBe('/en/groups');
   });
 });

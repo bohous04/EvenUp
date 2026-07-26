@@ -1,27 +1,30 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import type { Locale } from '@evenup/i18n';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { iconButtonClass } from '@/components/ui';
 import { Settings, LogOut } from '@/components/icons';
-import { localizedPath } from '@/lib/locale-path';
+import { localizedUrl } from '@/lib/locale-path';
 
 export function Header() {
-  const { t, locale, setLocale } = useI18n();
+  const { t, locale } = useI18n();
   const { data: session } = useSession();
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
   const pathname = usePathname();
   const router = useRouter();
 
-  function switchLocale(l: 'cs' | 'en') {
-    // Update local state immediately for responsive copy/`lang`, then
-    // navigate — the URL is the source of truth for locale, so the push
-    // is what actually makes `/groups` become `/en/groups` (and keeps the
-    // tRPC `x-locale` header and `<html lang>` from disagreeing with it).
-    setLocale(l);
-    router.push(localizedPath(pathname, l));
+  function switchLocale(l: Locale) {
+    // Navigate only — the URL is the sole source of truth for locale, so
+    // the route change is what makes `/groups` become `/en/groups`, which
+    // then flows the new locale back down through `Providers`. Read
+    // `search`/`hash` from `window.location` here (not `usePathname()`,
+    // which strips both) so a switch on e.g. `/reset-password?token=…`
+    // doesn't drop the token.
+    const { search, hash } = window.location;
+    router.push(localizedUrl(pathname, search, hash, l));
   }
 
   return (

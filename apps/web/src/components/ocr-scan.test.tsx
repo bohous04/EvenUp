@@ -73,7 +73,7 @@ const members = [{ id: 'm1', displayName: 'Alice', initials: 'A', color: '#00000
 
 function renderScan() {
   return render(
-    <I18nProvider initialLocale={DEFAULT_LOCALE}>
+    <I18nProvider locale={DEFAULT_LOCALE}>
       <OcrScan groupId="g1" members={members} baseCurrency="CZK" />
     </I18nProvider>,
   );
