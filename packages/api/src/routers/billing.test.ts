@@ -50,6 +50,80 @@ describe('billing router', () => {
       code: 'PRECONDITION_FAILED',
     });
   });
+
+  /** Create a Subscription row in an arbitrary Stripe status for `user`. */
+  async function seedSubscription(userId: string, status: string) {
+    const now = new Date();
+    await testPrisma.subscription.create({
+      data: {
+        userId,
+        stripeSubscriptionId: `sub_${status}_${userId}`,
+        status,
+        currentPeriodStart: now,
+        currentPeriodEnd: new Date(now.getTime() + 30 * 24 * 3600_000),
+      },
+    });
+  }
+
+  it.each(['active', 'trialing', 'past_due', 'incomplete', 'unpaid'])(
+    'reports a %s subscription in the summary rather than pretending there is none',
+    async (status) => {
+      process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+      const u = await createTestUser('a@example.com');
+      await seedSubscription(u.id, status);
+      const res = await makeCaller(u).billing.summary();
+      expect(res.subscription).toMatchObject({ status });
+    },
+  );
+
+  it.each(['past_due', 'incomplete', 'unpaid'])(
+    'refuses a second checkout while a %s subscription exists',
+    async (status) => {
+      // The failure this closes: card expires → Stripe sets `past_due` → the
+      // old summary saw no subscription and offered "Subscribe" → the customer
+      // ends up with two Stripe subscriptions and, once smart retries recover
+      // the first, two charges. The guard must be server-side: the client's
+      // `pending` flag only covers one page load, so two open tabs bypass it.
+      process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+      process.env.STRIPE_PRICE_CZK_VIP = 'price_czk_vip';
+      const u = await createTestUser('a@example.com');
+      await seedSubscription(u.id, status);
+      await expect(makeCaller(u).billing.checkoutSubscription()).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+    },
+  );
+
+  it.each(['canceled', 'incomplete_expired'])(
+    'treats a %s subscription as gone, so a former subscriber can buy again',
+    async (status) => {
+      // Terminal statuses must NOT count as "already subscribed", or a
+      // customer who cancelled could never come back. Asserted through
+      // `summary` because `checkoutSubscription`'s only remaining step after
+      // the guard is a live Stripe call, which a unit test must not make —
+      // `summary.subscription` and the guard read the identical query
+      // (`openSubscription`), so a null here is exactly the guard passing.
+      process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+      const u = await createTestUser('a@example.com');
+      await seedSubscription(u.id, status);
+      expect((await makeCaller(u).billing.summary()).subscription).toBeNull();
+    },
+  );
+
+  it('reports subscriptionAvailable per currency, not merely that Stripe is configured', async () => {
+    // D7: `isBillingEnabled()` only checks STRIPE_SECRET_KEY, but the VIP
+    // price id is a separate variable per currency. With CZK configured and
+    // EUR missing, the English UI rendered a Subscribe button whose every
+    // click came back PRECONDITION_FAILED.
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    process.env.STRIPE_PRICE_CZK_VIP = 'price_czk_vip';
+    delete process.env.STRIPE_PRICE_EUR_VIP;
+    const u = await createTestUser('a@example.com');
+    const cs = await makeCaller(u).billing.summary();
+    expect(cs).toMatchObject({ currency: 'CZK', subscriptionAvailable: true });
+    const en = await makeCaller(u, { locale: 'en' }).billing.summary();
+    expect(en).toMatchObject({ currency: 'EUR', subscriptionAvailable: false });
+  });
 });
 
 describe('buildSubscriptionCheckoutParams', () => {

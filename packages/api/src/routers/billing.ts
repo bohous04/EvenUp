@@ -137,6 +137,45 @@ export function buildCreditCheckoutParams(args: {
   };
 }
 
+/**
+ * Every Stripe subscription status that means "this customer already has a
+ * subscription with us" — not just the healthy ones.
+ *
+ * `summary` used to look for `'active'` alone, which quietly broke the moment
+ * a card expired: Stripe moves the subscription to `past_due`, the app saw no
+ * subscription, and offered "Subscribe to VIP" to somebody who already had
+ * one. Buying again leaves the customer holding two Stripe subscriptions, and
+ * if Stripe's smart retries then recover the first, they are billed twice for
+ * the same product.
+ *
+ * `incomplete` and `unpaid` are here for the same reason — both describe a
+ * subscription object that exists at Stripe and can still transition to
+ * `active` on its own. What is deliberately absent is `canceled` and
+ * `incomplete_expired`: those are terminal, and a customer whose subscription
+ * ended must be able to buy a new one.
+ */
+export const OPEN_SUBSCRIPTION_STATUSES = [
+  'active',
+  'trialing',
+  'past_due',
+  'incomplete',
+  'unpaid',
+] as const;
+
+/**
+ * The user's current subscription, if they have one in any non-terminal
+ * state. Shared by `summary` (which decides what the UI offers) and
+ * `checkoutSubscription` (which refuses to sell a second one), so the two can
+ * never disagree about what counts as "already subscribed".
+ */
+async function openSubscription(prisma: PrismaClient, userId: string) {
+  return prisma.subscription.findFirst({
+    where: { userId, status: { in: [...OPEN_SUBSCRIPTION_STATUSES] } },
+    orderBy: { currentPeriodEnd: 'desc' },
+    select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+  });
+}
+
 export const billingRouter = router({
   /** Everything the pricing UI needs in one call. */
   summary: protectedProcedure.query(async ({ ctx }) => {
@@ -144,11 +183,7 @@ export const billingRouter = router({
       where: { id: ctx.user.id },
       select: { creditBalance: true, isVip: true },
     });
-    const subscription = await ctx.prisma.subscription.findFirst({
-      where: { userId: ctx.user.id, status: 'active' },
-      orderBy: { currentPeriodEnd: 'desc' },
-      select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
-    });
+    const subscription = await openSubscription(ctx.prisma, ctx.user.id);
     const currency = currencyForLocale(ctx.locale);
     return {
       billingEnabled: isBillingEnabled(),
@@ -156,6 +191,17 @@ export const billingRouter = router({
       isVip: user.isVip,
       subscription,
       currency,
+      /**
+       * Whether a subscription can actually be *bought* right now, in this
+       * request's currency. `billingEnabled` only reports that
+       * `STRIPE_SECRET_KEY` is set, but the VIP price is a separate variable
+       * per currency (`STRIPE_PRICE_{CZK,EUR}_VIP`). With the key set and the
+       * EUR price missing, the Subscribe button rendered for every English
+       * user and every click failed with PRECONDITION_FAILED. The UI hides
+       * the button when this is false, which is a real possibility on a
+       * partially-configured instance rather than a theoretical one.
+       */
+      subscriptionAvailable: isBillingEnabled() && subscriptionPriceId(currency) !== null,
       packs: isBillingEnabled() ? creditPacks(currency) : [],
     };
   }),
@@ -168,6 +214,18 @@ export const billingRouter = router({
       throw new TRPCError({
         code: 'PRECONDITION_FAILED',
         message: 'Billing is not configured on this instance.',
+      });
+    }
+    // Server-side, because the client cannot fix this: the UI's `pending`
+    // flag only guards one page load, so two open tabs — or a stale tab left
+    // open while the subscription went `past_due` in another — could each
+    // open their own Stripe Checkout and end with two live subscriptions on
+    // one customer. The portal is where an existing subscription is fixed,
+    // renewed or cancelled; checkout is not.
+    if (await openSubscription(ctx.prisma, ctx.user.id)) {
+      throw new TRPCError({
+        code: 'CONFLICT',
+        message: 'You already have a subscription; manage it in the billing portal.',
       });
     }
     const session = await stripe.checkout.sessions.create(

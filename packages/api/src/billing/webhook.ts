@@ -67,7 +67,25 @@ export async function applyStripeEvent(prisma: PrismaClient, event: Stripe.Event
       const userId = session.metadata?.userId;
       const scans = Number(session.metadata?.scans ?? 0);
       const consent = session.metadata?.withdrawalConsent;
-      if (!userId || !Number.isInteger(scans) || scans <= 0 || !consent) return;
+      if (!userId || !Number.isInteger(scans) || scans <= 0 || !consent) {
+        // The customer has PAID by this point — `payment_status === 'paid'`
+        // is checked above — and we are about to hand out no credits. A bare
+        // `return` did that silently: 200 back to Stripe, no retry, no trace,
+        // money taken. Log loudly instead, the way every neighbouring path in
+        // apps/web/src/app/api/stripe/webhook/route.ts already does, so the
+        // session id is in the logs and the purchase can be reconciled by
+        // hand. Still a 200: the metadata cannot repair itself, so a retry
+        // would only replay the same failure.
+        console.error(
+          `[stripe] paid checkout session ${session.id} has unusable metadata; no credits granted`,
+          {
+            userId: userId ?? null,
+            scans: session.metadata?.scans ?? null,
+            consent: consent ?? null,
+          },
+        );
+        return;
+      }
       await creditPurchase(prisma, {
         userId,
         scans,
