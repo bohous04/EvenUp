@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { SignUp } from '@/components/sign-up';
 
 function SignUpWithCallback() {
-  const callbackURL = useSearchParams().get('callbackURL') ?? '/';
+  const callbackURL = useSearchParams().get('callbackURL') ?? '/groups';
   return <SignUp callbackURL={callbackURL} />;
 }
 

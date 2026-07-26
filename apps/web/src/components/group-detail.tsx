@@ -90,7 +90,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     return (
       <Card>
         <p className="text-red-700 dark:text-red-400">{t('error.notFound')}</p>
-        <Link href="/" className="mt-2 inline-block text-brand-600 underline">
+        <Link href="/groups" className="mt-2 inline-block text-brand-600 underline">
           {t('common.back')}
         </Link>
       </Card>
@@ -157,7 +157,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Link
-            href="/"
+            href="/groups"
             className="inline-flex items-center gap-0.5 text-xs text-zinc-500 hover:underline dark:text-zinc-400"
           >
             <ChevronLeft size={13} aria-hidden />

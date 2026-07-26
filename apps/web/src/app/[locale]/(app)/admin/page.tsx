@@ -387,7 +387,7 @@ export default function AdminPage() {
     return (
       <Card>
         <p className="text-red-700 dark:text-red-400">{t('error.notFound')}</p>
-        <Link href="/" className="mt-2 inline-block text-brand-700 underline">
+        <Link href="/groups" className="mt-2 inline-block text-brand-700 underline">
           {t('common.back')}
         </Link>
       </Card>

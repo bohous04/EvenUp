@@ -150,7 +150,7 @@ export default function SettingsPage() {
   if (!session?.user) {
     return (
       <Card>
-        <Link href="/" className="text-brand-700 underline">
+        <Link href="/groups" className="text-brand-700 underline">
           {t('common.back')}
         </Link>
       </Card>
@@ -417,7 +417,7 @@ export default function SettingsPage() {
           </Button>
         </div>
       </Card>
-      <Link href="/" className="inline-block text-brand-700 underline">
+      <Link href="/groups" className="inline-block text-brand-700 underline">
         ← {t('nav.groups')}
       </Link>
     </div>

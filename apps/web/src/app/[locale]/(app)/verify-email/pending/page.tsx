@@ -13,7 +13,7 @@ function VerifyEmailPending() {
 
   async function resend() {
     setLoading(true);
-    await authClient.sendVerificationEmail({ email, callbackURL: '/' });
+    await authClient.sendVerificationEmail({ email, callbackURL: '/groups' });
     setLoading(false);
     setResent(true);
   }

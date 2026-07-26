@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { notFound } from 'next/navigation';
-import { LOCALES, type Locale } from '@evenup/i18n';
+import { LOCALES } from '@evenup/i18n';
 import '../globals.css';
 import { Providers } from '@/components/providers';
-import { Header } from '@/components/header';
-import { ServiceWorker } from '@/components/service-worker';
+import { resolveLocale } from '@/lib/locale-param';
 import { SITE_URL } from '@/lib/site-url';
 
 export const metadata: Metadata = {
@@ -51,6 +49,13 @@ export function generateStaticParams() {
  * `opengraph-image.png`/`twitter-image.png` a layout to inherit
  * `metadataBase` from, since they sit one level above this segment. Do not
  * delete either file without reading the comment in the other.
+ *
+ * It renders only what is global: the document, and `<Providers>` (tRPC,
+ * React Query, the i18n context) which the client components in both route
+ * groups need. Everything else — header, content column, service worker — is
+ * app chrome and lives in `(app)/layout.tsx`, because the public landing page
+ * under `(marketing)` is a sibling in this same segment and brings its own
+ * marketing header and footer instead.
  */
 export default async function RootLayout({
   children,
@@ -60,26 +65,15 @@ export default async function RootLayout({
   params: Promise<{ locale: string }>;
 }) {
   // In Next 15 `params` is a Promise; the synchronous form silently breaks.
-  const { locale } = await params;
+  const { locale: raw } = await params;
   // Without this, `/xx/groups` would render with a bogus `lang` attribute.
-  // A type-predicate guard (rather than a bare `as Locale` cast) so the
-  // narrowing below is real: everything from here down sees `locale:
-  // Locale`, verified, not asserted.
-  if (!isLocale(locale)) notFound();
+  const locale = resolveLocale(raw);
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full">
-        <Providers locale={locale}>
-          <Header />
-          <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
-          <ServiceWorker />
-        </Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );
-}
-
-function isLocale(value: string): value is Locale {
-  return (LOCALES as readonly string[]).includes(value);
 }

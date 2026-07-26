@@ -31,7 +31,7 @@ export function Header() {
     <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
         <Link
-          href="/"
+          href="/groups"
           aria-label={t('app.name')}
           className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100"
         >

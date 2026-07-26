@@ -15,11 +15,17 @@ const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 /**
  * `callbackURL` lets embedding pages (e.g. the invite page) get the user back
  * after auth instead of being dumped on the dashboard. Only same-origin paths
- * are accepted; anything else falls back to '/'.
+ * are accepted; anything else falls back to the dashboard.
+ *
+ * That default is `/groups`, not `/`: `/` is the public landing page now, and
+ * sending someone who just signed in back to the marketing site would look
+ * like the sign-in silently failed.
  */
-export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
+const DASHBOARD = '/groups';
+
+export function SignIn({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const { t } = useI18n();
-  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : DASHBOARD;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +188,7 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
               </Link>
               <Link
                 href={
-                  safeCallback === '/'
+                  safeCallback === DASHBOARD
                     ? '/sign-up'
                     : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
                 }

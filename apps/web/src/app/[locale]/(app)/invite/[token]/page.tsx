@@ -47,10 +47,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   // Public, name-only — drives the pre-sign-in group name.
   const preview = trpc.invite.preview.useQuery({ token });
   // Protected, carries balances — only fetched once signed in.
-  const options = trpc.invite.claimOptions.useQuery(
-    { token },
-    { enabled: Boolean(session?.user) },
-  );
+  const options = trpc.invite.claimOptions.useQuery({ token }, { enabled: Boolean(session?.user) });
   const [error, setError] = useState<string | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   // Synchronous in-flight guard. `claim.isPending` (and the `disabled` props
@@ -60,7 +57,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   // call site itself, closing that gap regardless of render timing.
   const pendingRef = useRef(false);
   const claim = trpc.invite.claim.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => router.push('/groups'),
     onSettled: () => {
       pendingRef.current = false;
     },

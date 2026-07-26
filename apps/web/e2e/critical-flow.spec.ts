@@ -1,12 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import {
-  signIn,
-  uniqueEmail,
-  openGroupSheet,
-  closeSheet,
-  ensureInstanceOcrKey,
-} from './helpers';
+import { signIn, uniqueEmail, openGroupSheet, closeSheet, ensureInstanceOcrKey } from './helpers';
 
 test.describe('EvenUp critical journey (PRD §10.1)', () => {
   // Guarantee a test never leaves its context offline (avoids cross-test cascades).
@@ -151,7 +145,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('profile-name-save').click();
     await expect(page.getByTestId('profile-name-saved')).toBeVisible();
 
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByText('Nick').click();
     await openGroupSheet(page, 'members');
     await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
@@ -186,7 +180,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Večeře');
     await page.getByTestId('create-group-submit').click();
@@ -328,7 +322,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     // there's no settings setup needed before scanning.
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Nákup');
     await page.getByTestId('create-group-submit').click();

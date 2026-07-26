@@ -5,10 +5,16 @@ import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 
-/** `callbackURL`: where the verification link lands the user (default '/'). */
-export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
+/**
+ * `callbackURL`: where the verification link lands the user — the dashboard by
+ * default. `/` is the public landing page now, so a verified new account has
+ * to land on `/groups` instead or it arrives back on the marketing site.
+ */
+const DASHBOARD = '/groups';
+
+export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const { t } = useI18n();
-  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : DASHBOARD;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -116,7 +122,7 @@ export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
             </form>
             <div className="text-center text-sm">
               <Link
-                href="/"
+                href="/groups"
                 data-testid="signin-link"
                 className="text-brand-600 dark:text-brand-100"
               >

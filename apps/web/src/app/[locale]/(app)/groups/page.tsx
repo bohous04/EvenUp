@@ -4,7 +4,18 @@ import { useSession } from '@/lib/auth-client';
 import { SignIn } from '@/components/sign-in';
 import { GroupsDashboard } from '@/components/groups-dashboard';
 
-export default function HomePage() {
+/**
+ * The app's home: the group list for a signed-in user, the sign-in form for
+ * everyone else.
+ *
+ * It used to be `/`. `/` is now the public marketing landing page, so this
+ * moved to `/groups` — a real address for the dashboard, and the one every
+ * post-sign-in `callbackURL`, the header logo and the "back" links point at.
+ * Serving `<SignIn>` here (rather than redirecting signed-out visitors to the
+ * landing page) is what keeps `/groups` a working destination for both
+ * states, including for a link shared with someone not signed in.
+ */
+export default function GroupsPage() {
   const { data: session, isPending } = useSession();
   // Show the loading placeholder only until the FIRST session resolve. Better
   // Auth refetches the session after a password sign-in — including the one that
