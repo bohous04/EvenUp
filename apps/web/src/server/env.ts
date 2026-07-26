@@ -99,6 +99,32 @@ export const env = {
     const n = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
     return Number.isFinite(n) ? n : 30;
   })(),
+  /**
+   * Company identification for the legal pages, and the switch that retires
+   * their "draft, pending legal review" banner.
+   *
+   * Deliberately NOT hardcoded and deliberately NOT given a placeholder
+   * default: an IČO is an entry in a public register, and a plausible-looking
+   * invented one is a false legal record, not a TODO. When any of the three is
+   * unset the pages render a loud "not configured" notice in place of the
+   * details, so a missing IČO is impossible to miss in a preview and cannot
+   * ship unnoticed behind an empty line.
+   *
+   * `reviewed` is opt-in for the same reason: the banner disappears only when
+   * somebody deliberately sets `LEGAL_REVIEWED=true`, so it cannot be
+   * forgotten before launch, only switched off on purpose.
+   *
+   * All four are read at module scope and the legal pages are statically
+   * generated, so — exactly like `NEXT_PUBLIC_SOURCE_URL` in the marketing
+   * layout — their values are baked into the HTML at `next build` time and
+   * must be set BEFORE the build, not merely before the container starts.
+   */
+  legal: {
+    entityName: process.env.LEGAL_ENTITY_NAME,
+    ico: process.env.LEGAL_ENTITY_ICO,
+    address: process.env.LEGAL_ENTITY_ADDRESS,
+    reviewed: process.env.LEGAL_REVIEWED === 'true',
+  },
   // Shared secret required by the scheduled tasks' HTTP endpoints
   // (receipt-cleanup and notifications).
   cronSecret: process.env.CRON_SECRET,

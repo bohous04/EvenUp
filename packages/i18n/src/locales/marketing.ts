@@ -23,8 +23,19 @@
  *
  * The same compile-time key-parity guarantee as the app catalogs: `marketingEn`
  * is typed `MarketingMessages`, so a missing or extra key is a type error.
+ *
+ * The four legal documents (terms, privacy, withdrawal, contact) are part of
+ * this same namespace but live in `legal.ts` and are spread in below. They are
+ * several times the length of everything here, they change for entirely
+ * different reasons — a legal review, a new processor, a changed retention
+ * period — and nobody reviewing a privacy policy should have to scroll through
+ * hero variants to reach it. Splitting the file changes nothing for callers:
+ * one `tMarketing`, one `MarketingKey`, and the same parity guarantee, which
+ * now applies to each half independently as well as to the whole.
  */
-export const marketingCs = {
+import { legalCs, legalEn } from './legal.js';
+
+const marketingOnlyCs = {
   'marketing.meta.title': 'dlužníček – vyrovnejte se pár platbami',
   'marketing.meta.description':
     'Zapište, kdo co zaplatil, a dlužníček spočítá nejmenší počet plateb, kterými se celá skupina vyrovná. Účtenky z fotky, QR platba, více měn, členové i bez účtu.',
@@ -115,11 +126,19 @@ export const marketingCs = {
   'marketing.footer.source': 'Zdrojový kód',
 } as const;
 
+/** Marketing copy and the legal documents, as one public-pages namespace. */
+export const marketingCs = { ...marketingOnlyCs, ...legalCs } as const;
+
 export type MarketingKey = keyof typeof marketingCs;
 /** Every locale must provide exactly these keys, each mapping to a string. */
 export type MarketingMessages = Record<MarketingKey, string>;
 
-export const marketingEn: MarketingMessages = {
+/**
+ * Typed against the Czech marketing half only — `legalEn` carries its own
+ * parity guarantee against `legalCs` — so a key missing from either half is
+ * still a compile error, and the error points at the file that is missing it.
+ */
+const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.meta.title': 'EvenUp — settle up in a couple of payments',
   'marketing.meta.description':
     'Log who paid for what and EvenUp works out the smallest number of payments that clears the whole group. Receipts from a photo, Czech QR payments, several currencies, members without accounts.',
@@ -195,3 +214,5 @@ export const marketingEn: MarketingMessages = {
   'marketing.footer.tagline': 'Group expense splitting. Open source.',
   'marketing.footer.source': 'Source code',
 };
+
+export const marketingEn: MarketingMessages = { ...marketingOnlyEn, ...legalEn };

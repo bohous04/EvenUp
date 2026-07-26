@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { localizedPath, localizedUrl } from './locale-path';
+import { localizedPath, localizedUrl, unlocalizedPath } from './locale-path';
+
+describe('unlocalizedPath', () => {
+  it('strips either locale prefix, on a segment boundary', () => {
+    expect(unlocalizedPath('/en/privacy')).toBe('/privacy');
+    expect(unlocalizedPath('/cs/privacy')).toBe('/privacy');
+    expect(unlocalizedPath('/privacy')).toBe('/privacy');
+    expect(unlocalizedPath('/en')).toBe('/');
+    expect(unlocalizedPath('/cs')).toBe('/');
+    expect(unlocalizedPath('/enterprise')).toBe('/enterprise');
+  });
+});
 
 describe('localizedPath', () => {
+  it('treats the internal /cs prerender path as the unprefixed one', () => {
+    // `/cs/...` never reaches the address bar (the middleware 308s it away),
+    // but it IS what `usePathname()` reports while a Czech route prerenders.
+    // The marketing locale switch must derive the same hrefs from both forms
+    // or the prerendered HTML and the hydrated tree disagree.
+    expect(localizedPath('/cs/privacy', 'en')).toBe('/en/privacy');
+    expect(localizedPath('/cs/privacy', 'cs')).toBe('/privacy');
+    expect(localizedPath('/privacy', 'en')).toBe('/en/privacy');
+  });
+
   it('prefixes /en for English', () => {
     expect(localizedPath('/groups', 'en')).toBe('/en/groups');
     expect(localizedPath('/', 'en')).toBe('/en');

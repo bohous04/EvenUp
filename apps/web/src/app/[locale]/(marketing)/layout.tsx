@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { t, tMarketing, LOCALES, type Locale, type MarketingKey } from '@evenup/i18n';
+import { t, tMarketing, type MarketingKey } from '@evenup/i18n';
 import { LandingCta } from '@/components/landing-cta';
+import { MarketingLocaleSwitch } from '@/components/marketing-locale-switch';
+import { LEGAL_DOCUMENTS } from '@/components/legal-document';
 import { resolveLocale } from '@/lib/locale-param';
 import { localizedPath } from '@/lib/locale-path';
 
@@ -14,10 +16,13 @@ import { localizedPath } from '@/lib/locale-path';
  * segment, so a parent layout cannot give one of them chrome without giving it
  * to the other. The parent now renders only `<html>`/`<body>`/`<Providers>`.
  *
- * A server component throughout, using the pure `t(locale, key)` /
- * `tMarketing(locale, key)` translators — the route is the single source of
- * truth for locale, and the copy has to be in the server HTML for crawlers and
- * no-JS visitors.
+ * The layout itself is a server component, translating through the pure
+ * `t(locale, key)` / `tMarketing(locale, key)` — the route is the single source
+ * of truth for locale, and the copy has to be in the server HTML for crawlers
+ * and no-JS visitors. Two client islands sit inside it, both label-or-href
+ * only and both server-rendered into real markup: `<LandingCta>` (swaps a
+ * link's label once the session resolves) and `<MarketingLocaleSwitch>` (needs
+ * the current pathname, which a layout cannot see).
  */
 export default async function MarketingLayout({
   children,
@@ -59,7 +64,7 @@ export default async function MarketingLayout({
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <LocaleSwitch locale={locale} />
+            <MarketingLocaleSwitch locale={locale} label={t(locale, 'common.language')} />
             <LandingCta
               testId="landing-signin"
               href={path('/groups')}
@@ -74,13 +79,32 @@ export default async function MarketingLayout({
       <main className="flex-1">{children}</main>
 
       <footer className="border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-8 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-400">
-          <p>{tm('marketing.footer.tagline')}</p>
-          {SOURCE_URL ? (
-            <a href={SOURCE_URL} className="text-brand-700 underline dark:text-brand-100">
-              {tm('marketing.footer.source')}
-            </a>
-          ) : null}
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 text-sm text-zinc-600 dark:text-zinc-400">
+          {/* The legal documents are reachable from every public page — a
+              consumer has to be able to find the terms they are agreeing to
+              and the privacy policy without being signed in. */}
+          <nav aria-label={tm('legal.nav.title')}>
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              {LEGAL_DOCUMENTS.map((doc) => (
+                <li key={doc.slug}>
+                  <Link
+                    href={path(`/${doc.slug}`)}
+                    className="hover:text-zinc-900 dark:hover:text-zinc-100"
+                  >
+                    {tm(doc.label)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p>{tm('marketing.footer.tagline')}</p>
+            {SOURCE_URL ? (
+              <a href={SOURCE_URL} className="text-brand-700 underline dark:text-brand-100">
+                {tm('marketing.footer.source')}
+              </a>
+            ) : null}
+          </div>
         </div>
       </footer>
     </div>
@@ -93,37 +117,3 @@ export default async function MarketingLayout({
  * time and the footer link appears.
  */
 const SOURCE_URL = process.env.NEXT_PUBLIC_SOURCE_URL;
-
-/**
- * Plain links, not the app header's `router.push` buttons: the marketing page
- * is server-rendered and must switch language without JavaScript. Czech is the
- * unprefixed default and English lives under `/en` (see the middleware), and
- * `(marketing)` holds exactly one page, so the two targets are known
- * statically. A second marketing page would need the current pathname here.
- */
-function LocaleSwitch({ locale }: { locale: Locale }) {
-  const href: Record<Locale, string> = { cs: '/', en: '/en' };
-  return (
-    <div
-      className="flex overflow-hidden rounded-lg border border-zinc-200 text-xs dark:border-zinc-700"
-      role="group"
-      aria-label={t(locale, 'common.language')}
-    >
-      {LOCALES.map((l) => (
-        <Link
-          key={l}
-          href={href[l]}
-          hrefLang={l}
-          aria-current={locale === l ? 'true' : undefined}
-          className={`px-2 py-1 font-medium uppercase ${
-            locale === l
-              ? 'bg-brand-600 text-white'
-              : 'bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300'
-          }`}
-        >
-          {l}
-        </Link>
-      ))}
-    </div>
-  );
-}
