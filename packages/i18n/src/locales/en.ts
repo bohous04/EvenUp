@@ -112,6 +112,7 @@ export const en: Messages = {
   'vip.balance': 'Scans remaining: {count}',
   'vip.credits.title': 'Or buy scans one pack at a time',
   'vip.credits.pack': '{scans} scans',
+  'vip.price.month': '{price} per month',
   'vip.credits.buy': 'Buy',
   'vip.credits.ack':
     'I agree the scans are delivered immediately, and I understand this means I lose my right to withdraw within 14 days.',

@@ -112,6 +112,9 @@ export const cs = {
   'vip.balance': 'Zbývá skenů: {count}',
   'vip.credits.title': 'Nebo si dokupte jednotlivé skeny',
   'vip.credits.pack': '{scans} skenů',
+  // Displayed price of the subscription; `{price}` is already formatted for
+  // the locale by `formatCurrency`, so no currency symbol belongs in here.
+  'vip.price.month': '{price} měsíčně',
   'vip.credits.buy': 'Koupit',
   'vip.credits.ack':
     'Souhlasím, aby skeny byly dodány ihned, a beru na vědomí, že tím ztrácím právo na odstoupení od smlouvy do 14 dnů.',

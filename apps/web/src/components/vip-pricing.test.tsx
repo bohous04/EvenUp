@@ -3,7 +3,11 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createTranslator, DEFAULT_LOCALE } from '@evenup/i18n';
+import { createTranslator, formatCurrency, DEFAULT_LOCALE } from '@evenup/i18n';
+import {
+  displayPackPriceMinor,
+  displaySubscriptionPriceMinor,
+} from '@evenup/api/billing/display-prices';
 import { VipPricing } from './vip-pricing';
 import { Providers } from './providers';
 
@@ -17,12 +21,24 @@ afterEach(cleanup);
 // one locale's text.
 const t = createTranslator(DEFAULT_LOCALE);
 
+/**
+ * `Intl` puts a non-breaking space between amount and currency symbol
+ * ("50,00 Kč"); `toHaveTextContent` collapses whitespace in the *element* but
+ * not in the expected string, so an un-normalized expectation fails on two
+ * strings that render identically. Normalize both sides.
+ */
+const money = (minor: number, currency: 'CZK' | 'EUR') =>
+  formatCurrency(minor, currency, DEFAULT_LOCALE).replace(/\s+/g, ' ');
+
 const summary = {
   billingEnabled: true,
   creditBalance: 3,
   isVip: false,
   subscription: null,
-  currency: 'CZK' as const,
+  // Widened rather than `as const` so a case below can override it with EUR —
+  // `billing.summary` resolves the currency from the caller's locale, and the
+  // panel has to price in whichever one it gets back.
+  currency: 'CZK' as 'CZK' | 'EUR',
   packs: [{ id: 'pack5', scans: 5, priceId: 'price_x' }],
 };
 
@@ -69,6 +85,51 @@ describe('VipPricing', () => {
   it('degrades gracefully when billing is disabled (self-hosting)', () => {
     renderPricing({ billingEnabled: false, packs: [] });
     expect(screen.queryByRole('button', { name: /subscribe|předplatit/i })).not.toBeInTheDocument();
+  });
+
+  it('prices the subscription and every pack in the summary currency', () => {
+    // The panel used to render pack rows with no price at all, which is what
+    // `display-prices.ts` exists to fix. Amounts are never written into the
+    // copy — they go through `formatCurrency`, so this builds the expected
+    // strings the same way rather than hardcoding "50,00 Kč".
+    render(
+      <Providers locale={DEFAULT_LOCALE}>
+        <VipPricing
+          summary={multiPackSummary}
+          onSubscribe={() => {}}
+          onBuy={() => {}}
+          onPortal={() => {}}
+        />
+      </Providers>,
+    );
+
+    expect(screen.getByTestId('vip-price')).toHaveTextContent(
+      t('vip.price.month', { price: money(displaySubscriptionPriceMinor('CZK'), 'CZK') }).replace(
+        /\s+/g,
+        ' ',
+      ),
+    );
+    for (const pack of multiPackSummary.packs) {
+      expect(screen.getByTestId(`vip-price-${pack.id}`)).toHaveTextContent(
+        money(displayPackPriceMinor('CZK', pack.scans)!, 'CZK'),
+      );
+    }
+  });
+
+  it('prices in EUR when the summary resolved to EUR', () => {
+    renderPricing({ currency: 'EUR', packs: [{ id: 'pack2', scans: 2, priceId: 'p' }] });
+    expect(screen.getByTestId('vip-price-pack2')).toHaveTextContent(
+      money(displayPackPriceMinor('EUR', 2)!, 'EUR'),
+    );
+  });
+
+  it('renders a pack with no display price rather than dropping or faking one', () => {
+    // A pack size configured in Stripe but missing from `display-prices.ts`:
+    // the row must still be purchasable, just without an amount.
+    renderPricing({ packs: [{ id: 'pack7', scans: 7, priceId: 'price_7' }] });
+    expect(screen.getByText(t('vip.credits.pack', { scans: 7 }))).toBeInTheDocument();
+    expect(screen.queryByTestId('vip-price-pack7')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /buy|koupit/i })).toBeInTheDocument();
   });
 
   it('gates every Buy button behind the single withdrawal checkbox, for every configured pack', async () => {

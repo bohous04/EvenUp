@@ -1,5 +1,9 @@
 'use client';
 import { useId, useState } from 'react';
+import {
+  displayPackPriceMinor,
+  displaySubscriptionPriceMinor,
+} from '@evenup/api/billing/display-prices';
 import { useI18n } from '@/lib/i18n';
 import { Button, Card, SectionLabel } from '@/components/ui';
 import type { RouterOutputs } from '@/lib/trpc';
@@ -12,6 +16,13 @@ export type BillingSummary = RouterOutputs['billing']['summary'];
  * checkbox is local state shared by every pack row: none of them may fire a
  * purchase until it's checked, mirroring the server's independent rejection
  * of `acknowledgeImmediate: false` in `billing.checkoutCredits`.
+ *
+ * Prices come from `display-prices.ts` — a presentation-only copy of what is
+ * configured on the Stripe prices, since `summary.packs` carries only Stripe
+ * price ids and never an amount. They are rendered through the locale-aware
+ * `formatCurrency` in the currency `billing.summary` resolved for this user,
+ * so the panel shows CZK or EUR exactly as checkout will. A pack size with no
+ * display price renders without one rather than with a wrong one.
  */
 export function VipPricing({
   summary,
@@ -34,7 +45,7 @@ export function VipPricing({
    */
   pending?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, formatCurrency } = useI18n();
   const [acknowledged, setAcknowledged] = useState(false);
   const ackId = useId();
 
@@ -50,6 +61,14 @@ export function VipPricing({
     <div className="space-y-6">
       <Card>
         <SectionLabel>{t('vip.subscription.title')}</SectionLabel>
+        <p className="mb-1 text-2xl font-extrabold tracking-tight" data-testid="vip-price">
+          {t('vip.price.month', {
+            price: formatCurrency(
+              displaySubscriptionPriceMinor(summary.currency),
+              summary.currency,
+            ),
+          })}
+        </p>
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">{t('vip.subtitle')}</p>
         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
           <li>{t('vip.benefit.scans')}</li>
@@ -96,10 +115,23 @@ export function VipPricing({
               // each to its own pack label so a screen-reader user can tell
               // them apart instead of hearing the same name three times.
               const packLabelId = `${ackId}-pack-${pack.id}`;
+              const priceMinor = displayPackPriceMinor(summary.currency, pack.scans);
               return (
                 <div key={pack.id} className="flex items-center justify-between gap-3">
+                  {/* The price is inside the label element so it is part of
+                      the Buy button's `aria-describedby` announcement — a
+                      screen-reader user hears "5 scans, 50,00 Kč" rather than
+                      an unpriced pack name. */}
                   <span id={packLabelId} className="text-sm font-medium">
                     {t('vip.credits.pack', { scans: pack.scans })}
+                    {priceMinor === undefined ? null : (
+                      <span
+                        className="ml-2 font-semibold text-zinc-600 dark:text-zinc-300"
+                        data-testid={`vip-price-${pack.id}`}
+                      >
+                        {formatCurrency(priceMinor, summary.currency)}
+                      </span>
+                    )}
                   </span>
                   <Button
                     variant="secondary"

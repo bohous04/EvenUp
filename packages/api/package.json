@@ -13,6 +13,14 @@
     "./trpc": {
       "types": "./src/trpc.ts",
       "default": "./src/trpc.ts"
+    },
+    "./billing/prices": {
+      "types": "./src/billing/prices.ts",
+      "default": "./src/billing/prices.ts"
+    },
+    "./billing/display-prices": {
+      "types": "./src/billing/display-prices.ts",
+      "default": "./src/billing/display-prices.ts"
     }
   },
   "scripts": {
