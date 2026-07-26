@@ -1,9 +1,9 @@
 /**
  * OpenRouter OCR adapter (PRD §6.2, §6.4). Sends a receipt image to OpenRouter's
  * chat completions endpoint with a strict `json_schema` response_format, using
- * the user's BYO key. Validates the result with zod, retries once on malformed
- * output, converts decimal prices to integer minor units, and reconciles the
- * item sum against the total.
+ * the instance's shared key. Validates the result with zod, retries once on
+ * malformed output, converts decimal prices to integer minor units, and
+ * reconciles the item sum against the total.
  *
  * `fetchImpl` is injectable so the adapter is tested against recorded fixtures
  * with **no live API calls** in CI.

@@ -1,4 +1,4 @@
-/** User profile & settings, incl. BYO OpenRouter key (PRD §7.2, §6.2, FR-1.6). */
+/** User profile & settings (PRD §7.2, §6.2, FR-1.6). */
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { deriveInitials, parseCzAccount, maskCzAccount } from '@evenup/core';
@@ -20,7 +20,6 @@ export const userRouter = router({
         defaultCurrency: true,
         ocrModel: true,
         hideProfilePhoto: true,
-        openRouterKeyEncrypted: true,
         bankAccountEncrypted: true,
         isAdmin: true,
         isVip: true,
@@ -28,13 +27,12 @@ export const userRouter = router({
       },
     });
     // Expose only derived, non-sensitive facts here — `me` is fetched on many
-    // pages (header, OCR, admin). The OpenRouter key and the plaintext bank
-    // account (PII) never ride this hot, widely-cached query; the full account
-    // lives behind the dedicated, settings-only `getBankAccount` below.
-    const { openRouterKeyEncrypted, bankAccountEncrypted, ...rest } = user;
+    // pages (header, OCR, admin). The plaintext bank account (PII) never rides
+    // this hot, widely-cached query; the full account lives behind the
+    // dedicated, settings-only `getBankAccount` below.
+    const { bankAccountEncrypted, ...rest } = user;
     return {
       ...rest,
-      hasOpenRouterKey: openRouterKeyEncrypted !== null,
       hasBankAccount: bankAccountEncrypted !== null,
     };
   }),
@@ -137,25 +135,6 @@ export const userRouter = router({
       data: { bankAccountEncrypted: null },
     });
     return { ok: true as const };
-  }),
-
-  setOpenRouterKey: protectedProcedure
-    .input(z.object({ apiKey: z.string().trim().min(8).max(400) }))
-    .mutation(async ({ ctx, input }) => {
-      const openRouterKeyEncrypted = ctx.secretBox.encrypt(input.apiKey);
-      await ctx.prisma.user.update({
-        where: { id: ctx.user.id },
-        data: { openRouterKeyEncrypted },
-      });
-      return { ok: true };
-    }),
-
-  clearOpenRouterKey: protectedProcedure.mutation(async ({ ctx }) => {
-    await ctx.prisma.user.update({
-      where: { id: ctx.user.id },
-      data: { openRouterKeyEncrypted: null },
-    });
-    return { ok: true };
   }),
 
   /**

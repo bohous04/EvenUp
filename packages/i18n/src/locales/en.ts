@@ -25,7 +25,6 @@ export const en: Messages = {
   'common.showAll': 'Show all',
   'common.language': 'Language',
   'transactions.showMore': 'Show more transactions',
-  'settings.openRouterKey': 'OpenRouter API key',
   'settings.apiKey': 'API key',
   'qr.alt': 'QR payment',
 
@@ -45,7 +44,6 @@ export const en: Messages = {
   'errors.recipientNoIban': 'Recipient has no saved IBAN; settle in cash or manually (FR-7.4).',
   'errors.tooManyScans': 'Too many receipt scans; please wait a moment and try again.',
   'errors.noSharedKey': 'No shared OpenRouter key is configured; ask an admin.',
-  'errors.ocrNoAccess': 'Add your OpenRouter API key in settings, or ask an admin for VIP access.',
   'errors.noScansRemaining': 'No scans remaining. Subscribe or buy credits to continue.',
   'errors.ocrConsentRequired':
     'Receipt scanning requires your consent to send the image to our OCR provider.',
@@ -106,7 +104,6 @@ export const en: Messages = {
   'admin.errors': 'Errors',
   'admin.col.vip': 'VIP',
   'admin.col.admin': 'Admin',
-  'admin.col.key': 'Own key',
   'admin.col.joined': 'Joined',
   'admin.col.disabled': 'Disabled',
   'admin.col.actions': 'Actions',
@@ -276,9 +273,6 @@ export const en: Messages = {
   'ocr.receiptTitle': 'Receipt',
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
-  'ocr.apiKeyRequired': 'Enter your OpenRouter API key to scan receipts',
-  'ocr.accessRequired':
-    'To scan receipts you need VIP access, or your own OpenRouter API key. Add one in Settings.',
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',

@@ -53,7 +53,6 @@ export default function SettingsPage() {
     enabled: !!session?.user && !!me.data?.hasBankAccount,
   });
   const utils = trpc.useUtils();
-  const [apiKey, setApiKey] = useState('');
   const [name, setName] = useState('');
   const [account, setAccount] = useState('');
   const [accountError, setAccountError] = useState(false);
@@ -122,15 +121,6 @@ export default function SettingsPage() {
     },
   });
 
-  const setKey = trpc.user.setOpenRouterKey.useMutation({
-    onSuccess: () => {
-      setApiKey('');
-      void utils.user.me.invalidate();
-    },
-  });
-  const clearKey = trpc.user.clearOpenRouterKey.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
-  });
   const exportData = trpc.user.exportData.useQuery(undefined, { enabled: false });
   const deleteAccount = trpc.user.deleteAccount.useMutation({
     onSuccess: async () => {
@@ -380,51 +370,6 @@ export default function SettingsPage() {
             <Check size={16} aria-hidden /> {t('settings.notifications.saved')}
           </p>
         ) : null}
-      </Card>
-      <Card>
-        <SectionLabel className="mb-1">{t('settings.openRouterKey')}</SectionLabel>
-        <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.apiKeyRequired')}</p>
-        {me.data?.hasOpenRouterKey ? (
-          <div className="flex items-center justify-between">
-            <span
-              className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400"
-              data-testid="key-status"
-            >
-              <Check size={16} aria-hidden /> {t('common.confirm')}
-            </span>
-            <Button
-              variant="danger"
-              onClick={() => clearKey.mutate()}
-              disabled={clearKey.isPending}
-              data-testid="clear-key-btn"
-            >
-              {t('common.delete')}
-            </Button>
-          </div>
-        ) : (
-          <form
-            className="space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (apiKey.trim()) setKey.mutate({ apiKey: apiKey.trim() });
-            }}
-          >
-            <div>
-              <Label htmlFor="or-key">{t('settings.apiKey')}</Label>
-              <Input
-                id="or-key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-or-v1-…"
-                data-testid="api-key-input"
-              />
-            </div>
-            <Button type="submit" disabled={setKey.isPending} data-testid="save-key-btn">
-              {t('common.save')}
-            </Button>
-          </form>
-        )}
       </Card>
       <Card>
         <SectionLabel>{t('settings.data.title')}</SectionLabel>

@@ -32,9 +32,9 @@ Database migrations are applied automatically when the `web` container starts
 All variables are documented in [`.env.example`](../.env.example). Key ones:
 
 - **`DATABASE_URL`** — PostgreSQL connection string.
-- **`ENCRYPTION_KEY`** — 32-byte key (base64 or 64-char hex) for encrypting BYO
-  OpenRouter keys and IBANs at rest (AES-256-GCM). **Keep it secret; rotating it
-  invalidates stored secrets.**
+- **`ENCRYPTION_KEY`** — 32-byte key (base64 or 64-char hex) for encrypting the
+  instance OpenRouter key and IBANs at rest (AES-256-GCM). **Keep it secret;
+  rotating it invalidates stored secrets.**
 - **`BETTER_AUTH_SECRET`** / **`BETTER_AUTH_URL`** — auth signing secret and the
   app's public URL.
 - **`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`** — optional Google sign-in. Also
@@ -81,8 +81,9 @@ All variables are documented in [`.env.example`](../.env.example). Key ones:
   > **bounce** unless you register your sending domain under Apple's
   > _Certificates, Identifiers & Profiles → More → Configure Email Sources_.
 
-- **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model. OCR API keys are
-  **per-user (BYO)**, not a global secret.
+- **`DEFAULT_OCR_MODEL`** — default OpenRouter vision model, used when neither
+  the instance nor a user overrides it. The OCR API key itself is
+  **instance-wide**, set by an admin at `/admin` — there is no per-user key.
 - **`OCR_PDF_ENGINE`** — PDF parsing engine used by OpenRouter's file-parser
   plugin when a receipt PDF is imported. Default `pdf-text` (free; good for
   digital receipts with a text layer). Set to `mistral-ocr` (paid) for scanned

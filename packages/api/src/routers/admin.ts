@@ -32,7 +32,6 @@ export const adminRouter = router({
         isAdmin: true,
         isVip: true,
         disabledAt: true,
-        openRouterKeyEncrypted: true,
         createdAt: true,
         _count: { select: { members: true } },
       },
@@ -40,9 +39,8 @@ export const adminRouter = router({
     let nextCursor: string | undefined;
     if (rows.length > limit) nextCursor = rows.pop()!.id;
     return {
-      users: rows.map(({ openRouterKeyEncrypted, _count, ...u }) => ({
+      users: rows.map(({ _count, ...u }) => ({
         ...u,
-        hasOwnKey: openRouterKeyEncrypted !== null,
         memberships: _count.members,
       })),
       nextCursor,

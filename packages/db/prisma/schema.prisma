@@ -30,12 +30,11 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // EvenUp settings (PRD §7.2)
-  locale                 String  @default("cs")
-  defaultCurrency        String  @default("CZK")
-  openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
-  bankAccountEncrypted   String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
-  ocrModel               String?
-  hideProfilePhoto       Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
+  locale               String  @default("cs")
+  defaultCurrency      String  @default("CZK")
+  bankAccountEncrypted String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
+  ocrModel             String? // per-user OCR model override; independent of key ownership
+  hideProfilePhoto     Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
 
   // Operator/tier fields (hosted-instance management dashboard).
   isAdmin    Boolean   @default(false) // may access /admin (seeded from ADMIN_EMAILS)
@@ -69,7 +68,8 @@ model User {
 
 // ---------------------------------------------------------------------------
 // Instance-level operator config (hosted deployment). Single row (id fixed to
-// "singleton"); the shared OpenRouter key is encrypted at rest like BYO keys.
+// "singleton"); it holds the one OpenRouter key OCR uses, encrypted at rest —
+// there is no per-user key (removed; see migration drop_user_byo_key).
 // ---------------------------------------------------------------------------
 
 model InstanceConfig {

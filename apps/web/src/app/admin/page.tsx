@@ -159,7 +159,6 @@ function UsersSection({ meId }: { meId: string }) {
               <th className="px-3 py-2 font-medium">{t('admin.col.vip')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.admin')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.disabled')}</th>
-              <th className="px-3 py-2 font-medium">{t('admin.col.key')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.joined')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.actions')}</th>
             </tr>
@@ -207,9 +206,6 @@ function UsersSection({ meId }: { meId: string }) {
                       label={`${t('admin.col.disabled')} — ${u.email}`}
                       testId={`disabled-toggle-${u.email}`}
                     />
-                  </td>
-                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
-                    {u.hasOwnKey ? <Check size={16} aria-hidden /> : '–'}
                   </td>
                   <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
                     {formatDate(u.createdAt)}

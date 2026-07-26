@@ -17,20 +17,17 @@ describe('admin router', () => {
     await expect(caller.admin.listUsers()).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
-  it('lists users without leaking key material and reflects hasOwnKey', async () => {
+  it('lists users without leaking key material', async () => {
     const admin = await makeAdmin('admin@example.com');
     const other = await createTestUser('carol@example.com');
-    await testPrisma.user.update({
-      where: { id: other.id },
-      data: { openRouterKeyEncrypted: testSecretBox.encrypt('sk-or-secret') },
-    });
 
     const res = await makeCaller(admin).admin.listUsers();
     const carol = res.users.find((u) => u.email === 'carol@example.com');
-    expect(carol?.hasOwnKey).toBe(true);
-    // No encrypted key field is present on any returned user.
+    expect(carol?.id).toBe(other.id);
+    // Per-user BYO keys are gone (Task 10); the only OpenRouter key left lives
+    // on InstanceConfig, and this projection must never carry key material.
     expect(JSON.stringify(res.users)).not.toContain('openRouterKeyEncrypted');
-    expect(JSON.stringify(res.users)).not.toContain('sk-or-secret');
+    expect(JSON.stringify(res.users)).not.toContain('hasOwnKey');
   });
 
   it('grants VIP to another user', async () => {

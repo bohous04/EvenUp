@@ -25,7 +25,6 @@ export const cs = {
   'common.showAll': 'Zobrazit vše',
   'common.language': 'Jazyk',
   'transactions.showMore': 'Zobrazit další transakce',
-  'settings.openRouterKey': 'OpenRouter API klíč',
   'settings.apiKey': 'API klíč',
   'qr.alt': 'QR platba',
 
@@ -45,8 +44,6 @@ export const cs = {
   'errors.recipientNoIban': 'Příjemce nemá uložený IBAN; vyrovnejte hotově nebo ručně.',
   'errors.tooManyScans': 'Příliš mnoho skenování účtenek; chvíli počkejte a zkuste to znovu.',
   'errors.noSharedKey': 'Není nastaven sdílený OpenRouter klíč; požádejte administrátora.',
-  'errors.ocrNoAccess':
-    'Přidejte svůj OpenRouter API klíč v nastavení, nebo požádejte administrátora o VIP přístup.',
   'errors.noScansRemaining': 'Nemáte žádné skeny. Předplaťte si VIP nebo dokupte kredit.',
   'errors.ocrConsentRequired':
     'Skenování účtenek vyžaduje váš souhlas s odesláním obrázku našemu poskytovateli OCR.',
@@ -107,7 +104,6 @@ export const cs = {
   'admin.errors': 'Chyby',
   'admin.col.vip': 'VIP',
   'admin.col.admin': 'Správce',
-  'admin.col.key': 'Vlastní klíč',
   'admin.col.joined': 'Registrace',
   'admin.col.disabled': 'Zablokován',
   'admin.col.actions': 'Akce',
@@ -280,9 +276,6 @@ export const cs = {
   'ocr.receiptTitle': 'Účtenka',
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
-  'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',
-  'ocr.accessRequired':
-    'Ke skenování účtenek potřebujete VIP přístup, nebo vlastní OpenRouter API klíč. Přidejte ho v Nastavení.',
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',

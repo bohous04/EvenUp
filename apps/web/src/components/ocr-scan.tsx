@@ -87,12 +87,10 @@ export function OcrScan({
 }) {
   const { t, locale } = useI18n();
   const utils = trpc.useUtils();
-  const me = trpc.user.me.useQuery();
-  // Receipt OCR needs either VIP access (shared instance key) or the user's own
-  // BYO OpenRouter key. Without either, scanning always fails server-side, so we
-  // tell them upfront instead of after a doomed attempt. Default to allowed
-  // while the profile is still loading to avoid flashing the notice.
-  const lacksOcrAccess = me.data ? !me.data.isVip && !me.data.hasOpenRouterKey : false;
+  // Receipt OCR is metered server-side by entitlement (VIP, subscription, or
+  // purchased credits) against the shared instance key — there is no per-user
+  // key to check client-side, so we don't gate the button; a blocked scan
+  // reports the reason via `scan`'s onError below.
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -165,10 +163,16 @@ export function OcrScan({
       setError(null);
     },
     // Surface the actionable reason rather than a blanket "recognition failed":
-    // no VIP access and no BYO OpenRouter key is a config problem the user can
-    // fix (PRECONDITION_FAILED), not an unreadable photo.
+    // no shared instance key configured (PRECONDITION_FAILED) or no scans left
+    // (PAYMENT_REQUIRED) are config/entitlement problems the user can act on —
+    // both come back already localized via the server's errors.* catalog — not
+    // an unreadable photo.
     onError: (e) =>
-      setError(e.data?.code === 'PRECONDITION_FAILED' ? t('ocr.accessRequired') : t('ocr.failed')),
+      setError(
+        e.data?.code === 'PRECONDITION_FAILED' || e.data?.code === 'PAYMENT_REQUIRED'
+          ? e.message
+          : t('ocr.failed'),
+      ),
   });
 
   const createExpense = trpc.transaction.createExpense.useMutation({
@@ -359,105 +363,96 @@ export function OcrScan({
       />
 
       {!items ? (
-        lacksOcrAccess ? (
-          <div
-            className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300"
-            data-testid="ocr-access-required"
-          >
-            {t('ocr.accessRequired')}
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => cameraRef.current?.click()}
+              disabled={scan.isPending}
+              className="flex-1"
+              data-testid="ocr-upload-btn"
+            >
+              <Camera size={16} aria-hidden />
+              {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => galleryRef.current?.click()}
+              disabled={scan.isPending}
+              className="flex-1"
+              data-testid="ocr-gallery-btn"
+            >
+              <ImageIcon size={16} aria-hidden />
+              {t('ocr.fromGallery')}
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => cameraRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-upload-btn"
-              >
-                <Camera size={16} aria-hidden />
-                {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => galleryRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-gallery-btn"
-              >
-                <ImageIcon size={16} aria-hidden />
-                {t('ocr.fromGallery')}
-              </Button>
-            </div>
 
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => pdfRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-add-pdf-btn"
-              >
-                <FileText size={16} aria-hidden /> {t('ocr.importPdf')}
-              </Button>
-            </div>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => pdfRef.current?.click()}
+              disabled={scan.isPending}
+              className="flex-1"
+              data-testid="ocr-add-pdf-btn"
+            >
+              <FileText size={16} aria-hidden /> {t('ocr.importPdf')}
+            </Button>
+          </div>
 
-            {pages.length > 0 ? (
-              <div className="mt-3 space-y-2" data-testid="ocr-pages">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
-                {pages.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
-                    data-testid={`ocr-page-${i}`}
-                  >
-                    {p.preview ? (
-                      <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
-                    ) : (
-                      <FileText size={20} aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.moveUp')}
-                      disabled={i === 0}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
-                      onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
-                    >
-                      <ChevronUp size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.moveDown')}
-                      disabled={i === pages.length - 1}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
-                      onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
-                    >
-                      <ChevronDown size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.removePage')}
-                      data-testid={`ocr-page-remove-${i}`}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
-                      onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </div>
-                ))}
-                <Button
-                  onClick={scanPages}
-                  disabled={scan.isPending}
-                  data-testid="ocr-scan-pages-btn"
+          {pages.length > 0 ? (
+            <div className="mt-3 space-y-2" data-testid="ocr-pages">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
+              {pages.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
+                  data-testid={`ocr-page-${i}`}
                 >
-                  {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
-                </Button>
-              </div>
-            ) : null}
-          </>
-        )
+                  {p.preview ? (
+                    <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
+                  ) : (
+                    <FileText size={20} aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.moveUp')}
+                    disabled={i === 0}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                    onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
+                  >
+                    <ChevronUp size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.moveDown')}
+                    disabled={i === pages.length - 1}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                    onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
+                  >
+                    <ChevronDown size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.removePage')}
+                    data-testid={`ocr-page-remove-${i}`}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                    onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
+                </div>
+              ))}
+              <Button
+                onClick={scanPages}
+                disabled={scan.isPending}
+                data-testid="ocr-scan-pages-btn"
+              >
+                {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
+              </Button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="space-y-3" data-testid="ocr-items">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
