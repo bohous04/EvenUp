@@ -176,7 +176,7 @@ export const userRouter = router({
 
   /** GDPR export of the user's personal data (FR-1.6). */
   exportData: protectedProcedure.query(async ({ ctx }) => {
-    const [profile, groups, bankDetails] = await Promise.all([
+    const [profile, groups, bankDetails, subscriptions, ledger] = await Promise.all([
       ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },
         select: {
@@ -205,6 +205,20 @@ export const userRouter = router({
         where: { member: { userId: ctx.user.id } },
         select: { memberId: true, recipientName: true, variableSymbol: true },
       }),
+      ctx.prisma.subscription.findMany({
+        where: { userId: ctx.user.id },
+        select: {
+          status: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
+        },
+      }),
+      ctx.prisma.scanLedger.findMany({
+        where: { userId: ctx.user.id },
+        select: { delta: true, reason: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
     const { bankAccountEncrypted, ...profileRest } = profile;
     let bankAccount: string | null = null;
@@ -215,7 +229,12 @@ export const userRouter = router({
         bankAccount = null;
       }
     }
-    return { profile: { ...profileRest, bankAccount }, groups, bankDetails };
+    return {
+      profile: { ...profileRest, bankAccount },
+      groups,
+      bankDetails,
+      billing: { subscriptions, ledger },
+    };
   }),
 
   /** GDPR account deletion (FR-1.6): delete solo groups, unlink shared ones. */

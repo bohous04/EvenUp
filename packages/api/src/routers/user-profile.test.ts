@@ -145,4 +145,46 @@ describe('user.exportData', () => {
     expect(exported.profile.bankAccount).toBe('19-2000145399/0800');
     expect(JSON.stringify(exported)).not.toContain('bankAccountEncrypted');
   });
+
+  it('includes subscription state and the scan ledger under billing (FR-1.6 vs billing completeness)', async () => {
+    const user = await createTestUser('export-billing@example.com');
+    const caller = makeCaller(user);
+
+    const periodStart = new Date('2026-01-01T00:00:00Z');
+    const periodEnd = new Date('2026-02-01T00:00:00Z');
+    await testPrisma.subscription.create({
+      data: {
+        userId: user.id,
+        // Not cleared by resetDb (see harness.ts) -- keyed off the fresh
+        // per-run user id so reruns against the shared test DB don't collide
+        // on the table's unique stripeSubscriptionId constraint.
+        stripeSubscriptionId: `sub_export_${user.id}`,
+        status: 'active',
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+    });
+    await testPrisma.scanLedger.createMany({
+      data: [
+        { userId: user.id, delta: 5, reason: 'PURCHASE', stripeEventId: 'evt_export_1' },
+        { userId: user.id, delta: -1, reason: 'CREDIT_SCAN' },
+      ],
+    });
+
+    const exported = await caller.user.exportData();
+
+    expect(exported.billing.subscriptions).toEqual([
+      {
+        status: 'active',
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: false,
+      },
+    ]);
+    expect(exported.billing.ledger).toEqual([
+      { delta: 5, reason: 'PURCHASE', createdAt: expect.any(Date) },
+      { delta: -1, reason: 'CREDIT_SCAN', createdAt: expect.any(Date) },
+    ]);
+  });
 });

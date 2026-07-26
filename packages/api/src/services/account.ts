@@ -2,8 +2,12 @@
  * GDPR-compliant account deletion (FR-1.6), shared by the user's own
  * self-deletion and admin-initiated deletion: solo groups are deleted; in shared
  * groups the user's memberships are deactivated (if used in transactions) or
- * removed, and their bank details (PII) are always dropped; finally the user row
- * is deleted (sessions/accounts cascade).
+ * removed, and their bank details (PII) are always dropped; scan-ledger rows
+ * with no retention obligation are deleted, while PURCHASE rows are payment
+ * records Czech accounting law requires keeping -- GDPR Art. 17(3)(b) lets that
+ * obligation override the right to erasure, so they're detached from the
+ * person (userId -> null) rather than deleted; finally the user row is deleted
+ * (sessions/accounts cascade).
  */
 import type { PrismaClient } from '@evenup/db';
 
@@ -46,6 +50,15 @@ export async function deleteUserAccount(prisma: PrismaClient, userId: string): P
         }
       }
     }
+    // Usage rows are personal data with no retention obligation — delete them.
+    // PURCHASE rows are accounting records: Czech law requires keeping them and
+    // that obligation overrides the right to erasure (GDPR Art. 17(3)(b)). The
+    // schema's onDelete: SetNull detaches them from the person as the user row
+    // goes, leaving an amount and a Stripe reference that identify no one.
+    await tx.scanLedger.deleteMany({
+      where: { userId, reason: { not: 'PURCHASE' } },
+    });
+
     // Sessions + accounts cascade on user delete (schema onDelete: Cascade).
     await tx.user.delete({ where: { id: userId } });
   });
