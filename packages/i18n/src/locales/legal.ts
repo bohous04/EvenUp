@@ -28,19 +28,29 @@
  * | A failed scan refunds the credit | `api/src/routers/ocr.ts` → `refundCredit` |
  * | Cancellation is the Stripe portal | `api/src/routers/billing.ts` `portal` |
  * | The credit-pack withdrawal waiver | `api/src/routers/billing.ts` `checkoutCredits` |
- * | Mail leaves via Seznam SMTP as noreply@evenup.cz | `web/src/server/email.ts` + the domain-email migration record |
+ * | evenup.cz mails via Seznam SMTP as noreply@evenup.cz | `web/src/server/email.ts` + the domain-email migration record |
  * | Deletion keeps PURCHASE + Subscription rows | `api/src/services/account.ts` |
  * | Those rows are pseudonymized, NOT anonymous | same file — `stripeEventId` resolves to a Stripe Customer |
+ * | A solo group's receipt photos leave storage with the account | same file — keys collected before the cascade |
  *
- * The one place the copy is deliberately *less* specific than the code is the
- * object-storage and hosting providers: those are deployment configuration, so
- * the policy names the category (which GDPR Art. 13(1)(e) permits) and offers
- * the concrete list on request, rather than hardcoding a provider the
- * self-hosting instructions contradict.
+ * The places the copy is deliberately *less* specific than the code are the
+ * ones a self-hoster configures: object storage, hosting and — since
+ * `email.ts` prefers Resend whenever `RESEND_API_KEY` is set — the mail
+ * provider. The policy names the category (which GDPR Art. 13(1)(e) permits)
+ * and scopes the concrete provider to evenup.cz, rather than hardcoding one
+ * the self-hosting instructions contradict.
  *
- * Two things the copy must NOT say, and does not:
+ * Four things the copy must NOT say, and does not:
  * - that retained billing rows are anonymous (they are not — see above);
- * - that expired sessions are purged automatically (no such job exists yet).
+ * - that expired sessions are purged automatically (no such job exists yet);
+ * - that a user can delete a group. They cannot: `routers/group.ts` exposes
+ *   create/list/get/update/archive, and `archive` only stamps `archivedAt`.
+ *   The only `group.delete` in the repo is account deletion, for solo groups.
+ *   Offering an erasure route that does not exist is an Art. 12/13 misstatement;
+ * - that deleting an expense removes the recognised items. It cascades
+ *   `ReceiptItem`, but `Transaction.receiptId` is `onDelete: SetNull` on the
+ *   transaction side, so the `Receipt` row survives with `rawJson` — a second,
+ *   complete copy of the OCR result.
  *
  * Czech is the original. It is written as native legal-register Czech — plain
  * where plain is allowed, precise where precision is the point — and the
@@ -54,7 +64,7 @@ export const legalCs = {
   // Shown on all four pages until LEGAL_REVIEWED=true is set at build time.
   'legal.draft.title': 'Pracovní znění – čeká na právní kontrolu',
   'legal.draft.body':
-    'Tento dokument je koncept sepsaný podle toho, jak aplikace skutečně funguje. Neprošel kontrolou advokáta a není právní radou. Než spustíme ostré platby, necháme ho posoudit.',
+    'Tento dokument je koncept sepsaný podle toho, jak aplikace skutečně funguje. Neprošel kontrolou advokáta a není právní radou. Než spustíme skutečné platby, necháme ho posoudit.',
 
   'legal.effective': 'Znění ze dne {date}',
 
@@ -68,9 +78,9 @@ export const legalCs = {
   'legal.entity.ico': 'IČO',
   'legal.entity.address': 'Sídlo',
   'legal.entity.email': 'E-mail',
-  'legal.entity.missing.title': 'Údaje o provozovateli nejsou vyplněné',
+  'legal.entity.missing.title': 'Údaje o provozovateli nejsou vyplněny',
   'legal.entity.missing.body':
-    'Název, IČO a sídlo se načítají z proměnných prostředí LEGAL_ENTITY_NAME, LEGAL_ENTITY_ICO a LEGAL_ENTITY_ADDRESS a musí být nastavené ještě před sestavením aplikace. Dokud chybí, tato stránka neplní informační povinnost vůči spotřebiteli ani podle čl. 13 GDPR.',
+    'Název, IČO a sídlo se načítají z proměnných prostředí LEGAL_ENTITY_NAME, LEGAL_ENTITY_ICO a LEGAL_ENTITY_ADDRESS a musí být nastaveny ještě před sestavením aplikace. Dokud chybí, nesplňuje tato stránka ani informační povinnost vůči spotřebiteli, ani povinnost podle čl. 13 GDPR.',
 
   'legal.email.cta': 'Napsat na support@evenup.cz',
 
@@ -85,7 +95,7 @@ export const legalCs = {
 
   'legal.terms.s1.h': 'Kdo službu provozuje',
   'legal.terms.s1.p1':
-    'Službu provozuje níže uvedený provozovatel. Ve všem, co se těchto podmínek týká, se na nás obracejte na uvedené adrese.',
+    'Provozovatelem služby je subjekt uvedený níže. Ve všem, co se těchto podmínek týká, nás kontaktujte na uvedené adrese.',
 
   'legal.terms.s2.h': 'Co dlužníček dělá',
   'legal.terms.s2.p1':
@@ -98,23 +108,31 @@ export const legalCs = {
     'K vedení vlastní skupiny potřebujete účet. Zakládá se e-mailem a heslem, nebo přes Google či Apple, pokud jsou na dané instanci zapnuté. Uvádějte pravdivé údaje a přihlašovací údaje nikomu nesdělujte.',
   'legal.terms.s3.p2': 'Služba není určena osobám mladším 15 let.',
   'legal.terms.s3.p3':
-    'Členy skupiny můžete přidat i bez účtu, jenom jménem. Přidáváte-li někoho jménem, které ho identifikuje, dejte mu o tom vědět – ostatním členům se jeho jméno i připadající částky zobrazují.',
+    'Členy skupiny můžete přidat i bez účtu, jenom jménem. Přidáváte-li někoho jménem, které ho identifikuje, dejte mu o tom vědět – ostatní členové uvidí jeho jméno i částky, které na něj připadají.',
   'legal.terms.s3.p4':
     'Účet můžeme zablokovat nebo zrušit, pokud službu používáte v rozporu s těmito podmínkami nebo se zákonem.',
 
   'legal.terms.s4.h': 'Co je zdarma a co se platí',
   'legal.terms.s4.p1':
     'Skupiny, útraty, vyrovnání dluhů, QR platby i členové bez účtu jsou zdarma a bez limitu. Platí se jenom skenování účtenek.',
+  // `{scans}` is `VIP_SCANS_PER_PERIOD`, exactly as in `marketing.ts`, and the
+  // same Czech caveat applies: the genitive plural („150 skenů“) is right for
+  // every value the product currently uses, but breaks for one whose final
+  // digit is 2, 3 or 4 (excluding 12–14) — 122 would render „122 skenů“ where
+  // Czech needs „122 skeny“. Move this string to `plural()` if that ever
+  // happens. `{days}` is deliberately phrased to avoid the trap: see `s7.li1`.
   'legal.terms.s4.li1':
     'Předplatné VIP: {scans} skenů účtenek za každé zúčtovací období. Fotky naskenovaných účtenek zůstávají uložené, ať se k nim můžete vrátit.',
   'legal.terms.s4.li2':
     'Balíček skenů: jednorázový nákup bez předplatného. Zakoupené skeny nevyprší.',
   'legal.terms.s4.p2':
-    'Skeny se čerpají v tomto pořadí: nejdřív limit z předplatného, a teprve když ho vyčerpáte, ubírají se skeny zakoupené v balíčku. Nevyčerpaný limit z předplatného se do dalšího období nepřevádí; zakoupené skeny zůstávají, dokud je nevyužijete.',
+    'Skeny se čerpají v tomto pořadí: nejprve limit z předplatného, a teprve když ho vyčerpáte, ubírají se skeny zakoupené v balíčku. Nevyčerpaný limit z předplatného se do dalšího období nepřevádí; zakoupené skeny zůstávají, dokud je nevyužijete.',
   'legal.terms.s4.p3':
     'Sken hrazený z balíčku fotku účtenky neukládá – zůstanou jen rozpoznané položky u výdaje. Ukládání fotek patří k předplatnému.',
+  // The refund fires only for `consume === 'CREDIT'` (`ocr.ts`), so this is
+  // about a pack-funded scan — a failed VIP-allowance scan is not returned.
   'legal.terms.s4.p4':
-    'Když se sken nepovede, vrátíme vám ho na účet automaticky a účtenku můžete zapsat ručně.',
+    'Když se nepovede sken hrazený z balíčku, automaticky vám ho vrátíme zpět mezi zbývající skeny a účtenku můžete zapsat ručně.',
   'legal.terms.s4.p5':
     'Na instanci, kterou si provozujete sami a která nemá napojení na Stripe, se placené funkce vůbec nenabízejí a skenování není nijak omezené.',
 
@@ -128,7 +146,7 @@ export const legalCs = {
 
   'legal.terms.s6.h': 'Zrušení předplatného',
   'legal.terms.s6.p1':
-    'Předplatné zrušíte kdykoli v aplikaci tlačítkem Spravovat předplatné, které vás přenese do zákaznického portálu Stripe. Zrušení se projeví ke konci právě zaplaceného období – do té doby vám předplatné běží dál.',
+    'Předplatné zrušíte kdykoli v aplikaci tlačítkem „Spravovat předplatné“, které vás přesměruje do zákaznického portálu Stripe. Zrušení se projeví ke konci právě zaplaceného období – do té doby vám předplatné běží dál.',
   'legal.terms.s6.p2':
     'Zrušení předplatného není odstoupení od smlouvy. Odstoupení a reklamace řeší samostatný dokument.',
 
@@ -147,22 +165,22 @@ export const legalCs = {
   'legal.terms.s9.li1':
     'Nenarušujte provoz služby, neobcházejte limity a nepřistupujte k ní automatizovaně nad rámec běžného používání.',
   'legal.terms.s9.li2':
-    'Nenahrávejte nezákonný obsah ani cizí osobní údaje, ke kterým nemáte důvod.',
+    'Nenahrávejte nezákonný obsah ani osobní údaje jiných lidí, které nemáte důvod sdílet.',
   'legal.terms.s9.li3': 'Nepoužívejte službu k jednání, které poškodí ostatní uživatele nebo nás.',
 
   'legal.terms.s10.h': 'Dostupnost služby',
   'legal.terms.s10.p1':
-    'Snažíme se, aby služba běžela pořád, ale nepřetržitý provoz nezaručujeme. Kvůli údržbě, aktualizaci nebo výpadku poskytovatelů může být dočasně nedostupná. Nemohli-li jste kvůli delšímu výpadku využít placenou funkci, napište nám – vyřešíme to individuálně.',
+    'Snažíme se, aby služba běžela bez výpadků, ale nepřetržitý provoz nezaručujeme. Kvůli údržbě, aktualizaci nebo výpadku poskytovatelů může být dočasně nedostupná. Nemohli-li jste kvůli delšímu výpadku využít placenou funkci, napište nám – vyřešíme to individuálně.',
 
   'legal.terms.s11.h': 'Odpovědnost',
   'legal.terms.s11.p1':
     'Službu poskytujeme tak, jak je. Neodpovídáme za rozhodnutí, která na základě jejích výpočtů uděláte, ani za vypořádání mezi vámi a ostatními členy skupiny – peníze si posíláte sami a mimo službu.',
   'legal.terms.s11.p2':
-    'Tím neomezujeme svou odpovědnost tam, kde to zákon nedovoluje – zejména odpovědnost za újmu způsobenou úmyslně nebo z hrubé nedbalosti a práva spotřebitele z vadného plnění.',
+    'Tím neomezujeme svou odpovědnost tam, kde to zákon nedovoluje – zejména odpovědnost za újmu způsobenou úmyslně nebo z hrubé nedbalosti, ani práva spotřebitele z vadného plnění.',
 
   'legal.terms.s12.h': 'Otevřený zdrojový kód',
   'legal.terms.s12.p1':
-    'Dlužníček je open source pod licencí MIT. Licence se vztahuje na zdrojový kód; tyto podmínky na provozovanou službu na evenup.cz. Provozujete-li si vlastní instanci, jste jejím provozovatelem vy a tyto podmínky se na ni nevztahují.',
+    'Dlužníček je open source pod licencí MIT. Licence se vztahuje na zdrojový kód, tyto podmínky na službu provozovanou na evenup.cz. Provozujete-li si vlastní instanci, jste jejím provozovatelem vy a tyto podmínky se na ni nevztahují.',
 
   'legal.terms.s13.h': 'Změny podmínek',
   'legal.terms.s13.p1':
@@ -170,9 +188,9 @@ export const legalCs = {
 
   'legal.terms.s14.h': 'Rozhodné právo a řešení sporů',
   'legal.terms.s14.p1':
-    'Smluvní vztah se řídí českým právem, zejména občanským zákoníkem a zákonem o ochraně spotřebitele. Tím nejsou dotčena práva, která vám jako spotřebiteli dává právo státu vašeho bydliště.',
+    'Smluvní vztah se řídí českým právem, zejména občanským zákoníkem a zákonem o ochraně spotřebitele. Tím nejsou dotčena práva, která vám jako spotřebiteli dává právní řád státu vašeho obvyklého bydliště.',
   'legal.terms.s14.p2':
-    'Spor se pokusíme vyřešit dohodou – napište nám. Jste-li spotřebitel, můžete se obrátit na Českou obchodní inspekci, která vede mimosoudní řešení spotřebitelských sporů (www.coi.cz).',
+    'Spor se pokusíme vyřešit dohodou – napište nám. Jste-li spotřebitel, můžete se obrátit na Českou obchodní inspekci, která je subjektem mimosoudního řešení spotřebitelských sporů (www.coi.cz).',
 
   /* ------------------------------------------------------------ privacy */
 
@@ -191,39 +209,53 @@ export const legalCs = {
   'legal.privacy.s2.h': 'Jaké údaje zpracováváme',
   'legal.privacy.s2.p1': 'Zpracováváme jenom to, co aplikace ke svému chodu potřebuje.',
   'legal.privacy.s2.li1':
-    'Účet: e-mail, jméno, jazyk, výchozí měna a případně profilová fotka. Heslo uchováváme jen jako otisk, ne v čitelné podobě. Účel: vedení účtu a přihlášení. Právní základ: plnění smlouvy. Uchováváme po dobu trvání účtu.',
+    'Účet: e-mail, jméno, jazyk, výchozí měna a případně profilová fotka. Heslo uchováváme jen jako otisk (hash), ne v čitelné podobě. Účel: vedení účtu a přihlášení. Právní základ: plnění smlouvy. Uchováváme po dobu trvání účtu.',
   'legal.privacy.s2.li2':
-    'Přihlášení: záznam o relaci včetně IP adresy a údajů o prohlížeči. Účel: udržet vás přihlášené a rozpoznat zneužití. Právní základ: oprávněný zájem na bezpečnosti. Záznam platí po dobu platnosti relace a nejpozději zaniká smazáním účtu.',
+    'Přihlášení: záznam o relaci včetně IP adresy a údajů o prohlížeči. Účel: udržet vás přihlášené a rozpoznat zneužití. Právní základ: oprávněný zájem na bezpečnosti. Záznam uchováváme po dobu platnosti relace, nejpozději do smazání účtu.',
+  // Skupinu NELZE smazat: `group.ts` nabízí create/list/get/update/archive a
+  // nic víc, `group.delete` volá jedině `services/account.ts` při mazání účtu,
+  // a jen u skupin, kde je uživatel sám. Text proto nesmí slibovat smazání
+  // skupiny jako cestu k výmazu (čl. 12/13 GDPR).
   'legal.privacy.s2.li3':
-    'Skupiny a útraty: názvy skupin, jména členů, částky, měny, kategorie, poznámky a historie změn. Účel: vlastní fungování aplikace. Právní základ: plnění smlouvy. Uchováváme, dokud skupinu nebo účet nesmažete.',
+    'Skupiny a útraty: názvy skupin, jména členů, částky, měny, kategorie, poznámky a historie změn. Účel: vlastní fungování aplikace. Právní základ: plnění smlouvy. Uchováváme, dokud jednotlivé záznamy nesmažete. Skupinu lze archivovat, ne smazat; skupiny, ve kterých jste sami, zanikají se smazáním účtu.',
   'legal.privacy.s2.li4':
     'Bankovní spojení: číslo účtu nebo IBAN, který si uložíte pro QR platbu. Ukládáme ho zašifrované (AES-256-GCM). Účel: předvyplnění QR platby. Právní základ: plnění smlouvy. Mažeme ho spolu s účtem.',
+  // Mazání výdaje bere jen `ReceiptItem` (kaskáda). `Transaction.receiptId` má
+  // `onDelete: SetNull` na straně transakce, takže řádek `Receipt` přežije i
+  // s `rawJson` – tedy s druhou kopií celého výsledku rozpoznání. Text to říká
+  // nahlas; slíbit opak by byl nepravdivý údaj o rozsahu zpracování.
   'legal.privacy.s2.li5':
-    'Účtenky: fotka nebo PDF účtenky a údaje z ní přečtené – obchodník, položky, částky, datum. Fotku uchováváme {days} dnů a pak ji automaticky mažeme; rozpoznané položky zůstávají u výdaje, dokud výdaj nebo skupinu nesmažete. Právní základ: souhlas pro odeslání ke zpracování, plnění smlouvy pro uložení výsledku.',
+    'Účtenky: fotka nebo PDF účtenky a údaje z ní přečtené – obchodník, položky, částky, datum. Fotku automaticky mažeme po {days} dnech od naskenování. Rozpoznané položky zůstávají u výdaje, dokud výdaj nesmažete; smazáním výdaje ale nezaniká samotný záznam o účtence – druhá kopie výsledku rozpoznání u něj zůstává a mizí až spolu se skupinou. Právní základ: pro odeslání ke zpracování souhlas, pro uložení výsledku plnění smlouvy.',
   'legal.privacy.s2.li6':
     'Platby: identifikátor zákazníka u Stripu, stav předplatného, zůstatek skenů a záznamy o jejich nákupu a čerpání. Účel: zpřístupnění placených funkcí a účetnictví. Právní základ: plnění smlouvy a plnění právní povinnosti.',
   'legal.privacy.s2.li7':
     'Souhlas se skenováním: datum a čas, kdy jste ho udělili. Účel: doložit, že souhlas existoval. Právní základ: plnění právní povinnosti.',
   'legal.privacy.s2.li8':
-    'E-maily: adresa příjemce a obsah zprávy u ověření e-mailu, obnovení hesla a upozornění na dění ve skupině. Do upozornění záměrně nedáváme bankovní spojení.',
+    'E-maily: adresa příjemce a obsah zprávy u ověření e-mailu, obnovení hesla a oznámení o dění ve skupině. Do oznámení záměrně nedáváme bankovní spojení.',
   'legal.privacy.s2.li9':
     'Chybové záznamy: kód a text chyby, název volané funkce a identifikátor uživatele, kterému se chyba stala. Vstupy požadavku, hesla ani klíče do nich neukládáme. Účel: hledání závad.',
 
   'legal.privacy.s3.h': 'Cookies',
   'legal.privacy.s3.p1':
-    'Používáme jenom nezbytné cookies: přihlašovací cookie, která vás udrží přihlášené, a při přihlášení přes Google nebo Apple krátkodobou cookie, která ochrání přesměrování. Žádnou analytiku ani reklamní a sledovací skripty nemáme, a proto neukazujeme cookie lištu – nebylo by co odsouhlasit.',
+    'Používáme jenom nezbytné cookies: přihlašovací cookie, která vás udrží přihlášené, a při přihlášení přes Google nebo Apple krátkodobou cookie, která ochrání přesměrování. Žádnou analytiku ani reklamní a sledovací skripty nemáme, a proto nezobrazujeme cookie lištu – nebylo by co odsouhlasit.',
+  // Tady „upozornění“ znamená nápovědu k možnému duplicitnímu členovi, ne
+  // notifikaci – proto se nemění na „oznámení“ jako jinde v dokumentu.
   'legal.privacy.s3.p2':
-    'V úložišti prohlížeče si aplikace pamatuje jedinou drobnost k ovládání: která upozornění na možné duplicitní členy jste zavřeli. Neodesílá se nikam.',
+    'V úložišti prohlížeče si aplikace pamatuje jedinou drobnost z ovládání: která upozornění na možné duplicitní členy jste zavřeli. Nikam se neodesílá.',
 
   'legal.privacy.s4.h': 'Komu údaje předáváme',
   'legal.privacy.s4.p1':
     'Údaje neprodáváme. Předáváme je jen zpracovatelům, bez kterých by služba nefungovala:',
   'legal.privacy.s4.li1':
-    'OpenRouter – fotka nebo PDF účtenky a pokyn k jejímu přečtení. OpenRouter je směrovač: požadavek posílá dál poskytovateli konkrétního modelu, takže řetězec zpracovatelů pokračuje za ním a zpracování může probíhat mimo Evropskou unii.',
+    'OpenRouter – fotka nebo PDF účtenky a pokyn k jejímu přečtení. OpenRouter je směrovač: požadavek posílá dál poskytovateli konkrétního modelu, takže do zpracování vstupují další zpracovatelé a zpracování může probíhat mimo Evropskou unii.',
   'legal.privacy.s4.li2':
     'Stripe – e-mail, identifikátor zákazníka a údaje o platbě a předplatném. Platební kartu zadáváte přímo u Stripu.',
+  // Hedged like `li4` a `li6`: `web/src/server/email.ts` sahá nejprve po
+  // Resendu, když je nastavený RESEND_API_KEY, a teprve pak po SMTP. Bez této
+  // výhrady by si samostatný provozovatel vykreslil zásady se zpracovatelem,
+  // kterého vůbec nepoužívá.
   'legal.privacy.s4.li3':
-    'Seznam.cz (Email Profi) – adresa příjemce a obsah zprávy. Přes jeho SMTP odesíláme e-maily z adresy noreply@evenup.cz.',
+    'Poskytovatel e-mailu – adresa příjemce a obsah zprávy. Na evenup.cz odesíláme e-maily z adresy noreply@evenup.cz přes SMTP server Seznam.cz (Email Profi); instance provozovaná někým jiným může použít jiného poskytovatele.',
   'legal.privacy.s4.li4':
     'Poskytovatel objektového úložiště – fotky účtenek. Úložiště je kompatibilní s S3; u instance, kterou si provozujete sami, jde o úložiště jejího provozovatele.',
   'legal.privacy.s4.li5':
@@ -231,46 +263,51 @@ export const legalCs = {
   'legal.privacy.s4.li6':
     'Google a Apple – jen když se rozhodnete přihlásit jejich účtem. Dostanou informaci o přihlášení; my od nich dostaneme identifikátor, e-mail a jméno.',
   'legal.privacy.s4.p2':
-    'Kurzy měn bereme z veřejné služby Frankfurter. Posíláme jí jen dvojici měn a datum, nikdy nic o vás.',
+    'Kurzy měn přebíráme z veřejné služby Frankfurter. Posíláme jí jen dvojici měn a datum, nikdy nic o vás.',
   'legal.privacy.s4.p3':
     'Aktuální seznam zpracovatelů včetně konkrétních poskytovatelů úložiště a hostingu vám na vyžádání pošleme.',
 
   'legal.privacy.s5.h': 'Předávání mimo Evropskou unii',
   'legal.privacy.s5.p1':
-    'Fotka účtenky může být zpracována mimo EU – OpenRouter i poskytovatelé modelů působí i ve Spojených státech. Právním základem tohoto předání je váš výslovný souhlas podle čl. 49 odst. 1 písm. a) GDPR. Proto se bez souhlasu sken vůbec nespustí a proto vás na to upozorňujeme dřív, než fotku odešleme.',
+    'Fotka účtenky může být zpracována mimo EU – OpenRouter i poskytovatelé modelů působí i ve Spojených státech. Právním základem tohoto předání je váš výslovný souhlas podle čl. 49 odst. 1 písm. a) GDPR. Proto se bez souhlasu sken vůbec nespustí a proto vás na to upozorňujeme dříve, než fotku odešleme.',
   'legal.privacy.s5.p2':
-    'Údaje o platbě předáváme Stripu, protože bez toho platbu nelze provést; jde o předání nezbytné pro splnění smlouvy podle čl. 49 odst. 1 písm. b) GDPR.',
+    'Údaje o platbě předáváme Stripu, protože bez toho platbu nelze provést; jde o předání nezbytné pro splnění smlouvy podle čl. 49 odst. 1 písm. b) GDPR.',
 
   'legal.privacy.s6.h': 'Účtenky a citlivé údaje',
   'legal.privacy.s6.p1':
-    'Účtenka toho o vás prozradí víc, než se zdá: kde a kdy jste byli, co jste kupovali, někdy i poslední čtyřčíslí karty. Nákup v lékárně může vypovídat o zdravotním stavu, a to je zvláštní kategorie údajů podle čl. 9 GDPR.',
+    'Účtenka toho o vás prozradí víc, než se zdá: kde a kdy jste byli, co jste kupovali, někdy i poslední čtyřčíslí karty. Nákup v lékárně může vypovídat o zdravotním stavu, a to je zvláštní kategorie osobních údajů podle čl. 9 GDPR.',
   'legal.privacy.s6.p2':
-    'Proto sken nespustíme, dokud výslovně nesouhlasíte. Souhlas udělujete jednou a kdykoli ho odvoláte v Nastavení. Odvolání zastaví další skenování; už uložené výdaje a účtenky odvoláním nezmizí – smažete je jednotlivě, nebo smazáním skupiny či účtu.',
+    'Proto sken nespustíme, dokud výslovně nesouhlasíte. Souhlas udělujete jednou a kdykoli ho odvoláte v Nastavení. Odvolání zastaví další skenování; už uložené výdaje a účtenky odvoláním nezmizí – smažete je jednotlivě, nebo smazáním účtu.',
   'legal.privacy.s6.p3':
     'Nechcete-li účtenky posílat vůbec, zapisujte položky ručně. Aplikace je bez skenování plně použitelná.',
 
   'legal.privacy.s7.h': 'Jak dlouho údaje uchováváme',
+  // „po {days} dnech“ (lokál), ne „{days} dnů“ (genitiv): RECEIPT_RETENTION_DAYS
+  // je nastavitelné proměnnou prostředí, takže hodnoty jako 2, 3 nebo 4 jsou
+  // reálné a „2 dnů“ je špatně. Lokál plurálu sedí pro každou hodnotu ≥ 2;
+  // rozbije se jedině na 1 („po 1 dnech“ místo „po 1 dni“). Kdyby taková
+  // retence měla přijít, musí se řetězec přepsat na `plural()`.
   'legal.privacy.s7.li1':
-    'Fotky účtenek: {days} dnů od naskenování, pak je pravidelná úloha smaže z úložiště.',
+    'Fotky účtenek: po {days} dnech od naskenování je pravidelná úloha smaže z úložiště.',
   'legal.privacy.s7.li2':
     'Údaje o účtu, skupinách a útratách: dokud je nesmažete, nebo dokud nesmažete účet.',
   'legal.privacy.s7.li3':
     'Záznamy o zaplacených nákupech a o předplatném: po dobu, kterou vyžadují české účetní a daňové předpisy, i když účet mezitím smažete.',
   'legal.privacy.s7.li4':
-    'Záznamy o odeslaných upozorněních: dokud nesmažete účet, pak zanikají s ním.',
+    'Záznamy o odeslaných oznámeních: dokud nesmažete účet, pak zanikají s ním.',
   'legal.privacy.s7.li5':
     'Chybové záznamy: uchováváme je pro hledání závad; při smazání účtu z nich odpojíme vaši totožnost.',
 
   'legal.privacy.s8.h': 'Co se stane, když smažete účet',
   'legal.privacy.s8.p1': 'Účet smažete sami v Nastavení. Smazání proběhne hned a je nevratné.',
   'legal.privacy.s8.p2':
-    'Smažeme profil a přihlašovací údaje, propojení s Googlem či Apple, uložené bankovní spojení, nastavení upozornění, souhlas se skenováním i záznamy o čerpání skenů. Skupiny, ve kterých jste byli sami, smažeme celé včetně účtenek.',
+    'Smažeme profil a přihlašovací údaje, propojení s Googlem či Apple, uložené bankovní spojení, nastavení oznámení, souhlas se skenováním i záznamy o čerpání skenů. Skupiny, ve kterých jste byli sami, smažeme celé včetně účtenek a jejich fotek v úložišti.',
   'legal.privacy.s8.p3':
-    'Ve sdílených skupinách zůstává to, co patří ostatním: útraty a rozdělení, které se vás týkaly, ostatní členové dál uvidí. Vaše členství deaktivujeme a odpojíme od účtu a bankovní spojení smažeme, ale jméno, pod kterým jste ve skupině vystupovali, ostatním zůstane – bez něj by jejich vyúčtování nedávalo smysl.',
+    'Ve sdílených skupinách zůstává to, co patří ostatním: útraty a rozdělení, které se vás týkaly, ostatní členové dál uvidí. Vaše členství deaktivujeme a odpojíme od účtu a bankovní spojení smažeme, ale jméno, pod kterým jste ve skupině vystupovali, ostatním zůstane – bez něj by jejich vyrovnání nedávalo smysl.',
   'legal.privacy.s8.p4':
-    'Nesmažeme záznamy o zaplacených nákupech a o předplatném. Uchovat je nám ukládají účetní a daňové předpisy a čl. 17 odst. 3 písm. b) GDPR nám to dovoluje i proti žádosti o výmaz.',
+    'Nesmažeme záznamy o zaplacených nákupech a o předplatném. Jejich uchování nám ukládají účetní a daňové předpisy a čl. 17 odst. 3 písm. b) GDPR nám to umožňuje i tehdy, když požádáte o výmaz.',
   'legal.privacy.s8.p5':
-    'Buďme přesní: tyto záznamy sice odpojíme od vašeho účtu, ale anonymní nejsou. Zůstává v nich identifikátor platby a předplatného ze Stripu a ten je v systému Stripu dohledatelný k zákazníkovi, u kterého je vedený váš e-mail. Jde tedy o pseudonymizaci, ne o anonymizaci: pořád to jsou osobní údaje a pořád je jako osobní údaje chráníme. Uchováváme je proto, že to ukládá zákon – ne proto, že by přestaly být vaše.',
+    'Buďme přesní: tyto záznamy sice odpojíme od vašeho účtu, ale anonymní nejsou. Zůstává v nich identifikátor platby a předplatného ze Stripu a podle něj lze v systému Stripe dohledat zákazníka, u kterého je veden váš e-mail. Jde tedy o pseudonymizaci, ne o anonymizaci: stále to jsou osobní údaje a stále je jako osobní údaje chráníme. Uchováváme je proto, že to ukládá zákon – ne proto, že by přestaly být vaše.',
 
   'legal.privacy.s9.h': 'Vaše práva',
   'legal.privacy.s9.li1':
@@ -284,7 +321,7 @@ export const legalCs = {
   'legal.privacy.s9.li6':
     'Odvolání souhlasu se skenováním účtenek, kdykoli a bez následků pro zbytek aplikace.',
   'legal.privacy.s9.p1':
-    'Napište nám a ozveme se nejpozději do jednoho měsíce. Nejste-li s vyřízením spokojeni, můžete podat stížnost u Úřadu pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7, www.uoou.gov.cz.',
+    'Napište nám a ozveme se nejpozději do jednoho měsíce. Nejste-li s vyřízením spokojeni, můžete podat stížnost u Úřadu pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7, www.uoou.gov.cz.',
 
   'legal.privacy.s10.h': 'Zabezpečení',
   'legal.privacy.s10.li1': 'Spojení s aplikací je vždy šifrované (HTTPS).',
@@ -294,11 +331,11 @@ export const legalCs = {
     'K údajům skupiny se dostane jen její člen; oprávnění se ověřuje u každého požadavku.',
   'legal.privacy.s10.li4': 'Můžete si zapnout dvoufázové ověření (TOTP).',
   'legal.privacy.s10.li5':
-    'Do upozornění ani chybových záznamů se záměrně nedostane nic, co je šifrované – například bankovní spojení z QR platby.',
+    'Do oznámení ani chybových záznamů se záměrně nedostane nic, co je šifrované – například bankovní spojení z QR platby.',
 
   'legal.privacy.s11.h': 'Děti',
   'legal.privacy.s11.p1':
-    'Služba není určena osobám mladším 15 let a vědomě jejich údaje nezpracováváme.',
+    'Služba není určena osobám mladším 15 let a jejich údaje vědomě nezpracováváme.',
 
   'legal.privacy.s12.h': 'Změny těchto zásad',
   'legal.privacy.s12.p1':
@@ -311,7 +348,7 @@ export const legalCs = {
   'legal.refunds.meta.description':
     'Kdy můžete od nákupu odstoupit, proč právo na odstoupení u balíčku skenů zaniká a jak reklamovat, když něco nefunguje.',
   'legal.refunds.intro':
-    'Tenhle dokument popisuje, kdy můžete od nákupu odstoupit, kdy to už nejde a jak si stěžovat, když něco nefunguje. Týká se spotřebitelů – tedy lidí, kteří nenakupují v rámci podnikání.',
+    'Tento dokument popisuje, kdy můžete od nákupu odstoupit, kdy to už nejde a jak si stěžovat, když něco nefunguje. Týká se spotřebitelů – tedy lidí, kteří nenakupují v rámci podnikání.',
 
   'legal.refunds.s1.h': '14 dnů na rozmyšlenou',
   'legal.refunds.s1.p1':
@@ -320,34 +357,41 @@ export const legalCs = {
   'legal.refunds.s2.h': 'Balíček skenů: kdy právo na odstoupení zaniká',
   'legal.refunds.s2.p1':
     'Zakoupené skeny jsou digitální obsah, který se připíše okamžitě. Než vás pošleme k platbě, musíte proto zaškrtnout toto prohlášení:',
+  // The body between the quotation marks is `vip.credits.ack` in `cs.ts`,
+  // verbatim: this is the operative consent wording the customer actually
+  // ticks, so it is quoted, not paraphrased. Only the marks are ours — and
+  // Czech closes with U+201C, not an ASCII straight quote.
   'legal.refunds.s2.quote':
-    '„Souhlasím, aby skeny byly dodány ihned, a beru na vědomí, že tím ztrácím právo na odstoupení od smlouvy do 14 dnů."',
+    '„Souhlasím, aby skeny byly dodány ihned, a beru na vědomí, že tím ztrácím právo na odstoupení od smlouvy do 14 dnů.“',
   'legal.refunds.s2.p2':
-    'Bez zaškrtnutí nákup vůbec nezahájíme. Zaškrtnutím výslovně žádáte, abychom začali plnit před uplynutím čtrnáctidenní lhůty, a berete na vědomí, že tím právo na odstoupení podle § 1837 občanského zákoníku zaniká. Datum a čas tohoto souhlasu si ukládáme k záznamu o nákupu.',
+    'Bez zaškrtnutí nákup vůbec nezahájíme. Zaškrtnutím výslovně žádáte, abychom začali plnit před uplynutím čtrnáctidenní lhůty, a berete na vědomí, že tím právo na odstoupení podle § 1837 občanského zákoníku zaniká. Datum a čas tohoto souhlasu si ukládáme k záznamu o nákupu.',
   'legal.refunds.s2.p3':
-    'Právo na odstoupení tedy u balíčku skenů zaniká okamžikem, kdy se skeny připíšou. Nefunguje-li něco, jak má, nejde o odstoupení, ale o reklamaci – ta platí vždycky.',
+    'Právo na odstoupení tedy u balíčku skenů zaniká okamžikem, kdy se skeny připíšou. Nefunguje-li něco, jak má, nejde o odstoupení, ale o reklamaci – tu můžete uplatnit vždy.',
 
   'legal.refunds.s3.h': 'Předplatné VIP',
   'legal.refunds.s3.p1':
     'U předplatného souhlas s okamžitým plněním nevyžadujeme, takže vám právo odstoupit do 14 dnů od uzavření smlouvy zůstává. Odstoupíte-li v této lhůtě, vrátíme vám cenu za právě zaplacené období.',
   'legal.refunds.s3.p2':
-    'Předplatné se automaticky obnovuje na další období. Chcete-li se obnovení vyhnout, zrušte ho dřív, než období skončí.',
+    'Předplatné se automaticky obnovuje na další období. Chcete-li se obnovení vyhnout, zrušte ho dříve, než období skončí.',
 
   'legal.refunds.s4.h': 'Zrušení předplatného není odstoupení',
   'legal.refunds.s4.p1':
-    'Zrušení ukončí jenom další obnovování. Do konce právě zaplaceného období vám VIP běží dál a poměrnou část ceny nevracíme. Zrušíte ho v aplikaci tlačítkem Spravovat předplatné, které vás přenese do zákaznického portálu Stripe.',
+    'Zrušení ukončí jenom další obnovování. Do konce právě zaplaceného období vám VIP běží dál a poměrnou část ceny nevracíme. Zrušíte ho v aplikaci tlačítkem „Spravovat předplatné“, které vás přesměruje do zákaznického portálu Stripe.',
 
   'legal.refunds.s5.h': 'Jak odstoupit',
   'legal.refunds.s5.p1':
-    'Stačí nám napsat. Uveďte e-mail, kterým jste se registrovali, co jste koupili a kdy. Formulář nepotřebujete, ale může vám pomoct toto znění:',
+    'Stačí nám napsat. Uveďte e-mail, kterým jste se registrovali, co jste koupili a kdy. Formulář nepotřebujete, ale může vám pomoci toto znění:',
+  // Uvozovky jsou tu proto, že je má i `s2.quote` (kde jsou navíc doslovným
+  // přepisem zaškrtávacího prohlášení z aplikace) a obojí se vykresluje stejným
+  // blockquotem – jinak by jedna citace uvozovky měla a druhá ne.
   'legal.refunds.s5.quote':
-    'Oznamuji, že odstupuji od smlouvy o poskytnutí služby dlužníček uzavřené dne (datum nákupu), e-mail účtu (vaše adresa). Žádám o vrácení zaplacené částky.',
+    '„Oznamuji, že odstupuji od smlouvy o poskytnutí služby dlužníček uzavřené dne (datum nákupu), e-mail účtu (vaše adresa). Žádám o vrácení zaplacené částky.“',
   'legal.refunds.s5.p2':
     'Peníze vrátíme do 14 dnů od doručení odstoupení, a to stejným způsobem, jakým jste platili – tedy zpět přes Stripe na kartu nebo účet, ze kterého platba přišla.',
 
   'legal.refunds.s6.h': 'Když něco nefunguje',
   'legal.refunds.s6.p1':
-    'Nepovedený sken vám vrátíme na účet automaticky, hlásit ho nemusíte. Když se ale sken nedaří opakovaně, placená funkce není dostupná nebo se vám něco strhlo omylem, napište nám.',
+    'Nepovedený sken hrazený z balíčku se vám automaticky vrátí zpět, hlásit ho nemusíte. Když se ale sken nedaří opakovaně, placená funkce není dostupná nebo se vám něco strhlo omylem, napište nám.',
   'legal.refunds.s6.p2':
     'Reklamaci vyřídíme nejpozději do 30 dnů od jejího uplatnění a o výsledku vás vyrozumíme.',
   'legal.refunds.s6.p3':
@@ -359,7 +403,7 @@ export const legalCs = {
 
   'legal.refunds.s8.h': 'Mimosoudní řešení sporů',
   'legal.refunds.s8.p1':
-    'Nedohodneme-li se, můžete se jako spotřebitel obrátit na Českou obchodní inspekci, která vede mimosoudní řešení spotřebitelských sporů (www.coi.cz). Řízení je pro spotřebitele bezplatné a návrh podáte nejpozději do jednoho roku ode dne, kdy jste u nás své právo uplatnili poprvé.',
+    'Nedohodneme-li se, můžete se jako spotřebitel obrátit na Českou obchodní inspekci, která je subjektem mimosoudního řešení spotřebitelských sporů (www.coi.cz). Řízení je pro spotřebitele bezplatné a návrh podáte nejpozději do jednoho roku ode dne, kdy jste u nás své právo uplatnili poprvé.',
 
   /* ------------------------------------------------------------ contact */
 
@@ -375,11 +419,11 @@ export const legalCs = {
   'legal.contact.s2.p1':
     'Na support@evenup.cz řešíme všechno: dotazy k aplikaci, platby, reklamace, odstoupení od smlouvy i žádosti podle GDPR.',
   'legal.contact.s2.p2':
-    'Automatické e-maily – ověření adresy, obnovení hesla, upozornění na dění ve skupině – chodí z adresy noreply@evenup.cz. Na tu neodpovídejte, nikdo ji nečte.',
+    'Automatické e-maily – ověření adresy, obnovení hesla, oznámení o dění ve skupině – chodí z adresy noreply@evenup.cz. Na tu neodpovídejte, nikdo ji nečte.',
 
   'legal.contact.s3.h': 'Osobní údaje',
   'legal.contact.s3.p1':
-    'Žádosti o přístup, opravu nebo výmaz vyřizujeme na stejné adrese a ozveme se nejpozději do jednoho měsíce. Export dat i smazání účtu zvládnete i sami v Nastavení. Dozorovým úřadem je Úřad pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7, www.uoou.gov.cz.',
+    'Žádosti o přístup, opravu nebo výmaz vyřizujeme na stejné adrese a ozveme se nejpozději do jednoho měsíce. Export dat i smazání účtu zvládnete sami v Nastavení. Dozorovým úřadem je Úřad pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7, www.uoou.gov.cz.',
 
   'legal.contact.s4.h': 'Spotřebitelské spory',
   'legal.contact.s4.p1':
@@ -457,7 +501,7 @@ export const legalEn: LegalMessages = {
   'legal.terms.s4.p3':
     'A scan paid for from a pack does not store the receipt photo — only the recognised line items stay with the expense. Storing photos belongs to the subscription.',
   'legal.terms.s4.p4':
-    'If a scan fails, the purchased scan is returned to your balance automatically and you can enter the receipt by hand.',
+    'If a scan paid for from a pack fails, it is returned to your scan balance automatically and you can enter the receipt by hand.',
   'legal.terms.s4.p5':
     'On an instance you run yourself with no Stripe connection, paid features are never offered and scanning is not metered at all.',
 
@@ -491,7 +535,7 @@ export const legalEn: LegalMessages = {
   'legal.terms.s9.li1':
     'Do not disrupt the service, circumvent its limits, or access it automatically beyond ordinary use.',
   'legal.terms.s9.li2':
-    'Do not upload unlawful content, or other people’s personal data you have no reason to hold.',
+    'Do not upload unlawful content, or other people’s personal data you have no reason to share.',
   'legal.terms.s9.li3': 'Do not use the service in ways that harm other users or us.',
 
   'legal.terms.s10.h': 'Availability',
@@ -514,9 +558,9 @@ export const legalEn: LegalMessages = {
 
   'legal.terms.s14.h': 'Governing law and disputes',
   'legal.terms.s14.p1':
-    'The relationship is governed by Czech law, in particular the Civil Code and the Consumer Protection Act. This does not affect the rights the law of your country of residence gives you as a consumer.',
+    'The relationship is governed by Czech law, in particular the Civil Code and the Consumer Protection Act. This does not affect the rights the law of your country of habitual residence gives you as a consumer.',
   'legal.terms.s14.p2':
-    'We will try to settle any dispute by agreement — just write to us. As a consumer you may also turn to the Czech Trade Inspection Authority, which runs out-of-court resolution of consumer disputes (www.coi.cz).',
+    'We will try to settle any dispute by agreement — just write to us. As a consumer you may also turn to the Czech Trade Inspection Authority, which is the competent body for out-of-court resolution of consumer disputes (www.coi.cz).',
 
   /* ------------------------------------------------------------ privacy */
 
@@ -539,11 +583,11 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s2.li2':
     'Sign-in: a session record including your IP address and browser details. Purpose: keeping you signed in and spotting misuse. Legal basis: our legitimate interest in security. The record lasts as long as the session is valid, and at the latest ends when you delete your account.',
   'legal.privacy.s2.li3':
-    'Groups and expenses: group names, member names, amounts, currencies, categories, notes and the change history. Purpose: the application itself. Legal basis: performance of the contract. Kept until you delete the group or the account.',
+    'Groups and expenses: group names, member names, amounts, currencies, categories, notes and the change history. Purpose: the application itself. Legal basis: performance of the contract. Kept until you delete the individual records. A group can be archived but not deleted; groups where you are the only member go when you delete the account.',
   'legal.privacy.s2.li4':
     'Bank details: the account number or IBAN you save for QR payments. Stored encrypted (AES-256-GCM). Purpose: pre-filling a QR payment. Legal basis: performance of the contract. Deleted with your account.',
   'legal.privacy.s2.li5':
-    'Receipts: the photo or PDF of a receipt and the data read from it — merchant, line items, amounts, date. The photo is kept for {days} days and then deleted automatically; the recognised items stay with the expense until you delete the expense or the group. Legal basis: consent for sending it to be read, performance of the contract for storing the result.',
+    'Receipts: the photo or PDF of a receipt and the data read from it — merchant, line items, amounts, date. The photo is deleted automatically {days} days after the scan. The recognised items stay with the expense until you delete the expense; deleting it does not remove the receipt record itself, though — a second copy of the recognition result stays with that record and goes only with the group. Legal basis: consent for sending it to be read, performance of the contract for storing the result.',
   'legal.privacy.s2.li6':
     'Payments: your Stripe customer identifier, subscription status, scan balance and the records of scans bought and used. Purpose: unlocking paid features and accounting. Legal basis: performance of the contract and compliance with a legal obligation.',
   'legal.privacy.s2.li7':
@@ -563,11 +607,11 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s4.p1':
     'We do not sell data. We pass it only to processors without which the service would not work:',
   'legal.privacy.s4.li1':
-    'OpenRouter — the photo or PDF of the receipt and the instruction to read it. OpenRouter is a router: it forwards the request to the provider of the particular model, so the chain of processors continues past it and processing may take place outside the European Union.',
+    'OpenRouter — the photo or PDF of the receipt and the instruction to read it. OpenRouter is a router: it forwards the request to the provider of the particular model, so further processors are engaged beyond it and processing may take place outside the European Union.',
   'legal.privacy.s4.li2':
     'Stripe — your email address, customer identifier and payment and subscription details. Card details go straight to Stripe.',
   'legal.privacy.s4.li3':
-    'Seznam.cz (Email Profi) — the recipient address and message content. We send mail through its SMTP server from noreply@evenup.cz.',
+    'An email provider — the recipient address and message content. On evenup.cz we send mail from noreply@evenup.cz through the SMTP server of Seznam.cz (Email Profi); an instance run by somebody else may use a different provider.',
   'legal.privacy.s4.li4':
     'An object storage provider — receipt photos. The storage is S3-compatible; on an instance you run yourself it is that operator’s own storage.',
   'legal.privacy.s4.li5':
@@ -587,15 +631,15 @@ export const legalEn: LegalMessages = {
 
   'legal.privacy.s6.h': 'Receipts and sensitive data',
   'legal.privacy.s6.p1':
-    'A receipt reveals more than it looks like it does: where you were and when, what you bought, sometimes the last four digits of a card. A pharmacy purchase can say something about your health, which is a special category of data under GDPR Art. 9.',
+    'A receipt reveals more than it looks like it does: where you were and when, what you bought, sometimes the last four digits of a card. A pharmacy purchase can say something about your health, which is a special category of personal data under GDPR Art. 9.',
   'legal.privacy.s6.p2':
-    'That is why no scan runs until you explicitly agree. You give consent once and can withdraw it at any time in Settings. Withdrawal stops further scanning; it does not remove expenses and receipts already saved — delete those individually, or by deleting the group or the account.',
+    'That is why no scan runs until you explicitly agree. You give consent once and can withdraw it at any time in Settings. Withdrawal stops further scanning; it does not remove expenses and receipts already saved — delete those individually, or by deleting the account.',
   'legal.privacy.s6.p3':
     'If you would rather not send receipts at all, enter the items by hand. The application is fully usable without scanning.',
 
   'legal.privacy.s7.h': 'How long we keep data',
   'legal.privacy.s7.li1':
-    'Receipt photos: {days} days from the scan, after which a scheduled job deletes them from storage.',
+    'Receipt photos: {days} days after the scan a scheduled job deletes them from storage.',
   'legal.privacy.s7.li2':
     'Account, group and expense data: until you delete it, or until you delete the account.',
   'legal.privacy.s7.li3':
@@ -609,7 +653,7 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s8.p1':
     'You delete the account yourself in Settings. It takes effect immediately and cannot be undone.',
   'legal.privacy.s8.p2':
-    'We delete your profile and credentials, any Google or Apple link, saved bank details, notification settings, your scanning consent and the records of scans used. Groups where you were the only member are deleted entirely, receipts included.',
+    'We delete your profile and credentials, any Google or Apple link, saved bank details, notification settings, your scanning consent and the records of scans used. Groups where you were the only member are deleted entirely — receipts included, and their photos removed from storage.',
   'legal.privacy.s8.p3':
     'In shared groups, what belongs to the others stays: the expenses and splits that involved you remain visible to them. Your membership is deactivated and detached from the account and your bank details are deleted, but the name you appeared under in the group remains — without it their settlement would stop making sense.',
   'legal.privacy.s8.p4':
@@ -629,7 +673,7 @@ export const legalEn: LegalMessages = {
   'legal.privacy.s9.li6':
     'Withdrawal of your consent to receipt scanning, at any time and with no consequences for the rest of the app.',
   'legal.privacy.s9.p1':
-    'Write to us and we will respond within one month at the latest. If you are not satisfied with how we handled it, you can complain to the Czech Office for Personal Data Protection, Pplk. Sochora 27, 170 00 Prague 7, www.uoou.gov.cz.',
+    'Write to us and we will respond within one month at the latest. If you are not satisfied with how we handled it, you can complain to the Czech Office for Personal Data Protection, Pplk. Sochora 27, 170 00 Prague 7, www.uoou.gov.cz.',
 
   'legal.privacy.s10.h': 'Security',
   'legal.privacy.s10.li1': 'Connections to the application are always encrypted (HTTPS).',
@@ -668,7 +712,7 @@ export const legalEn: LegalMessages = {
   'legal.refunds.s2.quote':
     '“I agree the scans are delivered immediately, and I understand this means I lose my right to withdraw within 14 days.”',
   'legal.refunds.s2.p2':
-    'Without the tick the purchase does not start at all. By ticking it you expressly ask us to begin performance before the 14-day period expires and acknowledge that the right to withdraw under § 1837 of the Czech Civil Code is thereby lost. We store the date and time of that consent alongside the purchase record.',
+    'Without the tick the purchase does not start at all. By ticking it you expressly ask us to begin performance before the 14-day period expires and acknowledge that the right to withdraw under § 1837 of the Czech Civil Code is thereby lost. We store the date and time of that consent alongside the purchase record.',
   'legal.refunds.s2.p3':
     'So for a scan pack the right to withdraw ends the moment the scans are credited. If something does not work as it should, that is not withdrawal but a complaint — and the right to complain always stands.',
 
@@ -686,13 +730,13 @@ export const legalEn: LegalMessages = {
   'legal.refunds.s5.p1':
     'Just write to us. Give the email address you registered with, what you bought and when. No form is required, but this wording may help:',
   'legal.refunds.s5.quote':
-    'I hereby give notice that I withdraw from the contract for the supply of the EvenUp service concluded on (date of purchase), account email (your address). I request a refund of the amount paid.',
+    '“I hereby give notice that I withdraw from the contract for the supply of the EvenUp service concluded on (date of purchase), account email (your address). I request a refund of the amount paid.”',
   'legal.refunds.s5.p2':
     'We return the money within 14 days of receiving your withdrawal, by the same means you paid — that is, back through Stripe to the card or account the payment came from.',
 
   'legal.refunds.s6.h': 'When something does not work',
   'legal.refunds.s6.p1':
-    'A failed scan is returned to your balance automatically; you do not need to report it. But if scans keep failing, a paid feature is unavailable, or you were charged by mistake, write to us.',
+    'A failed scan paid for from a pack is returned to your scan balance automatically; you do not need to report it. But if scans keep failing, a paid feature is unavailable, or you were charged by mistake, write to us.',
   'legal.refunds.s6.p2':
     'We will deal with a complaint within 30 days of it being made and let you know the outcome.',
   'legal.refunds.s6.p3':
@@ -704,7 +748,7 @@ export const legalEn: LegalMessages = {
 
   'legal.refunds.s8.h': 'Out-of-court dispute resolution',
   'legal.refunds.s8.p1':
-    'If we cannot agree, as a consumer you may turn to the Czech Trade Inspection Authority, which runs out-of-court resolution of consumer disputes (www.coi.cz). The procedure is free for consumers and you may file within one year of first raising the matter with us.',
+    'If we cannot agree, as a consumer you may turn to the Czech Trade Inspection Authority, which is the competent body for out-of-court resolution of consumer disputes (www.coi.cz). The procedure is free for consumers and you may file within one year of first raising the matter with us.',
 
   /* ------------------------------------------------------------ contact */
 
@@ -724,7 +768,7 @@ export const legalEn: LegalMessages = {
 
   'legal.contact.s3.h': 'Personal data',
   'legal.contact.s3.p1':
-    'Requests for access, rectification or erasure are handled at the same address and we respond within one month at the latest. You can also export your data and delete your account yourself in Settings. The supervisory authority is the Czech Office for Personal Data Protection, Pplk. Sochora 27, 170 00 Prague 7, www.uoou.gov.cz.',
+    'Requests for access, rectification or erasure are handled at the same address and we respond within one month at the latest. You can also export your data and delete your account yourself in Settings. The supervisory authority is the Czech Office for Personal Data Protection, Pplk. Sochora 27, 170 00 Prague 7, www.uoou.gov.cz.',
 
   'legal.contact.s4.h': 'Consumer disputes',
   'legal.contact.s4.p1':

@@ -94,6 +94,25 @@ for (const { landing, prefix } of [
 }
 
 /**
+ * Same root cause as the locale switch below, different link: the header's
+ * Features / Pricing / FAQ anchors were bare `#features`-style hrefs, written
+ * when `(marketing)` held exactly one page. On a legal document those set the
+ * hash and go nowhere — there is no such section here — so they have to carry
+ * the landing path, in the locale of the page they sit on.
+ */
+for (const { doc, prefix } of [
+  { doc: '/privacy', prefix: '' },
+  { doc: '/en/privacy', prefix: '/en' },
+]) {
+  test(`the header anchors on ${doc} point at the landing page`, async ({ page }) => {
+    await page.goto(doc);
+    for (const id of ['features', 'pricing', 'faq']) {
+      await expect(page.locator(`header a[href="${prefix || '/'}#${id}"]`)).toHaveCount(1);
+    }
+  });
+}
+
+/**
  * The regression this exists for: the marketing locale switch used to have `/`
  * and `/en` hardcoded, because `(marketing)` held exactly one page. On a legal
  * document that would drop a reader out of the document they were reading and

@@ -221,7 +221,9 @@ export const userRouter = router({
 
   /** GDPR account deletion (FR-1.6): delete solo groups, unlink shared ones. */
   deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
-    await deleteUserAccount(ctx.prisma, ctx.user.id);
+    // The object store goes with it: deleting a solo group cascades its
+    // receipt rows away, and with them the only reference to the stored photos.
+    await deleteUserAccount(ctx.prisma, ctx.user.id, ctx.objectStore);
     return { ok: true as const };
   }),
 });

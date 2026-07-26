@@ -38,6 +38,12 @@ export default async function MarketingLayout({
   // has to be built for the locale of the page it sits on — a bare `/` or
   // `/groups` in the English header would walk the visitor into the Czech app.
   const path = (to: string) => localizedPath(to, locale);
+  // The nav points at sections of the landing page, which is no longer the only
+  // page wearing this header: a bare `#features` on `/privacy` sets the hash and
+  // goes nowhere, because there is no such section on a legal document. Anchors
+  // therefore carry the landing path — locale-resolved, for the same reason
+  // every other link here is.
+  const anchor = (id: string) => `${path('/')}#${id}`;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -52,15 +58,18 @@ export default async function MarketingLayout({
           </Link>
 
           <nav className="ml-4 hidden items-center gap-5 text-sm font-medium text-zinc-600 sm:flex dark:text-zinc-300">
-            <a href="#features" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            <Link
+              href={anchor('features')}
+              className="hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
               {tm('marketing.nav.features')}
-            </a>
-            <a href="#pricing" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            </Link>
+            <Link href={anchor('pricing')} className="hover:text-zinc-900 dark:hover:text-zinc-100">
               {tm('marketing.nav.pricing')}
-            </a>
-            <a href="#faq" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            </Link>
+            <Link href={anchor('faq')} className="hover:text-zinc-900 dark:hover:text-zinc-100">
               {tm('marketing.nav.faq')}
-            </a>
+            </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-2">

@@ -103,7 +103,7 @@ export const adminRouter = router({
           message: 'You cannot delete your own account here; use settings.',
         });
       }
-      await deleteUserAccount(ctx.prisma, input.userId);
+      await deleteUserAccount(ctx.prisma, input.userId, ctx.objectStore);
       return { ok: true };
     }),
 

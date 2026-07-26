@@ -7,9 +7,9 @@ import { LegalDocument, legalMetadata, type LegalSection } from '@/components/le
  *
  * Every factual claim in this document was checked against the code rather
  * than assumed; the claim-to-source map lives at the top of
- * `packages/i18n/src/locales/legal.ts`. Two of them are load-bearing enough to
- * repeat here, because getting either wrong turns this page into a false
- * statement to a supervisory authority:
+ * `packages/i18n/src/locales/legal.ts`. Three of them are load-bearing enough
+ * to repeat here, because getting any of them wrong turns this page into a
+ * false statement to a supervisory authority:
  *
  * - **Section 8 says pseudonymized, not anonymous.** `deleteUserAccount` nulls
  *   the local `userId` on retained PURCHASE and Subscription rows, but those
@@ -21,6 +21,10 @@ import { LegalDocument, legalMetadata, type LegalSection } from '@/components/le
  *   yet (it is the next task). Section 2 says only what is true today: the
  *   session record lasts as long as the session and goes at the latest when
  *   the account does.
+ * - **Nothing here offers group deletion as a way to erase data.** There is no
+ *   such procedure: `routers/group.ts` stops at `archive`, which only stamps
+ *   `archivedAt`. Sections 2 and 6 route erasure through the individual record
+ *   or the account, which are the two things a user can actually do.
  */
 const SECTIONS: readonly LegalSection[] = [
   {
