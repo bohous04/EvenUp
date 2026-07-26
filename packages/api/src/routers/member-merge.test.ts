@@ -655,3 +655,88 @@ describe('member.duplicateCandidates', () => {
     expect(candidates).toEqual([]);
   });
 });
+
+describe('member.dismissDuplicate', () => {
+  test('one member dismissing hides the suggestion from everyone in the group', async () => {
+    const { caller, group, marek } = await seed();
+    const { user: newcomerUser, member: newcomer } = await joinAsNew(
+      group.id,
+      caller,
+      'marek@example.com',
+    );
+
+    // Visible to both the admin and the newcomer before anyone answers.
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toHaveLength(1);
+    expect(
+      await makeCaller(newcomerUser).member.duplicateCandidates({ groupId: group.id }),
+    ).toHaveLength(1);
+
+    // The newcomer — a plain member, not an admin — says "not the same".
+    await makeCaller(newcomerUser).member.dismissDuplicate({
+      sourceMemberId: newcomer.id,
+      targetMemberId: marek.id,
+    });
+
+    // Gone for the person who dismissed it AND for the admin who did not.
+    expect(
+      await makeCaller(newcomerUser).member.duplicateCandidates({ groupId: group.id }),
+    ).toEqual([]);
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toEqual([]);
+  });
+
+  test('dismissing one pair leaves an unrelated pair still suggested', async () => {
+    const { caller, group, marek } = await seed();
+    const tomas = await caller.member.add({ groupId: group.id, displayName: 'Tomáš Král' });
+    const { member: marekDup } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const { member: tomasDup } = await joinAsNew(group.id, caller, 'tomas@example.com');
+
+    expect(await caller.member.duplicateCandidates({ groupId: group.id })).toHaveLength(2);
+
+    await caller.member.dismissDuplicate({
+      sourceMemberId: marekDup.id,
+      targetMemberId: marek.id,
+    });
+
+    const left = await caller.member.duplicateCandidates({ groupId: group.id });
+    expect(left).toHaveLength(1);
+    expect(left[0]!.sourceMemberId).toBe(tomasDup.id);
+    expect(left[0]!.targetMemberId).toBe(tomas.id);
+  });
+
+  test('dismissing twice is idempotent, not a unique-constraint crash', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const args = { sourceMemberId: newcomer.id, targetMemberId: marek.id };
+
+    await caller.member.dismissDuplicate(args);
+    await expect(caller.member.dismissDuplicate(args)).resolves.toBeTruthy();
+    expect(await testPrisma.mergeDismissal.count()).toBe(1);
+  });
+
+  test('a non-member of the group cannot dismiss', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+    const outsider = await createTestUser('outsider@example.com');
+
+    await expect(
+      makeCaller(outsider).member.dismissDuplicate({
+        sourceMemberId: newcomer.id,
+        targetMemberId: marek.id,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  test('merging a pair clears its dismissal rather than orphaning it', async () => {
+    const { caller, group, marek } = await seed();
+    const { member: newcomer } = await joinAsNew(group.id, caller, 'marek@example.com');
+
+    await caller.member.dismissDuplicate({
+      sourceMemberId: newcomer.id,
+      targetMemberId: marek.id,
+    });
+    expect(await testPrisma.mergeDismissal.count()).toBe(1);
+
+    await caller.member.merge({ sourceMemberId: newcomer.id, targetMemberId: marek.id });
+    expect(await testPrisma.mergeDismissal.count()).toBe(0);
+  });
+});

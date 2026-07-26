@@ -426,6 +426,18 @@ export const memberRouter = router({
       const unclaimed = members.filter((m) => m.userId === null);
       if (unclaimed.length === 0) return [];
 
+      // Pairs somebody already answered "not the same person" to. The answer is
+      // group-wide on purpose: the question is about two OTHER people, so once
+      // anyone has settled it, re-asking everyone else is noise.
+      const dismissed = new Set(
+        (
+          await ctx.prisma.mergeDismissal.findMany({
+            where: { groupId: input.groupId },
+            select: { sourceMemberId: true, targetMemberId: true },
+          })
+        ).map((d) => `${d.sourceMemberId}:${d.targetMemberId}`),
+      );
+
       const candidates = [];
       for (const claimed of members.filter((m) => m.userId !== null)) {
         const aliases = [
@@ -438,7 +450,7 @@ export const memberRouter = router({
           const score = Math.max(
             ...aliases.map((alias) => nameSimilarity(alias, placeholder.displayName)),
           );
-          if (score >= DUPLICATE_MATCH_THRESHOLD) {
+          if (score >= DUPLICATE_MATCH_THRESHOLD && !dismissed.has(`${claimed.id}:${placeholder.id}`)) {
             candidates.push({
               sourceMemberId: claimed.id,
               sourceName: claimed.displayName,
@@ -450,6 +462,52 @@ export const memberRouter = router({
         }
       }
       return candidates.sort((a, b) => b.score - a.score);
+    }),
+
+  /**
+   * Record "these two are not the same person", suppressing that suggestion for
+   * the whole group rather than just the browser that clicked it.
+   *
+   * Any group member may answer: the banner is shown to whoever opens the
+   * group, so anyone who can see the question can settle it. It only ever
+   * hides a *suggestion* — the manual merge action stays available, so a
+   * mistaken dismissal costs discoverability, never data.
+   */
+  dismissDuplicate: protectedProcedure
+    .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.sourceMemberId === input.targetMemberId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot dismiss a member against itself' });
+      }
+      const [source, target] = await Promise.all([
+        ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),
+        ctx.prisma.member.findUnique({ where: { id: input.targetMemberId } }),
+      ]);
+      if (!source || !target) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      }
+      if (source.groupId !== target.groupId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Members belong to different groups' });
+      }
+      await assertGroupAccess(ctx.prisma, ctx.user, source.groupId);
+
+      // Idempotent: clicking "not the same" twice must not 500 on the unique.
+      await ctx.prisma.mergeDismissal.upsert({
+        where: {
+          sourceMemberId_targetMemberId: {
+            sourceMemberId: source.id,
+            targetMemberId: target.id,
+          },
+        },
+        create: {
+          groupId: source.groupId,
+          sourceMemberId: source.id,
+          targetMemberId: target.id,
+          dismissedById: ctx.user.id,
+        },
+        update: {},
+      });
+      return { dismissed: true };
     }),
 
   /**

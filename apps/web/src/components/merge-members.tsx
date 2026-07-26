@@ -5,26 +5,6 @@ import { trpc } from '@/lib/trpc';
 import { Button, Card } from '@/components/ui';
 import { Modal } from '@/components/modal';
 
-const DISMISS_KEY = 'evenup:merge-dismissed';
-
-function dismissedPairs(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(DISMISS_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function dismissPair(key: string) {
-  try {
-    window.localStorage.setItem(DISMISS_KEY, JSON.stringify([...dismissedPairs(), key]));
-  } catch {
-    // A full or disabled localStorage just means the banner returns later.
-  }
-}
-
 /** Confirmation dialog: shows what moves before anything is merged. */
 export function MergeDialog({
   groupId,
@@ -155,15 +135,20 @@ export function MergeDialog({
 /** Suggests a merge when a newcomer looks like an unclaimed placeholder. */
 export function DuplicateBanner({ groupId }: { groupId: string }) {
   const { t } = useI18n();
+  const utils = trpc.useUtils();
   const candidates = trpc.member.duplicateCandidates.useQuery({ groupId });
-  const [dismissed, setDismissed] = useState<string[]>(dismissedPairs);
+  // "Not the same" is recorded server-side, so one person's answer settles the
+  // question for the whole group instead of only their own browser.
+  const dismiss = trpc.member.dismissDuplicate.useMutation({
+    onSuccess: () => utils.member.duplicateCandidates.invalidate({ groupId }),
+  });
   const [open, setOpen] = useState(false);
 
-  const candidate = candidates.data?.find(
-    (c) => !dismissed.includes(`${c.sourceMemberId}:${c.targetMemberId}`),
-  );
+  // The server already excludes dismissed pairs; the list is sorted by score,
+  // so the first entry is the strongest remaining suggestion. It is NOT
+  // deduplicated by placeholder, so take one rather than assuming one exists.
+  const candidate = candidates.data?.[0];
   if (!candidate) return null;
-  const key = `${candidate.sourceMemberId}:${candidate.targetMemberId}`;
 
   return (
     <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
@@ -179,10 +164,14 @@ export function DuplicateBanner({ groupId }: { groupId: string }) {
         </Button>
         <Button
           variant="secondary"
-          onClick={() => {
-            dismissPair(key);
-            setDismissed((prev) => [...prev, key]);
-          }}
+          data-testid="merge-banner-dismiss"
+          disabled={dismiss.isPending}
+          onClick={() =>
+            dismiss.mutate({
+              sourceMemberId: candidate.sourceMemberId,
+              targetMemberId: candidate.targetMemberId,
+            })
+          }
         >
           {t('merge.bannerDismiss')}
         </Button>

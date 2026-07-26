@@ -58,6 +58,7 @@ model User {
   notificationPreferences NotificationPreference[]
   notificationDeliveries  NotificationDelivery[]
   twoFactor               TwoFactor[]
+  mergeDismissals         MergeDismissal[]
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +186,7 @@ model Group {
   receipts                Receipt[]
   activityLogs            ActivityLog[]
   notificationPreferences NotificationPreference[]
+  mergeDismissals         MergeDismissal[]
 
   @@index([createdById])
 }
@@ -210,8 +212,39 @@ model Member {
   transfersFrom   Transaction[]      @relation("TransferFrom")
   transfersTo     Transaction[]      @relation("TransferTo")
 
+  dismissalsAsSource MergeDismissal[] @relation("DismissalSource")
+  dismissalsAsTarget MergeDismissal[] @relation("DismissalTarget")
+
   @@index([groupId])
   @@index([userId])
+}
+
+/**
+ * "These two are not the same person" — one member says it, and the merge
+ * suggestion stops being offered to everyone in the group.
+ *
+ * Group-wide by design: the banner asks a question about two other people, so
+ * once anyone has answered it, re-asking every other member is noise. This
+ * lives in the database rather than localStorage precisely so the answer
+ * follows the group instead of one person's browser.
+ *
+ * Rows cascade away with either member, so a completed merge (which deletes
+ * the duplicate) also clears the dismissals naming it.
+ */
+model MergeDismissal {
+  id             String   @id @default(cuid())
+  groupId        String
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sourceMemberId String
+  sourceMember   Member   @relation("DismissalSource", fields: [sourceMemberId], references: [id], onDelete: Cascade)
+  targetMemberId String
+  targetMember   Member   @relation("DismissalTarget", fields: [targetMemberId], references: [id], onDelete: Cascade)
+  dismissedById  String?
+  dismissedBy    User?    @relation(fields: [dismissedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+
+  @@unique([sourceMemberId, targetMemberId])
+  @@index([groupId])
 }
 
 model GroupCategory {
