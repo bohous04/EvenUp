@@ -51,19 +51,25 @@ function sanitizeValue(value: string, maxLength: number): string {
   let out = '';
   for (const ch of stripped) {
     const code = ch.codePointAt(0)!;
+    let chunk: string;
     if (ch === '*' || ch === '%') {
-      out += '%' + code.toString(16).toUpperCase().padStart(2, '0');
+      chunk = '%' + code.toString(16).toUpperCase().padStart(2, '0');
     } else if (code < 0x20) {
       continue; // drop control characters
     } else if (code > 0x7e) {
+      chunk = '';
       for (const byte of new TextEncoder().encode(ch)) {
-        out += '%' + byte.toString(16).toUpperCase().padStart(2, '0');
+        chunk += '%' + byte.toString(16).toUpperCase().padStart(2, '0');
       }
     } else {
-      out += ch;
+      chunk = ch;
     }
+    // Truncate on a chunk boundary. Slicing the finished string could cut a
+    // `%XX` escape in half and make the whole descriptor unparseable.
+    if (out.length + chunk.length > maxLength) break;
+    out += chunk;
   }
-  return out.length > maxLength ? out.slice(0, maxLength) : out;
+  return out;
 }
 
 export interface SpaydInput {
