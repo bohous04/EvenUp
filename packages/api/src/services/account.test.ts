@@ -25,6 +25,8 @@ describe('deleteUserAccount: selective erasure (GDPR Art. 17 vs accounting reten
         { userId: u.id, delta: 5, reason: 'PURCHASE', stripeEventId: 'evt_keep' },
         { userId: u.id, delta: -1, reason: 'CREDIT_SCAN' },
         { userId: u.id, delta: 0, reason: 'VIP_SCAN' },
+        { userId: u.id, delta: 1, reason: 'REFUND' },
+        { userId: u.id, delta: 5, reason: 'ADMIN_GRANT' },
       ],
     });
 
@@ -37,5 +39,10 @@ describe('deleteUserAccount: selective erasure (GDPR Art. 17 vs accounting reten
     expect(remaining[0]).toMatchObject({ reason: 'PURCHASE', stripeEventId: 'evt_keep' });
     // The retained record must no longer identify a person.
     expect(remaining[0]!.userId).toBeNull();
+    // Every non-PURCHASE reason -- including REFUND (an internal scan-credit
+    // reversal, not a Stripe refund) and ADMIN_GRANT -- must be gone.
+    const remainingReasons = remaining.map((r) => r.reason);
+    expect(remainingReasons).not.toContain('REFUND');
+    expect(remainingReasons).not.toContain('ADMIN_GRANT');
   });
 });

@@ -8,6 +8,12 @@
  * obligation override the right to erasure, so they're detached from the
  * person (userId -> null) rather than deleted; finally the user row is deleted
  * (sessions/accounts cascade).
+ *
+ * Subscription rows are retained under the same Art. 17(3)(b) rationale, but
+ * passively: there is no step for them below. The schema's
+ * `onDelete: SetNull` on Subscription.userId detaches them automatically when
+ * the user row goes. This is deliberate and permanent -- there is no cleanup
+ * job anywhere that revisits them -- not an omission to fix.
  */
 import type { PrismaClient } from '@evenup/db';
 
@@ -54,7 +60,13 @@ export async function deleteUserAccount(prisma: PrismaClient, userId: string): P
     // PURCHASE rows are accounting records: Czech law requires keeping them and
     // that obligation overrides the right to erasure (GDPR Art. 17(3)(b)). The
     // schema's onDelete: SetNull detaches them from the person as the user row
-    // goes, leaving an amount and a Stripe reference that identify no one.
+    // goes, so the row no longer has a local foreign key to a user record.
+    // That nulls the *local* link only -- it is pseudonymization, not
+    // anonymization. The retained stripeEventId (and, for Subscription rows,
+    // stripeSubscriptionId) is a live Stripe object id that anyone with Stripe
+    // access can resolve to the Stripe Customer, and therefore the person's
+    // email and name. This data stays personal data under GDPR; retention is
+    // lawful via Art. 17(3)(b), not because it has become anonymous.
     await tx.scanLedger.deleteMany({
       where: { userId, reason: { not: 'PURCHASE' } },
     });
