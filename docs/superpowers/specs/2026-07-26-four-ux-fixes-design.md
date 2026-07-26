@@ -106,9 +106,15 @@ drops it too.
 
 ### i18n
 
+`packages/api/src/trpc.ts:15-19` localizes server errors by mapping the thrown
+English text back to its `errors.*` key, so the `CONFLICT` message needs a
+catalog entry or it reaches the user in English. The thrown string must match the
+**en** value character for character.
+
 | Key | cs | en |
 | --- | --- | --- |
 | `invite.alreadyMember` | `V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.` | `You're already in this group as {name}. You don't need an invite.` |
+| `errors.alreadyGroupMember` | `V této skupině už člena máš` | `You are already a member of this group` |
 
 ---
 
