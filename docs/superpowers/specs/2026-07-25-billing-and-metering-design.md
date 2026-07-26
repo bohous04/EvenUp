@@ -69,8 +69,8 @@ exhaustively.
 resolveScanEntitlement(user, subscription, now) ->
   | { allow: true,  consume: 'NONE',       mayStoreImage: true  }  // billing off, or comp VIP
   | { allow: true,  consume: 'VIP_SCAN',   mayStoreImage: true  }
-  | { allow: true,  consume: 'CREDIT',     mayStoreImage: false }
-  | { allow: false, reason:  'NO_ENTITLEMENT' }
+  | { allow: true,  consume: 'CREDIT',     mayStoreImage: <has a usable subscription> }
+  | { allow: false, reason:  'NO_ENTITLEMENT', mayStoreImage: false }
 ```
 
 `mayStoreImage` carries the receipt-photo rule (see below) so that
@@ -89,6 +89,10 @@ Evaluation order:
 
 Step 3 falling through to step 4 _is_ the "fall back to credits at the cap"
 behaviour; it needs no special casing.
+
+`mayStoreImage` on the `CREDIT` branch is **not** a constant: it is re-derived
+from the subscription. See "Receipt-image storage" below — the earlier wording
+of this document contradicted itself on that point, and this is the resolution.
 
 ## Schema
 
@@ -305,8 +309,25 @@ comment at `schema.prisma:42`). Splitting "VIP" into a comp flag and a paid
 subscription leaves the second undefined, so it is defined here.
 
 **Storage is subscription-scoped.** A stored receipt image requires either an
-active subscription or the comp `isVip` flag. A scan paid for with a credit
-produces the expense and its line items but no retained photo.
+active subscription or the comp `isVip` flag. A scan paid for with a credit by
+somebody who has neither produces the expense and its line items but no retained
+photo.
+
+**Resolved contradiction (2026-07-26).** As first written, this section said both
+"storage requires an active subscription or the comp flag" _and_ "a scan paid for
+with a credit stores nothing" — which disagree for the one user who satisfies
+both descriptions: an active subscriber past the 150-scan cap, whose 151st scan
+is credit-funded. The implementation had silently taken the second reading, so
+scan 151 stopped storing a photo the customer was still paying to have stored,
+mid-period and with nothing telling them. `entitlement.test.ts` used
+`toMatchObject` and never asserted `mayStoreImage`, so nothing caught it.
+
+**The rule is the first reading: storage follows the subscription, not the
+funding bucket.** An active subscriber (or comp `isVip`) gets
+`mayStoreImage: true` for every scan, credit-funded ones included. A
+non-subscriber spending credits gets `false`. It is simple to explain, and it
+does not withdraw a paid benefit part-way through a period the customer has
+already paid for. `legal.terms.s4.p3` states it in the same terms.
 
 This is deliberate product design as much as cost control: it gives the
 subscription a benefit that is not merely "more of the same", which partially
