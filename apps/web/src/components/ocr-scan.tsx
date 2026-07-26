@@ -130,13 +130,21 @@ export function OcrScan({
    * Run `action` now if consent is already granted, else prompt for it first.
    * `user.me` hasn't necessarily resolved yet (cold start): treating unknown
    * state as "consent exists" would let the action reach the server and come
-   * back FORBIDDEN instead of showing the dialog, so an unresolved query is a
-   * no-op — the trigger buttons are disabled until `me.data` loads, so there's
-   * nothing more to do here than wait.
+   * back FORBIDDEN instead of showing the dialog, so a genuinely *pending*
+   * query is a no-op — the trigger buttons are disabled while `me.isPending`,
+   * so there's nothing more to do here than wait.
+   *
+   * If `me` instead *errored* (e.g. the default 3 retries were exhausted), it
+   * settles `isPending` to false forever with `data` still undefined — so
+   * gating on `!me.data` would disable these triggers permanently, with no
+   * way to recover. Don't: fall through to `action()` and let the server be
+   * the real gate. It already returns a localized, actionable message for a
+   * missing consent (`FORBIDDEN`, handled in `scan`'s onError above) — a
+   * degraded-but-usable path beats a dead button.
    */
   function withConsent(action: () => void) {
-    if (!me.data) return;
-    if (!me.data.ocrConsentAt) {
+    if (me.isPending) return;
+    if (me.data && !me.data.ocrConsentAt) {
       // Clear any error from a previous failed attempt so a reopened dialog
       // doesn't show stale state.
       setOcrConsent.reset();
@@ -400,7 +408,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => cameraRef.current?.click())}
-              disabled={scan.isPending || !me.data}
+              disabled={scan.isPending || me.isPending}
               className="flex-1"
               data-testid="ocr-upload-btn"
             >
@@ -410,7 +418,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => galleryRef.current?.click())}
-              disabled={scan.isPending || !me.data}
+              disabled={scan.isPending || me.isPending}
               className="flex-1"
               data-testid="ocr-gallery-btn"
             >
@@ -423,7 +431,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => pdfRef.current?.click())}
-              disabled={scan.isPending || !me.data}
+              disabled={scan.isPending || me.isPending}
               className="flex-1"
               data-testid="ocr-add-pdf-btn"
             >
@@ -477,7 +485,7 @@ export function OcrScan({
               ))}
               <Button
                 onClick={() => withConsent(scanPages)}
-                disabled={scan.isPending || !me.data}
+                disabled={scan.isPending || me.isPending}
                 data-testid="ocr-scan-pages-btn"
               >
                 {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
