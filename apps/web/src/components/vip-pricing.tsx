@@ -100,7 +100,7 @@ export function VipPricing({
             portal is the only thing to offer. Keying this on `status ===
             'active'` is what used to invite a customer whose card had just
             expired to buy a *second* subscription; `billing.summary` now
-            reports the whole set (see `OPEN_SUBSCRIPTION_STATUSES`), and
+            reports the whole set (see `TERMINAL_SUBSCRIPTION_STATUSES`), and
             `checkoutSubscription` refuses server-side regardless of what
             this renders — the UI alone cannot fix the two-tab race. */}
         {summary.subscription ? (

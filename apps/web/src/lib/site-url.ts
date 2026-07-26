@@ -9,36 +9,35 @@ import { headers } from 'next/headers';
  * files, `app/[locale]/layout.tsx` for page metadata), so it lives here
  * rather than being computed twice and drifting.
  *
- * Read at **module scope**, which means at `next build` time for anything
- * prerendered — so `BETTER_AUTH_URL` is a build-time-significant variable
- * (documented as such in `.env.example`, alongside the `LEGAL_*` block that
- * carries the same warning). Routes that must not bake it in use
- * `requestOrigin()` below instead.
+ * Read at module scope, but that is *not* build-time: the value comes from the
+ * running server process, so even statically prerendered pages emit whatever
+ * `BETTER_AUTH_URL` is set to at runtime. Verified by building with one origin
+ * and serving with another — the served canonicals carry the serving value.
  */
 export const SITE_URL = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
 
 /**
- * The origin of the incoming request, for routes whose whole output is a list
- * of absolute URLs — `/sitemap.xml` and `/robots.txt`.
+ * Origin for the two routes whose entire output is a list of absolute URLs —
+ * `/sitemap.xml` and `/robots.txt`. Both are `force-dynamic`, so this is
+ * evaluated per request.
  *
- * Those two must NOT bake `SITE_URL` in. Both are prerendered by default, so
- * on any deploy where `BETTER_AUTH_URL` is supplied at runtime only — the
- * Coolify/Docker norm, since the image is built once and configured per
- * environment — the build reads the fallback and ships a sitemap of
- * `http://localhost:3000` URLs to Google. Reading the request's own host
- * instead makes the two routes correct wherever the container is served from,
- * with no build-time coupling at all.
+ * The configured origin wins whenever there is one. That is the origin every
+ * canonical link on the site already uses, and a sitemap whose URLs
+ * canonicalise somewhere else is worse than no sitemap — it is exactly the
+ * "submitted URL not selected as canonical" failure a sitemap exists to
+ * avoid. It also means no request header is trusted in a configured
+ * deployment: a spoofed `x-forwarded-host` cannot change what a crawler is
+ * told.
  *
- * `x-forwarded-host`/`x-forwarded-proto` win over `Host` because production
- * sits behind a reverse proxy (Traefik in Coolify) that terminates TLS: the
- * `Host` the app sees is right, but the scheme it was served over is only
- * knowable from the forwarded header. A comma-separated forwarded value (a
- * chain of proxies) contributes its first, client-most entry.
- *
- * Falls back to `SITE_URL` if a request somehow carries no host header at all
- * — a sitemap with the configured origin beats one with no origin.
+ * Only when `BETTER_AUTH_URL` is unset do we fall back to the request's own
+ * host, so an unconfigured deployment still emits a coherent sitemap rather
+ * than one full of `http://localhost:3000`. `x-forwarded-*` wins over `Host`
+ * there because the scheme is only knowable from the forwarded header behind a
+ * TLS-terminating proxy; a comma-separated chain contributes its first,
+ * client-most entry.
  */
 export async function requestOrigin(): Promise<string> {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
   const h = await headers();
   const first = (value: string | null) => value?.split(',')[0]?.trim() || null;
   const host = first(h.get('x-forwarded-host')) ?? first(h.get('host'));

@@ -155,13 +155,18 @@ export function buildCreditCheckoutParams(args: {
  * `incomplete_expired`: those are terminal, and a customer whose subscription
  * ended must be able to buy a new one.
  */
-export const OPEN_SUBSCRIPTION_STATUSES = [
-  'active',
-  'trialing',
-  'past_due',
-  'incomplete',
-  'unpaid',
-] as const;
+/**
+ * Terminal Stripe subscription statuses — the only two that mean "gone, sell
+ * them another one". Everything else counts as an open subscription.
+ *
+ * Deliberately a deny-list. The allow-list this replaced omitted `paused`, so
+ * a paused subscriber was offered a second subscription — the very bug this
+ * guard exists to prevent, reintroduced by a status nobody enumerated. A
+ * deny-list fails closed: a status Stripe adds later is treated as open, which
+ * at worst blocks a sale until someone looks, rather than silently
+ * double-charging a customer.
+ */
+export const TERMINAL_SUBSCRIPTION_STATUSES = ['canceled', 'incomplete_expired'] as const;
 
 /**
  * The user's current subscription, if they have one in any non-terminal
@@ -171,7 +176,7 @@ export const OPEN_SUBSCRIPTION_STATUSES = [
  */
 async function openSubscription(prisma: PrismaClient, userId: string) {
   return prisma.subscription.findFirst({
-    where: { userId, status: { in: [...OPEN_SUBSCRIPTION_STATUSES] } },
+    where: { userId, status: { notIn: [...TERMINAL_SUBSCRIPTION_STATUSES] } },
     orderBy: { currentPeriodEnd: 'desc' },
     select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
   });

@@ -49,22 +49,25 @@ test('sitemap and robots use the request origin, not a build-time one', async ({
 });
 
 /**
- * The proxied case, which is the one that actually breaks in production: the
- * container is reached over a Traefik/Coolify hop, so the public origin is
- * only knowable from `x-forwarded-*`. A prerendered sitemap ignores these
- * headers entirely and keeps emitting the build-time origin, so this is the
- * assertion that fails if `sitemap.ts`/`robots.ts` ever go static again.
+ * The invariant that actually matters: every URL the sitemap advertises must
+ * canonicalise to itself. A sitemap listing origin A while the pages it points
+ * at declare canonical B is the "submitted URL not selected as canonical"
+ * failure — the precise thing a sitemap exists to prevent.
+ *
+ * This also pins that a spoofed `x-forwarded-host` cannot rewrite what a
+ * crawler is told: with `BETTER_AUTH_URL` configured, the header is ignored.
  */
-test('sitemap and robots follow x-forwarded-host/proto', async ({ request }) => {
-  const headers = { 'x-forwarded-host': 'evenup.example', 'x-forwarded-proto': 'https' };
-
-  const body = await (await request.get('/sitemap.xml', { headers })).text();
+test('sitemap URLs agree with the canonical the pages declare', async ({ request, page }) => {
+  const spoofed = { 'x-forwarded-host': 'evenup.example', 'x-forwarded-proto': 'https' };
+  const body = await (await request.get('/sitemap.xml', { headers: spoofed })).text();
   const locs = [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   expect(locs).toHaveLength(10);
-  for (const loc of locs) expect(new URL(loc!).origin).toBe('https://evenup.example');
+  expect(locs.some((l) => l!.includes('evenup.example'))).toBe(false);
 
-  const robots = await (await request.get('/robots.txt', { headers })).text();
-  expect(robots).toContain('Sitemap: https://evenup.example/sitemap.xml');
+  await page.goto('/en/terms');
+  const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+  expect(locs).toContain(canonical);
+  expect(new URL(canonical!).origin).toBe(new URL(locs[0]!).origin);
 });
 
 test('sitemap lists all five marketing routes in both locales, and never /cs', async ({
