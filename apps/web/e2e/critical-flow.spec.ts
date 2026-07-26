@@ -458,7 +458,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('expense-title-input')).toHaveCount(0);
   });
 
-  test('advanced options keep required split inputs reachable and reset between expenses', async ({
+  test('split inputs stay reachable and reset between expenses', async ({
     page,
   }, testInfo) => {
     const email = uniqueEmail('adv', testInfo.workerIndex + Date.now());

@@ -99,7 +99,7 @@ function Segmented({
 
 type Row = 'category' | 'date' | 'repeat' | null;
 
-/** Collapsible settings row inside the expense sheet (Split / Category / Date / Repeat). */
+/** Collapsible settings row inside the expense sheet (Category / Date / Repeat). */
 function DisclosureRow({
   label,
   value,
@@ -750,7 +750,7 @@ export function AddExpenseForm({
           ) : null}
 
           {/* For whom — toggle chips with a live equal-share preview. ITEMIZED
-              assigns members per item instead (see ItemizedEditor below), so the
+              assigns members per item instead (see ItemizedEditor above), so the
               blanket member-picker doesn't apply in that mode. */}
           {splitType !== 'ITEMIZED' ? (
             <div>
