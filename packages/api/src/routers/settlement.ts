@@ -1,6 +1,6 @@
 /** SPAYD QR generation + mark-as-paid (PRD §4.7). */
 import { z } from 'zod';
-import { buildSpayd } from '@evenup/core';
+import { buildSpayd, SPAYD_MESSAGE_MAX_LENGTH } from '@evenup/core';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
 import { currencyCode, positiveMinorUnits } from '../schemas.js';
@@ -16,7 +16,7 @@ export const settlementRouter = router({
         toMemberId: z.string(),
         amountMinorUnits: positiveMinorUnits,
         currency: currencyCode,
-        message: z.string().max(60).optional(),
+        message: z.string().max(SPAYD_MESSAGE_MAX_LENGTH).optional(),
         variableSymbol: z
           .string()
           .regex(/^\d{1,10}$/)

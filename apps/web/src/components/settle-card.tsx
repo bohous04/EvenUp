@@ -8,6 +8,7 @@ import { MemberChip } from '@/components/member-chip';
 import { QrCode } from '@/components/qr-code';
 import { Sheet } from '@/components/sheet';
 import { ArrowRight, ChevronRight } from '@/components/icons';
+import { clampSpaydMessage } from '@/lib/spayd-message';
 
 interface MemberLite {
   id: string;
@@ -22,10 +23,12 @@ export function SettleCard({
   groupId,
   members,
   baseCurrency,
+  groupName,
 }: {
   groupId: string;
   members: MemberLite[];
   baseCurrency: string;
+  groupName: string;
 }) {
   const { t } = useI18n();
   const balances = trpc.balance.get.useQuery({ groupId });
@@ -51,6 +54,7 @@ export function SettleCard({
               key={`${p.fromMemberId}-${p.toMemberId}-${i}`}
               groupId={groupId}
               baseCurrency={baseCurrency}
+              groupName={groupName}
               from={byId.get(p.fromMemberId)}
               to={byId.get(p.toMemberId)}
               amount={p.amountMinorUnits}
@@ -65,12 +69,14 @@ export function SettleCard({
 function SettleRow({
   groupId,
   baseCurrency,
+  groupName,
   from,
   to,
   amount,
 }: {
   groupId: string;
   baseCurrency: string;
+  groupName: string;
   from?: MemberLite;
   to?: MemberLite;
   amount: number;
@@ -80,7 +86,16 @@ function SettleRow({
   const [open, setOpen] = useState(false);
 
   const spayd = trpc.settlement.generateSpayd.useQuery(
-    { groupId, toMemberId: to?.id ?? '', amountMinorUnits: amount, currency: baseCurrency },
+    {
+      groupId,
+      toMemberId: to?.id ?? '',
+      amountMinorUnits: amount,
+      currency: baseCurrency,
+      // The server rejects (not truncates) a message over 60 chars — clamp
+      // here so a long group name can't make the query fail (see
+      // spayd-message.ts for why sanitizeValue's own truncation is too late).
+      message: clampSpaydMessage(t('settle.qrMessage', { group: groupName })),
+    },
     { enabled: open && !!to, retry: false },
   );
   const recordTransfer = trpc.transaction.recordTransfer.useMutation({

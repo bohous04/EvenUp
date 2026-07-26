@@ -32,9 +32,15 @@ export function describeActivity(
     case 'settlement.recorded':
       return t('activity.settled', { actor, amount: formatCurrency(Number(p.amount ?? 0)) });
     case 'transaction.updated':
-      return t('activity.edited', { actor, item: str(p.title) });
+      return t('activity.edited', {
+        actor,
+        item: str(p.title) || t('transaction.settlement'),
+      });
     case 'transaction.deleted':
-      return t('activity.deleted', { actor, item: str(p.title) });
+      return t('activity.deleted', {
+        actor,
+        item: str(p.title) || t('transaction.settlement'),
+      });
     case 'category.deleted':
       return t('activity.deleted', { actor, item: str(p.name) });
     case 'member.updated':

@@ -1,7 +1,15 @@
 /**
  * Group access control. A user may act on a group if they created it or are
- * linked to one of its members. Admin-only actions additionally require an
- * ADMIN member link (or being the creator). (FR-2.6)
+ * linked to one of its *active* members. Admin-only actions additionally
+ * require an active ADMIN member link (or being the creator). (FR-2.6)
+ *
+ * The `isActive` filter is load-bearing, not cosmetic: a deactivated member
+ * row is a removed person (`member.remove` deactivates rather than deletes an
+ * account-linked row -- see member.ts). Matching on `userId` alone let a
+ * removed member's row keep granting access, so removal revoked nothing --
+ * they could still read/act on the group, and even reinstate themselves via
+ * `member.update` (which itself only guards on `assertGroupAccess`). Requiring
+ * `isActive: true` here is what actually makes removal revoke access.
  */
 import { TRPCError } from '@trpc/server';
 import type { PrismaClient } from '@evenup/db';
@@ -17,7 +25,7 @@ export async function assertGroupAccess(
     select: {
       id: true,
       createdById: true,
-      members: { where: { userId: user.id }, select: { id: true } },
+      members: { where: { userId: user.id, isActive: true }, select: { id: true } },
     },
   });
   if (!group) {
@@ -37,7 +45,7 @@ export async function assertGroupAdmin(
     where: { id: groupId },
     select: {
       createdById: true,
-      members: { where: { userId: user.id, role: 'ADMIN' }, select: { id: true } },
+      members: { where: { userId: user.id, role: 'ADMIN', isActive: true }, select: { id: true } },
     },
   });
   if (!group) {
@@ -62,7 +70,7 @@ export async function isGroupAdmin(
     where: { id: groupId },
     select: {
       createdById: true,
-      members: { where: { userId: user.id, role: 'ADMIN' }, select: { id: true } },
+      members: { where: { userId: user.id, role: 'ADMIN', isActive: true }, select: { id: true } },
     },
   });
   if (!group) return false;

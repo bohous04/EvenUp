@@ -73,7 +73,13 @@ export const groupRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.group.findMany({
       where: {
-        OR: [{ createdById: ctx.user.id }, { members: { some: { userId: ctx.user.id } } }],
+        // A deactivated member link is a removed person (see access.ts): they
+        // must not keep seeing the group here just because their old row
+        // survives for history/rejoin purposes.
+        OR: [
+          { createdById: ctx.user.id },
+          { members: { some: { userId: ctx.user.id, isActive: true } } },
+        ],
       },
       orderBy: { createdAt: 'desc' },
       include: {

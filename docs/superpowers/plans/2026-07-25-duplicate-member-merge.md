@@ -14,7 +14,7 @@
 - **Money is integer minor units.** `BigInt` in Prisma (`amountMinorUnits`, `computedMinorUnits`, `exactMinorUnits`, `baseMinorUnits`, `totalMinorUnits`); `Prisma.Decimal` for `percentage`. **Never use floats in a money path.**
 - **Bilingual.** Every user-facing string is added to **both** `packages/i18n/src/locales/cs.ts` and `packages/i18n/src/locales/en.ts`. Czech is the default locale. Never hardcode a string in a component.
 - **Accessibility WCAG 2.1 AA (§9.4).** The invite page has an existing axe-core e2e check that must keep passing. Colour is never the only signal.
-- **Transfer columns are `fromMemberId` / `toMemberId`.** `TransferFrom` / `TransferTo` are only Prisma *relation* names — do not use them as column names.
+- **Transfer columns are `fromMemberId` / `toMemberId`.** `TransferFrom` / `TransferTo` are only Prisma _relation_ names — do not use them as column names.
 - **Balance rounding limit.** `loadBalanceTransactions` re-allocates each transaction's base total with `allocateByWeights` (largest-remainder, ties break by row index). Merging two rows into one changes the weight vector: **exact** for same-currency transactions (`base === Σ weights` makes `safeAllocate` the identity), **±1 minor unit** possible on cross-currency ones. Assert exactness only for same-currency; assert zero-sum everywhere.
 - **Commands** (run from repo root):
   - API tests: `pnpm --filter @evenup/api test`
@@ -32,10 +32,12 @@
 The invite page needs each unclaimed member's balance to make "this row is you" obvious. It must **not** go on the existing `invite.preview`, which is a `publicProcedure` — that would leak who-owes-what to anyone merely holding the token, before sign-in. A new **protected** procedure keeps the leak closed.
 
 **Files:**
+
 - Modify: `packages/api/src/routers/invite.ts`
 - Test: `packages/api/src/routers/integration.test.ts` (append to the existing `describe('invite claim (FR-1.3, FR-2.5)')` block)
 
 **Interfaces:**
+
 - Consumes: `getGroupBalances(prisma, groupId)` from `packages/api/src/services/balance-service.ts`, returning `{ balances: MemberBalance[], payments, simplified }` where `MemberBalance = { memberId, balanceMinorUnits, displayName, initials, color, image }`.
 - Produces: `invite.claimOptions({ token: string })` → `{ groupName: string; baseCurrency: string; members: Array<{ id: string; displayName: string; initials: string; color: string; balanceMinorUnits: number }> }`
 
@@ -44,56 +46,56 @@ The invite page needs each unclaimed member's balance to make "this row is you" 
 Append to `packages/api/src/routers/integration.test.ts`, inside the `describe('invite claim (FR-1.3, FR-2.5)')` block:
 
 ```ts
-  test('claimOptions returns unclaimed members with their balances, and requires auth', async () => {
-    const { caller, group, members } = await seedGroupWithMembers();
-    // Olivia pays 900 CZK split equally three ways -> Petr owes 300.00.
-    await caller.transaction.createExpense({
-      groupId: group.id,
-      title: 'Chata',
-      currency: 'CZK',
-      date: new Date('2026-06-22'),
-      payers: [{ memberId: members.olivia.id, amountMinorUnits: 90000 }],
-      split: {
-        type: 'EQUAL',
-        members: [
-          { memberId: members.olivia.id },
-          { memberId: members.petr.id },
-          { memberId: members.jana.id },
-        ],
-      },
-    });
-    const invite = await caller.invite.create({ groupId: group.id });
-
-    // Unauthenticated callers are refused — balances must not leak to a bare token holder.
-    await expect(
-      makeCaller(null).invite.claimOptions({ token: invite.token }),
-    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
-
-    const petrUser = await createTestUser('petr@example.com');
-    const options = await makeCaller(petrUser).invite.claimOptions({ token: invite.token });
-
-    expect(options.groupName).toBe('Tatry 2026');
-    expect(options.baseCurrency).toBe('CZK');
-    const petr = options.members.find((m) => m.id === members.petr.id)!;
-    expect(petr.balanceMinorUnits).toBe(-30000);
-    expect(petr.displayName).toBe('Petr Svoboda');
-
-    // Olivia's member is already linked to a user, so it is not offered.
-    expect(options.members.map((m) => m.id)).not.toContain(members.olivia.id);
+test('claimOptions returns unclaimed members with their balances, and requires auth', async () => {
+  const { caller, group, members } = await seedGroupWithMembers();
+  // Olivia pays 900 CZK split equally three ways -> Petr owes 300.00.
+  await caller.transaction.createExpense({
+    groupId: group.id,
+    title: 'Chata',
+    currency: 'CZK',
+    date: new Date('2026-06-22'),
+    payers: [{ memberId: members.olivia.id, amountMinorUnits: 90000 }],
+    split: {
+      type: 'EQUAL',
+      members: [
+        { memberId: members.olivia.id },
+        { memberId: members.petr.id },
+        { memberId: members.jana.id },
+      ],
+    },
   });
+  const invite = await caller.invite.create({ groupId: group.id });
 
-  test('claimOptions rejects an expired invite', async () => {
-    const { caller, group } = await seedGroupWithMembers();
-    const invite = await caller.invite.create({ groupId: group.id, expiresInDays: 1 });
-    await testPrisma.invite.update({
-      where: { id: invite.id },
-      data: { expiresAt: new Date(Date.now() - 1000) },
-    });
-    const petrUser = await createTestUser('petr@example.com');
-    await expect(
-      makeCaller(petrUser).invite.claimOptions({ token: invite.token }),
-    ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+  // Unauthenticated callers are refused — balances must not leak to a bare token holder.
+  await expect(makeCaller(null).invite.claimOptions({ token: invite.token })).rejects.toMatchObject(
+    { code: 'UNAUTHORIZED' },
+  );
+
+  const petrUser = await createTestUser('petr@example.com');
+  const options = await makeCaller(petrUser).invite.claimOptions({ token: invite.token });
+
+  expect(options.groupName).toBe('Tatry 2026');
+  expect(options.baseCurrency).toBe('CZK');
+  const petr = options.members.find((m) => m.id === members.petr.id)!;
+  expect(petr.balanceMinorUnits).toBe(-30000);
+  expect(petr.displayName).toBe('Petr Svoboda');
+
+  // Olivia's member is already linked to a user, so it is not offered.
+  expect(options.members.map((m) => m.id)).not.toContain(members.olivia.id);
+});
+
+test('claimOptions rejects an expired invite', async () => {
+  const { caller, group } = await seedGroupWithMembers();
+  const invite = await caller.invite.create({ groupId: group.id, expiresInDays: 1 });
+  await testPrisma.invite.update({
+    where: { id: invite.id },
+    data: { expiresAt: new Date(Date.now() - 1000) },
   });
+  const petrUser = await createTestUser('petr@example.com');
+  await expect(
+    makeCaller(petrUser).invite.claimOptions({ token: invite.token }),
+  ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -175,10 +177,12 @@ token holder."
 ### Task 2: i18n keys for the invite page
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts`
 - Modify: `packages/i18n/src/locales/en.ts`
 
 **Interfaces:**
+
 - Produces: the translation keys consumed by Task 3. `{amount}` interpolation is supported — `packages/i18n/src/translate.ts` replaces `/\{(\w+)\}/g`.
 
 Note: the existing `balance.owes` / `balance.isOwed` keys are **not** reused — they interpolate `{debtor}`/`{creditor}`/`{member}`, and the invite row already shows the name as its own label, so it needs the bare amount.
@@ -243,10 +247,12 @@ git commit -m "i18n: invite claim-list, confirmation and balance keys"
 The core fix. Three changes: flip the visual hierarchy, show balances, and put a confirmation in front of the new-account path.
 
 **Files:**
+
 - Modify: `apps/web/src/app/invite/[token]/page.tsx` (full rewrite of the signed-in branch)
 - Test: covered by e2e in Task 4.
 
 **Interfaces:**
+
 - Consumes: `trpc.invite.claimOptions` (Task 1); the i18n keys from Task 2.
 - Consumes: `Modal` from `@/components/modal` — props `{ open: boolean; onClose: () => void; title: string; children: ReactNode; testId?: string }`. Built on native `<dialog>` + `showModal()`, so it provides the focus trap, Escape handling and backdrop for free (needed for the axe check).
 - Consumes: `formatCurrency(minorUnits, currency)` from `useI18n()` (the same helper `AmountText` uses internally) to render the balance phrase in one span.
@@ -295,10 +301,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   // Public, name-only — drives the pre-sign-in group name.
   const preview = trpc.invite.preview.useQuery({ token });
   // Protected, carries balances — only fetched once signed in.
-  const options = trpc.invite.claimOptions.useQuery(
-    { token },
-    { enabled: Boolean(session?.user) },
-  );
+  const options = trpc.invite.claimOptions.useQuery({ token }, { enabled: Boolean(session?.user) });
   const claim = trpc.invite.claim.useMutation({
     onSuccess: () => router.push('/'),
   });
@@ -327,8 +330,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   }
 
   const { groupName, baseCurrency, members } = options.data;
-  const joinAsNew = () =>
-    claim.mutate({ token }, { onError: (e) => setError(e.message) });
+  const joinAsNew = () => claim.mutate({ token }, { onError: (e) => setError(e.message) });
 
   return (
     <Card>
@@ -450,9 +452,11 @@ that re-lists the unclaimed names and what they owe."
 ### Task 4: E2E for the invite flow
 
 **Files:**
+
 - Modify: `apps/web/e2e/critical-flow.spec.ts` (update the test at ~line 619–656, add one new test)
 
 **Interfaces:**
+
 - Consumes: the `data-testid` hooks from Task 3.
 
 **This task updates an existing passing test on purpose.** The test at line 653 clicks `invite-join-new` and expects to land on the dashboard immediately; the confirmation dialog breaks that by design.
@@ -462,12 +466,12 @@ that re-lists the unclaimed names and what they owe."
 In `apps/web/e2e/critical-flow.spec.ts`, replace the final block of that test — the three lines starting `await page.getByTestId('invite-join-new').click();` — with:
 
 ```ts
-    // Joining as a brand-new person now goes through the confirmation dialog.
-    await page.getByTestId('invite-join-new').click();
-    await expect(page.getByTestId('invite-confirm-new-dialog')).toBeVisible();
-    await page.getByTestId('invite-confirm-new-cta').click();
-    await expect(page.getByTestId('group-title')).toHaveCount(0);
-    await expect(page.getByText('Výlet')).toBeVisible();
+// Joining as a brand-new person now goes through the confirmation dialog.
+await page.getByTestId('invite-join-new').click();
+await expect(page.getByTestId('invite-confirm-new-dialog')).toBeVisible();
+await page.getByTestId('invite-confirm-new-cta').click();
+await expect(page.getByTestId('group-title')).toHaveCount(0);
+await expect(page.getByText('Výlet')).toBeVisible();
 ```
 
 - [ ] **Step 2: Add a test that claiming your own name is the primary path**
@@ -475,40 +479,40 @@ In `apps/web/e2e/critical-flow.spec.ts`, replace the final block of that test �
 Add this test immediately after the one just updated:
 
 ```ts
-  test('invitee claims the member that already holds their debt', async ({ page }, testInfo) => {
-    const owner = uniqueEmail('debt-owner', testInfo.workerIndex + Date.now());
-    await signIn(page, owner);
+test('invitee claims the member that already holds their debt', async ({ page }, testInfo) => {
+  const owner = uniqueEmail('debt-owner', testInfo.workerIndex + Date.now());
+  await signIn(page, owner);
 
-    await page.getByTestId('new-group-btn').click();
-    await page.getByTestId('group-name-input').fill('Chata');
-    await page.getByTestId('create-group-submit').click();
-    await page.getByText('Chata').click();
+  await page.getByTestId('new-group-btn').click();
+  await page.getByTestId('group-name-input').fill('Chata');
+  await page.getByTestId('create-group-submit').click();
+  await page.getByText('Chata').click();
 
-    // A virtual member who will owe money.
-    await openGroupSheet(page, 'members');
-    await page.getByTestId('member-name-input').fill('Marek');
-    await page.getByTestId('add-member-btn').click();
-    await closeSheet(page);
+  // A virtual member who will owe money.
+  await openGroupSheet(page, 'members');
+  await page.getByTestId('member-name-input').fill('Marek');
+  await page.getByTestId('add-member-btn').click();
+  await closeSheet(page);
 
-    await openGroupSheet(page, 'invite');
-    await page.getByTestId('invite-btn').click();
-    const inviteUrl = await page.getByTestId('invite-url').textContent();
-    await closeSheet(page);
+  await openGroupSheet(page, 'invite');
+  await page.getByTestId('invite-btn').click();
+  const inviteUrl = await page.getByTestId('invite-url').textContent();
+  await closeSheet(page);
 
-    const invitee = uniqueEmail('marek', testInfo.workerIndex + Date.now());
-    await page.context().clearCookies();
-    await page.request.post('/api/auth/sign-up/email', {
-      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
-    });
-    await page.goto(new URL(inviteUrl!).pathname);
-
-    // Marek's own row is a tap target and claiming it lands on the dashboard.
-    const row = page.getByRole('button', { name: /Marek/ });
-    await expect(row).toBeVisible();
-    await row.first().click();
-    await expect(page).not.toHaveURL(/\/invite\//);
-    await expect(page.getByText('Chata')).toBeVisible();
+  const invitee = uniqueEmail('marek', testInfo.workerIndex + Date.now());
+  await page.context().clearCookies();
+  await page.request.post('/api/auth/sign-up/email', {
+    data: { name: 'Marek', email: invitee, password: 'test-password-123' },
   });
+  await page.goto(new URL(inviteUrl!).pathname);
+
+  // Marek's own row is a tap target and claiming it lands on the dashboard.
+  const row = page.getByRole('button', { name: /Marek/ });
+  await expect(row).toBeVisible();
+  await row.first().click();
+  await expect(page).not.toHaveURL(/\/invite\//);
+  await expect(page.getByText('Chata')).toBeVisible();
+});
 ```
 
 The helpers `signIn`, `uniqueEmail`, `openGroupSheet` and `closeSheet` are already
@@ -542,11 +546,13 @@ intended behaviour change, not a regression."
 Duplicate detection has to match "Tomáš" with "Tomas" and "tomas" — Czech users will not accept otherwise. Pure functions in `core` so web and mobile share them.
 
 **Files:**
+
 - Modify: `packages/core/src/member/identity.ts`
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/src/member/identity.test.ts` (append)
 
 **Interfaces:**
+
 - Produces: `normalizeForMatch(name: string): string` — lowercase, diacritics stripped, punctuation removed, whitespace collapsed.
 - Produces: `nameSimilarity(a: string, b: string): number` — `0`–`1`. Used by Task 8.
 
@@ -611,16 +617,18 @@ Append to `packages/core/src/member/identity.ts`:
  * same key before any comparison.
  */
 export function normalizeForMatch(name: string): string {
-  return name
-    .normalize('NFD')
-    // U+0300–U+036F: the combining diacritical marks NFD just split off.
-    // Written as escapes on purpose — literal combining characters are
-    // invisible in source and get mangled by copy-paste.
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
+  return (
+    name
+      .normalize('NFD')
+      // U+0300–U+036F: the combining diacritical marks NFD just split off.
+      // Written as escapes on purpose — literal combining characters are
+      // invisible in source and get mangled by copy-paste.
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ')
+  );
 }
 
 /** Dice coefficient over character bigrams; 1 = identical, 0 = nothing shared. */
@@ -663,7 +671,10 @@ export function nameSimilarity(a: string, b: string): number {
   const rightTokens = right.split(' ');
   const shared = leftTokens.filter((tok) => tok.length > 1 && rightTokens.includes(tok));
   // One shared whole name part (e.g. "marek") is strong evidence on its own.
-  const tokenScore = shared.length > 0 ? 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length)) : 0;
+  const tokenScore =
+    shared.length > 0
+      ? 0.8 + 0.2 * (shared.length / Math.max(leftTokens.length, rightTokens.length))
+      : 0;
 
   return Math.max(tokenScore, diceCoefficient(left, right));
 }
@@ -695,11 +706,13 @@ git commit -m "feat(core): diacritic-folding name matching for duplicate detecti
 Validation first, no data movement yet. A reviewer can accept the trust model here and judge the data movement separately in Task 7.
 
 **Files:**
+
 - Modify: `packages/api/src/access.ts` (add a non-throwing `isGroupAdmin`)
 - Modify: `packages/api/src/routers/member.ts`
 - Create: `packages/api/src/routers/member-merge.test.ts`
 
 **Interfaces:**
+
 - Produces: `isGroupAdmin(prisma: PrismaClient, user: AuthUser, groupId: string): Promise<boolean>` in `access.ts`.
 - Produces: `member.merge({ sourceMemberId: string, targetMemberId: string })`. After Task 7 it returns `{ merged: true; targetMemberId: string }`.
 
@@ -745,7 +758,11 @@ describe('member.merge preflight', () => {
 
   test('refuses members from different groups', async () => {
     const { caller, marek } = await seed();
-    const other = await caller.group.create({ name: 'Jiná', template: 'OTHER', baseCurrency: 'CZK' });
+    const other = await caller.group.create({
+      name: 'Jiná',
+      template: 'OTHER',
+      baseCurrency: 'CZK',
+    });
     await expect(
       caller.member.merge({ sourceMemberId: marek.id, targetMemberId: other.members[0]!.id }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
@@ -942,10 +959,12 @@ with a transfer between them."
 ### Task 7: `member.merge` — move the data
 
 **Files:**
+
 - Modify: `packages/api/src/routers/member.ts` (replace the `return { merged: true, ... }` line from Task 6)
 - Test: `packages/api/src/routers/member-merge.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: the preflight from Task 6.
 - Produces: `member.merge` now returns `{ merged: true; targetMemberId: string }` **after** moving all rows and deleting `source`.
 
@@ -1104,131 +1123,131 @@ function sumNullableDecimal(
 Then replace `return { merged: true, targetMemberId: target.id };` from Task 6 with:
 
 ```ts
-      await ctx.prisma.$transaction(async (tx) => {
-        // --- Payers: unique on [transactionId, memberId], so a shared
-        // transaction means summing rather than repointing.
-        const [sourcePayers, targetPayers] = await Promise.all([
-          tx.transactionPayer.findMany({ where: { memberId: source.id } }),
-          tx.transactionPayer.findMany({ where: { memberId: target.id } }),
-        ]);
-        const targetPayerByTxn = new Map(targetPayers.map((p) => [p.transactionId, p]));
-        for (const sp of sourcePayers) {
-          const tp = targetPayerByTxn.get(sp.transactionId);
-          if (tp) {
-            await tx.transactionPayer.update({
-              where: { id: tp.id },
-              data: { amountMinorUnits: tp.amountMinorUnits + sp.amountMinorUnits },
-            });
-            await tx.transactionPayer.delete({ where: { id: sp.id } });
-          } else {
-            await tx.transactionPayer.update({
-              where: { id: sp.id },
-              data: { memberId: target.id },
-            });
-          }
-        }
-
-        // --- Splits: same constraint. Both rows share the transaction's
-        // SplitType, so the same nullable columns are populated on both.
-        const [sourceSplits, targetSplits] = await Promise.all([
-          tx.transactionSplit.findMany({ where: { memberId: source.id } }),
-          tx.transactionSplit.findMany({ where: { memberId: target.id } }),
-        ]);
-        const targetSplitByTxn = new Map(targetSplits.map((s) => [s.transactionId, s]));
-        for (const ss of sourceSplits) {
-          const ts = targetSplitByTxn.get(ss.transactionId);
-          if (ts) {
-            await tx.transactionSplit.update({
-              where: { id: ts.id },
-              data: {
-                computedMinorUnits: ts.computedMinorUnits + ss.computedMinorUnits,
-                exactMinorUnits: sumNullableBigInt(ts.exactMinorUnits, ss.exactMinorUnits),
-                shareWeight: sumNullable(ts.shareWeight, ss.shareWeight),
-                percentage: sumNullableDecimal(ts.percentage, ss.percentage),
-              },
-            });
-            await tx.transactionSplit.delete({ where: { id: ss.id } });
-          } else {
-            await tx.transactionSplit.update({
-              where: { id: ss.id },
-              data: { memberId: target.id },
-            });
-          }
-        }
-
-        // --- Receipt item assignments: composite PK [receiptItemId, memberId].
-        // A shared item just means the source row is redundant.
-        const sourceAssignments = await tx.itemAssignment.findMany({
-          where: { memberId: source.id },
-        });
-        for (const sa of sourceAssignments) {
-          const existing = await tx.itemAssignment.findUnique({
-            where: {
-              receiptItemId_memberId: {
-                receiptItemId: sa.receiptItemId,
-                memberId: target.id,
-              },
-            },
-          });
-          if (existing) {
-            await tx.itemAssignment.delete({
-              where: {
-                receiptItemId_memberId: {
-                  receiptItemId: sa.receiptItemId,
-                  memberId: source.id,
-                },
-              },
-            });
-          } else {
-            await tx.itemAssignment.update({
-              where: {
-                receiptItemId_memberId: {
-                  receiptItemId: sa.receiptItemId,
-                  memberId: source.id,
-                },
-              },
-              data: { memberId: target.id },
-            });
-          }
-        }
-
-        // --- Transfers. Any transfer BETWEEN the pair was already rejected in
-        // preflight, so nothing here can become a self-transfer.
-        await tx.transaction.updateMany({
-          where: { fromMemberId: source.id },
-          data: { fromMemberId: target.id },
-        });
-        await tx.transaction.updateMany({
-          where: { toMemberId: source.id },
-          data: { toMemberId: target.id },
-        });
-
-        // --- Bank details: memberId is unique, so the target's own row wins.
-        const [sourceBank, targetBank] = await Promise.all([
-          tx.bankDetail.findUnique({ where: { memberId: source.id } }),
-          tx.bankDetail.findUnique({ where: { memberId: target.id } }),
-        ]);
-        if (sourceBank && !targetBank) {
-          await tx.bankDetail.update({
-            where: { memberId: source.id },
-            data: { memberId: target.id },
-          });
-        }
-
-        // --- The surviving member keeps its own identity but gains the link.
-        await tx.member.update({
-          where: { id: target.id },
-          data: { userId: target.userId ?? source.userId },
-        });
-        await tx.member.delete({ where: { id: source.id } });
+await ctx.prisma.$transaction(async (tx) => {
+  // --- Payers: unique on [transactionId, memberId], so a shared
+  // transaction means summing rather than repointing.
+  const [sourcePayers, targetPayers] = await Promise.all([
+    tx.transactionPayer.findMany({ where: { memberId: source.id } }),
+    tx.transactionPayer.findMany({ where: { memberId: target.id } }),
+  ]);
+  const targetPayerByTxn = new Map(targetPayers.map((p) => [p.transactionId, p]));
+  for (const sp of sourcePayers) {
+    const tp = targetPayerByTxn.get(sp.transactionId);
+    if (tp) {
+      await tx.transactionPayer.update({
+        where: { id: tp.id },
+        data: { amountMinorUnits: tp.amountMinorUnits + sp.amountMinorUnits },
       });
-
-      await logActivity(ctx.prisma, source.groupId, ctx.user.id, 'member.merged', {
-        from: source.displayName,
-        into: target.displayName,
+      await tx.transactionPayer.delete({ where: { id: sp.id } });
+    } else {
+      await tx.transactionPayer.update({
+        where: { id: sp.id },
+        data: { memberId: target.id },
       });
+    }
+  }
 
-      return { merged: true, targetMemberId: target.id };
+  // --- Splits: same constraint. Both rows share the transaction's
+  // SplitType, so the same nullable columns are populated on both.
+  const [sourceSplits, targetSplits] = await Promise.all([
+    tx.transactionSplit.findMany({ where: { memberId: source.id } }),
+    tx.transactionSplit.findMany({ where: { memberId: target.id } }),
+  ]);
+  const targetSplitByTxn = new Map(targetSplits.map((s) => [s.transactionId, s]));
+  for (const ss of sourceSplits) {
+    const ts = targetSplitByTxn.get(ss.transactionId);
+    if (ts) {
+      await tx.transactionSplit.update({
+        where: { id: ts.id },
+        data: {
+          computedMinorUnits: ts.computedMinorUnits + ss.computedMinorUnits,
+          exactMinorUnits: sumNullableBigInt(ts.exactMinorUnits, ss.exactMinorUnits),
+          shareWeight: sumNullable(ts.shareWeight, ss.shareWeight),
+          percentage: sumNullableDecimal(ts.percentage, ss.percentage),
+        },
+      });
+      await tx.transactionSplit.delete({ where: { id: ss.id } });
+    } else {
+      await tx.transactionSplit.update({
+        where: { id: ss.id },
+        data: { memberId: target.id },
+      });
+    }
+  }
+
+  // --- Receipt item assignments: composite PK [receiptItemId, memberId].
+  // A shared item just means the source row is redundant.
+  const sourceAssignments = await tx.itemAssignment.findMany({
+    where: { memberId: source.id },
+  });
+  for (const sa of sourceAssignments) {
+    const existing = await tx.itemAssignment.findUnique({
+      where: {
+        receiptItemId_memberId: {
+          receiptItemId: sa.receiptItemId,
+          memberId: target.id,
+        },
+      },
+    });
+    if (existing) {
+      await tx.itemAssignment.delete({
+        where: {
+          receiptItemId_memberId: {
+            receiptItemId: sa.receiptItemId,
+            memberId: source.id,
+          },
+        },
+      });
+    } else {
+      await tx.itemAssignment.update({
+        where: {
+          receiptItemId_memberId: {
+            receiptItemId: sa.receiptItemId,
+            memberId: source.id,
+          },
+        },
+        data: { memberId: target.id },
+      });
+    }
+  }
+
+  // --- Transfers. Any transfer BETWEEN the pair was already rejected in
+  // preflight, so nothing here can become a self-transfer.
+  await tx.transaction.updateMany({
+    where: { fromMemberId: source.id },
+    data: { fromMemberId: target.id },
+  });
+  await tx.transaction.updateMany({
+    where: { toMemberId: source.id },
+    data: { toMemberId: target.id },
+  });
+
+  // --- Bank details: memberId is unique, so the target's own row wins.
+  const [sourceBank, targetBank] = await Promise.all([
+    tx.bankDetail.findUnique({ where: { memberId: source.id } }),
+    tx.bankDetail.findUnique({ where: { memberId: target.id } }),
+  ]);
+  if (sourceBank && !targetBank) {
+    await tx.bankDetail.update({
+      where: { memberId: source.id },
+      data: { memberId: target.id },
+    });
+  }
+
+  // --- The surviving member keeps its own identity but gains the link.
+  await tx.member.update({
+    where: { id: target.id },
+    data: { userId: target.userId ?? source.userId },
+  });
+  await tx.member.delete({ where: { id: source.id } });
+});
+
+await logActivity(ctx.prisma, source.groupId, ctx.user.id, 'member.merged', {
+  from: source.displayName,
+  into: target.displayName,
+});
+
+return { merged: true, targetMemberId: target.id };
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -1257,10 +1276,12 @@ the target keeps its identity and inherits the source's account link."
 No irreversible money operation without showing the arithmetic first.
 
 **Files:**
+
 - Modify: `packages/api/src/routers/member.ts`
 - Test: `packages/api/src/routers/member-merge.test.ts` (append)
 
 **Interfaces:**
+
 - Produces: `member.mergePreview({ sourceMemberId, targetMemberId })` → `{ sourceName: string; targetName: string; transactionCount: number; movingBalanceMinorUnits: number; resultingBalanceMinorUnits: number; baseCurrency: string; blockingTransfers: Array<{ id: string; title: string }> }`
 
 - [ ] **Step 1: Write the failing test**
@@ -1420,10 +1441,12 @@ git commit -m "feat(api): member.mergePreview shows the arithmetic before a merg
 ### Task 9: `member.duplicateCandidates`
 
 **Files:**
+
 - Modify: `packages/api/src/routers/member.ts`
 - Test: `packages/api/src/routers/member-merge.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `nameSimilarity` from `@evenup/core` (Task 5).
 - Produces: `member.duplicateCandidates({ groupId })` → `Array<{ sourceMemberId: string; sourceName: string; targetMemberId: string; targetName: string; score: number }>`, sorted by `score` descending.
 
@@ -1564,12 +1587,14 @@ git commit -m "feat(api): member.duplicateCandidates matches newcomers to unclai
 `ActivityLog.action` is a plain `String` and `logActivity` takes an untyped `action`, so the **server** needed no change. The **client** is where the coupling lives: an action the client does not know renders blank.
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts`
 - Modify: `packages/i18n/src/locales/en.ts`
 - Modify: `apps/web/src/lib/activity-message.ts`
 - Modify: `apps/web/src/components/activity-feed.tsx`
 
 **Interfaces:**
+
 - Produces: the merge-UI strings consumed by Task 11.
 
 - [ ] **Step 1: Add the Czech keys**
@@ -1639,11 +1664,13 @@ git commit -m "i18n: merge strings; render member.merged in the activity feed"
 ### Task 11: Merge UI — banner and manual merge
 
 **Files:**
+
 - Create: `apps/web/src/components/merge-members.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx` (render `<DuplicateBanner>`)
 - Modify: `apps/web/src/components/member-list.tsx` (add the per-row "Merge into…" action)
 
 **Interfaces:**
+
 - Consumes: `member.duplicateCandidates`, `member.mergePreview`, `member.merge` (Tasks 6–9); the i18n keys from Task 10; `Modal`, `Button`, `Card`, and `formatCurrency` from `useI18n()`.
 - Produces: `<DuplicateBanner groupId={string} />` and `<MergeDialog groupId sourceMemberId targetMemberId onClose />` exported from `merge-members.tsx`.
 
@@ -1845,23 +1872,23 @@ import { MergeDialog } from '@/components/merge-members';
 Add the state next to the existing `editingId` / `draft` state:
 
 ```tsx
-  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
 ```
 
 In the non-editing branch of the row, add a merge button immediately **before**
 the existing pencil button:
 
 ```tsx
-                <button
-                  type="button"
-                  onClick={() => setMergeSourceId(m.id)}
-                  aria-label={`${t('merge.action')} — ${m.displayName}`}
-                  title={t('merge.action')}
-                  className={iconButton}
-                  data-testid={`member-merge-${m.id}`}
-                >
-                  <Merge size={16} aria-hidden />
-                </button>
+<button
+  type="button"
+  onClick={() => setMergeSourceId(m.id)}
+  aria-label={`${t('merge.action')} — ${m.displayName}`}
+  title={t('merge.action')}
+  className={iconButton}
+  data-testid={`member-merge-${m.id}`}
+>
+  <Merge size={16} aria-hidden />
+</button>
 ```
 
 The dialog needs a target, so it opens a picker first. Render this just before
@@ -1869,14 +1896,16 @@ the closing `</ul>`, still inside the component's returned fragment — wrap the
 `<ul>` in a `<>…</>` if it is not already:
 
 ```tsx
-      {mergeSourceId ? (
-        <MergeTargetPicker
-          groupId={groupId}
-          sourceMemberId={mergeSourceId}
-          members={members}
-          onClose={() => setMergeSourceId(null)}
-        />
-      ) : null}
+{
+  mergeSourceId ? (
+    <MergeTargetPicker
+      groupId={groupId}
+      sourceMemberId={mergeSourceId}
+      members={members}
+      onClose={() => setMergeSourceId(null)}
+    />
+  ) : null;
+}
 ```
 
 Then add this component at the bottom of the same file:
@@ -1961,51 +1990,52 @@ git commit -m "feat(web): duplicate-member banner and merge confirmation dialog"
 ### Task 12: End-to-end merge coverage and final verification
 
 **Files:**
+
 - Modify: `apps/web/e2e/critical-flow.spec.ts`
 
 - [ ] **Step 1: Add the e2e test**
 
 ```ts
-  test('an accidental duplicate can be merged back into the placeholder', async ({
-    page,
-  }, testInfo) => {
-    const owner = uniqueEmail('merge-owner', testInfo.workerIndex + Date.now());
-    await signIn(page, owner);
+test('an accidental duplicate can be merged back into the placeholder', async ({
+  page,
+}, testInfo) => {
+  const owner = uniqueEmail('merge-owner', testInfo.workerIndex + Date.now());
+  await signIn(page, owner);
 
-    await page.getByTestId('new-group-btn').click();
-    await page.getByTestId('group-name-input').fill('Sloučení');
-    await page.getByTestId('create-group-submit').click();
-    await page.getByText('Sloučení').click();
+  await page.getByTestId('new-group-btn').click();
+  await page.getByTestId('group-name-input').fill('Sloučení');
+  await page.getByTestId('create-group-submit').click();
+  await page.getByText('Sloučení').click();
 
-    await openGroupSheet(page, 'members');
-    await page.getByTestId('member-name-input').fill('Marek');
-    await page.getByTestId('add-member-btn').click();
-    await closeSheet(page);
+  await openGroupSheet(page, 'members');
+  await page.getByTestId('member-name-input').fill('Marek');
+  await page.getByTestId('add-member-btn').click();
+  await closeSheet(page);
 
-    await openGroupSheet(page, 'invite');
-    await page.getByTestId('invite-btn').click();
-    const inviteUrl = await page.getByTestId('invite-url').textContent();
-    await closeSheet(page);
+  await openGroupSheet(page, 'invite');
+  await page.getByTestId('invite-btn').click();
+  const inviteUrl = await page.getByTestId('invite-url').textContent();
+  await closeSheet(page);
 
-    // Marek joins as a new person instead of claiming his own name.
-    const invitee = uniqueEmail('marek', testInfo.workerIndex + Date.now());
-    await page.context().clearCookies();
-    await page.request.post('/api/auth/sign-up/email', {
-      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
-    });
-    await page.goto(new URL(inviteUrl!).pathname);
-    await page.getByTestId('invite-join-new').click();
-    await page.getByTestId('invite-confirm-new-cta').click();
-
-    // The owner is offered the merge and takes it.
-    await page.context().clearCookies();
-    await signIn(page, owner);
-    await page.getByText('Sloučení').click();
-    await expect(page.getByTestId('merge-banner')).toBeVisible();
-    await page.getByTestId('merge-banner-confirm').click();
-    await page.getByTestId('merge-confirm').click();
-    await expect(page.getByTestId('merge-banner')).toHaveCount(0);
+  // Marek joins as a new person instead of claiming his own name.
+  const invitee = uniqueEmail('marek', testInfo.workerIndex + Date.now());
+  await page.context().clearCookies();
+  await page.request.post('/api/auth/sign-up/email', {
+    data: { name: 'Marek', email: invitee, password: 'test-password-123' },
   });
+  await page.goto(new URL(inviteUrl!).pathname);
+  await page.getByTestId('invite-join-new').click();
+  await page.getByTestId('invite-confirm-new-cta').click();
+
+  // The owner is offered the merge and takes it.
+  await page.context().clearCookies();
+  await signIn(page, owner);
+  await page.getByText('Sloučení').click();
+  await expect(page.getByTestId('merge-banner')).toBeVisible();
+  await page.getByTestId('merge-banner-confirm').click();
+  await page.getByTestId('merge-confirm').click();
+  await expect(page.getByTestId('merge-banner')).toHaveCount(0);
+});
 ```
 
 - [ ] **Step 2: Run the full verification sweep**

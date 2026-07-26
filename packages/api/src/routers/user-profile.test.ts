@@ -56,6 +56,50 @@ describe('user.updateProfile', () => {
       code: 'BAD_REQUEST',
     });
   });
+
+  it('renames active memberships but leaves a deactivated row (removed group) untouched, and logs no activity there', async () => {
+    const user = await createTestUser('ghost@example.com');
+    const userCaller = makeCaller(user);
+
+    // Group A: still an active member (the auto-created member from group.create).
+    const groupA = await userCaller.group.create({
+      name: 'Active Trip',
+      template: 'TRIP',
+      baseCurrency: 'CZK',
+    });
+    const memberA = await testPrisma.member.findFirstOrThrow({
+      where: { groupId: groupA.id, userId: user.id },
+    });
+
+    // Group B: joined via invite, then removed by the owner -> deactivated row.
+    const owner = await createTestUser('ghost-owner@example.com');
+    const ownerCaller = makeCaller(owner);
+    const groupB = await ownerCaller.group.create({
+      name: 'Old Trip',
+      template: 'TRIP',
+      baseCurrency: 'CZK',
+    });
+    const invite = await ownerCaller.invite.create({ groupId: groupB.id });
+    const memberB = await userCaller.invite.claim({ token: invite.token });
+    await ownerCaller.member.remove({ memberId: memberB.id });
+
+    const res = await userCaller.user.updateProfile({ name: 'Ghost Name' });
+    // Only the one active membership (group A) counts -- the deactivated row
+    // in group B isn't "renamed".
+    expect(res).toMatchObject({ ok: true, membersRenamed: 1 });
+
+    const updatedA = await testPrisma.member.findUniqueOrThrow({ where: { id: memberA.id } });
+    expect(updatedA.displayName).toBe('Ghost Name');
+
+    const untouchedB = await testPrisma.member.findUniqueOrThrow({ where: { id: memberB.id } });
+    expect(untouchedB.displayName).not.toBe('Ghost Name');
+    expect(untouchedB.isActive).toBe(false);
+
+    const activityInB = await testPrisma.activityLog.findMany({
+      where: { groupId: groupB.id, action: 'member.updated' },
+    });
+    expect(activityInB).toHaveLength(0);
+  });
 });
 
 describe('user.setBankAccount / clearBankAccount / me', () => {
@@ -127,5 +171,105 @@ describe('user.exportData', () => {
     const exported = await caller.user.exportData();
     expect(exported.profile.bankAccount).toBe('19-2000145399/0800');
     expect(JSON.stringify(exported)).not.toContain('bankAccountEncrypted');
+  });
+
+  it('returns the whole group, unchanged, for an active member', async () => {
+    const owner = await createTestUser('exp-owner@example.com');
+    const ownerCaller = makeCaller(owner);
+    const group = await ownerCaller.group.create({
+      name: 'Chata',
+      template: 'TRIP',
+      baseCurrency: 'CZK',
+    });
+    const invite = await ownerCaller.invite.create({ groupId: group.id });
+
+    const member = await createTestUser('exp-active@example.com');
+    const memberCaller = makeCaller(member);
+    const memberRow = await memberCaller.invite.claim({ token: invite.token });
+    const ownerMember = await testPrisma.member.findFirstOrThrow({
+      where: { groupId: group.id, userId: owner.id },
+    });
+
+    await ownerCaller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Shared dinner',
+      currency: 'CZK',
+      date: new Date('2026-07-01'),
+      payers: [{ memberId: ownerMember.id, amountMinorUnits: 100000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: ownerMember.id }, { memberId: memberRow.id }],
+      },
+    });
+
+    const exported = await memberCaller.user.exportData();
+    expect(exported.groups).toHaveLength(1);
+    const exportedGroup = exported.groups[0]!;
+    expect(exportedGroup.id).toBe(group.id);
+    expect(exportedGroup.transactions.map((t) => t.title)).toEqual(['Shared dinner']);
+    expect(exportedGroup.members.map((m) => m.id).sort()).toEqual(
+      [ownerMember.id, memberRow.id].sort(),
+    );
+  });
+
+  it('a removed member sees only the group identity and their own participation, nothing added after removal', async () => {
+    const owner = await createTestUser('exp-owner2@example.com');
+    const ownerCaller = makeCaller(owner);
+    const group = await ownerCaller.group.create({
+      name: 'Chata',
+      template: 'TRIP',
+      baseCurrency: 'CZK',
+    });
+    const invite = await ownerCaller.invite.create({ groupId: group.id });
+
+    const removed = await createTestUser('exp-removed@example.com');
+    const removedCaller = makeCaller(removed);
+    const removedMember = await removedCaller.invite.claim({ token: invite.token });
+    const ownerMember = await testPrisma.member.findFirstOrThrow({
+      where: { groupId: group.id, userId: owner.id },
+    });
+
+    // Before removal: a transaction the removed member actually took part in.
+    await ownerCaller.transaction.createExpense({
+      groupId: group.id,
+      title: 'Before removal dinner',
+      currency: 'CZK',
+      date: new Date('2026-07-01'),
+      payers: [{ memberId: ownerMember.id, amountMinorUnits: 60000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: ownerMember.id }, { memberId: removedMember.id }],
+      },
+    });
+
+    await ownerCaller.member.remove({ memberId: removedMember.id });
+
+    // After removal: a new member and a transaction that doesn't involve the removed member.
+    const newPerson = await ownerCaller.member.add({ groupId: group.id, displayName: 'NewPerson' });
+    await ownerCaller.transaction.createExpense({
+      groupId: group.id,
+      title: 'AFTER-removal-SECRET',
+      currency: 'CZK',
+      date: new Date('2026-07-15'),
+      payers: [{ memberId: ownerMember.id, amountMinorUnits: 40000 }],
+      split: {
+        type: 'EQUAL',
+        members: [{ memberId: ownerMember.id }, { memberId: newPerson.id }],
+      },
+    });
+
+    const exported = await removedCaller.user.exportData();
+    expect(exported.groups).toHaveLength(1);
+    const exportedGroup = exported.groups[0]!;
+    expect(exportedGroup.id).toBe(group.id);
+
+    const titles = exportedGroup.transactions.map((t) => t.title);
+    expect(titles).toContain('Before removal dinner');
+    expect(titles).not.toContain('AFTER-removal-SECRET');
+
+    const memberIds = exportedGroup.members.map((m) => m.id);
+    expect(memberIds).toContain(removedMember.id);
+    expect(memberIds).toContain(ownerMember.id); // co-participant of the shared transaction
+    expect(memberIds).not.toContain(newPerson.id);
   });
 });

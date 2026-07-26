@@ -77,6 +77,35 @@ describe('buildSpayd (§16.1, FR-7.1)', () => {
       buildSpayd({ iban: 'CZ6508000000192000145399', variableSymbol: '123456789012' }),
     ).toThrow();
   });
+
+  test('drops a percent-escape that would not fit rather than cutting it in half', () => {
+    // 58 plain chars + '*' -> the '*' escapes to '%2A', which would land at 61 of 60.
+    const spd = buildSpayd({
+      iban: 'CZ5508000000001234567899',
+      message: 'a'.repeat(58) + '*',
+    });
+    const msg = spd
+      .split('*')
+      .find((part) => part.startsWith('MSG:'))!
+      .slice(4);
+    expect(msg).toBe('a'.repeat(58));
+    // A dangling '%' or '%2' would make the whole descriptor unparseable.
+    expect(msg).not.toMatch(/%.?$/);
+  });
+
+  test('keeps a percent-escape that fits exactly', () => {
+    // 57 plain chars + '%2A' == exactly 60.
+    const spd = buildSpayd({
+      iban: 'CZ5508000000001234567899',
+      message: 'a'.repeat(57) + '*',
+    });
+    const msg = spd
+      .split('*')
+      .find((part) => part.startsWith('MSG:'))!
+      .slice(4);
+    expect(msg).toBe('a'.repeat(57) + '%2A');
+    expect(msg).toHaveLength(60);
+  });
 });
 
 describe('isValidIban', () => {

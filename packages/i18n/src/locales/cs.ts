@@ -25,6 +25,9 @@ export const cs = {
   'common.showAll': 'Zobrazit vše',
   'common.language': 'Jazyk',
   'transactions.showMore': 'Zobrazit další transakce',
+  // Fallback label for a settlement with no note of its own — never persisted
+  // to the DB (that used to leak the English word into the Czech UI).
+  'transaction.settlement': 'Vyrovnání',
   'settings.openRouterKey': 'OpenRouter API klíč',
   'settings.apiKey': 'API klíč',
   'qr.alt': 'QR platba',
@@ -50,6 +53,7 @@ export const cs = {
   'errors.inviteNotFound': 'Pozvánka nenalezena',
   'errors.inviteExpired': 'Platnost pozvánky vypršela',
   'errors.inviteLimitReached': 'Byl dosažen limit použití pozvánky',
+  'errors.alreadyGroupMember': 'V této skupině už člena máš',
   'errors.memberAlreadyClaimed': 'Tento člen už byl obsazen',
   'errors.invalidAccountNumber': 'Neplatné číslo účtu',
   'errors.unknownCategory': 'Neznámá kategorie',
@@ -178,6 +182,11 @@ export const cs = {
   'invite.owes': 'dluží {amount}',
   'invite.isOwed': 'má dostat {amount}',
   'invite.settled': 'vyrovnáno',
+  'invite.alreadyMember': 'V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.',
+  'invite.welcomeBack': 'Vítej zpátky, {name}!',
+  'invite.welcomeBackBody':
+    'Když budeš pokračovat, vrátí se ti původní profil — i s historií a dluhy.',
+  'invite.welcomeBackCta': 'Obnovit svůj profil',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',
@@ -186,6 +195,7 @@ export const cs = {
   'transfer.edit': 'Upravit platbu',
   'transfer.delete': 'Smazat platbu',
   'expense.title': 'Název',
+  'expense.titleLabel': 'Za co?',
   'expense.amount': 'Částka',
   'expense.currency': 'Měna',
   'expense.date': 'Datum',
@@ -193,6 +203,7 @@ export const cs = {
   'expense.note': 'Poznámka',
   'expense.paidBy': 'Zaplatil(a)',
   'expense.splitBetween': 'Rozdělit mezi',
+  'expense.splitMethod': 'Jak rozdělit',
   'expense.selectAll': 'Vybrat vše',
   'expense.selectNone': 'Zrušit výběr',
   'expense.income': 'Příjem',
@@ -263,6 +274,7 @@ export const cs = {
   'settle.method.bank': 'Bankovním převodem',
   'settle.method.qr': 'QR platbou',
   'settle.qrCode': 'QR platba',
+  'settle.qrMessage': 'Vyrovnání dluhu {group}',
   'settle.noIban': 'Příjemce nemá uložený IBAN — zaplaťte hotově nebo ručně',
 
   'ocr.scan': 'Naskenovat účtenku',

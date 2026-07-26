@@ -9,6 +9,7 @@ import {
 } from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
+import { t as translate } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
 import { assertGroupAccess, isGroupAdmin } from '../access.js';
@@ -119,16 +120,30 @@ export const memberRouter = router({
   remove: protectedProcedure
     .input(z.object({ memberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const groupId = await groupIdForMember(ctx, input.memberId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
-      // Members that appear in any transaction are deactivated, not deleted (FR-2.4).
+      const member = await ctx.prisma.member.findUnique({
+        where: { id: input.memberId },
+        select: { groupId: true, userId: true },
+      });
+      if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+      await assertGroupAccess(ctx.prisma, ctx.user, member.groupId);
+      // Members that appear in any transaction are deactivated, not deleted
+      // (FR-2.4). Members linked to a user account (userId !== null) are
+      // deactivated too, for a second reason: invite.claim's "already a
+      // member" guard looks the caller up by { groupId, userId }, and a
+      // hard-deleted row is as invisible to that lookup as a self-deactivated
+      // one was before that variant was closed -- except irreversibly, since
+      // the row and its balance are simply gone. That let a non-admin remove
+      // their own (transaction-free) member, claim someone else's, then
+      // repeat the trick on the member they just took over, walking through
+      // the group one identity at a time. Only an unlinked placeholder with
+      // no transaction history may still be hard-deleted.
       const usage = await ctx.prisma.transactionSplit.count({
         where: { memberId: input.memberId },
       });
       const asPayer = await ctx.prisma.transactionPayer.count({
         where: { memberId: input.memberId },
       });
-      if (usage > 0 || asPayer > 0) {
+      if (usage > 0 || asPayer > 0 || member.userId !== null) {
         return ctx.prisma.member.update({
           where: { id: input.memberId },
           data: { isActive: false },
@@ -201,10 +216,11 @@ export const memberRouter = router({
         select: { id: true, title: true, date: true },
       });
       if (selfTransfers.length > 0) {
+        const label = translate(ctx.locale, 'transaction.settlement');
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
           message: `Resolve the transfer(s) between these members first: ${selfTransfers
-            .map((tr) => `${tr.title} (${tr.date.toISOString().slice(0, 10)})`)
+            .map((tr) => `${tr.title || label} (${tr.date.toISOString().slice(0, 10)})`)
             .join(', ')}`,
         });
       }
@@ -450,7 +466,10 @@ export const memberRouter = router({
           const score = Math.max(
             ...aliases.map((alias) => nameSimilarity(alias, placeholder.displayName)),
           );
-          if (score >= DUPLICATE_MATCH_THRESHOLD && !dismissed.has(`${claimed.id}:${placeholder.id}`)) {
+          if (
+            score >= DUPLICATE_MATCH_THRESHOLD &&
+            !dismissed.has(`${claimed.id}:${placeholder.id}`)
+          ) {
             candidates.push({
               sourceMemberId: claimed.id,
               sourceName: claimed.displayName,
@@ -477,7 +496,10 @@ export const memberRouter = router({
     .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       if (input.sourceMemberId === input.targetMemberId) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot dismiss a member against itself' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot dismiss a member against itself',
+        });
       }
       const [source, target] = await Promise.all([
         ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),

@@ -97,9 +97,9 @@ function Segmented({
   );
 }
 
-type Row = 'split' | 'category' | 'date' | 'repeat' | null;
+type Row = 'category' | 'date' | 'repeat' | null;
 
-/** Collapsible settings row inside the expense sheet (Split / Category / Date / Repeat). */
+/** Collapsible settings row inside the expense sheet (Category / Date / Repeat). */
 function DisclosureRow({
   label,
   value,
@@ -512,8 +512,6 @@ export function AddExpenseForm({
         ? '%'
         : t('expense.amount');
 
-  const splitOpen = openRow === 'split';
-
   // Live equal-split preview per selected member (cent-accurate via core).
   let shares: Record<string, number> = {};
   if (splitType === 'EQUAL' && selectedMembers.length > 0) {
@@ -595,45 +593,55 @@ export function AddExpenseForm({
         testId="add-expense-modal"
       >
         <form className="space-y-4" onSubmit={submit}>
-          {/* Amount first — the amount is centered (sits above the title), the
-              currency is pinned to the far right. */}
-          <div className="relative flex items-end justify-center">
-            <input
-              id="e-amount"
-              inputMode="decimal"
-              autoFocus={splitType !== 'ITEMIZED'}
-              value={displayAmount}
-              onChange={(e) => {
-                if (splitType !== 'ITEMIZED')
-                  setAmount(clampAmountDecimals(e.target.value, currency));
-              }}
-              readOnly={splitType === 'ITEMIZED'}
-              placeholder="0"
-              required
-              aria-label={t('expense.amount')}
-              data-testid="expense-amount-input"
-              className={`w-40 bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
-                splitType === 'ITEMIZED' ? 'cursor-default' : ''
-              }`}
-            />
-            <select
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                setFxRate('');
-              }}
-              aria-label={t('expense.currency')}
-              data-testid="expense-currency-select"
-              className="absolute bottom-1.5 right-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
-            >
-              {[baseCurrency, ...COMMON_CURRENCIES]
-                .filter((c, i, arr) => arr.indexOf(c) === i)
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-            </select>
+          {/* Amount — labelled, and the currency shares the number's optical
+              centre. `items-center` (not `items-baseline`) matters: against 40px
+              digits a baseline-aligned control sits ~14px low and reads as a
+              second line. No absolute positioning and no fixed width, so a long
+              amount has nothing to collide with. */}
+          <div>
+            <SectionLabel className="text-center">{t('expense.amount')}</SectionLabel>
+            <div className="flex items-center justify-center gap-2.5">
+              <input
+                id="e-amount"
+                inputMode="decimal"
+                autoFocus={splitType !== 'ITEMIZED'}
+                value={displayAmount}
+                onChange={(e) => {
+                  if (splitType !== 'ITEMIZED')
+                    setAmount(clampAmountDecimals(e.target.value, currency));
+                }}
+                readOnly={splitType === 'ITEMIZED'}
+                placeholder="0"
+                required
+                aria-label={t('expense.amount')}
+                data-testid="expense-amount-input"
+                className={`max-w-full bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
+                  splitType === 'ITEMIZED' ? 'cursor-default' : ''
+                }`}
+                // Grows with its content instead of the old fixed w-40. `ch` is
+                // the width of "0", and `tabular-nums` makes every digit that
+                // wide, so this tracks the real rendered width.
+                style={{ width: `${Math.max(displayAmount.length, 1)}ch` }}
+              />
+              <select
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  setFxRate('');
+                }}
+                aria-label={t('expense.currency')}
+                data-testid="expense-currency-select"
+                className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
+              >
+                {[baseCurrency, ...COMMON_CURRENCIES]
+                  .filter((c, i, arr) => arr.indexOf(c) === i)
+                  .map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           {/* FX rate, only for a foreign currency (kept next to the amount) */}
@@ -664,17 +672,20 @@ export function AddExpenseForm({
             </div>
           ) : null}
 
-          {/* Title */}
-          <input
-            id="e-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            placeholder={t('expense.title')}
-            aria-label={t('expense.title')}
-            data-testid="expense-title-input"
-            className="w-full border-b border-zinc-100 bg-transparent pb-2 text-center text-sm outline-none placeholder:text-zinc-400 focus:border-brand-500 dark:border-zinc-800"
-          />
+          {/* Title — a real labelled field, not a caption under the number. */}
+          <div>
+            <Label htmlFor="e-title">
+              {t('expense.titleLabel')} <span aria-hidden="true">*</span>
+            </Label>
+            <Input
+              id="e-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder={t('expense.title')}
+              data-testid="expense-title-input"
+            />
+          </div>
 
           {/* Paid by — chips exactly as today (radiogroup, payer-chip-<id> testids) */}
           <div>
@@ -714,8 +725,32 @@ export function AddExpenseForm({
             </div>
           </div>
 
+          {/* How to split — always visible, and above the members it governs. */}
+          <div>
+            <SectionLabel>{t('expense.splitMethod')}</SectionLabel>
+            <Segmented
+              ariaLabel={t('expense.splitMethod')}
+              value={splitType}
+              onChange={(v) => setSplitType(v as SplitType)}
+              testIdPrefix="split-type"
+              options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
+                value: st,
+                label: t(SPLIT_LABELS[st]),
+              }))}
+            />
+          </div>
+
+          {splitType === 'ITEMIZED' ? (
+            <ItemizedEditor
+              items={itemRows}
+              onChange={setItemRows}
+              members={members}
+              baseCurrency={currency}
+            />
+          ) : null}
+
           {/* For whom — toggle chips with a live equal-share preview. ITEMIZED
-              assigns members per item instead (see ItemizedEditor below), so the
+              assigns members per item instead (see ItemizedEditor above), so the
               blanket member-picker doesn't apply in that mode. */}
           {splitType !== 'ITEMIZED' ? (
             <div>
@@ -770,73 +805,46 @@ export function AddExpenseForm({
                   );
                 })}
               </div>
+
+              {splitType !== 'EQUAL' ? (
+                <div className="mt-3 space-y-2" data-testid="per-member-inputs">
+                  {selectedMembers.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <MemberChip
+                        initials={m.initials}
+                        color={m.color}
+                        name={m.displayName}
+                        imageUrl={m.imageUrl}
+                        size="sm"
+                      />
+                      <span className="flex-1 text-sm">{m.displayName}</span>
+                      <div className="w-28">
+                        <Input
+                          inputMode="decimal"
+                          aria-label={`${m.displayName} ${perMemberLabel}`}
+                          placeholder={perMemberLabel}
+                          value={memberFieldValue(m.id)}
+                          onChange={(e) =>
+                            setValues((v) => ({
+                              ...v,
+                              [m.id]:
+                                splitType === 'EXACT'
+                                  ? clampAmountDecimals(e.target.value, currency)
+                                  : e.target.value,
+                            }))
+                          }
+                          data-testid={`member-value-${m.id}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
           {/* Collapsed settings rows */}
           <div className="border-t border-zinc-100 dark:border-zinc-800">
-            <DisclosureRow
-              label={t('expense.splitBetween')}
-              value={t(SPLIT_LABELS[splitType])}
-              open={splitOpen}
-              onToggle={() => toggleRow('split')}
-              testId="expense-split-row"
-            >
-              <div className="space-y-3">
-                <Segmented
-                  ariaLabel={t('expense.splitBetween')}
-                  value={splitType}
-                  onChange={(v) => setSplitType(v as SplitType)}
-                  testIdPrefix="split-type"
-                  options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
-                    value: st,
-                    label: t(SPLIT_LABELS[st]),
-                  }))}
-                />
-                {splitType === 'ITEMIZED' ? (
-                  <ItemizedEditor
-                    items={itemRows}
-                    onChange={setItemRows}
-                    members={members}
-                    baseCurrency={currency}
-                  />
-                ) : splitType !== 'EQUAL' ? (
-                  <div className="space-y-2" data-testid="per-member-inputs">
-                    {selectedMembers.map((m) => (
-                      <div key={m.id} className="flex items-center gap-2">
-                        <MemberChip
-                          initials={m.initials}
-                          color={m.color}
-                          name={m.displayName}
-                          imageUrl={m.imageUrl}
-                          size="sm"
-                        />
-                        <span className="flex-1 text-sm">{m.displayName}</span>
-                        <div className="w-28">
-                          <Input
-                            inputMode="decimal"
-                            aria-label={`${m.displayName} ${perMemberLabel}`}
-                            placeholder={perMemberLabel}
-                            value={memberFieldValue(m.id)}
-                            onChange={(e) =>
-                              setValues((v) => ({
-                                ...v,
-                                [m.id]:
-                                  splitType === 'EXACT'
-                                    ? clampAmountDecimals(e.target.value, currency)
-                                    : e.target.value,
-                              }))
-                            }
-                            data-testid={`member-value-${m.id}`}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </DisclosureRow>
-
             <DisclosureRow
               label={t('expense.category')}
               value={
