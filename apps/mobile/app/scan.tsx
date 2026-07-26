@@ -12,7 +12,13 @@ import { trpc } from '@/lib/trpc';
 import { useTheme } from '@/ui/theme';
 import { Button, Card, Chip, EmptyState, ErrorText, Screen, SectionLabel } from '@/ui';
 import { ItemizedEditor } from '@/components/ItemizedEditor';
-import { buildItemizedItems, type EditorItem } from '@/lib/itemized';
+import { ReceiptTotalCheck } from '@/components/ReceiptTotalCheck';
+import {
+  buildItemizedItems,
+  itemPriceToMinor,
+  reconcileDiff,
+  type EditorItem,
+} from '@/lib/itemized';
 import { MemberChip } from '@/components/MemberChip';
 import { isVisionOcrAvailable, scanReceiptOnDevice } from '@/lib/vision-ocr';
 
@@ -55,6 +61,10 @@ export default function ScanScreen() {
       void utils.transaction.list.invalidate({ groupId: gid });
       router.replace(`/group/${gid}`);
     },
+    // Without this a rejected save is silent: the button stops spinning and the
+    // review screen sits there looking unchanged. Reachable via a keyed-in
+    // receipt total large enough to fail the server's safe-integer bound.
+    onError: (e) => setError(e.message),
   });
 
   // Review-phase state (chip assignment editor).
@@ -62,11 +72,20 @@ export default function ScanScreen() {
   const [items, setItems] = useState<EditorItem[]>([]);
   const [receiptId, setReceiptId] = useState<string | undefined>();
   const [payerId, setPayerId] = useState<string | null>(null);
+  // Receipt's printed grand total as an editable decimal string (pre-filled from
+  // OCR, blank when it found none). Kept as text so the user can key in or
+  // correct the total by hand; the minor-unit value is derived where it's used.
+  const [receiptTotalText, setReceiptTotalText] = useState('');
+  // Offer to add a proportional balancing line when the items don't sum to the
+  // printed total. Defaults on only when OCR itself couldn't reconcile — a user
+  // who then edits prices is overriding, so their item sum wins unless they opt
+  // back in.
+  const [reconcile, setReconcile] = useState(false);
 
   const members = (group.data?.members ?? []).filter((m) => m.isActive);
   const baseCurrency = group.data?.baseCurrency ?? 'CZK';
 
-  function enterReview(scanned: ScannedItem[], rid?: string) {
+  function enterReview(scanned: ScannedItem[], rid?: string, totalMinorUnits = 0) {
     setReceiptId(rid);
     setItems(
       scanned.map((it) => ({
@@ -75,6 +94,13 @@ export default function ScanScreen() {
         assigned: new Set<string>(),
       })),
     );
+    setReceiptTotalText(
+      totalMinorUnits > 0 ? minorToDecimalString(totalMinorUnits, baseCurrency) : '',
+    );
+    // Same rule the server's `reconciliation.matchesTotal` encodes, applied here
+    // so the on-device Vision path (which reports no such flag) behaves alike.
+    const scannedSum = scanned.reduce((a, it) => a + it.totalMinorUnits, 0);
+    setReconcile(totalMinorUnits > 0 && scannedSum !== totalMinorUnits);
     const mine = members.find((m) => m.userId === session?.user?.id);
     setPayerId(mine?.id ?? members[0]?.id ?? null);
     setPhase('review');
@@ -94,6 +120,7 @@ export default function ScanScreen() {
           totalMinorUnits: it.totalMinorUnits,
         })),
         res.receiptId,
+        res.result.totalMinorUnits,
       );
     } catch (e) {
       // Manual entry is always available (FR-5.6): fall through to an empty editor.
@@ -136,7 +163,11 @@ export default function ScanScreen() {
     setError(null);
     try {
       const r = await scanReceiptOnDevice(base64, baseCurrency);
-      enterReview(r.items.map((i) => ({ name: i.name, totalMinorUnits: i.totalMinorUnits })));
+      enterReview(
+        r.items.map((i) => ({ name: i.name, totalMinorUnits: i.totalMinorUnits })),
+        undefined,
+        r.totalMinorUnits,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : t('ocr.failed'));
     } finally {
@@ -151,13 +182,32 @@ export default function ScanScreen() {
       setError(t(built.error));
       return;
     }
+    // Reconcile to the receipt's printed total (when asked) by adding a single
+    // proportional balancing line for the difference — deposits, rounding, or an
+    // un-itemized discount the model couldn't attribute.
+    const receiptTotalMinor = itemPriceToMinor(receiptTotalText, baseCurrency);
+    const diff = reconcileDiff(built.total, receiptTotalMinor, reconcile);
     create.mutate({
       groupId: gid,
       title: t('ocr.receiptTitle'),
       currency: baseCurrency,
       date: new Date(),
-      payers: [{ memberId: payerId, amountMinorUnits: built.total }],
-      split: { type: 'ITEMIZED', items: built.items },
+      payers: [{ memberId: payerId, amountMinorUnits: built.total + diff }],
+      split: {
+        type: 'ITEMIZED',
+        items: built.items,
+        ...(diff !== 0
+          ? {
+              extraCharges: [
+                {
+                  label: t('ocr.reconcileItem'),
+                  amountMinorUnits: diff,
+                  allocation: { kind: 'proportional' as const },
+                },
+              ],
+            }
+          : {}),
+      },
       receiptId,
     });
   }
@@ -186,6 +236,14 @@ export default function ScanScreen() {
           onChange={setItems}
           members={members}
           currency={baseCurrency}
+        />
+        <ReceiptTotalCheck
+          items={items}
+          currency={baseCurrency}
+          valueText={receiptTotalText}
+          onChangeText={setReceiptTotalText}
+          reconcile={reconcile}
+          onReconcileChange={setReconcile}
         />
         <View style={{ flexDirection: 'row', gap: c.spacing[2] }}>
           <Button
