@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
@@ -56,13 +56,13 @@ export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
             >
               {t('auth.verifySent')}
             </p>
-            <Link
+            <AppLink
               href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
               className="text-sm text-brand-600 dark:text-brand-100"
               data-testid="verify-email-link"
             >
               {t('auth.resend')}
-            </Link>
+            </AppLink>
           </div>
         ) : (
           <div className="space-y-4">
@@ -121,13 +121,13 @@ export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
               </Button>
             </form>
             <div className="text-center text-sm">
-              <Link
+              <AppLink
                 href="/groups"
                 data-testid="signin-link"
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.haveAccount')}
-              </Link>
+              </AppLink>
             </div>
           </div>
         )}

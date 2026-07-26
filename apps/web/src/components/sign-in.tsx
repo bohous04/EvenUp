@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signIn, authClient } from '@/lib/auth-client';
 import { authErrorMessage } from '@/lib/auth-errors';
@@ -179,14 +179,14 @@ export function SignIn({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
               </Button>
             </form>
             <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <Link
+              <AppLink
                 href="/forgot-password"
                 data-testid="forgot-link"
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.forgotLink')}
-              </Link>
-              <Link
+              </AppLink>
+              <AppLink
                 href={
                   safeCallback === DASHBOARD
                     ? '/sign-up'
@@ -196,7 +196,7 @@ export function SignIn({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.signUpLink')}
-              </Link>
+              </AppLink>
             </div>
             {googleEnabled || appleEnabled ? (
               <>

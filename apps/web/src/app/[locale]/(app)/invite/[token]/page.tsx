@@ -9,6 +9,7 @@ import { Modal } from '@/components/modal';
 import { MemberChip } from '@/components/member-chip';
 import { AmountText } from '@/components/amount-text';
 import { SignIn } from '@/components/sign-in';
+import { useAppPath } from '@/components/app-link';
 
 /** A member's balance rendered as a short, self-contained phrase. */
 function BalanceHint({ minorUnits, currency }: { minorUnits: number; currency: string }) {
@@ -43,6 +44,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const { token } = use(params);
   const { t } = useI18n();
   const router = useRouter();
+  const appPath = useAppPath();
   const { data: session, isPending } = useSession();
   // Public, name-only — drives the pre-sign-in group name.
   const preview = trpc.invite.preview.useQuery({ token });
@@ -57,7 +59,9 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   // call site itself, closing that gap regardless of render timing.
   const pendingRef = useRef(false);
   const claim = trpc.invite.claim.useMutation({
-    onSuccess: () => router.push('/groups'),
+    // Locale-resolved: a bare `/groups` push from `/en/invite/<token>`
+    // rewrites to `/cs/groups` and drops the visitor into the Czech app.
+    onSuccess: () => router.push(appPath('/groups')),
     onSettled: () => {
       pendingRef.current = false;
     },

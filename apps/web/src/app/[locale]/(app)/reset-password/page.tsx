@@ -1,6 +1,6 @@
 'use client';
 import { Suspense, useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useSearchParams } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { authClient } from '@/lib/auth-client';
@@ -44,9 +44,9 @@ function ResetPasswordForm() {
             <p data-testid="reset-done" className="text-sm text-zinc-700 dark:text-zinc-300">
               {t('auth.resetDone')}
             </p>
-            <Link href="/groups" className="text-sm text-brand-600 dark:text-brand-100">
+            <AppLink href="/groups" className="text-sm text-brand-600 dark:text-brand-100">
               {t('auth.signInBtn')}
-            </Link>
+            </AppLink>
           </div>
         ) : !token ? (
           <p role="alert" className="text-center text-sm text-red-700 dark:text-red-400">

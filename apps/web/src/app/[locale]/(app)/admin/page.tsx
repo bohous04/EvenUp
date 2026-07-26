@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
@@ -387,9 +387,9 @@ export default function AdminPage() {
     return (
       <Card>
         <p className="text-red-700 dark:text-red-400">{t('error.notFound')}</p>
-        <Link href="/groups" className="mt-2 inline-block text-brand-700 underline">
+        <AppLink href="/groups" className="mt-2 inline-block text-brand-700 underline">
           {t('common.back')}
-        </Link>
+        </AppLink>
       </Card>
     );
   }

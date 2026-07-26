@@ -1,6 +1,5 @@
 'use client';
 import { useRef, useState } from 'react';
-import Link from 'next/link';
 import { deriveInitials } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
@@ -8,6 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { Button, Card, Input, Label, SectionLabel } from '@/components/ui';
 import { Check } from '@/components/icons';
 import { SecurityCard } from '@/components/security/security-card';
+import { AppLink, useAppPath } from '@/components/app-link';
 
 /**
  * Center-crop a picked image to a square and re-encode it small, so the avatar
@@ -46,6 +46,7 @@ const MAX_AVATAR_CHARS = 290_000;
 
 export default function SettingsPage() {
   const { t, formatDate } = useI18n();
+  const appPath = useAppPath();
   const { data: session, isPending } = useSession();
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
   // The full account is fetched only here (settings), not in the app-wide `me`.
@@ -130,7 +131,8 @@ export default function SettingsPage() {
   const deleteAccount = trpc.user.deleteAccount.useMutation({
     onSuccess: async () => {
       await signOut();
-      window.location.href = '/';
+      // The public landing page, in the locale the user was using.
+      window.location.href = appPath('/');
     },
   });
 
@@ -150,9 +152,9 @@ export default function SettingsPage() {
   if (!session?.user) {
     return (
       <Card>
-        <Link href="/groups" className="text-brand-700 underline">
+        <AppLink href="/groups" className="text-brand-700 underline">
           {t('common.back')}
-        </Link>
+        </AppLink>
       </Card>
     );
   }
@@ -417,9 +419,9 @@ export default function SettingsPage() {
           </Button>
         </div>
       </Card>
-      <Link href="/groups" className="inline-block text-brand-700 underline">
+      <AppLink href="/groups" className="inline-block text-brand-700 underline">
         ← {t('nav.groups')}
-      </Link>
+      </AppLink>
     </div>
   );
 }
