@@ -45,6 +45,8 @@ export {
   type NotificationRunResult,
 } from './services/notification-service.js';
 export { materializeRecurring } from './services/recurring-service.js';
+export { applyStripeEvent } from './billing/webhook.js';
+export { getStripe } from './billing/stripe.js';
 export { resolvePayee, type ResolvedPayee } from './services/payee.js';
 export type {
   NotifiableUser,
