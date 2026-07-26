@@ -10,6 +10,13 @@ import { currencyExponent, minorToDecimalString, type CurrencyCode } from '../mo
 
 const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/;
 
+/**
+ * Cap on the SPAYD `MSG` attribute. Exported so every layer that touches this
+ * limit (API validation, web-side clamping) reads the same value instead of
+ * re-hardcoding `60` and risking drift.
+ */
+export const SPAYD_MESSAGE_MAX_LENGTH = 60;
+
 /** Remove spaces and upper-case an IBAN. */
 export function normalizeIban(iban: string): string {
   return iban.replace(/\s+/g, '').toUpperCase();
@@ -133,7 +140,7 @@ export function buildSpayd(input: SpaydInput): string {
     attrs.push(`DT:${formatSpaydDate(input.date)}`);
   }
   if (input.message !== undefined) {
-    attrs.push(`MSG:${sanitizeValue(input.message, 60)}`);
+    attrs.push(`MSG:${sanitizeValue(input.message, SPAYD_MESSAGE_MAX_LENGTH)}`);
   }
   if (input.variableSymbol !== undefined) {
     attrs.push(`X-VS:${assertSymbol(input.variableSymbol, 'Variable symbol', 10)}`);
