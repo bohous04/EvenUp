@@ -15,6 +15,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { DEFAULT_LOCALE } from '@evenup/i18n';
 import { I18nProvider } from '@/lib/i18n';
 import { OcrScan } from './ocr-scan';
 
@@ -72,7 +73,7 @@ const members = [{ id: 'm1', displayName: 'Alice', initials: 'A', color: '#00000
 
 function renderScan() {
   return render(
-    <I18nProvider>
+    <I18nProvider initialLocale={DEFAULT_LOCALE}>
       <OcrScan groupId="g1" members={members} baseCurrency="CZK" />
     </I18nProvider>,
   );

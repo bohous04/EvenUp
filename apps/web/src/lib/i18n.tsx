@@ -1,7 +1,6 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import {
-  DEFAULT_LOCALE,
   createTranslator,
   plural as pluralize,
   formatCurrency as fmtCurrency,
@@ -23,19 +22,27 @@ interface I18nValue {
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
-const STORAGE_KEY = 'evenup.locale';
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === 'cs' || stored === 'en') setLocaleState(stored);
-  }, []);
+/**
+ * The URL is the single source of truth for locale (see `locale-path.ts` and
+ * the middleware) — `initialLocale` comes from the already-validated route
+ * segment. There is deliberately no `useEffect` reading `localStorage`
+ * anymore: that used to flip `/en` back to Czech after hydration, which is
+ * exactly the bug this task fixes. `setLocale` only updates local state for
+ * the copy/`lang` attribute; the caller (the header's language switcher) is
+ * responsible for navigating to the new locale's URL.
+ */
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: React.ReactNode;
+  initialLocale: Locale;
+}) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
-    window.localStorage.setItem(STORAGE_KEY, l);
     document.documentElement.lang = l;
   }, []);
 

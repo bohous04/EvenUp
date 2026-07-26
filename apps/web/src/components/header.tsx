@@ -1,15 +1,28 @@
 'use client';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { iconButtonClass } from '@/components/ui';
 import { Settings, LogOut } from '@/components/icons';
+import { localizedPath } from '@/lib/locale-path';
 
 export function Header() {
   const { t, locale, setLocale } = useI18n();
   const { data: session } = useSession();
   const me = trpc.user.me.useQuery(undefined, { enabled: !!session?.user });
+  const pathname = usePathname();
+  const router = useRouter();
+
+  function switchLocale(l: 'cs' | 'en') {
+    // Update local state immediately for responsive copy/`lang`, then
+    // navigate — the URL is the source of truth for locale, so the push
+    // is what actually makes `/groups` become `/en/groups` (and keeps the
+    // tRPC `x-locale` header and `<html lang>` from disagreeing with it).
+    setLocale(l);
+    router.push(localizedPath(pathname, l));
+  }
 
   return (
     <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -30,7 +43,7 @@ export function Header() {
             {(['cs', 'en'] as const).map((l) => (
               <button
                 key={l}
-                onClick={() => setLocale(l)}
+                onClick={() => switchLocale(l)}
                 aria-pressed={locale === l}
                 className={`px-2 py-1 font-medium uppercase ${
                   locale === l

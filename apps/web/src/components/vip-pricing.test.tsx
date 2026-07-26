@@ -12,9 +12,9 @@ import { Providers } from './providers';
 // would otherwise pile up in `document.body` across the three cases below.
 afterEach(cleanup);
 
-// `<Providers>` doesn't force a locale, so it renders with `@evenup/i18n`'s
-// default — build expected strings the same way rather than hardcoding one
-// locale's text.
+// `<Providers>` now requires an explicit locale — pass `@evenup/i18n`'s
+// default and build expected strings the same way rather than hardcoding
+// one locale's text.
 const t = createTranslator(DEFAULT_LOCALE);
 
 const summary = {
@@ -41,7 +41,7 @@ const multiPackSummary = {
 
 function renderPricing(over: Partial<typeof summary> = {}) {
   render(
-    <Providers>
+    <Providers locale={DEFAULT_LOCALE}>
       <VipPricing
         summary={{ ...summary, ...over }}
         onSubscribe={() => {}}
@@ -73,7 +73,7 @@ describe('VipPricing', () => {
 
   it('gates every Buy button behind the single withdrawal checkbox, for every configured pack', async () => {
     render(
-      <Providers>
+      <Providers locale={DEFAULT_LOCALE}>
         <VipPricing
           summary={multiPackSummary}
           onSubscribe={() => {}}

@@ -11,6 +11,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { DEFAULT_LOCALE } from '@evenup/i18n';
 import { OcrConsentDialog } from './ocr-consent-dialog';
 import { Providers } from './providers';
 
@@ -36,7 +37,7 @@ function renderDialog(props: Partial<Parameters<typeof OcrConsentDialog>[0]> = {
   const onAccept = vi.fn();
   const onCancel = vi.fn();
   render(
-    <Providers>
+    <Providers locale={DEFAULT_LOCALE}>
       <OcrConsentDialog onAccept={onAccept} onCancel={onCancel} pending={false} {...props} />
     </Providers>,
   );

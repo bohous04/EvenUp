@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
-import { LOCALES } from '@evenup/i18n';
+import { LOCALES, type Locale } from '@evenup/i18n';
 import '../globals.css';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/header';
@@ -62,12 +62,15 @@ export default async function RootLayout({
   // In Next 15 `params` is a Promise; the synchronous form silently breaks.
   const { locale } = await params;
   // Without this, `/xx/groups` would render with a bogus `lang` attribute.
-  if (!(LOCALES as readonly string[]).includes(locale)) notFound();
+  // A type-predicate guard (rather than a bare `as Locale` cast) so the
+  // narrowing below is real: everything from here down sees `locale:
+  // Locale`, verified, not asserted.
+  if (!isLocale(locale)) notFound();
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full">
-        <Providers>
+        <Providers locale={locale}>
           <Header />
           <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
           <ServiceWorker />
@@ -75,4 +78,8 @@ export default async function RootLayout({
       </body>
     </html>
   );
+}
+
+function isLocale(value: string): value is Locale {
+  return (LOCALES as readonly string[]).includes(value);
 }
