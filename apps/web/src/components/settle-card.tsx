@@ -8,6 +8,7 @@ import { MemberChip } from '@/components/member-chip';
 import { QrCode } from '@/components/qr-code';
 import { Sheet } from '@/components/sheet';
 import { ArrowRight, ChevronRight } from '@/components/icons';
+import { clampSpaydMessage } from '@/lib/spayd-message';
 
 interface MemberLite {
   id: string;
@@ -90,9 +91,10 @@ function SettleRow({
       toMemberId: to?.id ?? '',
       amountMinorUnits: amount,
       currency: baseCurrency,
-      // SPAYD strips diacritics and caps MSG at 60 chars, so this reaches the
-      // bank as e.g. "Vyrovnani dluhu Vikend na horach".
-      message: t('settle.qrMessage', { group: groupName }),
+      // The server rejects (not truncates) a message over 60 chars — clamp
+      // here so a long group name can't make the query fail (see
+      // spayd-message.ts for why sanitizeValue's own truncation is too late).
+      message: clampSpaydMessage(t('settle.qrMessage', { group: groupName })),
     },
     { enabled: open && !!to, retry: false },
   );
