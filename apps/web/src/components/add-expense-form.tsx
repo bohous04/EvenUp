@@ -97,7 +97,7 @@ function Segmented({
   );
 }
 
-type Row = 'split' | 'category' | 'date' | 'repeat' | null;
+type Row = 'category' | 'date' | 'repeat' | null;
 
 /** Collapsible settings row inside the expense sheet (Split / Category / Date / Repeat). */
 function DisclosureRow({
@@ -512,8 +512,6 @@ export function AddExpenseForm({
         ? '%'
         : t('expense.amount');
 
-  const splitOpen = openRow === 'split';
-
   // Live equal-split preview per selected member (cent-accurate via core).
   let shares: Record<string, number> = {};
   if (splitType === 'EQUAL' && selectedMembers.length > 0) {
@@ -727,6 +725,30 @@ export function AddExpenseForm({
             </div>
           </div>
 
+          {/* How to split — always visible, and above the members it governs. */}
+          <div>
+            <SectionLabel>{t('expense.splitMethod')}</SectionLabel>
+            <Segmented
+              ariaLabel={t('expense.splitMethod')}
+              value={splitType}
+              onChange={(v) => setSplitType(v as SplitType)}
+              testIdPrefix="split-type"
+              options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
+                value: st,
+                label: t(SPLIT_LABELS[st]),
+              }))}
+            />
+          </div>
+
+          {splitType === 'ITEMIZED' ? (
+            <ItemizedEditor
+              items={itemRows}
+              onChange={setItemRows}
+              members={members}
+              baseCurrency={currency}
+            />
+          ) : null}
+
           {/* For whom — toggle chips with a live equal-share preview. ITEMIZED
               assigns members per item instead (see ItemizedEditor below), so the
               blanket member-picker doesn't apply in that mode. */}
@@ -783,73 +805,46 @@ export function AddExpenseForm({
                   );
                 })}
               </div>
+
+              {splitType !== 'EQUAL' ? (
+                <div className="mt-3 space-y-2" data-testid="per-member-inputs">
+                  {selectedMembers.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <MemberChip
+                        initials={m.initials}
+                        color={m.color}
+                        name={m.displayName}
+                        imageUrl={m.imageUrl}
+                        size="sm"
+                      />
+                      <span className="flex-1 text-sm">{m.displayName}</span>
+                      <div className="w-28">
+                        <Input
+                          inputMode="decimal"
+                          aria-label={`${m.displayName} ${perMemberLabel}`}
+                          placeholder={perMemberLabel}
+                          value={memberFieldValue(m.id)}
+                          onChange={(e) =>
+                            setValues((v) => ({
+                              ...v,
+                              [m.id]:
+                                splitType === 'EXACT'
+                                  ? clampAmountDecimals(e.target.value, currency)
+                                  : e.target.value,
+                            }))
+                          }
+                          data-testid={`member-value-${m.id}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
           {/* Collapsed settings rows */}
           <div className="border-t border-zinc-100 dark:border-zinc-800">
-            <DisclosureRow
-              label={t('expense.splitBetween')}
-              value={t(SPLIT_LABELS[splitType])}
-              open={splitOpen}
-              onToggle={() => toggleRow('split')}
-              testId="expense-split-row"
-            >
-              <div className="space-y-3">
-                <Segmented
-                  ariaLabel={t('expense.splitBetween')}
-                  value={splitType}
-                  onChange={(v) => setSplitType(v as SplitType)}
-                  testIdPrefix="split-type"
-                  options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
-                    value: st,
-                    label: t(SPLIT_LABELS[st]),
-                  }))}
-                />
-                {splitType === 'ITEMIZED' ? (
-                  <ItemizedEditor
-                    items={itemRows}
-                    onChange={setItemRows}
-                    members={members}
-                    baseCurrency={currency}
-                  />
-                ) : splitType !== 'EQUAL' ? (
-                  <div className="space-y-2" data-testid="per-member-inputs">
-                    {selectedMembers.map((m) => (
-                      <div key={m.id} className="flex items-center gap-2">
-                        <MemberChip
-                          initials={m.initials}
-                          color={m.color}
-                          name={m.displayName}
-                          imageUrl={m.imageUrl}
-                          size="sm"
-                        />
-                        <span className="flex-1 text-sm">{m.displayName}</span>
-                        <div className="w-28">
-                          <Input
-                            inputMode="decimal"
-                            aria-label={`${m.displayName} ${perMemberLabel}`}
-                            placeholder={perMemberLabel}
-                            value={memberFieldValue(m.id)}
-                            onChange={(e) =>
-                              setValues((v) => ({
-                                ...v,
-                                [m.id]:
-                                  splitType === 'EXACT'
-                                    ? clampAmountDecimals(e.target.value, currency)
-                                    : e.target.value,
-                              }))
-                            }
-                            data-testid={`member-value-${m.id}`}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </DisclosureRow>
-
             <DisclosureRow
               label={t('expense.category')}
               value={

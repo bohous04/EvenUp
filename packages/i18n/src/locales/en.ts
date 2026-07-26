@@ -198,6 +198,7 @@ export const en: Messages = {
   'expense.note': 'Note',
   'expense.paidBy': 'Paid by',
   'expense.splitBetween': 'Split between',
+  'expense.splitMethod': 'How to split',
   'expense.selectAll': 'Select all',
   'expense.selectNone': 'Clear selection',
   'expense.income': 'Income',

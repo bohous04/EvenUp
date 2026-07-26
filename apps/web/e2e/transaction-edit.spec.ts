@@ -62,7 +62,6 @@ test.describe('Editing transactions in place', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Split');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
 
     const inputs = page.getByTestId('per-member-inputs').locator('input');
@@ -84,7 +83,6 @@ test.describe('Editing transactions in place', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Weighted');
     await page.getByTestId('expense-amount-input').fill('90');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-SHARES').click();
     const addInputs = page.getByTestId('per-member-inputs').locator('input');
     await addInputs.nth(0).fill('2');
@@ -96,7 +94,6 @@ test.describe('Editing transactions in place', () => {
     // (not coerced to exact amounts).
     await page.getByTestId('transaction-row').first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByTestId('expense-split-row').click();
     await expect(page.getByTestId('split-type-SHARES')).toHaveAttribute('aria-checked', 'true');
     const editInputs = page.getByTestId('per-member-inputs').locator('input');
     await expect(editInputs.nth(0)).toHaveValue('2');

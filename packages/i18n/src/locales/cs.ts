@@ -203,6 +203,7 @@ export const cs = {
   'expense.note': 'Poznámka',
   'expense.paidBy': 'Zaplatil(a)',
   'expense.splitBetween': 'Rozdělit mezi',
+  'expense.splitMethod': 'Jak rozdělit',
   'expense.selectAll': 'Vybrat vše',
   'expense.selectNone': 'Zrušit výběr',
   'expense.income': 'Příjem',

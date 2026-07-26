@@ -115,7 +115,6 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0'); // creator owes nothing
@@ -269,10 +268,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     expect(res.headers()['content-type']).toContain('image/');
 
     // Re-opening the saved itemized expense edits it with the same shared
-    // ItemizedEditor (Task 3): the split row shows both persisted items.
+    // ItemizedEditor (Task 3): the split type is ITEMIZED and its item rows
+    // reappear with both persisted items.
     await page.getByTestId('transaction-row').first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByTestId('expense-split-row').click();
     await expect(page.getByTestId('split-type-ITEMIZED')).toHaveAttribute('aria-checked', 'true');
     // Item order isn't persisted, so match either of the two known names rather
     // than assuming a position — the point is the items round-trip and display.
@@ -475,17 +474,14 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
     await closeSheet(page);
 
-    // Choosing EXACT keeps the per-member inputs reachable: the split row's
-    // toggle is disabled so the required inputs can't be collapsed out of reach.
+    // Choosing EXACT keeps the per-member inputs reachable: the split-type
+    // control is always rendered (no disclosure to open first), so picking
+    // EXACT immediately surfaces the required per-member fields.
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     await expect(page.getByTestId('per-member-inputs')).toBeVisible();
-    // The split row is collapsible now (users asked to be able to close it), so
-    // its toggle stays enabled even for a non-EQUAL split.
-    await expect(page.getByTestId('expense-split-row')).toBeEnabled();
 
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0');
@@ -493,11 +489,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-submit').click();
     await expect(page.getByRole('dialog')).toBeHidden();
 
-    // Reopening starts from clean defaults — the split row is collapsed again and
+    // Reopening starts from clean defaults — the split type is back to EQUAL and
     // the currency is back to base.
     await page.getByTestId('add-expense-open').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByTestId('split-type-EXACT')).toHaveCount(0);
+    await expect(page.getByTestId('split-type-EQUAL')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('expense-currency-select')).toHaveValue('CZK');
   });
 
