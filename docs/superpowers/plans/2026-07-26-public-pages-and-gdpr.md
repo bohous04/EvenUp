@@ -14,7 +14,7 @@
 
 Tasks 1 and 2 are **release blockers** inherited from the billing branch's final review. Until they land, `feat/billing-and-metering` cannot ship at all:
 
-1. The OCR consent gate has no UI, and `user.me` doesn't expose `ocrConsentAt`. Every existing user is blocked from scanning and is shown *"Recognition failed. Enter the items manually"* — because `ocr-scan.tsx:170-175` handles `PRECONDITION_FAILED` and `PAYMENT_REQUIRED` but not the `FORBIDDEN` the consent gate throws.
+1. The OCR consent gate has no UI, and `user.me` doesn't expose `ocrConsentAt`. Every existing user is blocked from scanning and is shown _"Recognition failed. Enter the items manually"_ — because `ocr-scan.tsx:170-175` handles `PRECONDITION_FAILED` and `PAYMENT_REQUIRED` but not the `FORBIDDEN` the consent gate throws.
 2. `/vip` does not exist, yet `packages/api/src/routers/billing.ts` sends every checkout success, cancel and portal return there. Every purchase ends on a 404. The billing router has **zero client callers**.
 
 Neither needs the locale routing, because Czech is the unprefixed default — `/vip` is a valid Czech URL on day one and gains `/en/vip` for free in Task 3. So they go first.
@@ -57,21 +57,22 @@ Playwright: `PLAYWRIGHT_BROWSERS_PATH` is preset to a root-owned path, so `playw
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `apps/web/src/components/ocr-consent-dialog.tsx` | one-time consent prompt before first scan |
-| `apps/web/src/app/vip/page.tsx` | pricing + purchase entry points (Czech, unprefixed) |
-| `apps/web/src/middleware.ts` | locale rewrite/redirect; **must exclude `/api`** |
-| `apps/web/src/app/[locale]/(marketing)/` | server-rendered, statically generated public pages |
-| `apps/web/src/app/[locale]/(app)/` | existing client app, moved under the segment |
-| `packages/i18n/src/locales/marketing.ts` | marketing + legal copy, kept out of the app catalogs |
-| `packages/api/src/services/session-cleanup.ts` | expired-session purge (GDPR retention) |
+| File                                             | Responsibility                                       |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `apps/web/src/components/ocr-consent-dialog.tsx` | one-time consent prompt before first scan            |
+| `apps/web/src/app/vip/page.tsx`                  | pricing + purchase entry points (Czech, unprefixed)  |
+| `apps/web/src/middleware.ts`                     | locale rewrite/redirect; **must exclude `/api`**     |
+| `apps/web/src/app/[locale]/(marketing)/`         | server-rendered, statically generated public pages   |
+| `apps/web/src/app/[locale]/(app)/`               | existing client app, moved under the segment         |
+| `packages/i18n/src/locales/marketing.ts`         | marketing + legal copy, kept out of the app catalogs |
+| `packages/api/src/services/session-cleanup.ts`   | expired-session purge (GDPR retention)               |
 
 ---
 
 ### Task 1: OCR consent UI — RELEASE BLOCKER
 
 **Files:**
+
 - Modify: `packages/api/src/routers/user.ts:14-27` (add `ocrConsentAt` to the `me` select)
 - Create: `apps/web/src/components/ocr-consent-dialog.tsx`
 - Modify: `apps/web/src/components/ocr-scan.tsx:170-175`
@@ -80,6 +81,7 @@ Playwright: `PLAYWRIGHT_BROWSERS_PATH` is preset to a root-owned path, so `playw
 - Test: `packages/api/src/routers/user-profile.test.ts`, `apps/web/src/components/ocr-consent-dialog.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `user.setOcrConsent({ granted: boolean })` (already exists, Spec 1 Task 6).
 - Produces: `me.ocrConsentAt: Date | null` on the `user.me` payload.
 
@@ -303,12 +305,14 @@ git commit -m "feat(ocr): consent dialog, revoke control and readable refusal"
 ### Task 2: `/vip` pricing page — RELEASE BLOCKER
 
 **Files:**
+
 - Create: `apps/web/src/app/vip/page.tsx`
 - Create: `apps/web/src/components/vip-pricing.tsx`
 - Modify: `packages/i18n/src/locales/cs.ts`, `en.ts`
 - Test: `apps/web/src/components/vip-pricing.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `billing.summary` → `{ billingEnabled, creditBalance, isVip, subscription, currency, packs: {id, scans, priceId}[] }`; `billing.checkoutSubscription()`, `billing.checkoutCredits({ packId, acknowledgeImmediate })`, `billing.portal()` — each returning `{ url }`.
 - Produces: the `/vip` route that `BILLING_RETURN_URL` targets.
 
@@ -377,7 +381,12 @@ const summary = {
 function renderPricing(over: Partial<typeof summary> = {}) {
   render(
     <Providers>
-      <VipPricing summary={{ ...summary, ...over }} onSubscribe={() => {}} onBuy={() => {}} onPortal={() => {}} />
+      <VipPricing
+        summary={{ ...summary, ...over }}
+        onSubscribe={() => {}}
+        onBuy={() => {}}
+        onPortal={() => {}}
+      />
     </Providers>,
   );
 }
@@ -449,12 +458,14 @@ git commit -m "feat(billing): /vip pricing page with withdrawal acknowledgement"
 ### Task 3: Locale middleware and the `[locale]` segment
 
 **Files:**
+
 - Create: `apps/web/src/middleware.ts`
 - Move: every route under `apps/web/src/app/` into `apps/web/src/app/[locale]/(app)/` (except `api/`)
 - Create: `apps/web/src/app/[locale]/layout.tsx`
 - Test: `apps/web/src/middleware.test.ts`
 
 **Interfaces:**
+
 - Produces: `/x` serves Czech, `/en/x` serves English, `/cs/x` redirects to `/x`.
 
 - [ ] **Step 1: Write the failing middleware test**
@@ -587,6 +598,7 @@ git commit -m "feat(web): locale routing with czech unprefixed and english under
 ### Task 4: Marketing catalog and the landing page
 
 **Files:**
+
 - Create: `packages/i18n/src/locales/marketing.ts`
 - Modify: `packages/i18n/src/index.ts` (export it)
 - Create: `apps/web/src/app/[locale]/(marketing)/layout.tsx`, `page.tsx`
@@ -597,7 +609,7 @@ git commit -m "feat(web): locale routing with czech unprefixed and english under
 
 Create `packages/i18n/src/locales/marketing.ts` exporting `marketingCs` and `marketingEn` objects with matching keys, kept separate so marketing copy does not bloat the app catalogs. Cover: hero title and subtitle, five feature headings and blurbs (debt minimisation, receipt OCR, QR platba, multi-currency, members without accounts), four FAQ question/answer pairs, and the closing call to action.
 
-Lead the hero on debt minimisation — *"settle in the fewest payments"* — because that is the genuinely differentiating claim, not "split expenses".
+Lead the hero on debt minimisation — _"settle in the fewest payments"_ — because that is the genuinely differentiating claim, not "split expenses".
 
 - [ ] **Step 2: Write the failing e2e test**
 
@@ -617,7 +629,9 @@ test('serves English at /en with the right lang attribute', async ({ page }) => 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
-test('renders translated copy WITHOUT javascript — this is the whole point', async ({ browser }) => {
+test('renders translated copy WITHOUT javascript — this is the whole point', async ({
+  browser,
+}) => {
   // If this fails, crawlers see one language and users see a flash of the
   // wrong one, which is exactly what the routing change exists to prevent.
   const ctx = await browser.newContext({ javaScriptEnabled: false });
@@ -659,6 +673,7 @@ git commit -m "feat(web): server-rendered bilingual landing page; dashboard move
 ### Task 5: Legal pages
 
 **Files:**
+
 - Create: `apps/web/src/app/[locale]/(marketing)/{terms,privacy,refunds,contact}/page.tsx`
 - Modify: `packages/i18n/src/locales/marketing.ts`
 
@@ -667,7 +682,7 @@ git commit -m "feat(web): server-rendered bilingual landing page; dashboard move
 Add four documents to the marketing catalog, in both languages, written against **actual system behaviour**:
 
 - **Terms** — the 150-scan monthly allowance, credits never expiring, fall-through from allowance to credits, cancellation via the Stripe portal.
-- **Privacy** — the real processors: **OpenRouter** (receipt images, may leave the EU, may reveal special-category data), **Stripe** (email and billing metadata), **Seznam Email Profi** (transactional mail — *not* Resend; the app sends via Seznam), object storage (receipt images, 30-day retention), Google/Apple only if social sign-in is used. State retention per category. State that account deletion retains payment records under GDPR Art. 17(3)(b) and that those records are **pseudonymized, not anonymous**, because the Stripe identifiers still resolve to a Customer holding the person's email.
+- **Privacy** — the real processors: **OpenRouter** (receipt images, may leave the EU, may reveal special-category data), **Stripe** (email and billing metadata), **Seznam Email Profi** (transactional mail — _not_ Resend; the app sends via Seznam), object storage (receipt images, 30-day retention), Google/Apple only if social sign-in is used. State retention per category. State that account deletion retains payment records under GDPR Art. 17(3)(b) and that those records are **pseudonymized, not anonymous**, because the Stripe identifiers still resolve to a Customer holding the person's email.
 - **Refunds** — the 14-day withdrawal right, and that it is lost for credits once the customer consents to immediate performance at checkout.
 - **Contact** — business name, IČO, registered address, `support@evenup.cz`.
 
@@ -698,6 +713,7 @@ requires qualified review before live payments are enabled."
 ### Task 6: SEO metadata, sitemap and robots
 
 **Files:**
+
 - Modify: each `(marketing)` `page.tsx` (add `generateMetadata`)
 - Create: `apps/web/src/app/sitemap.ts`, `apps/web/src/app/robots.ts`
 - Test: `apps/web/e2e/seo.spec.ts`
@@ -754,11 +770,13 @@ git commit -m "feat(web): hreflang alternates, sitemap and robots for both local
 ### Task 7: Session retention purge
 
 **Files:**
+
 - Create: `packages/api/src/services/session-cleanup.ts`
 - Test: `packages/api/src/services/session-cleanup.test.ts`
 - Modify: `apps/web/src/app/api/cron/receipt-cleanup/route.ts` (or a sibling cron route)
 
 **Interfaces:**
+
 - Produces: `purgeExpiredSessions(prisma, now): Promise<{ deleted: number }>`
 
 - [ ] **Step 1: Write the failing test**
@@ -778,8 +796,13 @@ describe('purgeExpiredSessions', () => {
     const now = new Date('2026-07-26T00:00:00Z');
     await testPrisma.session.createMany({
       data: [
-        { userId: u.id, token: 'old', expiresAt: new Date('2026-07-01T00:00:00Z'),
-          ipAddress: '1.2.3.4', userAgent: 'x' },
+        {
+          userId: u.id,
+          token: 'old',
+          expiresAt: new Date('2026-07-01T00:00:00Z'),
+          ipAddress: '1.2.3.4',
+          userAgent: 'x',
+        },
         { userId: u.id, token: 'live', expiresAt: new Date('2026-08-01T00:00:00Z') },
       ],
     });

@@ -48,17 +48,17 @@ Green baseline before starting: core 262, i18n 31, web 62, api 195, e2e 29 (chro
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `packages/db/prisma/schema.prisma` | `Subscription`, `ScanLedger`, new `User` fields |
-| `packages/api/src/billing/entitlement.ts` | pure decision function — no I/O |
-| `packages/api/src/billing/ledger.ts` | atomic reserve / refund / credit, writes ledger rows |
-| `packages/api/src/billing/prices.ts` | price catalogue read from config |
-| `packages/api/src/billing/stripe.ts` | Stripe client factory; returns `null` when unconfigured |
-| `packages/api/src/routers/billing.ts` | tRPC: checkout sessions, portal, balance |
-| `apps/web/src/app/api/stripe/webhook/route.ts` | signature-verified webhook |
-| `packages/api/src/services/account.ts` | amended: selective erasure |
-| `packages/api/src/routers/ocr.ts` | amended: entitlement replaces key resolution |
+| File                                           | Responsibility                                          |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| `packages/db/prisma/schema.prisma`             | `Subscription`, `ScanLedger`, new `User` fields         |
+| `packages/api/src/billing/entitlement.ts`      | pure decision function — no I/O                         |
+| `packages/api/src/billing/ledger.ts`           | atomic reserve / refund / credit, writes ledger rows    |
+| `packages/api/src/billing/prices.ts`           | price catalogue read from config                        |
+| `packages/api/src/billing/stripe.ts`           | Stripe client factory; returns `null` when unconfigured |
+| `packages/api/src/routers/billing.ts`          | tRPC: checkout sessions, portal, balance                |
+| `apps/web/src/app/api/stripe/webhook/route.ts` | signature-verified webhook                              |
+| `packages/api/src/services/account.ts`         | amended: selective erasure                              |
+| `packages/api/src/routers/ocr.ts`              | amended: entitlement replaces key resolution            |
 
 Entitlement is deliberately separate from the ledger: the decision is pure and exhaustively testable, the mutation is not.
 
@@ -67,10 +67,12 @@ Entitlement is deliberately separate from the ledger: the decision is pure and e
 ### Task 1: Schema and migration
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/<timestamp>_billing/migration.sql` (generated)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: Prisma models `Subscription`, `ScanLedger`, enum `LedgerReason`; `User.stripeCustomerId`, `User.creditBalance`, `User.ocrConsentAt`.
 
@@ -168,10 +170,12 @@ git commit -m "feat(db): subscription, scan ledger and billing fields on user"
 ### Task 2: The entitlement function
 
 **Files:**
+
 - Create: `packages/api/src/billing/entitlement.ts`
 - Test: `packages/api/src/billing/entitlement.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing (pure).
 - Produces:
 
@@ -385,10 +389,12 @@ git commit -m "feat(billing): pure scan-entitlement resolver"
 ### Task 3: Ledger service
 
 **Files:**
+
 - Create: `packages/api/src/billing/ledger.ts`
 - Test: `packages/api/src/billing/ledger.test.ts`
 
 **Interfaces:**
+
 - Consumes: `LedgerReason` from `@evenup/db`.
 - Produces:
 
@@ -396,12 +402,21 @@ git commit -m "feat(billing): pure scan-entitlement resolver"
 export function reserveCredit(prisma: PrismaClient, userId: string): Promise<boolean>;
 export function refundCredit(prisma: PrismaClient, userId: string): Promise<void>;
 export function recordVipScan(prisma: PrismaClient, userId: string): Promise<void>;
-export function creditPurchase(prisma: PrismaClient, args: {
-  userId: string; scans: number; stripeEventId: string; withdrawalConsentAt: Date;
-}): Promise<boolean>;
+export function creditPurchase(
+  prisma: PrismaClient,
+  args: {
+    userId: string;
+    scans: number;
+    stripeEventId: string;
+    withdrawalConsentAt: Date;
+  },
+): Promise<boolean>;
 export function grantCredits(prisma: PrismaClient, userId: string, scans: number): Promise<void>;
 export function countVipScansInPeriod(
-  prisma: PrismaClient, userId: string, from: Date, to: Date,
+  prisma: PrismaClient,
+  userId: string,
+  from: Date,
+  to: Date,
 ): Promise<number>;
 ```
 
@@ -650,6 +665,7 @@ git commit -m "feat(billing): credit ledger with atomic reserve and idempotent p
 ### Task 4: Price catalogue and Stripe client
 
 **Files:**
+
 - Create: `packages/api/src/billing/prices.ts`
 - Create: `packages/api/src/billing/stripe.ts`
 - Test: `packages/api/src/billing/prices.test.ts`
@@ -657,11 +673,16 @@ git commit -m "feat(billing): credit ledger with atomic reserve and idempotent p
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - Produces:
 
 ```ts
 export type BillingCurrency = 'CZK' | 'EUR';
-export interface CreditPack { id: string; scans: number; priceId: string }
+export interface CreditPack {
+  id: string;
+  scans: number;
+  priceId: string;
+}
 export function currencyForLocale(locale: string): BillingCurrency;
 export function creditPacks(currency: BillingCurrency): CreditPack[];
 export function subscriptionPriceId(currency: BillingCurrency): string | null;
@@ -839,17 +860,21 @@ git commit -m "feat(billing): configurable price catalogue and optional stripe c
 ### Task 5: Entitlement in the OCR router
 
 **Files:**
+
 - Modify: `packages/api/src/routers/ocr.ts:52-102`
 - Create: `packages/api/src/billing/scan-access.ts`
 - Test: `packages/api/src/billing/scan-access.test.ts`
 
 **Interfaces:**
+
 - Consumes: `resolveScanEntitlement`, `countVipScansInPeriod` from Tasks 2–3.
 - Produces:
 
 ```ts
 export function loadEntitlement(
-  prisma: PrismaClient, userId: string, now: Date,
+  prisma: PrismaClient,
+  userId: string,
+  now: Date,
 ): Promise<Entitlement>;
 ```
 
@@ -954,37 +979,37 @@ export async function loadEntitlement(
 Replace the whole `if (user.openRouterKeyEncrypted) { ... } else { ... }` block (`packages/api/src/routers/ocr.ts:60-81`) with:
 
 ```ts
-      // Entitlement (paid tiers) replaces the old BYO-key resolution: the
-      // instance key is the only key now, and access is metered.
-      const entitlement = await loadEntitlement(ctx.prisma, ctx.user.id, new Date());
-      if (!entitlement.allow) {
-        throw new TRPCError({
-          code: 'PAYMENT_REQUIRED',
-          message: 'No scans remaining. Subscribe or buy credits to continue.',
-        });
-      }
+// Entitlement (paid tiers) replaces the old BYO-key resolution: the
+// instance key is the only key now, and access is metered.
+const entitlement = await loadEntitlement(ctx.prisma, ctx.user.id, new Date());
+if (!entitlement.allow) {
+  throw new TRPCError({
+    code: 'PAYMENT_REQUIRED',
+    message: 'No scans remaining. Subscribe or buy credits to continue.',
+  });
+}
 
-      const cfg = await ctx.prisma.instanceConfig.findUnique({ where: { id: 'singleton' } });
-      if (!cfg?.openRouterKeyEncrypted) {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'No shared OpenRouter key is configured; ask an admin.',
-        });
-      }
-      const apiKey = ctx.secretBox.decrypt(cfg.openRouterKeyEncrypted);
-      const model = user.ocrModel ?? cfg.ocrModel ?? DEFAULT_OCR_MODEL;
+const cfg = await ctx.prisma.instanceConfig.findUnique({ where: { id: 'singleton' } });
+if (!cfg?.openRouterKeyEncrypted) {
+  throw new TRPCError({
+    code: 'PRECONDITION_FAILED',
+    message: 'No shared OpenRouter key is configured; ask an admin.',
+  });
+}
+const apiKey = ctx.secretBox.decrypt(cfg.openRouterKeyEncrypted);
+const model = user.ocrModel ?? cfg.ocrModel ?? DEFAULT_OCR_MODEL;
 
-      // Reserve before spending money at OpenRouter so concurrent scans cannot
-      // overdraw a single credit. Refunded below if the scan throws.
-      if (entitlement.consume === 'CREDIT') {
-        const reserved = await reserveCredit(ctx.prisma, ctx.user.id);
-        if (!reserved) {
-          throw new TRPCError({
-            code: 'PAYMENT_REQUIRED',
-            message: 'No scans remaining. Subscribe or buy credits to continue.',
-          });
-        }
-      }
+// Reserve before spending money at OpenRouter so concurrent scans cannot
+// overdraw a single credit. Refunded below if the scan throws.
+if (entitlement.consume === 'CREDIT') {
+  const reserved = await reserveCredit(ctx.prisma, ctx.user.id);
+  if (!reserved) {
+    throw new TRPCError({
+      code: 'PAYMENT_REQUIRED',
+      message: 'No scans remaining. Subscribe or buy credits to continue.',
+    });
+  }
+}
 ```
 
 Change the `user` select on `ocr.ts:57` to drop the removed field:
@@ -996,17 +1021,17 @@ Change the `user` select on `ocr.ts:57` to drop the removed field:
 Wrap the existing `try { const result = await extractReceipt(...)` so the `catch` refunds. Add to the existing `catch (err)` block, as its first statement:
 
 ```ts
-        if (entitlement.consume === 'CREDIT') {
-          await refundCredit(ctx.prisma, ctx.user.id);
-        }
+if (entitlement.consume === 'CREDIT') {
+  await refundCredit(ctx.prisma, ctx.user.id);
+}
 ```
 
 After `extractReceipt` succeeds, record subscription usage:
 
 ```ts
-        if (entitlement.consume === 'VIP_SCAN') {
-          await recordVipScan(ctx.prisma, ctx.user.id);
-        }
+if (entitlement.consume === 'VIP_SCAN') {
+  await recordVipScan(ctx.prisma, ctx.user.id);
+}
 ```
 
 Change the image-storage condition at `ocr.ts:102` from `user.isVip` to the entitlement:
@@ -1055,11 +1080,13 @@ git commit -m "feat(ocr): meter scans through the entitlement resolver"
 ### Task 6: OCR consent gate
 
 **Files:**
+
 - Modify: `packages/api/src/routers/ocr.ts`
 - Modify: `packages/api/src/routers/user.ts`
 - Test: `packages/api/src/routers/ocr.test.ts`
 
 **Interfaces:**
+
 - Consumes: `User.ocrConsentAt` from Task 1.
 - Produces: `user.setOcrConsent({ granted: boolean })` mutation.
 
@@ -1119,12 +1146,12 @@ Add to `packages/api/src/routers/user.ts` inside the router object:
 In `packages/api/src/routers/ocr.ts`, extend the user select to include `ocrConsentAt`, and immediately after the group-access check add:
 
 ```ts
-      if (!user.ocrConsentAt) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Receipt scanning requires your consent to send the image to our OCR provider.',
-        });
-      }
+if (!user.ocrConsentAt) {
+  throw new TRPCError({
+    code: 'FORBIDDEN',
+    message: 'Receipt scanning requires your consent to send the image to our OCR provider.',
+  });
+}
 ```
 
 - [ ] **Step 5: Add the strings**
@@ -1162,11 +1189,13 @@ git commit -m "feat(ocr): require explicit, revocable consent before scanning"
 ### Task 7: Billing router — checkout and portal
 
 **Files:**
+
 - Create: `packages/api/src/routers/billing.ts`
 - Modify: `packages/api/src/routers/index.ts` (register the router)
 - Test: `packages/api/src/routers/billing.test.ts`
 
 **Interfaces:**
+
 - Consumes: `getStripe`, `creditPacks`, `packById`, `subscriptionPriceId`, `currencyForLocale`.
 - Produces: `billing.summary`, `billing.checkoutSubscription`, `billing.checkoutCredits`, `billing.portal`.
 
@@ -1424,11 +1453,13 @@ git commit -m "feat(billing): checkout sessions for subscription and credit pack
 ### Task 8: Stripe webhook
 
 **Files:**
+
 - Create: `apps/web/src/app/api/stripe/webhook/route.ts`
 - Create: `packages/api/src/billing/webhook.ts`
 - Test: `packages/api/src/billing/webhook.test.ts`
 
 **Interfaces:**
+
 - Consumes: `creditPurchase` from Task 3.
 - Produces: `applyStripeEvent(prisma, event): Promise<void>`.
 
@@ -1652,11 +1683,13 @@ git commit -m "feat(billing): signature-verified, idempotent stripe webhook"
 ### Task 9: Selective erasure and export
 
 **Files:**
+
 - Modify: `packages/api/src/services/account.ts`
 - Modify: `packages/api/src/routers/user.ts:162-204` (`exportData`)
 - Test: `packages/api/src/services/account.test.ts`
 
 **Interfaces:**
+
 - Consumes: `ScanLedger`, `Subscription` from Task 1.
 - Produces: unchanged signature for `deleteUserAccount`; `exportData` gains `billing`.
 
@@ -1697,14 +1730,14 @@ Expected: FAIL — all three ledger rows are deleted (or the user delete errors)
 In `packages/api/src/services/account.ts`, immediately before `await tx.user.delete(...)`, add:
 
 ```ts
-    // Usage rows are personal data with no retention obligation — delete them.
-    // PURCHASE rows are accounting records: Czech law requires keeping them and
-    // that obligation overrides the right to erasure (GDPR Art. 17(3)(b)). The
-    // schema's onDelete: SetNull detaches them from the person as the user row
-    // goes, leaving an amount and a Stripe reference that identify no one.
-    await tx.scanLedger.deleteMany({
-      where: { userId, reason: { not: 'PURCHASE' } },
-    });
+// Usage rows are personal data with no retention obligation — delete them.
+// PURCHASE rows are accounting records: Czech law requires keeping them and
+// that obligation overrides the right to erasure (GDPR Art. 17(3)(b)). The
+// schema's onDelete: SetNull detaches them from the person as the user row
+// goes, leaving an amount and a Stripe reference that identify no one.
+await tx.scanLedger.deleteMany({
+  where: { userId, reason: { not: 'PURCHASE' } },
+});
 ```
 
 Update the doc comment at the top of the file to mention the retained billing records.
@@ -1752,6 +1785,7 @@ git commit -m "feat(gdpr): selective erasure retaining billing records; export b
 ### Task 10: Remove bring-your-own keys
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma:35` (drop `openRouterKeyEncrypted`)
 - Modify: `packages/api/src/routers/user.ts`, `packages/api/src/routers/admin.ts`
 - Modify: `apps/web/src/app/settings/page.tsx`
@@ -1772,8 +1806,8 @@ Remove the `setOpenRouterKey` (and any `clearOpenRouterKey`) procedures from `pa
 `packages/api/src/routers/admin.test.ts` asserts `hasOwnKey` (around line 26). Replace that assertion with one that the instance key is never leaked:
 
 ```ts
-    const res = await makeCaller(admin).admin.listUsers();
-    expect(JSON.stringify(res.users)).not.toContain('openRouterKeyEncrypted');
+const res = await makeCaller(admin).admin.listUsers();
+expect(JSON.stringify(res.users)).not.toContain('openRouterKeyEncrypted');
 ```
 
 - [ ] **Step 4: Drop the column**
@@ -1805,11 +1839,13 @@ git commit -m "feat(ocr): remove per-user BYO keys in favour of the instance key
 ### Task 11: Admin credit management
 
 **Files:**
+
 - Modify: `packages/api/src/routers/admin.ts`
 - Modify: `apps/web/src/app/admin/page.tsx`
 - Test: `packages/api/src/routers/admin.test.ts`
 
 **Interfaces:**
+
 - Consumes: `grantCredits` from Task 3.
 - Produces: `admin.grantCredits({ userId, scans })`.
 

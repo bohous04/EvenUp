@@ -36,16 +36,16 @@ not worth the complexity.
 
 ## Decisions
 
-| Decision | Choice |
-|---|---|
-| VIP allowance | 150 scans per billing period |
-| At the 150 cap | fall through to purchased credits |
-| Existing `isVip` users | grandfathered as free lifetime VIP, uncapped |
-| Credit expiry | never |
-| Credit purchase | fixed packs |
-| Primary currency | CZK; EUR set to round numbers, not FX-converted |
-| Tax | non-VAT-registered business with IČO — no VAT on invoices |
-| BYO keys | removed for users; instance key remains, admin-only |
+| Decision               | Choice                                                    |
+| ---------------------- | --------------------------------------------------------- |
+| VIP allowance          | 150 scans per billing period                              |
+| At the 150 cap         | fall through to purchased credits                         |
+| Existing `isVip` users | grandfathered as free lifetime VIP, uncapped              |
+| Credit expiry          | never                                                     |
+| Credit purchase        | fixed packs                                               |
+| Primary currency       | CZK; EUR set to round numbers, not FX-converted           |
+| Tax                    | non-VAT-registered business with IČO — no VAT on invoices |
+| BYO keys               | removed for users; instance key remains, admin-only       |
 
 ### Concerns raised and accepted
 
@@ -87,7 +87,7 @@ Evaluation order:
 4. **`creditBalance > 0`** → `CREDIT`.
 5. Otherwise deny, with a message pointing at the pricing page.
 
-Step 3 falling through to step 4 *is* the "fall back to credits at the cap"
+Step 3 falling through to step 4 _is_ the "fall back to credits at the cap"
 behaviour; it needs no special casing.
 
 ## Schema
@@ -156,13 +156,13 @@ handles cancellation and card updates, which removes a whole surface from scope.
 
 Webhook at `/api/stripe/webhook`:
 
-| Event | Effect |
-|---|---|
-| `checkout.session.completed` (payment) | credit the pack, ledger `PURCHASE` |
-| `checkout.session.completed` (subscription) | upsert `Subscription` |
-| `customer.subscription.created/updated/deleted` | sync status and period |
-| `invoice.paid` | roll the period forward |
-| `invoice.payment_failed` | mark `past_due` |
+| Event                                           | Effect                             |
+| ----------------------------------------------- | ---------------------------------- |
+| `checkout.session.completed` (payment)          | credit the pack, ledger `PURCHASE` |
+| `checkout.session.completed` (subscription)     | upsert `Subscription`              |
+| `customer.subscription.created/updated/deleted` | sync status and period             |
+| `invoice.paid`                                  | roll the period forward            |
+| `invoice.payment_failed`                        | mark `past_due`                    |
 
 Two non-negotiables:
 
@@ -198,7 +198,7 @@ Consequences:
 - The subscription flow is unaffected in the same way — a subscription is not
   immediately consumed — but cancellation terms still belong in the terms page.
 - Refunds remain possible at your discretion; this concerns what may be
-  *demanded*, not what may be *granted*.
+  _demanded_, not what may be _granted_.
 
 ### Erasure becomes selective
 
@@ -232,12 +232,12 @@ claim otherwise.
 Launch values. Held as configuration (Stripe price IDs in env or
 `InstanceConfig`), never hardcoded, so they can be retuned without a deploy.
 
-| Product | CZK | EUR |
-|---|---|---|
-| VIP subscription / month | 50 | 2 |
-| 2 scans | 20 | 1 |
-| 5 scans | 50 | 2 |
-| 10 scans | 100 | 4 |
+| Product                  | CZK | EUR |
+| ------------------------ | --- | --- |
+| VIP subscription / month | 50  | 2   |
+| 2 scans                  | 20  | 1   |
+| 5 scans                  | 50  | 2   |
+| 10 scans                 | 100 | 4   |
 
 Currency follows the user's locale: `cs` → CZK, `en` → EUR. EUR values are chosen
 for roundness, not converted, so they drift from the CZK equivalent by design.
@@ -277,7 +277,7 @@ credits is the manual remedy for the refund gap above.
 - **Withdrawal consent**: a credit-pack Checkout Session cannot be created
   without the immediate-performance acknowledgement, and the consent is recorded
   against the purchase.
-- **Selective erasure**: after account deletion, personal data is gone *and* the
+- **Selective erasure**: after account deletion, personal data is gone _and_ the
   legally required billing record remains, carrying no identifiers beyond what
   the retention obligation requires. Both directions asserted.
 

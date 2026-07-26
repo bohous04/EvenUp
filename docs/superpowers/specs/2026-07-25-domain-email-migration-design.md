@@ -12,12 +12,12 @@ EvenUp runs as Coolify app `wix9iuu2n5j34eqjnqflgjdg` on the lnrt instance
 
 Measured state at time of writing:
 
-| Host | Result |
-|---|---|
-| `evenup.cz` | **503** — DNS resolves to Cloudflare, origin has no Traefik router for the name |
-| `www.evenup.cz` | no DNS record at all |
-| `app.evenup.cz` | no DNS record at all |
-| `evenup.lnrt.cz` | 200, healthy |
+| Host             | Result                                                                          |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `evenup.cz`      | **503** — DNS resolves to Cloudflare, origin has no Traefik router for the name |
+| `www.evenup.cz`  | no DNS record at all                                                            |
+| `app.evenup.cz`  | no DNS record at all                                                            |
+| `evenup.lnrt.cz` | 200, healthy                                                                    |
 
 `evenup.cz` has **no MX and no TXT records** — mail is not configured. `lnrt.cz`
 already publishes `v=DMARC1; p=none; rua=mailto:dmarc@lnrt.cz`.
@@ -40,7 +40,7 @@ already publishes `v=DMARC1; p=none; rua=mailto:dmarc@lnrt.cz`.
 
 ## A. Domain cutover
 
-Additive and reversible: `evenup.cz` serves *alongside* `evenup.lnrt.cz`, and the
+Additive and reversible: `evenup.cz` serves _alongside_ `evenup.lnrt.cz`, and the
 old host only becomes a redirect once the new one is verified. No step leaves the
 app unreachable.
 
@@ -61,13 +61,13 @@ app unreachable.
   consoles are not reachable from the devbox:
   - Google Cloud Console: `https://evenup.cz/api/auth/callback/google`
   - Apple Developer portal: matching return URL for `APPLE_SERVICES_ID`
-  Both providers accept old and new URIs simultaneously, so adding them early
-  means nothing breaks at any point in the sequence.
+    Both providers accept old and new URIs simultaneously, so adding them early
+    means nothing breaks at any point in the sequence.
 - The Coolify app shows **two env-var sets**. Identify the live environment
   before editing.
 - Changing `ADMIN_EMAILS` is safe: `apps/web/src/server/auth.ts:139` only ever
   promotes (`!user.isAdmin && ...`) and never demotes, and `isAdmin` is persisted
-  on the user row. A *new* `@evenup.cz` account would still need to be listed to
+  on the user row. A _new_ `@evenup.cz` account would still need to be listed to
   be auto-promoted.
 
 ## B. Redirects
@@ -75,12 +75,12 @@ app unreachable.
 All 301, implemented as Cloudflare Redirect Rules (Single Redirects, ruleset
 phase `http_request_dynamic_redirect`).
 
-| From | To | Note |
-|---|---|---|
-| `www.evenup.cz` | `evenup.cz` | DNS record to be created, proxied |
-| `app.evenup.cz` | `evenup.cz` | DNS record to be created, proxied |
-| `*.evenup.cz` | `evenup.cz` | proxied wildcards are supported on the free plan (A/AAAA/CNAME only) |
-| `evenup.lnrt.cz` | `evenup.cz` | rule lives on the `lnrt.cz` zone |
+| From             | To          | Note                                                                 |
+| ---------------- | ----------- | -------------------------------------------------------------------- |
+| `www.evenup.cz`  | `evenup.cz` | DNS record to be created, proxied                                    |
+| `app.evenup.cz`  | `evenup.cz` | DNS record to be created, proxied                                    |
+| `*.evenup.cz`    | `evenup.cz` | proxied wildcards are supported on the free plan (A/AAAA/CNAME only) |
+| `evenup.lnrt.cz` | `evenup.cz` | rule lives on the `lnrt.cz` zone                                     |
 
 Two requirements that are easy to get wrong and must be explicit in the rules:
 
@@ -96,18 +96,18 @@ subdomain later requires no change to these rules.
 
 DNS on `evenup.cz` (MX hostnames read from the Seznam panel during setup):
 
-| Type | Name | Value |
-|---|---|---|
-| MX | `@` | Seznam mail hosts — **DNS-only**, mail cannot be proxied |
-| TXT | `@` | `v=spf1 include:spf.seznam.cz ~all` |
-| CNAME | Seznam DKIM selector | Seznam DKIM host |
-| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@evenup.cz` |
+| Type  | Name                 | Value                                                    |
+| ----- | -------------------- | -------------------------------------------------------- |
+| MX    | `@`                  | Seznam mail hosts — **DNS-only**, mail cannot be proxied |
+| TXT   | `@`                  | `v=spf1 include:spf.seznam.cz ~all`                      |
+| CNAME | Seznam DKIM selector | Seznam DKIM host                                         |
+| TXT   | `_dmarc`             | `v=DMARC1; p=none; rua=mailto:dmarc@evenup.cz`           |
 
 **DMARC starts at `p=none` with reporting**, mirroring `lnrt.cz`, and tightens to
 `p=quarantine` after roughly two weeks of clean reports. Publishing `quarantine`
 before observing a single report is how legitimate mail disappears silently.
 
-**Ordering is load-bearing.** DNS records go in and verify *first*; only then do
+**Ordering is load-bearing.** DNS records go in and verify _first_; only then do
 `EMAIL_FROM` and `SMTP_*` flip to Seznam. Pointing the app at `@evenup.cz` before
 SPF and DKIM resolve puts every magic link in a spam folder.
 

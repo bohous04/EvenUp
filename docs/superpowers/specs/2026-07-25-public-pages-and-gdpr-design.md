@@ -25,15 +25,15 @@ directly. The existing client provider needs no refactor.
 
 ### GDPR posture already in place
 
-| Capability | Location |
-|---|---|
-| Right to erasure | `packages/api/src/services/account.ts:10` |
-| Right to access / portability | `packages/api/src/routers/user.ts:162` |
-| Both reachable by users | `apps/web/src/app/settings/page.tsx:134-143,438-440` |
-| Receipt-image retention and purge | `packages/api/src/services/receipt-cleanup.ts` |
-| Error logs exclude request inputs and secrets | `schema.prisma:77` |
-| Notification payloads minimised by design | `schema.prisma:488` |
-| No analytics, tracking or third-party scripts | verified by search — zero hits |
+| Capability                                    | Location                                             |
+| --------------------------------------------- | ---------------------------------------------------- |
+| Right to erasure                              | `packages/api/src/services/account.ts:10`            |
+| Right to access / portability                 | `packages/api/src/routers/user.ts:162`               |
+| Both reachable by users                       | `apps/web/src/app/settings/page.tsx:134-143,438-440` |
+| Receipt-image retention and purge             | `packages/api/src/services/receipt-cleanup.ts`       |
+| Error logs exclude request inputs and secrets | `schema.prisma:77`                                   |
+| Notification payloads minimised by design     | `schema.prisma:488`                                  |
+| No analytics, tracking or third-party scripts | verified by search — zero hits                       |
 
 The last row has a practical consequence: with only strictly-necessary session
 cookies and no tracking, **no cookie consent banner is required**. One should not
@@ -41,18 +41,18 @@ be added.
 
 ## Decisions
 
-| Decision | Choice |
-|---|---|
-| Locale URLs | Czech unprefixed (`/groups`), English prefixed (`/en/groups`) |
-| Root URL | Czech landing page directly; `/en` for English |
-| Routing scope | the whole app, not only marketing pages |
-| Dashboard | moves from `/` to `/groups` |
+| Decision         | Choice                                                         |
+| ---------------- | -------------------------------------------------------------- |
+| Locale URLs      | Czech unprefixed (`/groups`), English prefixed (`/en/groups`)  |
+| Root URL         | Czech landing page directly; `/en` for English                 |
+| Routing scope    | the whole app, not only marketing pages                        |
+| Dashboard        | moves from `/` to `/groups`                                    |
 | Visual direction | bolder marketing treatment, sharing the existing brand palette |
-| Legal pages | terms, privacy, refunds, contact — both locales |
-| OCR lawful basis | explicit one-time opt-in, recorded and revocable |
-| Cookie banner | none — no non-essential cookies exist |
+| Legal pages      | terms, privacy, refunds, contact — both locales                |
+| OCR lawful basis | explicit one-time opt-in, recorded and revocable               |
+| Cookie banner    | none — no non-essential cookies exist                          |
 
-Choosing Czech as the *unprefixed default* resolves what would otherwise have
+Choosing Czech as the _unprefixed default_ resolves what would otherwise have
 been a conflict: prefixing every route would have invalidated the
 `/invite/<token>` links already in circulation
 (`apps/web/src/components/group-detail.tsx:59`). As the default locale they keep
@@ -63,10 +63,10 @@ working unchanged.
 Middleware maps requests onto a `[locale]` segment without changing what users
 see:
 
-| Request | Behaviour |
-|---|---|
-| `/groups/123` | internal rewrite to `/cs/groups/123`; URL unchanged |
-| `/en/groups/123` | passes through |
+| Request          | Behaviour                                                  |
+| ---------------- | ---------------------------------------------------------- |
+| `/groups/123`    | internal rewrite to `/cs/groups/123`; URL unchanged        |
+| `/en/groups/123` | passes through                                             |
 | `/cs/groups/123` | **redirect** to `/groups/123` — one canonical URL per page |
 
 **The matcher must exclude `/api/*`, `/_next/*`, `manifest.webmanifest`, the
@@ -129,14 +129,14 @@ OpenGraph images already exist at the app root.
 Determined by inspecting outbound calls in the codebase; the privacy policy must
 name these and not a plausible-looking list.
 
-| Recipient | Data | Note |
-|---|---|---|
-| OpenRouter | receipt images | routes onward to model providers; see below |
-| Stripe | email, billing and payment metadata | new in Spec 1 |
-| Seznam (Email Profi SMTP) | recipient address, message content | **not Resend** — the app now sends via Seznam |
-| Object storage (S3/MinIO) | receipt images, 30-day retention | self-hosted or provider-dependent |
-| Google / Apple | OAuth identifiers | only if the user chooses social sign-in |
-| Frankfurter | — | FX rates only; no personal data |
+| Recipient                 | Data                                | Note                                          |
+| ------------------------- | ----------------------------------- | --------------------------------------------- |
+| OpenRouter                | receipt images                      | routes onward to model providers; see below   |
+| Stripe                    | email, billing and payment metadata | new in Spec 1                                 |
+| Seznam (Email Profi SMTP) | recipient address, message content  | **not Resend** — the app now sends via Seznam |
+| Object storage (S3/MinIO) | receipt images, 30-day retention    | self-hosted or provider-dependent             |
+| Google / Apple            | OAuth identifiers                   | only if the user chooses social sign-in       |
+| Frankfurter               | —                                   | FX rates only; no personal data               |
 
 ### Receipt OCR: explicit opt-in
 
