@@ -124,13 +124,22 @@ export function OcrScan({
   // pages) the user was trying to do when we discovered consent was missing, so
   // it can resume automatically once they agree — no second tap.
   const [consentPrompt, setConsentPrompt] = useState<null | (() => void)>(null);
-  const setOcrConsent = trpc.user.setOcrConsent.useMutation({
-    onError: () => setError(t('error.generic')),
-  });
+  const setOcrConsent = trpc.user.setOcrConsent.useMutation();
 
-  /** Run `action` now if consent is already granted, else prompt for it first. */
+  /**
+   * Run `action` now if consent is already granted, else prompt for it first.
+   * `user.me` hasn't necessarily resolved yet (cold start): treating unknown
+   * state as "consent exists" would let the action reach the server and come
+   * back FORBIDDEN instead of showing the dialog, so an unresolved query is a
+   * no-op — the trigger buttons are disabled until `me.data` loads, so there's
+   * nothing more to do here than wait.
+   */
   function withConsent(action: () => void) {
-    if (me.data && !me.data.ocrConsentAt) {
+    if (!me.data) return;
+    if (!me.data.ocrConsentAt) {
+      // Clear any error from a previous failed attempt so a reopened dialog
+      // doesn't show stale state.
+      setOcrConsent.reset();
       setConsentPrompt(() => action);
     } else {
       action();
@@ -391,7 +400,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => cameraRef.current?.click())}
-              disabled={scan.isPending}
+              disabled={scan.isPending || !me.data}
               className="flex-1"
               data-testid="ocr-upload-btn"
             >
@@ -401,7 +410,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => galleryRef.current?.click())}
-              disabled={scan.isPending}
+              disabled={scan.isPending || !me.data}
               className="flex-1"
               data-testid="ocr-gallery-btn"
             >
@@ -414,7 +423,7 @@ export function OcrScan({
             <Button
               variant="secondary"
               onClick={() => withConsent(() => pdfRef.current?.click())}
-              disabled={scan.isPending}
+              disabled={scan.isPending || !me.data}
               className="flex-1"
               data-testid="ocr-add-pdf-btn"
             >
@@ -468,7 +477,7 @@ export function OcrScan({
               ))}
               <Button
                 onClick={() => withConsent(scanPages)}
-                disabled={scan.isPending}
+                disabled={scan.isPending || !me.data}
                 data-testid="ocr-scan-pages-btn"
               >
                 {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
@@ -600,6 +609,10 @@ export function OcrScan({
       {consentPrompt ? (
         <OcrConsentDialog
           pending={setOcrConsent.isPending}
+          // Surfaced *inside* the dialog (not just the page-level `error`
+          // banner above) because the dialog sits on the native top layer —
+          // a banner in normal document flow would be invisible behind it.
+          error={setOcrConsent.isError ? t('error.generic') : null}
           onCancel={() => setConsentPrompt(null)}
           onAccept={() => {
             const action = consentPrompt;
