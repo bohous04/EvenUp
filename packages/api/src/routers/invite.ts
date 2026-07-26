@@ -10,18 +10,24 @@ import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
 /**
- * The viewer's own active member in this group, if any.
+ * The viewer's own member in this group, if any -- active or not.
  *
- * `isActive: true` is deliberate: `member.remove` deactivates rather than
- * deletes (FR-2.4), so someone removed from the group may legitimately rejoin
- * through a fresh link.
+ * No `isActive` filter, deliberately: `member.update`/`member.remove` let any
+ * group member (not just an admin) deactivate a member, including their own.
+ * Filtering to `isActive: true` here let an attacker deactivate themselves
+ * immediately before claiming, make the guard below see no membership at
+ * all, and hijack a different member's identity and balances -- then
+ * reactivate themselves afterwards to hold two active rows. Matching on
+ * `{ groupId, userId }` alone closes that: a deactivated row still counts as
+ * "the caller already has a row here", so `invite.claim` can reactivate it
+ * in place instead of pretending it doesn't exist.
  */
 function findOwnMembership(
   db: PrismaClient | Prisma.TransactionClient,
   groupId: string,
   userId: string,
 ) {
-  return db.member.findFirst({ where: { groupId, userId, isActive: true } });
+  return db.member.findFirst({ where: { groupId, userId } });
 }
 
 export const inviteRouter = router({
@@ -94,7 +100,12 @@ export const inviteRouter = router({
       }
 
       const own = await findOwnMembership(ctx.prisma, invite.groupId, ctx.user.id);
-      if (own) {
+      // Only an ACTIVE membership redirects into the group. A deactivated
+      // ex-member must reach the claim page instead: their own row is filtered
+      // out of the picker below (`userId !== null`), so they naturally land on
+      // "I'm not on the list", which `invite.claim` now recognises and
+      // reactivates in place rather than treating as a new join.
+      if (own?.isActive) {
         // Nothing to pick — the page redirects into the group. Skip the balance
         // query entirely rather than computing a list nobody will see.
         return {
@@ -150,20 +161,63 @@ export const inviteRouter = router({
       if (invite.expiresAt && invite.expiresAt < new Date()) {
         throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Invite expired' });
       }
-      if (invite.maxUses && invite.usedCount >= invite.maxUses) {
-        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Invite usage limit reached' });
-      }
 
       const { member, joined } = await ctx.prisma.$transaction(async (tx) => {
         const own = await findOwnMembership(tx, invite.groupId, ctx.user.id);
-        if (own) {
+
+        if (own?.isActive) {
           // Re-claiming the member you already hold is a retried request, not a
-          // second join: no usage bump, no duplicate activity entry.
+          // second join: no usage bump, no duplicate activity entry -- and (see
+          // the usage-limit check below, which deliberately runs AFTER this)
+          // no usage-limit refusal either, so a retry still no-ops even once
+          // the invite is exhausted.
           if (input.memberId === own.id) return { member: own, joined: false };
           throw new TRPCError({
             code: 'CONFLICT',
             message: 'You are already a member of this group',
           });
+        }
+
+        // Checked here, not before the transaction: every path below this
+        // point is a genuine state change (reactivate, claim, or create), so
+        // the usage limit should apply to all of them -- but the idempotent
+        // no-op above must never be able to fail on it, since the whole point
+        // of that branch is that a retry after the invite is used up still
+        // succeeds.
+        if (invite.maxUses && invite.usedCount >= invite.maxUses) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Invite usage limit reached',
+          });
+        }
+
+        if (own) {
+          // `own` exists but is deactivated: the caller was removed from this
+          // group (member.remove/member.update deactivate rather than delete,
+          // FR-2.4) and is coming back. Reactivate THEIR OWN row in place
+          // rather than creating a fresh one, so they land back with their
+          // original history and debts attached instead of a stranded orphan
+          // placeholder -- exactly the duplicate-member problem the
+          // member-merge feature exists to clean up (see
+          // docs/superpowers/specs/2026-07-25-duplicate-member-merge-design.md).
+          // A `memberId` naming a DIFFERENT member is refused: the caller
+          // already has a row in this group and must not take over someone
+          // else's identity and balances by claiming a different one.
+          if (input.memberId && input.memberId !== own.id) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'You are already a member of this group',
+            });
+          }
+          const reactivated = await tx.member.update({
+            where: { id: own.id },
+            data: { isActive: true },
+          });
+          await tx.invite.update({
+            where: { id: invite.id },
+            data: { usedCount: { increment: 1 } },
+          });
+          return { member: reactivated, joined: true };
         }
 
         let claimed;
