@@ -39,6 +39,7 @@ export { RECEIPT_JSON_SCHEMA, receiptSchema } from './ocr/schema.js';
 export { getGroupBalances, type MemberBalance } from './services/balance-service.js';
 export { planExpense } from './services/transaction-service.js';
 export { cleanupExpiredReceipts } from './services/receipt-cleanup.js';
+export { purgeExpiredSessions } from './services/session-cleanup.js';
 export {
   runNotifications,
   type RunNotificationsArgs,
