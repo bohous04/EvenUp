@@ -13,9 +13,10 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@evenup/db';
+import type * as EvenupApi from '@evenup/api';
 
 vi.mock('@evenup/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@evenup/api')>();
+  const actual = await importOriginal<typeof EvenupApi>();
   return { ...actual, applyStripeEvent: vi.fn() };
 });
 
