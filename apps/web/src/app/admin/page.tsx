@@ -43,6 +43,68 @@ function Toggle({
   );
 }
 
+/**
+ * Per-user manual credit grant — the documented remedy for the known gap
+ * where a process crash between a failed scan and its refund loses a
+ * user's credit. Bounds (1–1000) are enforced server-side; this mirrors
+ * them so a fat-fingered amount is rejected before the request is sent.
+ */
+function GrantCreditsControl({ userId, email }: { userId: string; email: string }) {
+  const { t } = useI18n();
+  const utils = trpc.useUtils();
+  const [scans, setScans] = useState('');
+  const [justGranted, setJustGranted] = useState(false);
+  const grant = trpc.admin.grantCredits.useMutation({
+    onSuccess: () => {
+      setScans('');
+      setJustGranted(true);
+      void utils.admin.listUsers.invalidate();
+    },
+  });
+
+  return (
+    <form
+      className="flex items-center gap-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setJustGranted(false);
+        const n = Number(scans);
+        if (Number.isInteger(n) && n >= 1 && n <= 1000) grant.mutate({ userId, scans: n });
+      }}
+    >
+      <Input
+        type="number"
+        min={1}
+        max={1000}
+        step={1}
+        inputMode="numeric"
+        value={scans}
+        onChange={(e) => {
+          setScans(e.target.value);
+          setJustGranted(false);
+        }}
+        placeholder={t('admin.grantCredits.placeholder')}
+        aria-label={`${t('admin.grantCredits')} — ${email}`}
+        className="w-16"
+        data-testid={`grant-credits-input-${email}`}
+      />
+      <Button
+        type="submit"
+        variant="secondary"
+        disabled={grant.isPending}
+        data-testid={`grant-credits-btn-${email}`}
+      >
+        {t('admin.grantCredits')}
+      </Button>
+      {justGranted ? (
+        <span className="text-xs text-green-700 dark:text-green-400">
+          {t('admin.grantCredits.granted')}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
 function InstanceKeySection() {
   const { t } = useI18n();
   const utils = trpc.useUtils();
@@ -159,6 +221,7 @@ function UsersSection({ meId }: { meId: string }) {
               <th className="px-3 py-2 font-medium">{t('admin.col.vip')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.admin')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.disabled')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.col.credits')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.joined')}</th>
               <th className="px-3 py-2 font-medium">{t('admin.col.actions')}</th>
             </tr>
@@ -206,6 +269,17 @@ function UsersSection({ meId }: { meId: string }) {
                       label={`${t('admin.col.disabled')} — ${u.email}`}
                       testId={`disabled-toggle-${u.email}`}
                     />
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className="font-medium tabular-nums"
+                        data-testid={`credit-balance-${u.email}`}
+                      >
+                        {u.creditBalance}
+                      </span>
+                      <GrantCreditsControl userId={u.id} email={u.email} />
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
                     {formatDate(u.createdAt)}

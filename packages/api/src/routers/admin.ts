@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '../trpc.js';
 import { deleteUserAccount } from '../services/account.js';
+import { grantCredits } from '../billing/ledger.js';
 
 const INSTANCE_ID = 'singleton';
 
@@ -33,6 +34,7 @@ export const adminRouter = router({
         isVip: true,
         disabledAt: true,
         createdAt: true,
+        creditBalance: true,
         _count: { select: { members: true } },
       },
     });
@@ -102,6 +104,14 @@ export const adminRouter = router({
         });
       }
       await deleteUserAccount(ctx.prisma, input.userId);
+      return { ok: true };
+    }),
+
+  /** Manual remedy — e.g. returning a credit lost to a mid-scan crash. */
+  grantCredits: adminProcedure
+    .input(z.object({ userId: z.string(), scans: z.number().int().min(1).max(1000) }))
+    .mutation(async ({ ctx, input }) => {
+      await grantCredits(ctx.prisma, input.userId, input.scans);
       return { ok: true };
     }),
 

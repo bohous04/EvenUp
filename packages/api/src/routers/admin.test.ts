@@ -100,6 +100,22 @@ describe('admin router', () => {
     expect(await testPrisma.user.findUnique({ where: { id: other.id } })).toBeNull();
   });
 
+  it('grants credits to a user', async () => {
+    const admin = await makeAdmin('admin@example.com');
+    const other = await createTestUser('carol@example.com');
+    await makeCaller(admin).admin.grantCredits({ userId: other.id, scans: 3 });
+    const updated = await testPrisma.user.findUniqueOrThrow({ where: { id: other.id } });
+    expect(updated.creditBalance).toBe(3);
+  });
+
+  it('refuses credit grants from non-admins', async () => {
+    const nonAdmin = await createTestUser('bob@example.com');
+    const other = await createTestUser('carol@example.com');
+    await expect(
+      makeCaller(nonAdmin).admin.grantCredits({ userId: other.id, scans: 3 }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('lists recent error-log rows for admins', async () => {
     const admin = await makeAdmin('admin@example.com');
     await testPrisma.errorLog.create({
