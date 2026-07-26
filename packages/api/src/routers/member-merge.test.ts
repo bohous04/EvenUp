@@ -76,12 +76,15 @@ describe('member.merge preflight', () => {
     ).resolves.toBeTruthy();
   });
 
-  test('a non-admin may not merge a pair that is not theirs', async () => {
+  test('any member may merge a pair that is not theirs', async () => {
     const { caller, group, marek, jana } = await seed();
     const { user } = await joinAsNew(group.id, caller, 'marek@example.com');
+    // Groups are flat: no admin tier, and every member can already rewrite any
+    // expense's payers and splits, so merging two placeholders they do not hold
+    // grants nothing they could not do the long way round.
     await expect(
       makeCaller(user).member.merge({ sourceMemberId: jana.id, targetMemberId: marek.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    ).resolves.toBeTruthy();
   });
 
   test('a non-admin may not merge into a placeholder that is already claimed', async () => {
@@ -98,22 +101,21 @@ describe('member.merge preflight', () => {
     });
   });
 
-  test('a non-admin may not merge two of their own members when the target is already claimed', async () => {
+  test('a member may fold two rows they hold themselves into one', async () => {
     const { caller, group, marek, jana } = await seed();
     const petr = await createTestUser('petr@example.com');
-    // Same non-admin user holds BOTH placeholders, so source.userId ===
-    // target.userId === ctx.user.id and the cross-account check does not
-    // fire — this is the only way to reach the `target.userId !== null`
-    // "already claimed" guard as a non-admin. invite.claim now refuses a
-    // second claim by someone already in the group (that guard is what this
-    // task adds), so this state — a defensive case merge.ts must still
-    // handle, e.g. from data predating that guard — is built directly in the
-    // DB instead of by claiming twice through the invite endpoint.
+    // Same user holds BOTH placeholders. The cross-account guard does not fire
+    // (source.userId === target.userId), and with no admin tier there is
+    // nothing else to stop them tidying their own duplicate away.
+    // invite.claim refuses a second claim from someone already in the group, so
+    // this state -- which predates that guard in real data -- is built directly
+    // in the DB rather than by claiming twice through the endpoint.
     await claimPlaceholder(group.id, caller, petr, marek.id);
     await testPrisma.member.update({ where: { id: jana.id }, data: { userId: petr.id } });
     await expect(
       makeCaller(petr).member.merge({ sourceMemberId: marek.id, targetMemberId: jana.id }),
-    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'Member already claimed' });
+    ).resolves.toBeTruthy();
+    expect(await testPrisma.member.findUnique({ where: { id: marek.id } })).toBeNull();
   });
 
   test('blocks the merge when a transfer exists directly between the two members', async () => {

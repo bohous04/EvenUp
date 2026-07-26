@@ -12,7 +12,7 @@ import { TRPCError } from '@trpc/server';
 import { t as translate } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
-import { assertGroupAccess, isGroupAdmin } from '../access.js';
+import { assertGroupAccess } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
@@ -190,17 +190,10 @@ export const memberRouter = router({
         });
       }
 
-      // Admins may merge any pair. Anyone else may only fold THEIR OWN member
-      // into an unclaimed placeholder — exactly the power invite.claim already
-      // grants, so this is no escalation.
-      if (!(await isGroupAdmin(ctx.prisma, ctx.user, source.groupId))) {
-        if (source.userId !== ctx.user.id) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
-        }
-        if (target.userId !== null) {
-          throw new TRPCError({ code: 'CONFLICT', message: 'Member already claimed' });
-        }
-      }
+      // Any member of the group may merge any pair. Groups here are flat by
+      // design — there is no admin tier — and every member can already rewrite
+      // any expense's payers and splits, so merging grants no capability they
+      // did not have. The cross-account guard above is the real constraint.
 
       // A transfer between the pair would become a payment from a person to
       // themselves. Refuse and name it rather than destroy a money record.

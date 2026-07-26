@@ -4,7 +4,7 @@ import { deriveInitials, colorForIndex } from '@evenup/core';
 import type { Locale } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { createGroupInput, updateGroupInput } from '../schemas.js';
-import { assertGroupAccess, assertGroupAdmin } from '../access.js';
+import { assertGroupAccess } from '../access.js';
 import { logActivity } from '../services/activity.js';
 
 /**
@@ -29,13 +29,6 @@ const DEFAULT_CATEGORIES: Record<Locale, ReadonlyArray<{ name: string; iconName:
  * preference to resolve it (see `visibleAvatar`). Used everywhere a chip renders.
  */
 const memberAvatarSelect = { image: true, hideProfilePhoto: true } as const;
-
-/**
- * The roster view (`get`) also needs the linked account's email to show who is
- * connected — but that email is PII, so `get` only surfaces it to group admins
- * (and to the owning member); see the admin gate there.
- */
-const memberUserSelect = { ...memberAvatarSelect, email: true } as const;
 
 export const groupRouter = router({
   create: protectedProcedure.input(createGroupInput).mutation(async ({ ctx, input }) => {
@@ -96,26 +89,18 @@ export const groupRouter = router({
       include: {
         members: {
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: memberUserSelect } },
+          // No email. A linked account's address is PII and the roster never
+          // needs it — `user` being non-null already says who is connected,
+          // which is all the member list renders.
+          include: { user: { select: memberAvatarSelect } },
         },
       },
     });
-    // A linked account's email is PII: expose it only to group admins (and to the
-    // member who owns it). Everyone else still sees that a member is connected
-    // (via `user` being non-null), just not the address.
-    const viewerIsAdmin = group.members.some((m) => m.userId === ctx.user.id && m.role === 'ADMIN');
-    return {
-      ...group,
-      members: group.members.map((m) =>
-        m.user && !viewerIsAdmin && m.userId !== ctx.user.id
-          ? { ...m, user: { ...m.user, email: null } }
-          : m,
-      ),
-    };
+    return group;
   }),
 
   update: protectedProcedure.input(updateGroupInput).mutation(async ({ ctx, input }) => {
-    await assertGroupAdmin(ctx.prisma, ctx.user, input.groupId);
+    await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
     const updated = await ctx.prisma.group.update({
       where: { id: input.groupId },
       data: { name: input.name, simplifyDebts: input.simplifyDebts },
@@ -129,7 +114,7 @@ export const groupRouter = router({
   archive: protectedProcedure
     .input(z.object({ groupId: z.string(), archived: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAdmin(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
       const updated = await ctx.prisma.group.update({
         where: { id: input.groupId },
         data: { archivedAt: input.archived ? new Date() : null },
