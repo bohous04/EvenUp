@@ -453,6 +453,10 @@ export const cs = {
   'security.error.generic': 'Něco se nepovedlo. Zkuste to znovu.',
   'security.error.invalidPassword': 'Nesprávné heslo.',
   'security.error.invalidCode': 'Neplatný nebo vypršelý kód.',
+
+  'notFound.title': 'Stránka nenalezena',
+  'notFound.body': 'Tahle adresa nikam nevede. Zkuste to od začátku.',
+  'notFound.home': 'Zpět na úvod',
 } as const;
 
 export type MessageKey = keyof typeof cs;

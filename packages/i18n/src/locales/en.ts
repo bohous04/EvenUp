@@ -450,4 +450,8 @@ export const en: Messages = {
   'security.error.generic': 'Something went wrong. Try again.',
   'security.error.invalidPassword': 'Incorrect password.',
   'security.error.invalidCode': 'Invalid or expired code.',
+
+  'notFound.title': 'Page not found',
+  'notFound.body': 'This address leads nowhere. Try starting over.',
+  'notFound.home': 'Back to the start',
 };

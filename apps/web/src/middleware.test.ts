@@ -39,4 +39,19 @@ describe('locale middleware', () => {
     const res = middleware(req('/invite/tok?ref=x'));
     expect(res.headers.get('x-middleware-rewrite')).toContain('ref=x');
   });
+
+  it('preserves the query string through the /cs redirect too', () => {
+    // The rewrite branch sets `url.search` explicitly; the redirect branch
+    // relies on `clone()` carrying `search` implicitly. Cover both so a
+    // future cleanup can't silently drop the query string on invite links
+    // already in circulation.
+    const res = middleware(req('/cs/invite/tok?ref=x&a=b'));
+    expect(res.status).toBe(308);
+    expect(res.headers.get('location')).toContain('ref=x&a=b');
+  });
+
+  it('is case-insensitive about static file extensions', () => {
+    // A case-sensitive check would rewrite this to /cs/Icon.PNG and 404 it.
+    expect(middleware(req('/Icon.PNG')).headers.get('x-middleware-rewrite')).toBeNull();
+  });
 });
