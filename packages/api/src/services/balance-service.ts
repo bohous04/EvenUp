@@ -262,9 +262,9 @@ export async function getMemberBreakdown(
   }
 
   const nameById = new Map(
-    (await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })).map(
-      (m) => [m.id, m.displayName],
-    ),
+    (
+      await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })
+    ).map((m) => [m.id, m.displayName]),
   );
 
   const txns = await prisma.transaction.findMany({
@@ -330,7 +330,9 @@ export async function getMemberBreakdown(
       let remainderMinorUnits: number | null = null;
       let currency: string | null = null;
       if (t.splitType === 'ITEMIZED' && t.receiptItems.length > 0) {
-        const mine = t.receiptItems.filter((ri) => ri.assignments.some((a) => a.memberId === memberId));
+        const mine = t.receiptItems.filter((ri) =>
+          ri.assignments.some((a) => a.memberId === memberId),
+        );
         if (mine.length > 0) {
           currency = t.currency;
           items = mine.map((ri) => ({

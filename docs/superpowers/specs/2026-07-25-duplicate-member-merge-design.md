@@ -19,16 +19,16 @@ people the wrong way:
    `variant="secondary"` (muted). "I'm not on the list (Create a new user)" is
    the default **primary** `<Button>`. The loudest control on the page is the
    one that strands the debt.
-2. **The page never gives an instruction.** `t('invite.claim')` — *"Claim member
-   profile"* — is used as *both* the page subtitle *and* every row's button
+2. **The page never gives an instruction.** `t('invite.claim')` — _"Claim member
+   profile"_ — is used as _both_ the page subtitle _and_ every row's button
    label. Nothing ever says "find your name below."
 3. **The rows carry no signal.** A row is a chip + a name. Nothing indicates
-   that this row is *you* and that it holds 1 250 Kč of your debt.
+   that this row is _you_ and that it holds 1 250 Kč of your debt.
 4. **The escape hatch has no friction.** One click, no confirmation, and the
    result is effectively irreversible.
 5. **There is no cure.** No merge exists anywhere in the API
    (`packages/api/src/routers/member.ts` has only add/list/update/remove/
-   setBankDetail). Worse, `member.remove` *deactivates* rather than deletes a
+   setBankDetail). Worse, `member.remove` _deactivates_ rather than deletes a
    member who appears in any transaction (FR-2.4), so every duplicate already
    created leaves its debt permanently stranded on an inactive placeholder.
 
@@ -46,11 +46,11 @@ and **cure**.
 ## Non-goals (YAGNI)
 
 - **No schema migration.** Everything below runs on the existing tables.
-- No merging *across* groups, and no merging of `User` accounts — this is
+- No merging _across_ groups, and no merging of `User` accounts — this is
   strictly `Member`-level, within one group.
 - No undo for a merge. The confirmation dialog shows the arithmetic beforehand
   instead. (`logActivity` records it, so it is at least auditable.)
-- No automatic merging. Detection only ever *suggests*; a human confirms.
+- No automatic merging. Detection only ever _suggests_; a human confirms.
 - No change to how `member.remove` deactivates members.
 
 ---
@@ -74,21 +74,21 @@ resolves — its behaviour changes (see A4), not its identity.
 `t('invite.claim')` currently does double duty. New i18n keys in both
 `packages/i18n/src/locales/cs.ts` and `en.ts`:
 
-| Key | Čeština | English |
-|---|---|---|
-| `invite.pickYourName` | Najdi se v seznamu | Find your name below |
-| `invite.thisIsMe` | To jsem já | This is me |
-| `invite.notOnList` | Nejsem v seznamu | I'm not on the list |
-| `invite.confirmNewTitle` | Opravdu tu nikdo z nich nejsi ty? | Sure none of these is you? |
-| `invite.confirmNewBody` | Když založíš nový účet, zůstanou dluhy přiřazené původnímu jménu. | Creating a new account leaves the debts on the original name. |
-| `invite.confirmNewCta` | Přesto založit nový účet | Create a new account anyway |
-| `invite.confirmBack` | Zpět k seznamu | Back to the list |
-| `invite.owes` | dluží {amount} | owes {amount} |
-| `invite.isOwed` | má dostat {amount} | is owed {amount} |
-| `invite.settled` | vyrovnáno | settled up |
+| Key                      | Čeština                                                           | English                                                       |
+| ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| `invite.pickYourName`    | Najdi se v seznamu                                                | Find your name below                                          |
+| `invite.thisIsMe`        | To jsem já                                                        | This is me                                                    |
+| `invite.notOnList`       | Nejsem v seznamu                                                  | I'm not on the list                                           |
+| `invite.confirmNewTitle` | Opravdu tu nikdo z nich nejsi ty?                                 | Sure none of these is you?                                    |
+| `invite.confirmNewBody`  | Když založíš nový účet, zůstanou dluhy přiřazené původnímu jménu. | Creating a new account leaves the debts on the original name. |
+| `invite.confirmNewCta`   | Přesto založit nový účet                                          | Create a new account anyway                                   |
+| `invite.confirmBack`     | Zpět k seznamu                                                    | Back to the list                                              |
+| `invite.owes`            | dluží {amount}                                                    | owes {amount}                                                 |
+| `invite.isOwed`          | má dostat {amount}                                                | is owed {amount}                                              |
+| `invite.settled`         | vyrovnáno                                                         | settled up                                                    |
 
 `{amount}` interpolation is supported — `translate.ts` replaces `/\{(\w+)\}/g`.
-The existing `balance.owes` / `balance.isOwed` keys are deliberately *not*
+The existing `balance.owes` / `balance.isOwed` keys are deliberately _not_
 reused: they interpolate `{debtor}`/`{creditor}`/`{member}`, whereas the invite
 row already shows the name as its own label and needs the bare amount only.
 
@@ -96,7 +96,7 @@ The existing `invite.claim` and `invite.joinAsNew` keys stay (used by
 `group-detail.tsx` / other call sites) — they are simply no longer used as the
 invite page's subtitle and primary CTA.
 
-### A3. Show each member's balance on their row — via a *new protected* procedure
+### A3. Show each member's balance on their row — via a _new protected_ procedure
 
 The balance is the strongest "this row is you" signal, but it must not leak.
 
@@ -109,7 +109,7 @@ add:
 // packages/api/src/routers/invite.ts
 claimOptions: protectedProcedure
   .input(z.object({ token: z.string() }))
-  .query(/* → { groupName, members: [{ id, displayName, initials, color, netMinorUnits, currency }] } */)
+  .query(/* → { groupName, members: [{ id, displayName, initials, color, netMinorUnits, currency }] } */);
 ```
 
 - Same token validity checks as `claim` (exists / not expired / under `maxUses`).
@@ -171,19 +171,19 @@ after the fact, so it is bounded by the same trust.
    date + amount) so the admin resolves them first.
 
    (The columns are `fromMemberId` / `toMemberId`; `TransferFrom` / `TransferTo`
-   are only the Prisma *relation* names.)
+   are only the Prisma _relation_ names.)
 
 ### B4. The merge — one `$transaction`, driven by the uniqueness constraints
 
-| Table | Constraint | On collision |
-|---|---|---|
-| `TransactionPayer` | `@@unique([transactionId, memberId])` | Sum `amountMinorUnits` into target's row, delete source's |
+| Table              | Constraint                            | On collision                                                                              |
+| ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `TransactionPayer` | `@@unique([transactionId, memberId])` | Sum `amountMinorUnits` into target's row, delete source's                                 |
 | `TransactionSplit` | `@@unique([transactionId, memberId])` | Sum `computedMinorUnits`, `exactMinorUnits`, `shareWeight`, `percentage`; delete source's |
-| `ItemAssignment` | `@@id([receiptItemId, memberId])` | Delete source's row (target already assigned) |
+| `ItemAssignment`   | `@@id([receiptItemId, memberId])`     | Delete source's row (target already assigned)                                             |
 
 No collision → simply repoint `memberId` to target.
 
-**Null-handling on splits:** both rows belong to the *same* transaction and
+**Null-handling on splits:** both rows belong to the _same_ transaction and
 therefore share its `SplitType`, so the same nullable columns are populated on
 both. Sum null-preservingly — `null` only when both sides are `null`, otherwise
 treat the missing side as 0.
@@ -246,8 +246,8 @@ shared with mobile): `normalizeForMatch(name)` and `nameSimilarity(a, b)`.
 
 In `apps/web/src/components/group-detail.tsx`:
 
-- **Banner** when `duplicateCandidates` returns a match: *"Marek Novák se
-  přidal, ale 'Marek' je pořád nepřevzatý. Je to stejný člověk?"* with
+- **Banner** when `duplicateCandidates` returns a match: _"Marek Novák se
+  přidal, ale 'Marek' je pořád nepřevzatý. Je to stejný člověk?"_ with
   **[Sloučit]** and **[Není]**.
 - **"Není" dismisses to `localStorage`**, keyed by the member-pair ids. This
   keeps the change migration-free; the cost is that the banner returns on
@@ -296,24 +296,24 @@ In `apps/web/src/components/group-detail.tsx`:
 
 ## Files touched
 
-| File | Change |
-|---|---|
-| `packages/db/prisma/schema.prisma` | **none** — no migration |
-| `packages/core/src/member/identity.ts` | `normalizeForMatch`, `nameSimilarity` |
-| `packages/core/src/index.ts` | export the two helpers |
-| `packages/api/src/routers/invite.ts` | new `claimOptions` protected query |
-| `packages/api/src/routers/member.ts` | `merge`, `mergePreview`, `duplicateCandidates` |
-| `packages/api/src/services/activity.ts` | **none** — `logActivity` takes a free-form `action: string` |
-| `packages/i18n/src/locales/{cs,en}.ts` | invite + merge + `activity.merged` keys |
-| `apps/web/src/lib/activity-message.ts` | `case 'member.merged'` in the action switch |
-| `apps/web/src/components/activity-feed.tsx` | add `member.merged` to the filter list |
-| `apps/web/src/app/invite/[token]/page.tsx` | hierarchy, balances, confirm dialog |
-| `apps/web/src/components/group-detail.tsx` | banner + manual merge + confirm |
-| tests | as in Part C |
+| File                                        | Change                                                      |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| `packages/db/prisma/schema.prisma`          | **none** — no migration                                     |
+| `packages/core/src/member/identity.ts`      | `normalizeForMatch`, `nameSimilarity`                       |
+| `packages/core/src/index.ts`                | export the two helpers                                      |
+| `packages/api/src/routers/invite.ts`        | new `claimOptions` protected query                          |
+| `packages/api/src/routers/member.ts`        | `merge`, `mergePreview`, `duplicateCandidates`              |
+| `packages/api/src/services/activity.ts`     | **none** — `logActivity` takes a free-form `action: string` |
+| `packages/i18n/src/locales/{cs,en}.ts`      | invite + merge + `activity.merged` keys                     |
+| `apps/web/src/lib/activity-message.ts`      | `case 'member.merged'` in the action switch                 |
+| `apps/web/src/components/activity-feed.tsx` | add `member.merged` to the filter list                      |
+| `apps/web/src/app/invite/[token]/page.tsx`  | hierarchy, balances, confirm dialog                         |
+| `apps/web/src/components/group-detail.tsx`  | banner + manual merge + confirm                             |
+| tests                                       | as in Part C                                                |
 
 `ActivityLog.action` is a plain `String` column and `logActivity(…, action: string, …)`
 is untyped, so the server side needs no change to emit `member.merged`. The
-*client* is where the coupling lives: `activity-message.ts` switches on the
+_client_ is where the coupling lives: `activity-message.ts` switches on the
 action string and `activity-feed.tsx` holds an explicit filter list. An action
 the client doesn't know renders blank, so both must be updated.
 

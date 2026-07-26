@@ -6,7 +6,7 @@
 ## Problem
 
 The Zůstatky (Balances) card shows one bar + amount per member, but there's no
-way to see *why* a person's balance is what it is. The user wants to tap a
+way to see _why_ a person's balance is what it is. The user wants to tap a
 person in Zůstatky and see the transactions "written on their name" — what they
 paid, what they owe (their share), and, for OCR receipts, the individual
 položky (line-items) assigned to them.
@@ -42,11 +42,11 @@ Members / Stats / Activity panels), titled with the member's display name.
 
 At the top of the sheet, a compact 3-stat row:
 
-| Stat | Meaning | Scope |
-|---|---|---|
-| **Útrata** (spent) | Σ of the member's **shares of EXPENSE** transactions — what the things they consumed cost them | expenses only; excludes transfers/settlements |
-| **Zaplaceno** (paid) | Σ of what the member **paid out** on expenses | expenses only |
-| **Zůstatek** (balance) | paid − owed across **all** transactions incl. transfers | matches the Zůstatky bar exactly |
+| Stat                   | Meaning                                                                                        | Scope                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| **Útrata** (spent)     | Σ of the member's **shares of EXPENSE** transactions — what the things they consumed cost them | expenses only; excludes transfers/settlements |
+| **Zaplaceno** (paid)   | Σ of what the member **paid out** on expenses                                                  | expenses only                                 |
+| **Zůstatek** (balance) | paid − owed across **all** transactions incl. transfers                                        | matches the Zůstatky bar exactly              |
 
 > **Decided:** "total spent money" is read as **Útrata** (the member's expense
 > share / real consumption), excluding settlements. Both Útrata and Zaplaceno
@@ -111,19 +111,19 @@ interface MemberBreakdown {
   memberId: string;
   displayName: string;
   balanceMinorUnits: number; // == Zůstatek, matches BalancesCard
-  spentMinorUnits: number;   // Útrata — Σ EXPENSE share entries
-  paidMinorUnits: number;    // Zaplaceno — Σ EXPENSE paid entries
+  spentMinorUnits: number; // Útrata — Σ EXPENSE share entries
+  paidMinorUnits: number; // Zaplaceno — Σ EXPENSE paid entries
   entries: BreakdownEntry[]; // newest first
 }
 
 interface BreakdownEntry {
   txId: string;
   title: string;
-  date: string;            // ISO
+  date: string; // ISO
   type: 'EXPENSE' | 'INCOME' | 'TRANSFER';
   kind: 'paid' | 'share';
   amountMinorUnits: number; // base; signed for display (+ paid / − share)
-  transferLabel?: string;   // "Anna → Bob" for transfers
+  transferLabel?: string; // "Anna → Bob" for transfers
   // present only for itemized `share` entries:
   items?: {
     name: string;
@@ -131,11 +131,12 @@ interface BreakdownEntry {
     portionMinorUnits: number; // this member's portion, receipt currency
   }[];
   remainderMinorUnits?: number; // reconciliation line, receipt currency
-  currency?: string;            // receipt currency for the item breakdown
+  currency?: string; // receipt currency for the item breakdown
 }
 ```
 
 Notes:
+
 - Item source: `ReceiptItem` (`name`, `quantity`, `totalMinorUnits`,
   `assignments[].memberId`). Portion = `totalMinorUnits / assignees.length`
   for items where `assignments` includes this member.
@@ -145,6 +146,7 @@ Notes:
 ## Testing
 
 **Service unit tests** (`balance-service` / core):
+
 - Entries sum to `balanceMinorUnits` for a mixed group (equal, shares,
   itemized, transfer).
 - `spentMinorUnits` excludes transfers; equals Σ of EXPENSE share entries.
@@ -153,6 +155,7 @@ Notes:
 - Shared item (assigned to 2 members) contributes half its total to each.
 
 **E2E** (`apps/web/e2e`):
+
 - Open a group → tap a member row in Zůstatky → sheet opens with the summary
   header and a ledger.
 - Filter chips narrow the visible rows (`+ zaplatila` hides share rows, etc.).
@@ -165,4 +168,7 @@ New keys in `packages/i18n/src/locales/{cs,en}.ts` for: sheet title pattern,
 `Útrata` / `Zaplaceno` / `Zůstatek` stat labels, filter chips (`Vše` /
 `Zaplaceno` / `Podíl`), the per-row paid/share labels, the transfer label, and
 the `(společné …)` remainder line.
+
+```
+
 ```

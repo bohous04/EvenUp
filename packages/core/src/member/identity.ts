@@ -103,16 +103,18 @@ export function colorForKey(key: string): MemberColor {
  * same key before any comparison.
  */
 export function normalizeForMatch(name: string): string {
-  return name
-    .normalize('NFD')
-    // U+0300–U+036F: the combining diacritical marks NFD just split off.
-    // Written as escapes on purpose — literal combining characters are
-    // invisible in source and get mangled by copy-paste.
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
+  return (
+    name
+      .normalize('NFD')
+      // U+0300–U+036F: the combining diacritical marks NFD just split off.
+      // Written as escapes on purpose — literal combining characters are
+      // invisible in source and get mangled by copy-paste.
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ')
+  );
 }
 
 /** Dice coefficient over character bigrams; 1 = identical, 0 = nothing shared. */

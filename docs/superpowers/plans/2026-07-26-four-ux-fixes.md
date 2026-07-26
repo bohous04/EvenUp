@@ -33,6 +33,7 @@
   applied migrations which do not exist on this branch. **Never point this branch's
   tests at `evenup`, and never run `prisma db push` / `migrate reset` against it.**
   `prisma migrate deploy` against `evenup_uxfixes` (Task 3) is fine and expected.
+
 - **Playwright:** chromium is the only installed browser — always pass
   `--project=chromium` and say so when reporting coverage. e2e needs a prior
   `pnpm --filter @evenup/web build`.
@@ -42,20 +43,23 @@
   expects 2 `breakdown-row` elements and finds 1. It **passes when run alone** and fails only in
   full-suite order, so it is test-order pollution. Proven pre-existing: it reproduces on this
   branch with every code change reverted. A task's e2e run is clean if this is the **only**
-  failure. If any *other* spec fails, that is yours.
+  failure. If any _other_ spec fails, that is yours.
 
 ## File Structure
 
 **Task 1 — SPAYD truncation**
+
 - Modify: `packages/core/src/spayd/spayd.ts` (`sanitizeValue`)
 - Test: `packages/core/src/spayd/spayd.test.ts`
 
 **Task 2 — QR message**
+
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`settle.qrMessage`)
 - Modify: `apps/web/src/components/settle-card.tsx` (new `groupName` prop, pass `message`)
 - Modify: `apps/web/src/components/group-detail.tsx:296` (pass `groupName`)
 
 **Task 3 — Czech settlement title**
+
 - Modify: `packages/api/src/routers/transaction.ts:230,395` (store `''`)
 - Modify: `packages/api/src/routers/member.ts` (localized fallback in the merge-block error)
 - Create: `packages/db/prisma/migrations/20260726100000_settlement_title_blank/migration.sql`
@@ -65,11 +69,13 @@
 - Test: `packages/api/src/routers/settlement-title.test.ts` (new)
 
 **Task 4 — Invite guard (API)**
+
 - Modify: `packages/api/src/routers/invite.ts` (`findOwnMembership`, `claimOptions`, `claim`)
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`errors.alreadyGroupMember`)
 - Test: `packages/api/src/routers/invite-guard.test.ts` (new)
 
 **Task 5 — Invite guard (web)**
+
 - Create: `apps/web/src/components/already-member-banner.tsx`
 - Modify: `apps/web/src/app/invite/[token]/page.tsx` (redirect)
 - Modify: `apps/web/src/app/groups/[id]/page.tsx` (read `searchParams`)
@@ -77,10 +83,12 @@
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`invite.alreadyMember`)
 
 **Task 6 — Add-expense amount + title**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx:598-677`
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`expense.titleLabel`)
 
 **Task 7 — Add-expense split controls**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx` (split type out of the disclosure, per-member fields inline)
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`expense.splitMethod`)
 - Modify: `apps/web/e2e/critical-flow.spec.ts`, `apps/web/e2e/transaction-edit.spec.ts`
@@ -90,10 +98,12 @@
 ### Task 1: SPAYD never truncates a percent-escape in half
 
 **Files:**
+
 - Modify: `packages/core/src/spayd/spayd.ts` (function `sanitizeValue`, ~line 48)
 - Test: `packages/core/src/spayd/spayd.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: no signature change. `sanitizeValue(value: string, maxLength: number): string` stays private to the module; `buildSpayd(input: SpaydInput): string` is unchanged. Task 2 relies on `MSG:` being capped at 60 characters and always well-formed.
 
@@ -105,28 +115,34 @@ Add to `packages/core/src/spayd/spayd.test.ts`, inside the existing
 `describe('buildSpayd (§16.1, FR-7.1)', ...)` block:
 
 ```ts
-  it('drops a percent-escape that would not fit rather than cutting it in half', () => {
-    // 58 plain chars + '*' -> the '*' escapes to '%2A', which would land at 61 of 60.
-    const spd = buildSpayd({
-      iban: 'CZ5508000000001234567899',
-      message: 'a'.repeat(58) + '*',
-    });
-    const msg = spd.split('*').find((part) => part.startsWith('MSG:'))!.slice(4);
-    expect(msg).toBe('a'.repeat(58));
-    // A dangling '%' or '%2' would make the whole descriptor unparseable.
-    expect(msg).not.toMatch(/%.?$/);
+it('drops a percent-escape that would not fit rather than cutting it in half', () => {
+  // 58 plain chars + '*' -> the '*' escapes to '%2A', which would land at 61 of 60.
+  const spd = buildSpayd({
+    iban: 'CZ5508000000001234567899',
+    message: 'a'.repeat(58) + '*',
   });
+  const msg = spd
+    .split('*')
+    .find((part) => part.startsWith('MSG:'))!
+    .slice(4);
+  expect(msg).toBe('a'.repeat(58));
+  // A dangling '%' or '%2' would make the whole descriptor unparseable.
+  expect(msg).not.toMatch(/%.?$/);
+});
 
-  it('keeps a percent-escape that fits exactly', () => {
-    // 57 plain chars + '%2A' == exactly 60.
-    const spd = buildSpayd({
-      iban: 'CZ5508000000001234567899',
-      message: 'a'.repeat(57) + '*',
-    });
-    const msg = spd.split('*').find((part) => part.startsWith('MSG:'))!.slice(4);
-    expect(msg).toBe('a'.repeat(57) + '%2A');
-    expect(msg).toHaveLength(60);
+it('keeps a percent-escape that fits exactly', () => {
+  // 57 plain chars + '%2A' == exactly 60.
+  const spd = buildSpayd({
+    iban: 'CZ5508000000001234567899',
+    message: 'a'.repeat(57) + '*',
   });
+  const msg = spd
+    .split('*')
+    .find((part) => part.startsWith('MSG:'))!
+    .slice(4);
+  expect(msg).toBe('a'.repeat(57) + '%2A');
+  expect(msg).toHaveLength(60);
+});
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -201,12 +217,14 @@ git commit -m "fix(core): SPAYD truncation no longer splits a percent-escape"
 ### Task 2: The QR payment carries a message for the recipient
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts` (after `'settle.qrCode'`, ~line 265)
 - Modify: `packages/i18n/src/locales/en.ts` (same position)
 - Modify: `apps/web/src/components/settle-card.tsx`
 - Modify: `apps/web/src/components/group-detail.tsx:296`
 
 **Interfaces:**
+
 - Consumes: `buildSpayd`'s well-formed 60-character `MSG:` cap from Task 1.
   `settlement.generateSpayd` already accepts `message: z.string().max(60).optional()`
   (`packages/api/src/routers/settlement.ts:21`) — no API change is needed.
@@ -258,15 +276,15 @@ export function SettleCard({
 and in the `payments.map(...)` body, add the prop to `<SettleRow …>`:
 
 ```tsx
-            <SettleRow
-              key={`${p.fromMemberId}-${p.toMemberId}-${i}`}
-              groupId={groupId}
-              baseCurrency={baseCurrency}
-              groupName={groupName}
-              from={byId.get(p.fromMemberId)}
-              to={byId.get(p.toMemberId)}
-              amount={p.amountMinorUnits}
-            />
+<SettleRow
+  key={`${p.fromMemberId}-${p.toMemberId}-${i}`}
+  groupId={groupId}
+  baseCurrency={baseCurrency}
+  groupName={groupName}
+  from={byId.get(p.fromMemberId)}
+  to={byId.get(p.toMemberId)}
+  amount={p.amountMinorUnits}
+/>
 ```
 
 - [ ] **Step 4: Send the message from `SettleRow`**
@@ -293,18 +311,18 @@ function SettleRow({
 ```
 
 ```tsx
-  const spayd = trpc.settlement.generateSpayd.useQuery(
-    {
-      groupId,
-      toMemberId: to?.id ?? '',
-      amountMinorUnits: amount,
-      currency: baseCurrency,
-      // SPAYD strips diacritics and caps MSG at 60 chars, so this reaches the
-      // bank as e.g. "Vyrovnani dluhu Vikend na horach".
-      message: t('settle.qrMessage', { group: groupName }),
-    },
-    { enabled: open && !!to, retry: false },
-  );
+const spayd = trpc.settlement.generateSpayd.useQuery(
+  {
+    groupId,
+    toMemberId: to?.id ?? '',
+    amountMinorUnits: amount,
+    currency: baseCurrency,
+    // SPAYD strips diacritics and caps MSG at 60 chars, so this reaches the
+    // bank as e.g. "Vyrovnani dluhu Vikend na horach".
+    message: t('settle.qrMessage', { group: groupName }),
+  },
+  { enabled: open && !!to, retry: false },
+);
 ```
 
 `t` is already destructured from `useI18n()` at the top of `SettleRow` — no new
@@ -315,12 +333,12 @@ import.
 In `apps/web/src/components/group-detail.tsx`, line 296:
 
 ```tsx
-      <SettleCard
-        groupId={groupId}
-        members={memberLite}
-        baseCurrency={group.data.baseCurrency}
-        groupName={group.data.name}
-      />
+<SettleCard
+  groupId={groupId}
+  members={memberLite}
+  baseCurrency={group.data.baseCurrency}
+  groupName={group.data.name}
+/>
 ```
 
 - [ ] **Step 6: Typecheck and run the web suite**
@@ -346,6 +364,7 @@ git commit -m "feat(web): QR payment carries a message naming the group"
 ### Task 3: A settlement's title is localized, not stored in English
 
 **Files:**
+
 - Modify: `packages/api/src/routers/transaction.ts:230` and `:395`
 - Modify: `packages/api/src/routers/member.ts` (imports + line ~207)
 - Create: `packages/db/prisma/migrations/20260726100000_settlement_title_blank/migration.sql`
@@ -355,6 +374,7 @@ git commit -m "feat(web): QR payment carries a message naming the group"
 - Test: `packages/api/src/routers/settlement-title.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes: nothing from earlier tasks.
 - Produces: `Transaction.title` is `''` for settlements recorded without a note.
   Any consumer rendering a transaction title must fall back to the
@@ -495,9 +515,7 @@ mid-sentence prose, not a title.
 In `apps/web/src/components/group-detail.tsx`, line 226:
 
 ```tsx
-                        <p className="truncate text-sm font-semibold">
-                          {tx.title || t('transaction.settlement')}
-                        </p>
+<p className="truncate text-sm font-semibold">{tx.title || t('transaction.settlement')}</p>
 ```
 
 - [ ] **Step 7: Fall back in the activity feed**
@@ -531,15 +549,15 @@ Then, at the `selfTransfers` guard (~line 203), use the localized label for an
 empty title:
 
 ```ts
-      if (selfTransfers.length > 0) {
-        const label = translate(ctx.locale, 'transaction.settlement');
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: `Resolve the transfer(s) between these members first: ${selfTransfers
-            .map((tr) => `${tr.title || label} (${tr.date.toISOString().slice(0, 10)})`)
-            .join(', ')}`,
-        });
-      }
+if (selfTransfers.length > 0) {
+  const label = translate(ctx.locale, 'transaction.settlement');
+  throw new TRPCError({
+    code: 'PRECONDITION_FAILED',
+    message: `Resolve the transfer(s) between these members first: ${selfTransfers
+      .map((tr) => `${tr.title || label} (${tr.date.toISOString().slice(0, 10)})`)
+      .join(', ')}`,
+  });
+}
 ```
 
 This message is built dynamically, so it cannot go through the `errors.*`
@@ -593,17 +611,19 @@ git commit -m "fix: localize the settlement label instead of storing English in 
 ### Task 4: The API refuses an invite claim from an existing member
 
 **Files:**
+
 - Modify: `packages/api/src/routers/invite.ts`
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`errors.alreadyGroupMember`)
 - Test: `packages/api/src/routers/invite-guard.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes: nothing from earlier tasks.
 - Produces, for Task 5:
   - `invite.claimOptions` returns `{ groupId: string; alreadyMember: boolean; groupName: string; baseCurrency: string; members: Array<{ id: string; displayName: string; initials: string; color: string; balanceMinorUnits: number }> }`. When `alreadyMember` is `true`, `members` is `[]`.
-  - `invite.claim` throws `TRPCError { code: 'CONFLICT' }` for a user who already holds a *different* active member in the group, and is an idempotent no-op when re-claiming the member they already hold.
+  - `invite.claim` throws `TRPCError { code: 'CONFLICT' }` for a user who already holds a _different_ active member in the group, and is an idempotent no-op when re-claiming the member they already hold.
 
-**Background:** `claim` only checks that the *target* member is unheld. A user
+**Background:** `claim` only checks that the _target_ member is unheld. A user
 already in the group can therefore take over someone else's identity, or create
 a duplicate member for themselves — the exact failure the duplicate-member work
 set out to prevent, through a path it did not close.
@@ -772,43 +792,43 @@ In `packages/api/src/routers/invite.ts`, replace the body of `claimOptions`
 after the expiry check with:
 
 ```ts
-      const own = await findOwnMembership(ctx.prisma, invite.groupId, ctx.user.id);
-      if (own) {
-        // Nothing to pick — the page redirects into the group. Skip the balance
-        // query entirely rather than computing a list nobody will see.
-        return {
-          groupId: invite.groupId,
-          alreadyMember: true,
-          groupName: invite.group.name,
-          baseCurrency: invite.group.baseCurrency,
-          members: [] as {
-            id: string;
-            displayName: string;
-            initials: string;
-            color: string;
-            balanceMinorUnits: number;
-          }[],
-        };
-      }
+const own = await findOwnMembership(ctx.prisma, invite.groupId, ctx.user.id);
+if (own) {
+  // Nothing to pick — the page redirects into the group. Skip the balance
+  // query entirely rather than computing a list nobody will see.
+  return {
+    groupId: invite.groupId,
+    alreadyMember: true,
+    groupName: invite.group.name,
+    baseCurrency: invite.group.baseCurrency,
+    members: [] as {
+      id: string;
+      displayName: string;
+      initials: string;
+      color: string;
+      balanceMinorUnits: number;
+    }[],
+  };
+}
 
-      const { balances } = await getGroupBalances(ctx.prisma, invite.groupId, invite.group);
-      const balanceById = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
+const { balances } = await getGroupBalances(ctx.prisma, invite.groupId, invite.group);
+const balanceById = new Map(balances.map((b) => [b.memberId, b.balanceMinorUnits]));
 
-      return {
-        groupId: invite.groupId,
-        alreadyMember: false,
-        groupName: invite.group.name,
-        baseCurrency: invite.group.baseCurrency,
-        members: invite.group.members
-          .filter((m) => m.userId === null && m.isActive)
-          .map((m) => ({
-            id: m.id,
-            displayName: m.displayName,
-            initials: m.initials,
-            color: m.color,
-            balanceMinorUnits: balanceById.get(m.id) ?? 0,
-          })),
-      };
+return {
+  groupId: invite.groupId,
+  alreadyMember: false,
+  groupName: invite.group.name,
+  baseCurrency: invite.group.baseCurrency,
+  members: invite.group.members
+    .filter((m) => m.userId === null && m.isActive)
+    .map((m) => ({
+      id: m.id,
+      displayName: m.displayName,
+      initials: m.initials,
+      color: m.color,
+      balanceMinorUnits: balanceById.get(m.id) ?? 0,
+    })),
+};
 ```
 
 The explicit array type on the empty `members` keeps both branches structurally
@@ -820,62 +840,62 @@ In `packages/api/src/routers/invite.ts`, replace the `$transaction` block and th
 activity logging that follows it:
 
 ```ts
-      const { member, joined } = await ctx.prisma.$transaction(async (tx) => {
-        const own = await findOwnMembership(tx, invite.groupId, ctx.user.id);
-        if (own) {
-          // Re-claiming the member you already hold is a retried request, not a
-          // second join: no usage bump, no duplicate activity entry.
-          if (input.memberId === own.id) return { member: own, joined: false };
-          throw new TRPCError({
-            code: 'CONFLICT',
-            message: 'You are already a member of this group',
-          });
-        }
+const { member, joined } = await ctx.prisma.$transaction(async (tx) => {
+  const own = await findOwnMembership(tx, invite.groupId, ctx.user.id);
+  if (own) {
+    // Re-claiming the member you already hold is a retried request, not a
+    // second join: no usage bump, no duplicate activity entry.
+    if (input.memberId === own.id) return { member: own, joined: false };
+    throw new TRPCError({
+      code: 'CONFLICT',
+      message: 'You are already a member of this group',
+    });
+  }
 
-        let claimed;
-        if (input.memberId) {
-          const target = await tx.member.findFirst({
-            where: { id: input.memberId, groupId: invite.groupId },
-          });
-          if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
-          if (target.userId && target.userId !== ctx.user.id) {
-            throw new TRPCError({ code: 'CONFLICT', message: 'Member already claimed' });
-          }
-          claimed = await tx.member.update({
-            where: { id: target.id },
-            data: { userId: ctx.user.id },
-          });
-        } else {
-          const count = await tx.member.count({ where: { groupId: invite.groupId } });
-          // Prefer the name entered at sign-up; fall back to the email local-part.
-          const derivedName = ctx.user.name?.trim() || ctx.user.email.split('@')[0] || 'Guest';
-          const name = input.displayName ?? derivedName;
-          claimed = await tx.member.create({
-            data: {
-              groupId: invite.groupId,
-              displayName: name,
-              initials: deriveInitials(name),
-              color: colorForIndex(count),
-              userId: ctx.user.id,
-            },
-          });
-        }
-        await tx.invite.update({
-          where: { id: invite.id },
-          data: { usedCount: { increment: 1 } },
-        });
-        return { member: claimed, joined: true };
-      });
+  let claimed;
+  if (input.memberId) {
+    const target = await tx.member.findFirst({
+      where: { id: input.memberId, groupId: invite.groupId },
+    });
+    if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
+    if (target.userId && target.userId !== ctx.user.id) {
+      throw new TRPCError({ code: 'CONFLICT', message: 'Member already claimed' });
+    }
+    claimed = await tx.member.update({
+      where: { id: target.id },
+      data: { userId: ctx.user.id },
+    });
+  } else {
+    const count = await tx.member.count({ where: { groupId: invite.groupId } });
+    // Prefer the name entered at sign-up; fall back to the email local-part.
+    const derivedName = ctx.user.name?.trim() || ctx.user.email.split('@')[0] || 'Guest';
+    const name = input.displayName ?? derivedName;
+    claimed = await tx.member.create({
+      data: {
+        groupId: invite.groupId,
+        displayName: name,
+        initials: deriveInitials(name),
+        color: colorForIndex(count),
+        userId: ctx.user.id,
+      },
+    });
+  }
+  await tx.invite.update({
+    where: { id: invite.id },
+    data: { usedCount: { increment: 1 } },
+  });
+  return { member: claimed, joined: true };
+});
 
-      // Claiming an invite is the only way a Member ever gains a userId, and it
-      // left no trace in the activity log (FR-9.1). The group's other members
-      // learn about it in their next digest.
-      if (joined) {
-        await logActivity(ctx.prisma, invite.groupId, ctx.user.id, 'member.joined', {
-          name: member.displayName,
-        });
-      }
-      return member;
+// Claiming an invite is the only way a Member ever gains a userId, and it
+// left no trace in the activity log (FR-9.1). The group's other members
+// learn about it in their next digest.
+if (joined) {
+  await logActivity(ctx.prisma, invite.groupId, ctx.user.id, 'member.joined', {
+    name: member.displayName,
+  });
+}
+return member;
 ```
 
 - [ ] **Step 7: Run the tests to verify they pass**
@@ -909,6 +929,7 @@ git commit -m "fix(api): refuse an invite claim from someone already in the grou
 ### Task 5: The invite link takes an existing member straight into the group
 
 **Files:**
+
 - Create: `apps/web/src/components/already-member-banner.tsx`
 - Modify: `apps/web/src/app/invite/[token]/page.tsx`
 - Modify: `apps/web/src/app/groups/[id]/page.tsx`
@@ -916,6 +937,7 @@ git commit -m "fix(api): refuse an invite claim from someone already in the grou
 - Modify: `packages/i18n/src/locales/{cs,en}.ts`
 
 **Interfaces:**
+
 - Consumes: `invite.claimOptions` returning `{ groupId, alreadyMember, … }` from
   Task 4.
 - Produces:
@@ -1015,25 +1037,25 @@ Then, immediately after the `claim` mutation declaration and **before** the
 early `return`s, add the redirect effect:
 
 ```tsx
-  // Already in this group? Don't make them read a card and click a button —
-  // go straight there and explain it with a banner on arrival. The server-side
-  // guard in `invite.claim` is what actually prevents a duplicate; this is UX.
-  const alreadyMember = options.data?.alreadyMember ?? false;
-  const alreadyGroupId = options.data?.groupId;
-  useEffect(() => {
-    if (alreadyMember && alreadyGroupId) {
-      router.replace(`/groups/${alreadyGroupId}?already=1`);
-    }
-  }, [alreadyMember, alreadyGroupId, router]);
+// Already in this group? Don't make them read a card and click a button —
+// go straight there and explain it with a banner on arrival. The server-side
+// guard in `invite.claim` is what actually prevents a duplicate; this is UX.
+const alreadyMember = options.data?.alreadyMember ?? false;
+const alreadyGroupId = options.data?.groupId;
+useEffect(() => {
+  if (alreadyMember && alreadyGroupId) {
+    router.replace(`/groups/${alreadyGroupId}?already=1`);
+  }
+}, [alreadyMember, alreadyGroupId, router]);
 ```
 
 Then guard the render so the name list never flashes. Add this directly after
 the existing `if (options.isError || !options.data) { … }` block:
 
 ```tsx
-  if (options.data.alreadyMember) {
-    return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
-  }
+if (options.data.alreadyMember) {
+  return <p className="text-zinc-500 dark:text-zinc-400">{t('common.loading')}</p>;
+}
 ```
 
 Hooks must run unconditionally, which is why the effect is declared above the
@@ -1114,10 +1136,12 @@ git commit -m "feat(web): send an existing member straight into the group from a
 ### Task 6: Add-expense — the amount and title read as labelled fields
 
 **Files:**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx:598-677`
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`expense.titleLabel`)
 
 **Interfaces:**
+
 - Consumes: nothing from earlier tasks.
 - Produces: no API change. The `expense-amount-input`, `expense-currency-select`
   and `expense-title-input` test ids are **preserved** — the e2e suite depends on
@@ -1143,7 +1167,7 @@ In `packages/i18n/src/locales/en.ts`:
 ```
 
 Leave `expense.title` (`Název`) alone — line 442 of the form uses it as a
-*default value* for an unnamed itemized expense, so it cannot double as the label.
+_default value_ for an unnamed itemized expense, so it cannot double as the label.
 
 - [ ] **Step 2: Run the i18n suite**
 
@@ -1160,56 +1184,57 @@ In `apps/web/src/components/add-expense-form.tsx`, replace the amount block
 currency `<select>`):
 
 ```tsx
-          {/* Amount — labelled, and the currency shares the number's optical
+{
+  /* Amount — labelled, and the currency shares the number's optical
               centre. `items-center` (not `items-baseline`) matters: against 40px
               digits a baseline-aligned control sits ~14px low and reads as a
               second line. No absolute positioning and no fixed width, so a long
-              amount has nothing to collide with. */}
-          <div>
-            <SectionLabel className="text-center">{t('expense.amount')}</SectionLabel>
-            <div className="flex items-center justify-center gap-2.5">
-              <input
-                id="e-amount"
-                inputMode="decimal"
-                autoFocus={splitType !== 'ITEMIZED'}
-                value={displayAmount}
-                onChange={(e) => {
-                  if (splitType !== 'ITEMIZED')
-                    setAmount(clampAmountDecimals(e.target.value, currency));
-                }}
-                readOnly={splitType === 'ITEMIZED'}
-                placeholder="0"
-                required
-                aria-label={t('expense.amount')}
-                data-testid="expense-amount-input"
-                className={`max-w-full bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
-                  splitType === 'ITEMIZED' ? 'cursor-default' : ''
-                }`}
-                // Grows with its content instead of the old fixed w-40. `ch` is
-                // the width of "0", and `tabular-nums` makes every digit that
-                // wide, so this tracks the real rendered width.
-                style={{ width: `${Math.max(displayAmount.length, 1)}ch` }}
-              />
-              <select
-                value={currency}
-                onChange={(e) => {
-                  setCurrency(e.target.value);
-                  setFxRate('');
-                }}
-                aria-label={t('expense.currency')}
-                data-testid="expense-currency-select"
-                className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
-              >
-                {[baseCurrency, ...COMMON_CURRENCIES]
-                  .filter((c, i, arr) => arr.indexOf(c) === i)
-                  .map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
+              amount has nothing to collide with. */
+}
+<div>
+  <SectionLabel className="text-center">{t('expense.amount')}</SectionLabel>
+  <div className="flex items-center justify-center gap-2.5">
+    <input
+      id="e-amount"
+      inputMode="decimal"
+      autoFocus={splitType !== 'ITEMIZED'}
+      value={displayAmount}
+      onChange={(e) => {
+        if (splitType !== 'ITEMIZED') setAmount(clampAmountDecimals(e.target.value, currency));
+      }}
+      readOnly={splitType === 'ITEMIZED'}
+      placeholder="0"
+      required
+      aria-label={t('expense.amount')}
+      data-testid="expense-amount-input"
+      className={`max-w-full bg-transparent text-center text-4xl font-extrabold tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 dark:text-zinc-100 dark:placeholder:text-zinc-600 ${
+        splitType === 'ITEMIZED' ? 'cursor-default' : ''
+      }`}
+      // Grows with its content instead of the old fixed w-40. `ch` is
+      // the width of "0", and `tabular-nums` makes every digit that
+      // wide, so this tracks the real rendered width.
+      style={{ width: `${Math.max(displayAmount.length, 1)}ch` }}
+    />
+    <select
+      value={currency}
+      onChange={(e) => {
+        setCurrency(e.target.value);
+        setFxRate('');
+      }}
+      aria-label={t('expense.currency')}
+      data-testid="expense-currency-select"
+      className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-medium outline-none focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-800"
+    >
+      {[baseCurrency, ...COMMON_CURRENCIES]
+        .filter((c, i, arr) => arr.indexOf(c) === i)
+        .map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+    </select>
+  </div>
+</div>;
 ```
 
 - [ ] **Step 4: Turn the title into a labelled field**
@@ -1217,20 +1242,22 @@ currency `<select>`):
 Replace the title input (currently lines 667-677):
 
 ```tsx
-          {/* Title — a real labelled field, not a caption under the number. */}
-          <div>
-            <Label htmlFor="e-title">
-              {t('expense.titleLabel')} <span aria-hidden="true">*</span>
-            </Label>
-            <Input
-              id="e-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              placeholder={t('expense.title')}
-              data-testid="expense-title-input"
-            />
-          </div>
+{
+  /* Title — a real labelled field, not a caption under the number. */
+}
+<div>
+  <Label htmlFor="e-title">
+    {t('expense.titleLabel')} <span aria-hidden="true">*</span>
+  </Label>
+  <Input
+    id="e-title"
+    value={title}
+    onChange={(e) => setTitle(e.target.value)}
+    required
+    placeholder={t('expense.title')}
+    data-testid="expense-title-input"
+  />
+</div>;
 ```
 
 `Label` and `Input` are already imported at the top of the file. The visible
@@ -1272,12 +1299,14 @@ git commit -m "feat(web): label the add-expense amount and title, pin currency t
 ### Task 7: Add-expense — the split controls sit with what they govern
 
 **Files:**
+
 - Modify: `apps/web/src/components/add-expense-form.tsx`
 - Modify: `packages/i18n/src/locales/{cs,en}.ts` (`expense.splitMethod`)
 - Modify: `apps/web/e2e/critical-flow.spec.ts` (~118, ~275, ~483-500)
 - Modify: `apps/web/e2e/transaction-edit.spec.ts` (~65, ~87, ~99)
 
 **Interfaces:**
+
 - Consumes: the amount/title layout from Task 6 (this task edits the same file
   below it; do Task 6 first to avoid a conflict).
 - Produces:
@@ -1289,8 +1318,8 @@ git commit -m "feat(web): label the add-expense amount and title, pin currency t
 
 **Background:** `t('expense.splitBetween')` ("Rozdělit mezi") currently labels two
 different things — the member picker's heading and the disclosure row whose value
-is the split *type*. Both the type selector and the per-member amount fields are
-collapsed *below* the members they govern.
+is the split _type_. Both the type selector and the per-member amount fields are
+collapsed _below_ the members they govern.
 
 - [ ] **Step 1: Add the split-method label to both catalogs**
 
@@ -1321,29 +1350,33 @@ In `apps/web/src/components/add-expense-form.tsx`, insert this block
 starting at line 717):
 
 ```tsx
-          {/* How to split — always visible, and above the members it governs. */}
-          <div>
-            <SectionLabel>{t('expense.splitMethod')}</SectionLabel>
-            <Segmented
-              ariaLabel={t('expense.splitMethod')}
-              value={splitType}
-              onChange={(v) => setSplitType(v as SplitType)}
-              testIdPrefix="split-type"
-              options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
-                value: st,
-                label: t(SPLIT_LABELS[st]),
-              }))}
-            />
-          </div>
+{
+  /* How to split — always visible, and above the members it governs. */
+}
+<div>
+  <SectionLabel>{t('expense.splitMethod')}</SectionLabel>
+  <Segmented
+    ariaLabel={t('expense.splitMethod')}
+    value={splitType}
+    onChange={(v) => setSplitType(v as SplitType)}
+    testIdPrefix="split-type"
+    options={(Object.keys(SPLIT_LABELS) as SplitType[]).map((st) => ({
+      value: st,
+      label: t(SPLIT_LABELS[st]),
+    }))}
+  />
+</div>;
 
-          {splitType === 'ITEMIZED' ? (
-            <ItemizedEditor
-              items={itemRows}
-              onChange={setItemRows}
-              members={members}
-              baseCurrency={currency}
-            />
-          ) : null}
+{
+  splitType === 'ITEMIZED' ? (
+    <ItemizedEditor
+      items={itemRows}
+      onChange={setItemRows}
+      members={members}
+      baseCurrency={currency}
+    />
+  ) : null;
+}
 ```
 
 - [ ] **Step 4: Move the per-member fields next to the member chips**
@@ -1357,40 +1390,42 @@ outer `<div>` closes** — so the per-member fields sit directly under the chips
 they belong to:
 
 ```tsx
-              {splitType !== 'EQUAL' ? (
-                <div className="mt-3 space-y-2" data-testid="per-member-inputs">
-                  {selectedMembers.map((m) => (
-                    <div key={m.id} className="flex items-center gap-2">
-                      <MemberChip
-                        initials={m.initials}
-                        color={m.color}
-                        name={m.displayName}
-                        imageUrl={m.imageUrl}
-                        size="sm"
-                      />
-                      <span className="flex-1 text-sm">{m.displayName}</span>
-                      <div className="w-28">
-                        <Input
-                          inputMode="decimal"
-                          aria-label={`${m.displayName} ${perMemberLabel}`}
-                          placeholder={perMemberLabel}
-                          value={memberFieldValue(m.id)}
-                          onChange={(e) =>
-                            setValues((v) => ({
-                              ...v,
-                              [m.id]:
-                                splitType === 'EXACT'
-                                  ? clampAmountDecimals(e.target.value, currency)
-                                  : e.target.value,
-                            }))
-                          }
-                          data-testid={`member-value-${m.id}`}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+{
+  splitType !== 'EQUAL' ? (
+    <div className="mt-3 space-y-2" data-testid="per-member-inputs">
+      {selectedMembers.map((m) => (
+        <div key={m.id} className="flex items-center gap-2">
+          <MemberChip
+            initials={m.initials}
+            color={m.color}
+            name={m.displayName}
+            imageUrl={m.imageUrl}
+            size="sm"
+          />
+          <span className="flex-1 text-sm">{m.displayName}</span>
+          <div className="w-28">
+            <Input
+              inputMode="decimal"
+              aria-label={`${m.displayName} ${perMemberLabel}`}
+              placeholder={perMemberLabel}
+              value={memberFieldValue(m.id)}
+              onChange={(e) =>
+                setValues((v) => ({
+                  ...v,
+                  [m.id]:
+                    splitType === 'EXACT'
+                      ? clampAmountDecimals(e.target.value, currency)
+                      : e.target.value,
+                }))
+              }
+              data-testid={`member-value-${m.id}`}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : null;
+}
 ```
 
 This sits inside the `splitType !== 'ITEMIZED'` conditional that already wraps the
@@ -1410,7 +1445,7 @@ The Category, Date, Repeat and Receipt rows stay exactly as they are.
 Delete line 515:
 
 ```tsx
-  const splitOpen = openRow === 'split';
+const splitOpen = openRow === 'split';
 ```
 
 Then narrow the `Row` type at line 100, since nothing can set `'split'` any more:
@@ -1440,23 +1475,23 @@ the controls are visible without opening anything.
 At ~488, delete the stale assertion and its comment:
 
 ```ts
-    // The split row is collapsible now (users asked to be able to close it), so
-    // its toggle stays enabled even for a non-EQUAL split.
-    await expect(page.getByTestId('expense-split-row')).toBeEnabled();
+// The split row is collapsible now (users asked to be able to close it), so
+// its toggle stays enabled even for a non-EQUAL split.
+await expect(page.getByTestId('expense-split-row')).toBeEnabled();
 ```
 
 At ~500, replace the collapsed-state assertion — the selector is always mounted
 now, so absence is the wrong check; assert the split type reset to EQUAL instead:
 
 ```ts
-    await expect(page.getByTestId('split-type-EQUAL')).toHaveAttribute('aria-checked', 'true');
+await expect(page.getByTestId('split-type-EQUAL')).toHaveAttribute('aria-checked', 'true');
 ```
 
 Update the comment above it, which no longer describes reality:
 
 ```ts
-    // Reopening starts from clean defaults — the split type is back to EQUAL and
-    // the currency is back to base.
+// Reopening starts from clean defaults — the split type is back to EQUAL and
+// the currency is back to base.
 ```
 
 In `apps/web/e2e/transaction-edit.spec.ts`, delete the three

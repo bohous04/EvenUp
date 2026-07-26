@@ -19,7 +19,7 @@ and none depends on another; they can be implemented and merged in any order.
 
 `invite.claim` (`packages/api/src/routers/invite.ts:99`) never checks whether the
 signed-in user **already has a member row in this group**. It only checks that
-the *target* member isn't held by someone else:
+the _target_ member isn't held by someone else:
 
 ```ts
 if (target.userId && target.userId !== ctx.user.id) {
@@ -39,7 +39,7 @@ So a person who is already in the group and opens the link again can:
 `claimOptions` has the same blind spot: it returns the pick-your-name list to
 someone who has no business picking a name.
 
-A secondary defect: re-claiming a member you already hold is currently *not*
+A secondary defect: re-claiming a member you already hold is currently _not_
 idempotent. It falls through to `tx.member.update`, increments `usedCount`, and
 writes a second `member.joined` activity entry.
 
@@ -78,7 +78,7 @@ the redirect below — a direct API call bypasses the UI entirely.
 When `claimOptions` reports `alreadyMember`, redirect instead of rendering:
 
 ```ts
-router.replace(`/groups/${options.data.groupId}?already=1`)
+router.replace(`/groups/${options.data.groupId}?already=1`);
 ```
 
 `replace`, not `push`, so Back doesn't bounce into the invite page again. The
@@ -111,10 +111,10 @@ English text back to its `errors.*` key, so the `CONFLICT` message needs a
 catalog entry or it reaches the user in English. The thrown string must match the
 **en** value character for character.
 
-| Key | cs | en |
-| --- | --- | --- |
-| `invite.alreadyMember` | `V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.` | `You're already in this group as {name}. You don't need an invite.` |
-| `errors.alreadyGroupMember` | `V této skupině už člena máš` | `You are already a member of this group` |
+| Key                         | cs                                                           | en                                                                  |
+| --------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `invite.alreadyMember`      | `V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.` | `You're already in this group as {name}. You don't need an invite.` |
+| `errors.alreadyGroupMember` | `V této skupině už člena máš`                                | `You are already a member of this group`                            |
 
 ---
 
@@ -165,8 +165,8 @@ straddles the limit.
 
 ### i18n
 
-| Key | cs | en |
-| --- | --- | --- |
+| Key                | cs                        | en                        |
+| ------------------ | ------------------------- | ------------------------- |
 | `settle.qrMessage` | `Vyrovnání dluhu {group}` | `Debt settlement {group}` |
 
 ---
@@ -218,7 +218,7 @@ The API keeps returning the empty title rather than a localized one, so the web
 client stays free to switch locale without refetching.
 
 There is no CSV **export** of transactions; `transaction.ts:532` is the CSV
-*import* path and only creates `EXPENSE` rows, so it is unaffected.
+_import_ path and only creates `EXPENSE` rows, so it is unaffected.
 
 ### Data migration
 
@@ -233,8 +233,8 @@ is left alone.
 
 ### i18n
 
-| Key | cs | en |
-| --- | --- | --- |
+| Key                      | cs          | en           |
+| ------------------------ | ----------- | ------------ |
 | `transaction.settlement` | `Vyrovnání` | `Settlement` |
 
 ---
@@ -261,8 +261,8 @@ In `apps/web/src/components/add-expense-form.tsx`:
 5. **Both are `required` with nothing indicating it**; the error only arrives on
    submit.
 6. **`t('expense.splitBetween')` labels two different things.** It is the heading
-   over the member picker (line 723) *and* the label of the disclosure row whose
-   value is the split *type* (line 779).
+   over the member picker (line 723) _and_ the label of the disclosure row whose
+   value is the split _type_ (line 779).
 7. **The split-type control is collapsed below the members it governs**
    (lines 778–795), as are the per-member amount fields (lines 804–835).
 
@@ -279,7 +279,7 @@ second line.
 
 **Title** — becomes a full-width labelled `Input` with a visible
 `expense.titleLabel` ("Za co?") and a required marker. `expense.title`
-("Název") stays as-is; it is also used as a *default value* at line 442 for
+("Název") stays as-is; it is also used as a _default value_ at line 442 for
 itemized expenses, so it cannot be repurposed as the label.
 
 **Split type** — the `Segmented` control moves out of the disclosure row to sit
@@ -310,10 +310,10 @@ the UI genuinely changed:
 
 ### i18n
 
-| Key | cs | en |
-| --- | --- | --- |
+| Key                   | cs             | en             |
+| --------------------- | -------------- | -------------- |
 | `expense.splitMethod` | `Jak rozdělit` | `How to split` |
-| `expense.titleLabel` | `Za co?` | `What for?` |
+| `expense.titleLabel`  | `Za co?`       | `What for?`    |
 
 ---
 
@@ -326,7 +326,7 @@ and `en.ts`.
 New coverage:
 
 - **core** — `sanitizeValue` truncation never splits a `%XX` escape.
-- **api / invite** — an existing member claiming a *different* member gets
+- **api / invite** — an existing member claiming a _different_ member gets
   `CONFLICT`; claiming their own member is an idempotent no-op that does not
   increment `usedCount`; a deactivated ex-member can still rejoin;
   `claimOptions` reports `alreadyMember`.
@@ -340,7 +340,7 @@ but only chromium is installed in this environment).
 
 ## Non-goals (YAGNI)
 
-- No warning at invite-*creation* time. Invites are links, not addressed to a
+- No warning at invite-_creation_ time. Invites are links, not addressed to a
   person, so there is nothing to check them against.
 - No toast/notification system — the existing `DuplicateBanner` pattern covers
   the one banner this work needs.

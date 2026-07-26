@@ -50,7 +50,11 @@ describe('member.merge preflight', () => {
 
   test('refuses members from different groups', async () => {
     const { caller, marek } = await seed();
-    const other = await caller.group.create({ name: 'Jiná', template: 'OTHER', baseCurrency: 'CZK' });
+    const other = await caller.group.create({
+      name: 'Jiná',
+      template: 'OTHER',
+      baseCurrency: 'CZK',
+    });
     await expect(
       caller.member.merge({ sourceMemberId: marek.id, targetMemberId: other.members[0]!.id }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });

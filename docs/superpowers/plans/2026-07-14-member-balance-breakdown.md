@@ -4,7 +4,7 @@
 
 **Goal:** Tapping a person in the Zůstatky (Balances) card opens a read-only sheet that explains their balance — a spent/paid/balance summary, a filterable ledger of every paid (+) and share (−) entry, and an expandable list of the receipt položky on their name for itemized expenses.
 
-**Architecture:** A new read-only tRPC query `balance.memberBreakdown` is backed by a `getMemberBreakdown()` service that reuses the *same* base-currency re-allocation (`safeAllocate`) as `getGroupBalances`, so its entries provably sum to the balance shown on the card. A new `MemberBreakdownSheet` React component renders the result; `BalancesCard` makes each member row a button that opens it.
+**Architecture:** A new read-only tRPC query `balance.memberBreakdown` is backed by a `getMemberBreakdown()` service that reuses the _same_ base-currency re-allocation (`safeAllocate`) as `getGroupBalances`, so its entries provably sum to the balance shown on the card. A new `MemberBreakdownSheet` React component renders the result; `BalancesCard` makes each member row a button that opens it.
 
 **Tech Stack:** TypeScript, tRPC + Zod, Prisma/PostgreSQL, Vitest (API integration tests against a throwaway Postgres), Next.js + React + Tailwind (web), Playwright (e2e), `@evenup/i18n` (cs/en catalogs).
 
@@ -23,11 +23,13 @@
 ### Task 1: `getMemberBreakdown` service + `balance.memberBreakdown` procedure
 
 **Files:**
+
 - Modify: `packages/api/src/services/balance-service.ts` (add types + `getMemberBreakdown`)
 - Modify: `packages/api/src/routers/balance.ts` (add `memberBreakdown` procedure)
 - Test: `packages/api/src/routers/member-breakdown.test.ts` (create)
 
 **Interfaces:**
+
 - Consumes: `safeAllocate` (module-scope, already in `balance-service.ts`), `toMinor` from `@evenup/db`, `assertGroupAccess` from `../access.js`, test harness `makeCaller`/`createTestUser`/`resetDb`/`testPrisma` from `../test/harness.js`.
 - Produces (exported from `balance-service.ts`, surfaced to the web via `RouterOutputs['balance']['memberBreakdown']`):
 
@@ -43,9 +45,9 @@ export interface BreakdownEntry {
   date: Date;
   type: 'EXPENSE' | 'INCOME' | 'TRANSFER';
   kind: 'paid' | 'share';
-  amountMinorUnits: number;      // base minor units; + for paid, − for share
-  transferLabel: string | null;  // "Anna → Bob" for transfers, else null
-  currency: string | null;       // receipt currency; set only for itemized share rows with items
+  amountMinorUnits: number; // base minor units; + for paid, − for share
+  transferLabel: string | null; // "Anna → Bob" for transfers, else null
+  currency: string | null; // receipt currency; set only for itemized share rows with items
   items: BreakdownItem[] | null; // set only for itemized share rows with ≥1 assigned item
   remainderMinorUnits: number | null; // receipt currency; reconciles items to the tx-currency share
 }
@@ -53,8 +55,8 @@ export interface MemberBreakdown {
   memberId: string;
   displayName: string;
   balanceMinorUnits: number; // == balance.get for this member
-  spentMinorUnits: number;   // Σ EXPENSE share (base); excludes transfers
-  paidMinorUnits: number;    // Σ EXPENSE paid (base); excludes transfers
+  spentMinorUnits: number; // Σ EXPENSE share (base); excludes transfers
+  paidMinorUnits: number; // Σ EXPENSE paid (base); excludes transfers
   entries: BreakdownEntry[]; // newest first (date desc, id desc); paid before share within a tx
 }
 ```
@@ -250,9 +252,9 @@ export async function getMemberBreakdown(
   }
 
   const nameById = new Map(
-    (await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })).map(
-      (m) => [m.id, m.displayName],
-    ),
+    (
+      await prisma.member.findMany({ where: { groupId }, select: { id: true, displayName: true } })
+    ).map((m) => [m.id, m.displayName]),
   );
 
   const txns = await prisma.transaction.findMany({
@@ -310,7 +312,9 @@ export async function getMemberBreakdown(
       let remainderMinorUnits: number | null = null;
       let currency: string | null = null;
       if (t.splitType === 'ITEMIZED' && t.receiptItems.length > 0) {
-        const mine = t.receiptItems.filter((ri) => ri.assignments.some((a) => a.memberId === memberId));
+        const mine = t.receiptItems.filter((ri) =>
+          ri.assignments.some((a) => a.memberId === memberId),
+        );
         if (mine.length > 0) {
           currency = t.currency;
           items = mine.map((ri) => ({
@@ -389,10 +393,12 @@ git commit -m "feat(api): balance.memberBreakdown per-member ledger"
 ### Task 2: i18n keys for the breakdown sheet
 
 **Files:**
+
 - Modify: `packages/i18n/src/locales/cs.ts` (source-of-truth)
 - Modify: `packages/i18n/src/locales/en.ts` (must match cs exactly)
 
 **Interfaces:**
+
 - Produces: message keys `balance.breakdown.*` consumed by Task 3 via `t(...)`.
 
 - [ ] **Step 1: Add the keys to `cs.ts`**
@@ -453,11 +459,13 @@ git commit -m "i18n: add balance breakdown sheet keys"
 ### Task 3: `MemberBreakdownSheet` component + clickable Zůstatky rows (with e2e)
 
 **Files:**
+
 - Create: `apps/web/src/components/member-breakdown-sheet.tsx`
 - Modify: `apps/web/src/components/balances-card.tsx` (make each row a button that opens the sheet)
 - Test: `apps/web/e2e/member-breakdown.spec.ts` (create)
 
 **Interfaces:**
+
 - Consumes: `trpc.balance.memberBreakdown` (Task 1); `Sheet`, `AmountText`, `ChevronDown`, `ChevronRight` from existing components; `t`/`formatDate` from `useI18n`; keys `balance.breakdown.*` (Task 2).
 - Produces: `MemberBreakdownSheet` with props `{ groupId: string; memberId: string; memberName: string; baseCurrency: string; open: boolean; onClose: () => void }`.
 
@@ -744,7 +752,7 @@ import { MemberBreakdownSheet } from '@/components/member-breakdown-sheet';
 Inside `BalancesCard`, after `const { t } = useI18n();`, add:
 
 ```tsx
-  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
+const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 ```
 
 Replace the `<li>` block (the row) so the chip+name+bar+amount live inside a full-width button. The current row is:
@@ -839,6 +847,7 @@ git commit -m "feat(web): tap a Zůstatky row to see a balance breakdown"
 ## Self-Review
 
 **1. Spec coverage**
+
 - Entry point (clickable member row → Sheet): Task 3, Step 4. ✅
 - Summary header Útrata / Zaplaceno / Zůstatek: Task 1 (`spent/paid/balance`) + Task 3 Stat row. ✅
 - Filterable paid/share ledger, sums to balance: Task 1 (entries + `balanceMinorUnits`, test asserts the sum) + Task 3 filter chips. ✅

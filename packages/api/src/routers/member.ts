@@ -466,7 +466,10 @@ export const memberRouter = router({
           const score = Math.max(
             ...aliases.map((alias) => nameSimilarity(alias, placeholder.displayName)),
           );
-          if (score >= DUPLICATE_MATCH_THRESHOLD && !dismissed.has(`${claimed.id}:${placeholder.id}`)) {
+          if (
+            score >= DUPLICATE_MATCH_THRESHOLD &&
+            !dismissed.has(`${claimed.id}:${placeholder.id}`)
+          ) {
             candidates.push({
               sourceMemberId: claimed.id,
               sourceName: claimed.displayName,
@@ -493,7 +496,10 @@ export const memberRouter = router({
     .input(z.object({ sourceMemberId: z.string(), targetMemberId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       if (input.sourceMemberId === input.targetMemberId) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot dismiss a member against itself' });
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot dismiss a member against itself',
+        });
       }
       const [source, target] = await Promise.all([
         ctx.prisma.member.findUnique({ where: { id: input.sourceMemberId } }),

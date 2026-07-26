@@ -84,7 +84,10 @@ describe('buildSpayd (§16.1, FR-7.1)', () => {
       iban: 'CZ5508000000001234567899',
       message: 'a'.repeat(58) + '*',
     });
-    const msg = spd.split('*').find((part) => part.startsWith('MSG:'))!.slice(4);
+    const msg = spd
+      .split('*')
+      .find((part) => part.startsWith('MSG:'))!
+      .slice(4);
     expect(msg).toBe('a'.repeat(58));
     // A dangling '%' or '%2' would make the whole descriptor unparseable.
     expect(msg).not.toMatch(/%.?$/);
@@ -96,7 +99,10 @@ describe('buildSpayd (§16.1, FR-7.1)', () => {
       iban: 'CZ5508000000001234567899',
       message: 'a'.repeat(57) + '*',
     });
-    const msg = spd.split('*').find((part) => part.startsWith('MSG:'))!.slice(4);
+    const msg = spd
+      .split('*')
+      .find((part) => part.startsWith('MSG:'))!
+      .slice(4);
     expect(msg).toBe('a'.repeat(57) + '%2A');
     expect(msg).toHaveLength(60);
   });
