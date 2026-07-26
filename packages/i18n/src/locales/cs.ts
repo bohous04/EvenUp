@@ -182,6 +182,11 @@ export const cs = {
   'invite.owes': 'dluží {amount}',
   'invite.isOwed': 'má dostat {amount}',
   'invite.settled': 'vyrovnáno',
+  'invite.alreadyMember': 'V téhle skupině už jsi jako {name}. Pozvánku nepotřebuješ.',
+  'invite.welcomeBack': 'Vítej zpátky, {name}!',
+  'invite.welcomeBackBody':
+    'Pokračováním obnovíš svůj původní profil – i s historií a dluhy. Nikdo ho za tebe nepřevezme.',
+  'invite.welcomeBackCta': 'Pokračovat',
 
   'expense.add': 'Přidat výdaj',
   'expense.edit': 'Upravit výdaj',

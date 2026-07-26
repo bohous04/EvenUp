@@ -177,6 +177,11 @@ export const en: Messages = {
   'invite.owes': 'owes {amount}',
   'invite.isOwed': 'is owed {amount}',
   'invite.settled': 'settled up',
+  'invite.alreadyMember': "You're already in this group as {name}. You don't need an invite.",
+  'invite.welcomeBack': 'Welcome back, {name}!',
+  'invite.welcomeBackBody':
+    'Continuing restores your original profile — with its history and debts. Nobody takes it over for you.',
+  'invite.welcomeBackCta': 'Continue',
 
   'expense.add': 'Add expense',
   'expense.edit': 'Edit expense',

@@ -9,6 +9,7 @@ import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { MemberList } from '@/components/member-list';
 import { DuplicateBanner } from '@/components/merge-members';
+import { AlreadyMemberBanner } from '@/components/already-member-banner';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
 import { EditTransferSheet } from '@/components/edit-transfer-sheet';
@@ -39,7 +40,13 @@ import {
 type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
 type Transaction = RouterOutputs['transaction']['list'][number];
 
-export function GroupDetail({ groupId }: { groupId: string }) {
+export function GroupDetail({
+  groupId,
+  alreadyMemberNotice = false,
+}: {
+  groupId: string;
+  alreadyMemberNotice?: boolean;
+}) {
   const { t, formatCurrency, formatDate } = useI18n();
   const group = trpc.group.get.useQuery({ groupId });
   const transactions = trpc.transaction.list.useQuery({ groupId });
@@ -187,6 +194,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       </div>
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+
+      <AlreadyMemberBanner groupId={groupId} show={alreadyMemberNotice} />
 
       <DuplicateBanner groupId={groupId} />
 

@@ -112,6 +112,9 @@ describe('invite.claim guards against an existing membership', () => {
     expect(options.alreadyMember).toBe(true);
     expect(options.groupId).toBe(group.id);
     expect(options.members).toEqual([]);
+    // An active member is not a "returning" one -- there's nothing to welcome
+    // them back to, they're already there and get redirected instead.
+    expect(options.returningMember).toBeNull();
   });
 
   it('claimOptions still lists names for a genuine newcomer', async () => {
@@ -120,6 +123,8 @@ describe('invite.claim guards against an existing membership', () => {
     const options = await makeCaller(newcomer).invite.claimOptions({ token: invite.token });
     expect(options.alreadyMember).toBe(false);
     expect(options.members.map((m) => m.id)).toContain(placeholder.id);
+    // Never having had a row in this group at all is not "returning" either.
+    expect(options.returningMember).toBeNull();
   });
 
   it('claimOptions does not report alreadyMember for a deactivated ex-member', async () => {
@@ -134,6 +139,21 @@ describe('invite.claim guards against an existing membership', () => {
     // list" path that reactivates their row.
     const options = await newcomerCaller.invite.claimOptions({ token: invite.token });
     expect(options.alreadyMember).toBe(false);
+  });
+
+  it('claimOptions reports returningMember for a deactivated ex-member, naming their own row', async () => {
+    const { invite, placeholder } = await setupInvite();
+    const newcomer = await createTestUser('newcomer@example.com');
+    const newcomerCaller = makeCaller(newcomer);
+    await newcomerCaller.invite.claim({ token: invite.token, memberId: placeholder.id });
+    await testPrisma.member.update({ where: { id: placeholder.id }, data: { isActive: false } });
+
+    // The invite page's welcome-back view is built entirely from this field --
+    // it must name the caller's OWN (inactive) row, not a stranger's, and must
+    // not leak the picker's member list alongside it.
+    const options = await newcomerCaller.invite.claimOptions({ token: invite.token });
+    expect(options.returningMember).toEqual({ id: placeholder.id, displayName: 'Marek' });
+    expect(options.members).toEqual([]);
   });
 
   it('a genuine first-time join bumps usedCount and writes a member.joined activity entry', async () => {
@@ -196,9 +216,9 @@ describe('invite.claim guards against an existing membership', () => {
     // If the arbitrary (pre-fix) pick had landed on `inactive`, this claim
     // would have reactivated it, leaving dupUser with two active rows --
     // increasing the duplicate count instead of containing it.
-    await expect(makeCaller(dupUser).invite.claim({ token: invite.token })).rejects.toMatchObject(
-      { code: 'CONFLICT' },
-    );
+    await expect(makeCaller(dupUser).invite.claim({ token: invite.token })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
 
     const inactiveAfter = await testPrisma.member.findUniqueOrThrow({
       where: { id: inactive.id },

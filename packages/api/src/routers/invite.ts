@@ -111,17 +111,17 @@ export const inviteRouter = router({
       }
 
       const own = await findOwnMembership(ctx.prisma, invite.groupId, ctx.user.id);
-      // Only an ACTIVE membership redirects into the group. A deactivated
-      // ex-member must reach the claim page instead: their own row is filtered
-      // out of the picker below (`userId !== null`), so they naturally land on
-      // "I'm not on the list", which `invite.claim` now recognises and
-      // reactivates in place rather than treating as a new join.
-      if (own?.isActive) {
-        // Nothing to pick — the page redirects into the group. Skip the balance
-        // query entirely rather than computing a list nobody will see.
+      // An ACTIVE membership redirects into the group; an INACTIVE one means
+      // the caller is a returning ex-member and gets the welcome-back view
+      // instead of the picker. Either way the picker never renders, so skip
+      // the balance query entirely rather than computing a list nobody will
+      // see — and reuse `own` for `returningMember` instead of a second
+      // lookup, since it's already the exact row `invite.claim` reactivates.
+      if (own) {
         return {
           groupId: invite.groupId,
-          alreadyMember: true,
+          alreadyMember: own.isActive,
+          returningMember: own.isActive ? null : { id: own.id, displayName: own.displayName },
           groupName: invite.group.name,
           baseCurrency: invite.group.baseCurrency,
           members: [] as {
@@ -140,6 +140,7 @@ export const inviteRouter = router({
       return {
         groupId: invite.groupId,
         alreadyMember: false,
+        returningMember: null as { id: string; displayName: string } | null,
         groupName: invite.group.name,
         baseCurrency: invite.group.baseCurrency,
         members: invite.group.members
