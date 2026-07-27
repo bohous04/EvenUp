@@ -1,33 +1,15 @@
 'use client';
 import { useState } from 'react';
 import type { MessageKey } from '@evenup/i18n';
+import { ACTIVITY_ACTIONS, describeActivity } from '@evenup/i18n';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Select } from '@/components/ui';
-import { describeActivity } from '@/lib/activity-message';
 
 interface MemberLite {
   id: string;
   displayName: string;
 }
-
-const ACTION_OPTIONS = [
-  'group.created',
-  'member.added',
-  'member.joined',
-  'member.updated',
-  'expense.created',
-  'expenses.imported',
-  'settlement.recorded',
-  'transaction.updated',
-  'transaction.deleted',
-  'group.updated',
-  'group.archived',
-  'group.restored',
-  'category.created',
-  'category.updated',
-  'category.deleted',
-] as const;
 
 export function ActivityFeed({
   groupId,
@@ -69,8 +51,8 @@ export function ActivityFeed({
           onChange={(e) => setAction(e.target.value)}
           data-testid="activity-action-filter"
         >
-          <option value="">{t('common.total')}</option>
-          {ACTION_OPTIONS.map((a) => (
+          <option value="">{t('activity.allTypes')}</option>
+          {ACTIVITY_ACTIONS.map((a) => (
             <option key={a} value={a}>
               {t(`activityType.${a}` as MessageKey)}
             </option>

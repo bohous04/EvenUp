@@ -20,6 +20,7 @@ export {
   pluralCategory,
   type Locale,
 } from './format.js';
+export { describeActivity, ACTIVITY_ACTIONS, ACTIVITY_PAYLOAD_FIELDS } from './activity.js';
 export { cs } from './locales/cs.js';
 export { en } from './locales/en.js';
 export type { Messages } from './locales/cs.js';

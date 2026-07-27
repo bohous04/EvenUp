@@ -1,6 +1,40 @@
-import type { MessageKey, InterpolationValues } from '@evenup/i18n';
+import type { MessageKey, InterpolationValues } from './translate.js';
 
 type T = (key: MessageKey, values?: InterpolationValues) => string;
+
+/**
+ * The activity actions the feed offers as a filter, in the order the pickers
+ * list them. Kept here rather than in each client so web's `<select>` and
+ * mobile's chip row can never drift apart.
+ */
+export const ACTIVITY_ACTIONS = [
+  'group.created',
+  'member.added',
+  'member.joined',
+  'member.updated',
+  'expense.created',
+  'expenses.imported',
+  'settlement.recorded',
+  'transaction.updated',
+  'transaction.deleted',
+  'group.updated',
+  'group.archived',
+  'group.restored',
+  'category.created',
+  'category.updated',
+  'category.deleted',
+] as const;
+
+/**
+ * Every payload field `describeActivity` below actually reads.
+ *
+ * Activity payloads are written by a dozen `logActivity` call sites and handed
+ * to the read APIs as opaque JSON. Projecting onto this list server-side means a
+ * future call site that logs something sensitive cannot leak it to the whole
+ * group by default — it would have to be added here first. Add a field here
+ * when, and only when, the switch below starts rendering it.
+ */
+export const ACTIVITY_PAYLOAD_FIELDS = ['name', 'title', 'created', 'amount'] as const;
 
 /** Map an activity action + payload to a localized, human-readable line (FR-9.1). */
 export function describeActivity(

@@ -292,7 +292,11 @@ export const en: Messages = {
   'activity.deleted': '{actor} deleted {item}',
   'activity.settled': '{actor} settled a payment of {amount}',
   'activity.filterByType': 'Filter by type',
+  'activity.filterByGroup': 'Filter by group',
+  'activity.allGroups': 'All groups',
+  'activity.allTypes': 'All',
   'activity.empty': 'No activity yet',
+  'activity.loadMore': 'Load older',
 
   'activityType.group.created': 'Group created',
   'activityType.member.added': 'Member added',
