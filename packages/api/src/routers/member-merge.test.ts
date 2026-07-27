@@ -154,10 +154,10 @@ describe('member.merge concurrency guard', () => {
   //       find the row gone and fails with a foreign-key violation
   //       (Postgres 23503 / Prisma P2003) instead of landing on it.
   //
-  // These tests pin outcome (b) deterministically: a Prisma client
-  // extension hooks the FIRST read the merge transaction makes after taking
-  // the lock (`tx.transactionPayer.findMany`) and, right there, fires a
-  // competing write on a genuinely separate connection (`caller`, backed by
+  // These tests force outcome (b): a Prisma client extension hooks the FIRST
+  // read the merge transaction makes after taking the lock
+  // (`tx.transactionPayer.findMany`) and, right there, fires a competing
+  // write on a genuinely separate connection (`caller`, backed by
   // `testPrisma`). Critically the write is NOT awaited inline -- awaiting it
   // would serialize it behind the very lock it needs to race against and
   // deadlock the (single-threaded) merge transaction against itself. Left
@@ -165,6 +165,13 @@ describe('member.merge concurrency guard', () => {
   // has far fewer remaining statements before commit than the competing
   // write has before its own first locking insert) and we inspect the
   // outcome once both have settled.
+  //
+  // What is NOT deterministic is *which layer* refuses the loser -- the
+  // endpoint's own member validation or the database's foreign key. That
+  // depends on where the merge's commit lands among the competing write's
+  // first few round trips, which moves with machine speed. See
+  // `expectRejectedNotLost` below; asserting one specific layer is what used
+  // to make this file fail depending on how warm the connection pool was.
   //
   // Because the lock is taken on the Member row itself, one lock covers
   // every FK path uniformly -- including BankDetail, which the row-count
@@ -195,6 +202,51 @@ describe('member.merge concurrency guard', () => {
     return { racyPrisma: racyPrisma as unknown as PrismaClient, getRacer: () => racer };
   }
 
+  /**
+   * Assert the racing write was *refused*, without pinning which layer refused
+   * it.
+   *
+   * Two rejections are both correct here, and which one you get is a real race
+   * rather than a fixed outcome. Every one of these endpoints validates its
+   * member references (`assertMembersInGroup`) before inserting, so:
+   *
+   *   - merge commits first -> the validating read no longer sees `source` and
+   *     the write is refused there, BAD_REQUEST; or
+   *   - merge commits after  -> the insert reaches Postgres and trips the
+   *     foreign key, P2003 surfaced as INTERNAL_SERVER_ERROR.
+   *
+   * The window between those two statements is a few round trips wide, so the
+   * outcome flips with machine speed and even with warm-up: the transfer case
+   * below takes the FK path when its test runs alone and the validation path
+   * once the rest of the file has warmed the pool. Asserting one of them made
+   * the suite fail on any machine that resolved the race the other way.
+   *
+   * What must NOT happen is the write *succeeding* -- landing on a row the
+   * merge is about to cascade-delete, so it disappears with no error. That is
+   * the failure this whole harness exists to catch, and note the table
+   * assertions at each call site cannot catch it alone: a lost write leaves the
+   * tables exactly as empty as a refused one. The rejection is the only thing
+   * that tells them apart, which is why "it threw" is asserted here and the
+   * emptiness is asserted there.
+   */
+  async function expectRejectedNotLost(racer: Promise<unknown>): Promise<void> {
+    const error = await racer.then(
+      () => null,
+      (e: unknown) => e as { code?: string; cause?: { code?: string } },
+    );
+    expect(
+      error,
+      'the racing write resolved instead of being refused -- it landed on a row the merge then cascade-deleted, and was silently lost',
+    ).not.toBeNull();
+    const layer =
+      error?.cause?.code === 'P2003'
+        ? 'foreign key'
+        : error?.code === 'BAD_REQUEST'
+          ? 'member validation'
+          : `unexpected (${String(error?.code)}: ${String((error as Error | null)?.message)})`;
+    expect(['foreign key', 'member validation']).toContain(layer);
+  }
+
   test('a payer + transfer-endpoint write that lands mid-merge is rejected, not lost', async () => {
     const { olivia, caller, group, creator, marek, jana } = await seed();
     // recordTransfer names `source` (jana) as BOTH the payer (fromMemberId)
@@ -221,13 +273,9 @@ describe('member.merge concurrency guard', () => {
     ).resolves.toMatchObject({ merged: true });
 
     // Prove the race actually happened -- otherwise this test would pass
-    // vacuously (lock never exercised) -- and that it lost cleanly: no
-    // TRPCError with a swallowed cause, a real FK violation.
+    // vacuously (lock never exercised) -- and that it lost cleanly.
     expect(getRacer()).not.toBeNull();
-    await expect(getRacer()).rejects.toMatchObject({
-      code: 'INTERNAL_SERVER_ERROR',
-      cause: expect.objectContaining({ code: 'P2003' }),
-    });
+    await expectRejectedNotLost(getRacer()!);
     expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
     // The whole nested write (Transaction + TransactionPayer) rolled back
     // together -- nothing from the racing settlement survives anywhere.
@@ -262,10 +310,7 @@ describe('member.merge concurrency guard', () => {
     ).resolves.toMatchObject({ merged: true });
 
     expect(getRacer()).not.toBeNull();
-    await expect(getRacer()).rejects.toMatchObject({
-      code: 'INTERNAL_SERVER_ERROR',
-      cause: expect.objectContaining({ code: 'P2003' }),
-    });
+    await expectRejectedNotLost(getRacer()!);
     expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
     expect(
       await testPrisma.transaction.findFirst({ where: { groupId: group.id, title: 'Race split' } }),
@@ -304,10 +349,7 @@ describe('member.merge concurrency guard', () => {
     ).resolves.toMatchObject({ merged: true });
 
     expect(getRacer()).not.toBeNull();
-    await expect(getRacer()).rejects.toMatchObject({
-      code: 'INTERNAL_SERVER_ERROR',
-      cause: expect.objectContaining({ code: 'P2003' }),
-    });
+    await expectRejectedNotLost(getRacer()!);
     expect(await testPrisma.member.findUnique({ where: { id: jana.id } })).toBeNull();
     expect(
       await testPrisma.transaction.findFirst({ where: { groupId: group.id, title: 'Race item' } }),
