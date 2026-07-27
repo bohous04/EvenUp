@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ACTIVITY_ACTIONS, describeActivity, type MessageKey } from '@evenup/i18n';
+import { ACTIVITY_ACTIONS, type MessageKey } from '@evenup/i18n';
 import { useSession } from '@/lib/auth';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, Chip, EmptyState, Screen, Title } from '@/ui';
 import { useTheme } from '@/ui/theme';
+import { ActivityFilterRow, ActivityRows } from '@/components/ActivityRows';
 
 const PAGE_SIZE = 20;
 
@@ -24,7 +25,7 @@ const PAGE_SIZE = 20;
  * chip row shows the current selection without a tap.
  */
 export default function ActivityScreen() {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t } = useI18n();
   const c = useTheme();
   const { data: session } = useSession();
   const [groupId, setGroupId] = useState<string | undefined>();
@@ -45,7 +46,10 @@ export default function ActivityScreen() {
     <Screen scroll testID="activity-screen">
       <Title>{t('nav.activity')}</Title>
 
-      <FilterRow accessibilityLabel={t('activity.filterByGroup')} testID="activity-group-filter">
+      <ActivityFilterRow
+        accessibilityLabel={t('activity.filterByGroup')}
+        testID="activity-group-filter"
+      >
         <Chip
           label={t('activity.allGroups')}
           active={!groupId}
@@ -59,9 +63,12 @@ export default function ActivityScreen() {
             onPress={() => setGroupId(g.id)}
           />
         ))}
-      </FilterRow>
+      </ActivityFilterRow>
 
-      <FilterRow accessibilityLabel={t('activity.filterByType')} testID="activity-action-filter">
+      <ActivityFilterRow
+        accessibilityLabel={t('activity.filterByType')}
+        testID="activity-action-filter"
+      >
         <Chip
           label={t('activity.allTypes')}
           active={!action}
@@ -75,7 +82,7 @@ export default function ActivityScreen() {
             onPress={() => setAction(a)}
           />
         ))}
-      </FilterRow>
+      </ActivityFilterRow>
 
       {/* `isLoading`, not `isPending`: a signed-out user's query is disabled and
           stays "pending" forever, which would spin instead of settling. */}
@@ -90,34 +97,9 @@ export default function ActivityScreen() {
         </Card>
       ) : (
         <Card style={{ paddingVertical: c.spacing[1] }}>
-          {items.map((it, i) => (
-            <View
-              key={it.id}
-              testID="activity-row"
-              style={{
-                paddingVertical: c.spacing[3],
-                gap: c.spacing[0.5],
-                // Web's `divide-y`: a hairline between rows, none above the first.
-                borderTopWidth: i === 0 ? 0 : c.control.hairline,
-                borderTopColor: c.divider,
-              }}
-            >
-              <Text style={{ color: c.text, fontSize: c.type.body.fontSize }}>
-                {describeActivity(
-                  it.action,
-                  it.payload,
-                  (k, v) => t(k, v),
-                  (minor) => formatCurrency(minor, it.baseCurrency),
-                  it.actorName,
-                )}
-              </Text>
-              {/* Web prints only the date, because the group is the page you are
-                  already on. Here the group is the row's main piece of context. */}
-              <Text style={{ color: c.textMuted, fontSize: c.type.meta.fontSize }}>
-                {`${it.groupName} · ${formatDate(it.createdAt)}`}
-              </Text>
-            </View>
-          ))}
+          {/* The group name rides along as each row's `context` — web prints only
+              the date, because there the group is the page you are already on. */}
+          <ActivityRows rows={items.map((it) => ({ ...it, context: it.groupName }))} />
         </Card>
       )}
 
@@ -131,32 +113,5 @@ export default function ActivityScreen() {
         />
       ) : null}
     </Screen>
-  );
-}
-
-/**
- * A filter row scrolls sideways rather than wrapping: with a group per chip the
- * list is unbounded, and a wrapped row would push the feed itself off-screen.
- */
-function FilterRow({
-  children,
-  accessibilityLabel,
-  testID,
-}: {
-  children: ReactNode;
-  accessibilityLabel: string;
-  testID: string;
-}) {
-  const c = useTheme();
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      accessibilityLabel={accessibilityLabel}
-      testID={testID}
-      contentContainerStyle={{ flexDirection: 'row', gap: c.spacing[2] }}
-    >
-      {children}
-    </ScrollView>
   );
 }

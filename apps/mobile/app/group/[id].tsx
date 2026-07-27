@@ -16,6 +16,7 @@ import { NextRoundCard } from '@/components/NextRoundCard';
 import { MemberBreakdownSheet } from '@/components/MemberBreakdownSheet';
 import { SpendStatsCard } from '@/components/SpendStatsCard';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
+import { GroupActivityFeed } from '@/components/GroupActivityFeed';
 import { CsvImportSheet } from '@/components/CsvImportSheet';
 import {
   AmountText,
@@ -32,7 +33,15 @@ import {
 } from '@/ui';
 import type { ThemeTokens } from '@/ui';
 
-type GroupSheet = 'menu' | 'members' | 'invite' | 'settings' | 'categories' | 'csv' | null;
+type GroupSheet =
+  | 'menu'
+  | 'members'
+  | 'invite'
+  | 'settings'
+  | 'categories'
+  | 'csv'
+  | 'activity'
+  | null;
 
 /**
  * Fixed columns in a balance row, mirroring web's `w-28` name cell and
@@ -275,8 +284,23 @@ export default function GroupScreen() {
           variant="ghost"
           onPress={() => setSheet('categories')}
         />
+        <Button title={t('nav.activity')} variant="ghost" onPress={() => setSheet('activity')} />
         <Button title={t('csv.import')} variant="ghost" onPress={() => setSheet('csv')} />
         <Button title={t('nav.settings')} variant="ghost" onPress={() => setSheet('settings')} />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheet === 'activity'}
+        onClose={() => setSheet(null)}
+        title={t('nav.activity')}
+      >
+        <ScrollView style={{ maxHeight: 460 }}>
+          <GroupActivityFeed
+            groupId={groupId}
+            members={members.map((m) => ({ id: m.id, displayName: m.displayName }))}
+            baseCurrency={baseCurrency}
+          />
+        </ScrollView>
       </BottomSheet>
 
       <BottomSheet
