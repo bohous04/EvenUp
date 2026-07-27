@@ -30,17 +30,21 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // EvenUp settings (PRD §7.2)
-  locale                 String  @default("cs")
-  defaultCurrency        String  @default("CZK")
-  openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
-  bankAccountEncrypted   String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
-  ocrModel               String?
-  hideProfilePhoto       Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
+  locale               String  @default("cs")
+  defaultCurrency      String  @default("CZK")
+  bankAccountEncrypted String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
+  ocrModel             String? // per-user OCR model override; independent of key ownership
+  hideProfilePhoto     Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
 
   // Operator/tier fields (hosted-instance management dashboard).
   isAdmin    Boolean   @default(false) // may access /admin (seeded from ADMIN_EMAILS)
   isVip      Boolean   @default(false) // may use the shared OCR key + store receipt photos
   disabledAt DateTime? // soft-disabled: sign-in is blocked while set
+
+  // Billing fields
+  stripeCustomerId String? @unique
+  creditBalance    Int     @default(0) // scans remaining; never expires
+  ocrConsentAt     DateTime? // explicit consent to send receipts to the OCR provider
 
   // Global notification opt-out (FR-11.2). Per-group mute lives on
   // NotificationPreference; this switch overrides every one of them.
@@ -59,6 +63,9 @@ model User {
   notificationDeliveries  NotificationDelivery[]
   pushTokens              PushToken[]
   twoFactor               TwoFactor[]
+  subscriptions           Subscription[]
+  scanLedger              ScanLedger[]
+  mergeDismissals         MergeDismissal[]
 }
 
 /// An Expo push token for one signed-in device (PRD §4.11).
@@ -82,7 +89,8 @@ model PushToken {
 
 // ---------------------------------------------------------------------------
 // Instance-level operator config (hosted deployment). Single row (id fixed to
-// "singleton"); the shared OpenRouter key is encrypted at rest like BYO keys.
+// "singleton"); it holds the one OpenRouter key OCR uses, encrypted at rest —
+// there is no per-user key (removed; see migration drop_user_byo_key).
 // ---------------------------------------------------------------------------
 
 model InstanceConfig {
@@ -205,6 +213,7 @@ model Group {
   receipts                Receipt[]
   activityLogs            ActivityLog[]
   notificationPreferences NotificationPreference[]
+  mergeDismissals         MergeDismissal[]
 
   @@index([createdById])
 }
@@ -230,8 +239,39 @@ model Member {
   transfersFrom   Transaction[]      @relation("TransferFrom")
   transfersTo     Transaction[]      @relation("TransferTo")
 
+  dismissalsAsSource MergeDismissal[] @relation("DismissalSource")
+  dismissalsAsTarget MergeDismissal[] @relation("DismissalTarget")
+
   @@index([groupId])
   @@index([userId])
+}
+
+/**
+ * "These two are not the same person" — one member says it, and the merge
+ * suggestion stops being offered to everyone in the group.
+ *
+ * Group-wide by design: the banner asks a question about two other people, so
+ * once anyone has answered it, re-asking every other member is noise. This
+ * lives in the database rather than localStorage precisely so the answer
+ * follows the group instead of one person's browser.
+ *
+ * Rows cascade away with either member, so a completed merge (which deletes
+ * the duplicate) also clears the dismissals naming it.
+ */
+model MergeDismissal {
+  id             String   @id @default(cuid())
+  groupId        String
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sourceMemberId String
+  sourceMember   Member   @relation("DismissalSource", fields: [sourceMemberId], references: [id], onDelete: Cascade)
+  targetMemberId String
+  targetMember   Member   @relation("DismissalTarget", fields: [targetMemberId], references: [id], onDelete: Cascade)
+  dismissedById  String?
+  dismissedBy    User?    @relation(fields: [dismissedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+
+  @@unique([sourceMemberId, targetMemberId])
+  @@index([groupId])
 }
 
 model GroupCategory {
@@ -516,4 +556,54 @@ model NotificationDelivery {
 
   @@index([userId, createdAt])
   @@index([status, attempts])
+}
+
+// ---------------------------------------------------------------------------
+// Billing (subscriptions and scan credits)
+// ---------------------------------------------------------------------------
+
+enum LedgerReason {
+  PURCHASE
+  VIP_SCAN
+  CREDIT_SCAN
+  REFUND
+  ADMIN_GRANT
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  // Nullable so a deleted account can retain the billing record (GDPR vs
+  // accounting-law retention). See services/account.ts.
+  userId               String?
+  user                 User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stripeSubscriptionId String    @unique
+  status               String
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model ScanLedger {
+  id            String       @id @default(cuid())
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// +n for purchases and grants, -1 for a credit-funded scan, 0 for a
+  /// subscription scan (which is counted, not charged). The invariant is
+  /// User.creditBalance == sum(delta).
+  delta         Int
+  reason        LedgerReason
+  /// Stripe event id; unique so a replayed webhook cannot double-credit.
+  stripeEventId String?      @unique
+  receiptId     String?
+  /// Set on PURCHASE rows: the customer acknowledged immediate performance and
+  /// the loss of the 14-day withdrawal right. Required by EU distance selling.
+  withdrawalConsentAt DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, reason, createdAt])
 }

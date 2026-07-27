@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'vitest';
+import * as fc from 'fast-check';
 import {
   deriveInitials,
   MEMBER_COLORS,
   colorForIndex,
   colorForKey,
   readableTextColor,
+  normalizeForMatch,
+  nameSimilarity,
 } from './identity.js';
 
 // WCAG relative luminance + contrast ratio for verifying the palette.
@@ -86,5 +89,80 @@ describe('member colors (§9.4 — never color alone, but distinct chips)', () =
 
   test('readableTextColor rejects malformed input', () => {
     expect(() => readableTextColor('nope')).toThrow();
+  });
+});
+
+describe('normalizeForMatch', () => {
+  test('folds Czech diacritics and case', () => {
+    expect(normalizeForMatch('Tomáš')).toBe('tomas');
+    expect(normalizeForMatch('TOMAS')).toBe('tomas');
+    expect(normalizeForMatch('Řehoř Žluťoučký')).toBe('rehor zlutoucky');
+  });
+
+  test('collapses whitespace and drops punctuation', () => {
+    expect(normalizeForMatch('  Jan   Novák.  ')).toBe('jan novak');
+    expect(normalizeForMatch('jan.novak')).toBe('jan novak');
+  });
+});
+
+describe('nameSimilarity', () => {
+  test('identical names ignoring case and diacritics score 1', () => {
+    expect(nameSimilarity('Marek', 'marek')).toBe(1);
+    expect(nameSimilarity('Tomáš', 'Tomas')).toBe(1);
+  });
+
+  test('a first name inside a full name scores high', () => {
+    expect(nameSimilarity('Marek', 'Marek Novák')).toBeGreaterThanOrEqual(0.8);
+    expect(nameSimilarity('jan.novak', 'Jan Novák')).toBeGreaterThanOrEqual(0.8);
+  });
+
+  test('unrelated names score low', () => {
+    expect(nameSimilarity('Marek', 'Jana Dvořáková')).toBeLessThan(0.5);
+    expect(nameSimilarity('Petr', 'Olivia')).toBeLessThan(0.5);
+  });
+
+  test('empty input never matches', () => {
+    expect(nameSimilarity('', 'Marek')).toBe(0);
+    expect(nameSimilarity('Marek', '   ')).toBe(0);
+  });
+
+  test('a shared surname alone is not strong evidence — two different people can share it', () => {
+    // "Jan Novák" and "Petr Novák" are almost certainly different people:
+    // Novák is one of the most common Czech surnames. Only a match on the
+    // *leading* token (the given name, which is what invite.claim derives
+    // from account name/email) should count as strong evidence.
+    expect(nameSimilarity('Jan Novák', 'Petr Novák')).toBeLessThan(0.8);
+  });
+
+  test('a leading-token match stays strong evidence even with a shared surname too', () => {
+    expect(nameSimilarity('Marek Novák', 'Marek Novák')).toBe(1);
+    expect(nameSimilarity('Marek', 'Marek Novák')).toBeGreaterThanOrEqual(0.8);
+  });
+
+  test('a repeated token does not inflate the score for the side that repeats it', () => {
+    // "Jan Jan" has "jan" as both its leading and (redundant) trailing token.
+    // Counting shared tokens as a set intersection means that repetition must
+    // not count for more than a single "jan" would.
+    expect(nameSimilarity('Jan Jan', 'Jan Petr')).toBe(nameSimilarity('Jan Petr', 'Jan Jan'));
+    expect(nameSimilarity('Jan', 'Jan Jan')).toBe(nameSimilarity('Jan Jan', 'Jan'));
+  });
+
+  test('property: nameSimilarity is symmetric for arbitrary strings', () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (a, b) => {
+        expect(nameSimilarity(a, b)).toBe(nameSimilarity(b, a));
+      }),
+    );
+  });
+
+  test('property: nameSimilarity is always finite and within [0, 1]', () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (a, b) => {
+        const score = nameSimilarity(a, b);
+        expect(Number.isFinite(score)).toBe(true);
+        expect(score).toBeGreaterThanOrEqual(0);
+        expect(score).toBeLessThanOrEqual(1);
+      }),
+    );
   });
 });

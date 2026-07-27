@@ -10,6 +10,13 @@ import { currencyExponent, minorToDecimalString, type CurrencyCode } from '../mo
 
 const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/;
 
+/**
+ * Cap on the SPAYD `MSG` attribute. Exported so every layer that touches this
+ * limit (API validation, web-side clamping) reads the same value instead of
+ * re-hardcoding `60` and risking drift.
+ */
+export const SPAYD_MESSAGE_MAX_LENGTH = 60;
+
 /** Remove spaces and upper-case an IBAN. */
 export function normalizeIban(iban: string): string {
   return iban.replace(/\s+/g, '').toUpperCase();
@@ -51,19 +58,25 @@ function sanitizeValue(value: string, maxLength: number): string {
   let out = '';
   for (const ch of stripped) {
     const code = ch.codePointAt(0)!;
+    let chunk: string;
     if (ch === '*' || ch === '%') {
-      out += '%' + code.toString(16).toUpperCase().padStart(2, '0');
+      chunk = '%' + code.toString(16).toUpperCase().padStart(2, '0');
     } else if (code < 0x20) {
       continue; // drop control characters
     } else if (code > 0x7e) {
+      chunk = '';
       for (const byte of new TextEncoder().encode(ch)) {
-        out += '%' + byte.toString(16).toUpperCase().padStart(2, '0');
+        chunk += '%' + byte.toString(16).toUpperCase().padStart(2, '0');
       }
     } else {
-      out += ch;
+      chunk = ch;
     }
+    // Truncate on a chunk boundary. Slicing the finished string could cut a
+    // `%XX` escape in half and make the whole descriptor unparseable.
+    if (out.length + chunk.length > maxLength) break;
+    out += chunk;
   }
-  return out.length > maxLength ? out.slice(0, maxLength) : out;
+  return out;
 }
 
 export interface SpaydInput {
@@ -127,7 +140,7 @@ export function buildSpayd(input: SpaydInput): string {
     attrs.push(`DT:${formatSpaydDate(input.date)}`);
   }
   if (input.message !== undefined) {
-    attrs.push(`MSG:${sanitizeValue(input.message, 60)}`);
+    attrs.push(`MSG:${sanitizeValue(input.message, SPAYD_MESSAGE_MAX_LENGTH)}`);
   }
   if (input.variableSymbol !== undefined) {
     attrs.push(`X-VS:${assertSymbol(input.variableSymbol, 'Variable symbol', 10)}`);

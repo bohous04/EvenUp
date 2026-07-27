@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { visibleAvatar } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
@@ -37,7 +37,7 @@ export function GroupsDashboard() {
         <ul className="space-y-3">
           {groups.data.map((g) => (
             <li key={g.id}>
-              <Link href={`/groups/${g.id}`} className="block">
+              <AppLink href={`/groups/${g.id}`} className="block">
                 <Card className="flex items-center gap-3 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold tracking-tight">{g.name}</p>
@@ -55,7 +55,7 @@ export function GroupsDashboard() {
                     }))}
                   />
                 </Card>
-              </Link>
+              </AppLink>
             </li>
           ))}
         </ul>

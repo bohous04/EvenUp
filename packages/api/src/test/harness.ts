@@ -7,6 +7,7 @@
 import { createPrismaClient } from '@evenup/db';
 import { appRouter } from '../root.js';
 import { createContext, type AuthUser, type RateLimiter } from '../context.js';
+import type { Locale } from '@evenup/i18n';
 import { createCallerFactory } from '../trpc.js';
 import { createSecretBox } from '../crypto/secret-box.js';
 import type { FetchLike } from '../ocr/openrouter-adapter.js';
@@ -30,6 +31,12 @@ export function makeCaller(
     fxFetch?: FetchLike;
     ocrRateLimit?: RateLimiter;
     notificationChannels?: readonly NotificationChannel[];
+    /**
+     * Request locale, as the real context derives it from the `x-locale`
+     * header. It is not cosmetic for billing: `currencyForLocale` reads it, so
+     * `en` prices in EUR and everything else in CZK.
+     */
+    locale?: Locale;
   } = {},
 ): Caller {
   return callerFactory(
@@ -42,6 +49,7 @@ export function makeCaller(
       fxFetch: opts.fxFetch,
       ocrRateLimit: opts.ocrRateLimit,
       notificationChannels: opts.notificationChannels,
+      locale: opts.locale,
     }),
   );
 }
@@ -62,6 +70,7 @@ export async function resetDb(): Promise<void> {
   await testPrisma.errorLog.deleteMany();
   await testPrisma.instanceConfig.deleteMany();
   await testPrisma.activityLog.deleteMany();
+  await testPrisma.mergeDismissal.deleteMany();
   await testPrisma.transaction.deleteMany();
   await testPrisma.invite.deleteMany();
   await testPrisma.receipt.deleteMany();
@@ -71,5 +80,6 @@ export async function resetDb(): Promise<void> {
   await testPrisma.account.deleteMany();
   await testPrisma.session.deleteMany();
   await testPrisma.fxRate.deleteMany();
+  await testPrisma.scanLedger.deleteMany();
   await testPrisma.user.deleteMany();
 }

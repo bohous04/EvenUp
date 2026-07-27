@@ -150,6 +150,38 @@ describe('formatCurrency (FR-10.3)', () => {
   });
 });
 
+describe('formatCurrency trimZeroFraction (price displays)', () => {
+  // `Intl` separates amount and symbol with a non-breaking space in Czech.
+  const money = (...args: Parameters<typeof formatCurrency>) =>
+    formatCurrency(...args).replace(/\s/g, ' ');
+
+  test('trims the fraction off a whole amount, symbol still placed by locale', () => {
+    // Czech puts the symbol last, English first — the reason the trim is a
+    // formatter option rather than a regex over the formatted string.
+    expect(money(5000, 'CZK', 'cs', { trimZeroFraction: true })).toBe('50 Kč');
+    expect(money(200, 'EUR', 'en', { trimZeroFraction: true })).toBe('€2');
+  });
+
+  test('keeps both fraction digits on an amount that is not whole', () => {
+    // Never "50,5 Kč": money keeps both digits or neither.
+    expect(money(5050, 'CZK', 'cs', { trimZeroFraction: true })).toBe('50,50 Kč');
+    expect(money(250, 'EUR', 'en', { trimZeroFraction: true })).toBe('€2.50');
+    expect(money(123450, 'CZK', 'cs', { trimZeroFraction: true })).toBe('1 234,50 Kč');
+  });
+
+  test('changes nothing unless asked — every existing caller omits it', () => {
+    expect(formatCurrency(5000, 'CZK', 'cs')).toBe(formatCurrency(5000, 'CZK', 'cs', {}));
+    expect(formatCurrency(5000, 'CZK', 'cs')).toMatch(/50,00/);
+    expect(formatCurrency(200, 'EUR', 'en')).toBe('€2.00');
+  });
+
+  test('is a no-op for a zero-decimal currency', () => {
+    expect(formatCurrency(4500, 'JPY', 'en', { trimZeroFraction: true })).toBe(
+      formatCurrency(4500, 'JPY', 'en'),
+    );
+  });
+});
+
 describe('formatNumber', () => {
   test('uses a comma decimal separator in Czech', () => {
     expect(formatNumber(1234.5, 'cs')).toMatch(/1\s?234,5/);

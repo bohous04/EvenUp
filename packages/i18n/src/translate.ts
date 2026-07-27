@@ -16,7 +16,12 @@ export const catalogs: Record<Locale, Record<MessageKey, string>> = { cs, en };
 
 export type InterpolationValues = Record<string, string | number>;
 
-function interpolate(template: string, values: InterpolationValues): string {
+/**
+ * Shared by every catalog namespace (the app catalogs here, the marketing
+ * catalog in `marketing.ts`) so `{placeholder}` behaves identically in all of
+ * them. Module-internal: not re-exported from the package index.
+ */
+export function interpolate(template: string, values: InterpolationValues): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
     name in values ? String(values[name]) : match,
   );

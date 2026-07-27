@@ -105,7 +105,6 @@ export default function SettingsScreen() {
 
   const [name, setName] = useState('');
   const [account, setAccount] = useState('');
-  const [apiKey, setApiKey] = useState('');
 
   useEffect(() => {
     if (me.data?.name) setName(me.data.name);
@@ -129,16 +128,6 @@ export default function SettingsScreen() {
       void utils.user.getBankAccount.invalidate();
     },
   });
-  const setKey = trpc.user.setOpenRouterKey.useMutation({
-    onSuccess: () => {
-      setApiKey('');
-      void utils.user.me.invalidate();
-    },
-  });
-  const clearKey = trpc.user.clearOpenRouterKey.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
-  });
-
   const notif = trpc.notification.getSettings.useQuery(undefined, { enabled: !!session?.user });
   const setNotif = trpc.notification.setEnabled.useMutation({
     onSuccess: () => {
@@ -295,28 +284,6 @@ export default function SettingsScreen() {
         />
         {me.data?.hasBankAccount ? (
           <Button title={t('common.delete')} variant="ghost" onPress={() => clearBank.mutate()} />
-        ) : null}
-      </Card>
-
-      {/* OpenRouter key (BYO OCR) */}
-      <Card>
-        <SectionLabel>{t('settings.openRouterKey')}</SectionLabel>
-        <Text style={hint}>{t('ocr.apiKeyRequired')}</Text>
-        <Input
-          value={apiKey}
-          onChangeText={setApiKey}
-          placeholder={me.data?.hasOpenRouterKey ? '••••••••' : 'sk-or-…'}
-          autoCapitalize="none"
-          secureTextEntry
-        />
-        <Button
-          title={t('common.save')}
-          loading={setKey.isPending}
-          disabled={apiKey.trim().length < 8}
-          onPress={() => setKey.mutate({ apiKey: apiKey.trim() })}
-        />
-        {me.data?.hasOpenRouterKey ? (
-          <Button title={t('common.delete')} variant="ghost" onPress={() => clearKey.mutate()} />
         ) : null}
       </Card>
 

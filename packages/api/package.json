@@ -13,6 +13,22 @@
     "./trpc": {
       "types": "./src/trpc.ts",
       "default": "./src/trpc.ts"
+    },
+    "./billing/prices": {
+      "types": "./src/billing/prices.ts",
+      "default": "./src/billing/prices.ts"
+    },
+    "./billing/display-prices": {
+      "types": "./src/billing/display-prices.ts",
+      "default": "./src/billing/display-prices.ts"
+    },
+    "./billing/entitlement": {
+      "types": "./src/billing/entitlement.ts",
+      "default": "./src/billing/entitlement.ts"
+    },
+    "./config/retention": {
+      "types": "./src/config/retention.ts",
+      "default": "./src/config/retention.ts"
     }
   },
   "scripts": {
@@ -28,6 +44,7 @@
     "@evenup/db": "workspace:*",
     "@evenup/i18n": "workspace:*",
     "@trpc/server": "^11.0.0",
+    "stripe": "^22.3.2",
     "superjson": "^2.2.2",
     "zod": "^3.24.1"
   },

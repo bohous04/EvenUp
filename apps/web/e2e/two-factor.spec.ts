@@ -20,7 +20,8 @@ function totp(secret: string): string {
 }
 
 async function passwordSignIn(page: Page, email: string) {
-  await page.goto('/');
+  // The dashboard lives at `/groups`; `/` is the public landing page.
+  await page.goto('/groups');
   await page.getByLabel(/email/i).fill(email);
   await page.getByTestId('password-input').fill(TEST_PASSWORD);
   await page.getByTestId('signin-submit').click();

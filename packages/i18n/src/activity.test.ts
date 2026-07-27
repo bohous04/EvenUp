@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { ACTIVITY_ACTIONS, describeActivity, createTranslator, catalogs } from './index.js';
+import {
+  ACTIVITY_ACTIONS,
+  ACTIVITY_PAYLOAD_FIELDS,
+  describeActivity,
+  createTranslator,
+  catalogs,
+} from './index.js';
 
 const t = createTranslator('en');
 const money = (minor: number) => `${(minor / 100).toFixed(2)} CZK`;
@@ -54,5 +60,46 @@ describe('describeActivity (FR-9.1)', () => {
         ).toBeTruthy();
       }
     }
+  });
+
+  test('names both sides of a member merge', () => {
+    expect(describe_('member.merged', { from: 'Petr S.', into: 'Petr' })).toBe(
+      'Petr merged Petr S. into Petr',
+    );
+  });
+
+  test('every field the switch reads is on the allow-list that gates the API', () => {
+    // The allow-list is applied server-side, so a field the renderer reads but
+    // the list omits renders blank in production while every test here still
+    // passes on a hand-built payload. Pin the two together.
+    const consumed = ['name', 'title', 'created', 'amount', 'from', 'into'];
+    expect([...ACTIVITY_PAYLOAD_FIELDS].sort()).toEqual(consumed.sort());
+  });
+});
+
+// Moved here with `describeActivity` itself: these cases were written against
+// the old apps/web copy, and the behaviour they pin — a settlement has no title
+// of its own, so an empty one must fall back to the localized label rather than
+// printing "Petr upravil(a) " — is easy to regress.
+describe('describeActivity — Czech settlement fallback', () => {
+  const cz = createTranslator('cs');
+  const raw = (minor: number) => String(minor);
+
+  test('an empty title on transaction.updated becomes the settlement label', () => {
+    expect(describeActivity('transaction.updated', { title: '' }, cz, raw, 'Petr')).toBe(
+      'Petr upravil(a) Vyrovnání',
+    );
+  });
+
+  test('an empty title on transaction.deleted becomes the settlement label', () => {
+    expect(describeActivity('transaction.deleted', { title: '' }, cz, raw, 'Petr')).toBe(
+      'Petr smazal(a) Vyrovnání',
+    );
+  });
+
+  test('a real title is left untouched', () => {
+    expect(describeActivity('transaction.updated', { title: 'Večeře' }, cz, raw, 'Petr')).toBe(
+      'Petr upravil(a) Večeře',
+    );
   });
 });

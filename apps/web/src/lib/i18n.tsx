@@ -1,7 +1,6 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import {
-  DEFAULT_LOCALE,
   createTranslator,
   plural as pluralize,
   formatCurrency as fmtCurrency,
@@ -10,47 +9,53 @@ import {
   type Locale,
   type MessageKey,
   type InterpolationValues,
+  type FormatCurrencyOptions,
 } from '@evenup/i18n';
 
 interface I18nValue {
   locale: Locale;
-  setLocale: (l: Locale) => void;
   t: (key: MessageKey, values?: InterpolationValues) => string;
   plural: (base: string, count: number, values?: InterpolationValues) => string;
-  formatCurrency: (minor: number, currency: string) => string;
+  /**
+   * `options` is additive and every existing caller omits it — an expense
+   * amount keeps its minor units. Only price displays pass
+   * `{ trimZeroFraction: true }`, and the VIP panel and the public price list
+   * must pass the same thing or one page would read "50 Kč" and the other
+   * "50,00 Kč" for the identical product.
+   */
+  formatCurrency: (minor: number, currency: string, options?: FormatCurrencyOptions) => string;
   formatDate: (date: string | Date) => string;
   formatNameList: (names: readonly string[], type: 'conjunction' | 'disjunction') => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
-const STORAGE_KEY = 'evenup.locale';
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === 'cs' || stored === 'en') setLocaleState(stored);
-  }, []);
-
-  const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l);
-    window.localStorage.setItem(STORAGE_KEY, l);
-    document.documentElement.lang = l;
-  }, []);
-
+/**
+ * The URL is the single source of truth for locale (see `locale-path.ts` and
+ * the middleware) — `locale` comes from the already-validated route segment.
+ * There is deliberately no local state here: a locale change is always a
+ * navigation (see the header's language switcher), which remounts this
+ * whole subtree with a fresh `locale` prop (Next keys the segment provider
+ * on the router cache key), so `useState` would only add a stale copy to
+ * keep in sync. For the same reason there's no `setLocale` in the context
+ * value and no manual `document.documentElement.lang` write — React already
+ * owns `<html lang>` via the `[locale]` layout, and a `setLocale` that
+ * changed the copy without navigating would silently desync it from the URL
+ * (and from the tRPC `x-locale` header), which is exactly the bug this
+ * module used to have.
+ */
+export function I18nProvider({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   const value = useMemo<I18nValue>(() => {
     const translator = createTranslator(locale);
     return {
       locale,
-      setLocale,
       t: translator,
       plural: (base, count, values) => pluralize(locale, base, count, values),
-      formatCurrency: (minor, currency) => fmtCurrency(minor, currency, locale),
+      formatCurrency: (minor, currency, options) => fmtCurrency(minor, currency, locale, options),
       formatDate: (date) => fmtDate(date, locale),
       formatNameList: (names, type) => fmtNameList(names, locale, type),
     };
-  }, [locale, setLocale]);
+  }, [locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

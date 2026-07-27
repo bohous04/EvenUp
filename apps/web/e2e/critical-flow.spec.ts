@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { signIn, uniqueEmail, openGroupSheet, closeSheet } from './helpers';
+import { signIn, uniqueEmail, openGroupSheet, closeSheet, ensureInstanceOcrKey } from './helpers';
 
 test.describe('EvenUp critical journey (PRD §10.1)', () => {
   // Guarantee a test never leaves its context offline (avoids cross-test cascades).
@@ -115,7 +115,6 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0'); // creator owes nothing
@@ -145,7 +144,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('profile-name-save').click();
     await expect(page.getByTestId('profile-name-saved')).toBeVisible();
 
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByText('Nick').click();
     await openGroupSheet(page, 'members');
     await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
@@ -162,18 +161,25 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
     expect(vipRes.ok()).toBeTruthy();
 
-    // Save a (mock) OpenRouter key in settings.
+    // Scanning also requires the shared instance OpenRouter key (admin-set,
+    // replacing the old per-user BYO key) to exist before it can proceed.
+    await ensureInstanceOcrKey(page);
+    await signIn(page, email);
+
+    // OCR now runs on the shared instance key (no more per-user BYO key), so
+    // there's nothing to configure here — visit settings only so the a11y
+    // check below still covers that page. A fresh user hasn't granted OCR
+    // consent yet, and there is nothing yet to revoke.
     await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('api-key-input').fill('sk-or-test-key');
-    await page.getByTestId('save-key-btn').click();
-    await expect(page.getByTestId('key-status')).toBeVisible();
+    await expect(page.getByTestId('ocr-consent-status')).toBeVisible();
+    await expect(page.getByTestId('ocr-consent-revoke')).toHaveCount(0);
 
     // A11y check on the settings page (§9.4).
     const settingsA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Večeře');
     await page.getByTestId('create-group-submit').click();
@@ -202,8 +208,13 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
       mimeType: 'image/png',
       buffer: tinyPng,
     });
-    // The gallery picker queues into the review list; scan the queued page(s).
+    // The gallery picker queues into the review list; scanning is gated behind
+    // one-time OCR consent (GDPR Art. 9) for a user who hasn't granted it yet
+    // — accept it, which resumes this queued scan automatically.
     await page.getByTestId('ocr-scan-pages-btn').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeVisible();
+    await page.getByTestId('ocr-consent-accept').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeHidden();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     // Items are editable inputs pre-filled from the mock extraction.
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
@@ -269,10 +280,10 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     expect(res.headers()['content-type']).toContain('image/');
 
     // Re-opening the saved itemized expense edits it with the same shared
-    // ItemizedEditor (Task 3): the split row shows both persisted items.
+    // ItemizedEditor (Task 3): the split type is ITEMIZED and its item rows
+    // reappear with both persisted items.
     await page.getByTestId('transaction-row').first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByTestId('expense-split-row').click();
     await expect(page.getByTestId('split-type-ITEMIZED')).toHaveAttribute('aria-checked', 'true');
     // Item order isn't persisted, so match either of the two known names rather
     // than assuming a position — the point is the items round-trip and display.
@@ -301,14 +312,16 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
     expect(vipRes.ok()).toBeTruthy();
 
-    // Save a (mock) OpenRouter key in settings.
-    await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('api-key-input').fill('sk-or-test-key');
-    await page.getByTestId('save-key-btn').click();
-    await expect(page.getByTestId('key-status')).toBeVisible();
+    // Scanning also requires the shared instance OpenRouter key (admin-set,
+    // replacing the old per-user BYO key) to exist before it can proceed.
+    await ensureInstanceOcrKey(page);
+    await signIn(page, email);
+
+    // OCR now runs on the shared instance key (no more per-user BYO key), so
+    // there's no settings setup needed before scanning.
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Nákup');
     await page.getByTestId('create-group-submit').click();
@@ -339,7 +352,12 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('ocr-page-0')).toBeVisible();
     await expect(page.getByTestId('ocr-page-1')).toBeVisible();
 
+    // Consent is granted per-user, not per-scan; accepting it here resumes
+    // this queued multi-page scan.
     await page.getByTestId('ocr-scan-pages-btn').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeVisible();
+    await page.getByTestId('ocr-consent-accept').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeHidden();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
 
@@ -459,9 +477,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('expense-title-input')).toHaveCount(0);
   });
 
-  test('advanced options keep required split inputs reachable and reset between expenses', async ({
-    page,
-  }, testInfo) => {
+  test('split inputs stay reachable and reset between expenses', async ({ page }, testInfo) => {
     const email = uniqueEmail('adv', testInfo.workerIndex + Date.now());
     await signIn(page, email);
 
@@ -475,17 +491,14 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
     await closeSheet(page);
 
-    // Choosing EXACT keeps the per-member inputs reachable: the split row's
-    // toggle is disabled so the required inputs can't be collapsed out of reach.
+    // Choosing EXACT keeps the per-member inputs reachable: the split-type
+    // control is always rendered (no disclosure to open first), so picking
+    // EXACT immediately surfaces the required per-member fields.
     await page.getByTestId('add-expense-open').click();
     await page.getByTestId('expense-title-input').fill('Nájem');
     await page.getByTestId('expense-amount-input').fill('100');
-    await page.getByTestId('expense-split-row').click();
     await page.getByTestId('split-type-EXACT').click();
     await expect(page.getByTestId('per-member-inputs')).toBeVisible();
-    // The split row is collapsible now (users asked to be able to close it), so
-    // its toggle stays enabled even for a non-EQUAL split.
-    await expect(page.getByTestId('expense-split-row')).toBeEnabled();
 
     const inputs = page.getByTestId('per-member-inputs').locator('input');
     await inputs.nth(0).fill('0');
@@ -493,11 +506,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-expense-submit').click();
     await expect(page.getByRole('dialog')).toBeHidden();
 
-    // Reopening starts from clean defaults — the split row is collapsed again and
+    // Reopening starts from clean defaults — the split type is back to EQUAL and
     // the currency is back to base.
     await page.getByTestId('add-expense-open').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByTestId('split-type-EXACT')).toHaveCount(0);
+    await expect(page.getByTestId('split-type-EQUAL')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('expense-currency-select')).toHaveValue('CZK');
   });
 
@@ -568,10 +581,15 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('add-member-btn').click();
     await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
 
-    // Open the inline editor for Petr (the pencil's accessible name carries the
-    // member name), clear it, and rename to "Pavel".
+    // Open the inline editor for Petr, clear it, and rename to "Pavel". Each
+    // row now carries both a merge and an edit action whose accessible names
+    // include the member, so target the row first and then the edit control.
     const memberList = page.getByTestId('member-list');
-    await memberList.getByRole('button', { name: /Petr/ }).click();
+    await memberList
+      .locator('li')
+      .filter({ hasText: 'Petr' })
+      .getByTestId(/^member-edit-/)
+      .click();
     const editor = page.getByTestId('member-rename-input');
     await editor.fill('Pavel');
     await page.getByTestId('member-rename-save').click();
@@ -582,7 +600,11 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(memberList.getByRole('img', { name: 'Petr' })).toHaveCount(0);
 
     // Escape cancels an edit without changing the name.
-    await memberList.getByRole('button', { name: /Pavel/ }).click();
+    await memberList
+      .locator('li')
+      .filter({ hasText: 'Pavel' })
+      .getByTestId(/^member-edit-/)
+      .click();
     await page.getByTestId('member-rename-input').fill('Zmeneno');
     await page.getByTestId('member-rename-input').press('Escape');
     await expect(memberList.getByText('Pavel')).toBeVisible();
@@ -602,8 +624,8 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
   });
 
   test('invite page is accessible (§9.4)', async ({ page }, testInfo) => {
-    const email = uniqueEmail('inv', testInfo.workerIndex + Date.now());
-    await signIn(page, email);
+    const owner = uniqueEmail('inv', testInfo.workerIndex + Date.now());
+    await signIn(page, owner);
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Invite');
     await page.getByTestId('create-group-submit').click();
@@ -611,7 +633,109 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await openGroupSheet(page, 'invite');
     await page.getByTestId('invite-btn').click();
     const url = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Scan as someone who is NOT already in the group. The owner is an
+    // active member, and an active member who opens their own invite link
+    // now gets redirected straight to the group (see AlreadyMemberBanner) --
+    // scanning as the owner would race that redirect and land the axe scan
+    // on whatever page won, not reliably on the invite page this test names.
+    // A genuine invitee has no membership yet, so nothing redirects them.
+    const invitee = uniqueEmail('inv-guest', testInfo.workerIndex + Date.now());
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Guest', email: invitee, password: 'test-password-123' },
+    });
     await page.goto(new URL(url!).pathname);
+    await expect(page).toHaveURL(/\/invite\//);
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('already-member banner after the invite redirect is accessible (§9.4)', async ({
+    page,
+  }, testInfo) => {
+    const email = uniqueEmail('already-a11y', testInfo.workerIndex + Date.now());
+    await signIn(page, email);
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Already');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Already').click();
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const url = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // The creator is an active member of their own group, so opening their
+    // own invite link redirects straight to the group with the amber banner
+    // this branch introduced (already-member-banner.tsx) -- new UI, so it
+    // gets its own axe scan rather than piggybacking on the invite test above.
+    await page.goto(new URL(url!).pathname);
+    await expect(page).toHaveURL(/\/groups\/.*already=1/);
+    await expect(page.getByTestId('already-member-banner')).toBeVisible();
+
+    const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
+  });
+
+  test('welcome-back view for a removed-then-returning member is accessible (§9.4)', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('comeback-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Comeback');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Comeback').click();
+    // Client-side navigation is async -- wait for it to actually land before
+    // reading the id out of the URL (a bare click() resolves on the click
+    // event, not the route change).
+    await expect(page).toHaveURL(/\/groups\//);
+    const groupId = new URL(page.url()).pathname.split('/').pop()!;
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Petr');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Petr' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Petr claims the placeholder, then is removed while he has no
+    // transactions on his row. There is no click path anywhere in the app
+    // for member.remove (it is exercised only via the API -- see that
+    // procedure's own review history), so this uses the same kind of
+    // dev-only backdoor /api/dev/make-vip already relies on for a state e2e
+    // otherwise can't reach.
+    const invitee = uniqueEmail('comeback-petr', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Petr', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+    await page
+      .getByTestId(/^invite-member-/)
+      .filter({ hasText: 'Petr' })
+      .click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+
+    const removeRes = await page.request.post(
+      `/api/dev/remove-member?groupId=${groupId}&email=${encodeURIComponent(invitee)}`,
+    );
+    expect(removeRes.ok()).toBeTruthy();
+
+    // Petr reopens the same link, still signed in as himself -- the server
+    // recognises his deactivated row and returns him to the welcome-back
+    // view instead of the member picker (see invite.ts's claimOptions).
+    await page.goto(new URL(inviteUrl!).pathname);
+    await expect(page.getByTestId('invite-welcome-back')).toBeVisible();
+
     const a11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(a11y.violations, JSON.stringify(a11y.violations, null, 2)).toEqual([]);
   });
@@ -737,5 +861,162 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await openGroupSheet(page, 'stats');
     await expect(page.getByTestId('spend-stats').getByText(/Ostatní|Other/)).toBeVisible();
     await expect(page.getByTestId('spend-stats').getByText('Pivo')).toHaveCount(0);
+  });
+
+  /**
+   * The duplicate-member bug: an invitee who is already in the group as a
+   * virtual member creates a second account instead of claiming the first,
+   * stranding that member's debts on an orphan nobody owns.
+   */
+  test('invitee claims the member that already holds their debt', async ({ page }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('debt-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Chata');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Chata').click();
+
+    // A virtual member who will owe money once the expense lands.
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('900');
+    await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('add-expense-submit').click();
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    const invitee = uniqueEmail('marek', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+
+    // Marek's row is the primary action and states what he owes, so he can
+    // recognise himself rather than reaching for "I'm not on the list".
+    const marekRow = page.getByTestId(/^invite-member-/).filter({ hasText: 'Marek' });
+    await expect(marekRow).toBeVisible();
+    await expect(marekRow).toContainText(/450/);
+
+    await marekRow.click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+    await expect(page.getByText('Chata')).toBeVisible();
+  });
+
+  test('creating a new account is gated behind a confirmation listing the unclaimed names', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('confirm-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Potvrzení');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Potvrzení').click();
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    const invitee = uniqueEmail('novak', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Novák', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+
+    // The escape hatch no longer mutates on the first click.
+    await page.getByTestId('invite-join-new').click();
+    const dialog = page.getByTestId('invite-confirm-new-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('Marek');
+    await expect(page).toHaveURL(/\/invite\//);
+
+    // Backing out returns to the list without creating anything.
+    await page.getByTestId('invite-confirm-back').click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/invite\//);
+
+    // Confirming deliberately still works — a genuinely new person is not locked out.
+    await page.getByTestId('invite-join-new').click();
+    await page.getByTestId('invite-confirm-new-cta').click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+    await expect(page.getByText('Potvrzení')).toBeVisible();
+  });
+
+  test('an accidental duplicate can be merged back into the placeholder', async ({
+    page,
+  }, testInfo) => {
+    const seed = testInfo.workerIndex + Date.now();
+    const owner = uniqueEmail('merge-owner', seed);
+    await signIn(page, owner);
+
+    await page.getByTestId('new-group-btn').click();
+    await page.getByTestId('group-name-input').fill('Sloučení');
+    await page.getByTestId('create-group-submit').click();
+    await page.getByText('Sloučení').click();
+
+    await openGroupSheet(page, 'members');
+    await page.getByTestId('member-name-input').fill('Marek');
+    await page.getByTestId('add-member-btn').click();
+    await expect(page.getByRole('img', { name: 'Marek' }).first()).toBeVisible();
+    await closeSheet(page);
+
+    await page.getByTestId('add-expense-open').click();
+    await page.getByTestId('expense-amount-input').fill('900');
+    await page.getByTestId('expense-title-input').fill('Nájem');
+    await page.getByTestId('add-expense-submit').click();
+
+    await openGroupSheet(page, 'invite');
+    await page.getByTestId('invite-btn').click();
+    const inviteUrl = await page.getByTestId('invite-url').textContent();
+    await closeSheet(page);
+
+    // Marek ignores the nudge and creates a second account anyway.
+    const invitee = uniqueEmail('marek-dup', seed);
+    await page.context().clearCookies();
+    await page.request.post('/api/auth/sign-up/email', {
+      data: { name: 'Marek', email: invitee, password: 'test-password-123' },
+    });
+    await page.goto(new URL(inviteUrl!).pathname);
+    await page.getByTestId('invite-join-new').click();
+    await page.getByTestId('invite-confirm-new-cta').click();
+    await expect(page).not.toHaveURL(/\/invite\//);
+
+    // The owner is offered the repair and takes it.
+    await page.context().clearCookies();
+    await signIn(page, owner);
+    await page.getByText('Sloučení').click();
+    await expect(page.getByTestId('merge-banner')).toBeVisible();
+    await page.getByTestId('merge-banner-confirm').click();
+
+    // The dialog shows the arithmetic before anything is destroyed. The
+    // duplicate itself is empty, so what matters is the balance the survivor
+    // ends up owning — the placeholder's stranded 450.
+    const dialog = page.getByTestId('merge-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(/450/);
+    await expect(dialog).toContainText('Marek');
+
+    await page.getByTestId('merge-confirm').click();
+    await expect(page.getByTestId('merge-banner')).toHaveCount(0);
   });
 });

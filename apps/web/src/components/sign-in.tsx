@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signIn, authClient } from '@/lib/auth-client';
 import { authErrorMessage } from '@/lib/auth-errors';
@@ -15,11 +15,17 @@ const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 /**
  * `callbackURL` lets embedding pages (e.g. the invite page) get the user back
  * after auth instead of being dumped on the dashboard. Only same-origin paths
- * are accepted; anything else falls back to '/'.
+ * are accepted; anything else falls back to the dashboard.
+ *
+ * That default is `/groups`, not `/`: `/` is the public landing page now, and
+ * sending someone who just signed in back to the marketing site would look
+ * like the sign-in silently failed.
  */
-export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
+const DASHBOARD = '/groups';
+
+export function SignIn({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const { t } = useI18n();
-  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : DASHBOARD;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -173,16 +179,16 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
               </Button>
             </form>
             <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <Link
+              <AppLink
                 href="/forgot-password"
                 data-testid="forgot-link"
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.forgotLink')}
-              </Link>
-              <Link
+              </AppLink>
+              <AppLink
                 href={
-                  safeCallback === '/'
+                  safeCallback === DASHBOARD
                     ? '/sign-up'
                     : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
                 }
@@ -190,7 +196,7 @@ export function SignIn({ callbackURL = '/' }: { callbackURL?: string }) {
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.signUpLink')}
-              </Link>
+              </AppLink>
             </div>
             {googleEnabled || appleEnabled ? (
               <>

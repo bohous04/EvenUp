@@ -1,49 +1,24 @@
-import type { Metadata, Viewport } from 'next';
-import './globals.css';
-import { Providers } from '@/components/providers';
-import { Header } from '@/components/header';
-import { ServiceWorker } from '@/components/service-worker';
+import type { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site-url';
 
-const siteUrl = process.env.BETTER_AUTH_URL ?? 'http://localhost:3000';
-
+/**
+ * A metadata-only root layout — it renders no `<html>`/`<body>` of its own
+ * (that's `app/[locale]/layout.tsx`'s job, since only it knows the resolved
+ * locale for `lang`) and simply passes `children` through.
+ *
+ * It exists purely so `apps/web/src/app/opengraph-image.png` and
+ * `twitter-image.png` — which sit at this true app root, one level above
+ * `[locale]`, and therefore outside that layout's own `metadataBase` — have
+ * *some* layout to inherit `metadataBase` from. Without this file, `next
+ * build` warns `metadataBase property in metadata export is not set` for
+ * those two routes on every build; the warning is real (`resolve-opengraph`
+ * in Next's metadata resolver only walks the layout chain, never sibling
+ * `page.js`/`not-found.js` files), not cosmetic.
+ */
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: 'EvenUp',
-  description: 'Open-source group expense splitter that minimizes debts.',
-  manifest: '/manifest.webmanifest',
-  applicationName: 'EvenUp',
-  appleWebApp: { capable: true, title: 'EvenUp', statusBarStyle: 'default' },
-  openGraph: {
-    type: 'website',
-    siteName: 'EvenUp',
-    title: 'EvenUp — split the bill, settle in the fewest payments',
-    description: 'Open-source group expense splitter that minimizes debts.',
-    locale: 'cs_CZ',
-    alternateLocale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'EvenUp — split the bill, settle in the fewest payments',
-    description: 'Open-source group expense splitter that minimizes debts.',
-  },
-};
-
-export const viewport: Viewport = {
-  themeColor: '#4f46e5',
-  width: 'device-width',
-  initialScale: 1,
+  metadataBase: new URL(SITE_URL),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="cs" suppressHydrationWarning>
-      <body className="min-h-full">
-        <Providers>
-          <Header />
-          <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
-          <ServiceWorker />
-        </Providers>
-      </body>
-    </html>
-  );
+  return children;
 }

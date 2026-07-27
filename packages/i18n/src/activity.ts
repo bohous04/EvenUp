@@ -11,6 +11,7 @@ export const ACTIVITY_ACTIONS = [
   'group.created',
   'member.added',
   'member.joined',
+  'member.merged',
   'member.updated',
   'expense.created',
   'expenses.imported',
@@ -34,7 +35,17 @@ export const ACTIVITY_ACTIONS = [
  * group by default — it would have to be added here first. Add a field here
  * when, and only when, the switch below starts rendering it.
  */
-export const ACTIVITY_PAYLOAD_FIELDS = ['name', 'title', 'created', 'amount'] as const;
+export const ACTIVITY_PAYLOAD_FIELDS = [
+  'name',
+  'title',
+  'created',
+  'amount',
+  // `member.merged` renders both sides of the merge. Note what is *not* here:
+  // that call site also logs the deleted member's id for forensics, and the
+  // allow-list keeps it server-side where it belongs.
+  'from',
+  'into',
+] as const;
 
 /** Map an activity action + payload to a localized, human-readable line (FR-9.1). */
 export function describeActivity(
@@ -52,6 +63,8 @@ export function describeActivity(
       return t('activity.created', { actor, item: str(p.name) });
     case 'member.added':
       return t('activity.created', { actor, item: str(p.name) });
+    case 'member.merged':
+      return t('activity.merged', { actor, from: str(p.from), into: str(p.into) });
     case 'category.created':
       return t('activity.created', { actor, item: str(p.name) });
     case 'expense.created':
@@ -64,9 +77,15 @@ export function describeActivity(
     case 'settlement.recorded':
       return t('activity.settled', { actor, amount: formatCurrency(Number(p.amount ?? 0)) });
     case 'transaction.updated':
-      return t('activity.edited', { actor, item: str(p.title) });
+      return t('activity.edited', {
+        actor,
+        item: str(p.title) || t('transaction.settlement'),
+      });
     case 'transaction.deleted':
-      return t('activity.deleted', { actor, item: str(p.title) });
+      return t('activity.deleted', {
+        actor,
+        item: str(p.title) || t('transaction.settlement'),
+      });
     case 'category.deleted':
       return t('activity.deleted', { actor, item: str(p.name) });
     case 'member.updated':

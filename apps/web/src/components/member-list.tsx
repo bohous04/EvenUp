@@ -2,9 +2,11 @@
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Input, iconButtonClass } from '@/components/ui';
+import { Input, Select, iconButtonClass } from '@/components/ui';
+import { Modal } from '@/components/modal';
 import { MemberChip } from '@/components/member-chip';
-import { Pencil, Check, X, Mail } from '@/components/icons';
+import { Pencil, Check, X, Mail, Merge } from '@/components/icons';
+import { MergeDialog } from '@/components/merge-members';
 
 interface MemberLite {
   id: string;
@@ -32,6 +34,7 @@ export function MemberList({ groupId, members }: { groupId: string; members: Mem
   const utils = trpc.useUtils();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
 
   const update = trpc.member.update.useMutation({
     onSuccess: () => {
@@ -59,92 +62,163 @@ export function MemberList({ groupId, members }: { groupId: string; members: Mem
   }
 
   return (
-    <ul className="mb-3 space-y-0.5" data-testid="member-list">
-      {members.map((m) => {
-        const editing = editingId === m.id;
-        return (
-          <li key={m.id} className="flex items-center gap-2 py-1">
-            <MemberChip
-              initials={m.initials}
-              color={m.color}
-              name={m.displayName}
-              imageUrl={m.imageUrl}
-              size="sm"
-            />
-            {editing ? (
-              <>
-                <Input
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      save(m.id);
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancel();
-                    }
-                  }}
-                  aria-label={t('member.name')}
-                  className="flex-1"
-                  data-testid="member-rename-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => save(m.id)}
-                  disabled={update.isPending || draft.trim().length === 0}
-                  aria-label={t('common.save')}
-                  title={t('common.save')}
-                  className={iconButton}
-                  data-testid="member-rename-save"
-                >
-                  <Check size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={cancel}
-                  aria-label={t('common.cancel')}
-                  title={t('common.cancel')}
-                  className={iconButton}
-                  data-testid="member-rename-cancel"
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{m.displayName}</span>
-                  {m.linkedEmail ? (
-                    <span
-                      className="flex items-center gap-1 truncate text-xs text-zinc-500 dark:text-zinc-400"
-                      title={m.linkedEmail}
-                      data-testid={`member-email-${m.id}`}
-                    >
-                      <Mail size={11} aria-hidden className="shrink-0" />
-                      <span className="truncate">{m.linkedEmail}</span>
-                    </span>
-                  ) : (
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      {m.connected ? t('member.connected') : t('member.notConnected')}
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startEdit(m)}
-                  aria-label={`${t('common.edit')} — ${m.displayName}`}
-                  title={t('common.edit')}
-                  className={iconButton}
-                >
-                  <Pencil size={16} aria-hidden />
-                </button>
-              </>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="mb-3 space-y-0.5" data-testid="member-list">
+        {members.map((m) => {
+          const editing = editingId === m.id;
+          return (
+            <li key={m.id} className="flex items-center gap-2 py-1">
+              <MemberChip
+                initials={m.initials}
+                color={m.color}
+                name={m.displayName}
+                imageUrl={m.imageUrl}
+                size="sm"
+              />
+              {editing ? (
+                <>
+                  <Input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        save(m.id);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancel();
+                      }
+                    }}
+                    aria-label={t('member.name')}
+                    className="flex-1"
+                    data-testid="member-rename-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => save(m.id)}
+                    disabled={update.isPending || draft.trim().length === 0}
+                    aria-label={t('common.save')}
+                    title={t('common.save')}
+                    className={iconButton}
+                    data-testid="member-rename-save"
+                  >
+                    <Check size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancel}
+                    aria-label={t('common.cancel')}
+                    title={t('common.cancel')}
+                    className={iconButton}
+                    data-testid="member-rename-cancel"
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{m.displayName}</span>
+                    {m.linkedEmail ? (
+                      <span
+                        className="flex items-center gap-1 truncate text-xs text-zinc-500 dark:text-zinc-400"
+                        title={m.linkedEmail}
+                        data-testid={`member-email-${m.id}`}
+                      >
+                        <Mail size={11} aria-hidden className="shrink-0" />
+                        <span className="truncate">{m.linkedEmail}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                        {m.connected ? t('member.connected') : t('member.notConnected')}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMergeSourceId(m.id)}
+                    aria-label={`${t('merge.action')} — ${m.displayName}`}
+                    title={t('merge.action')}
+                    className={iconButton}
+                    data-testid={`member-merge-${m.id}`}
+                  >
+                    <Merge size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => startEdit(m)}
+                    aria-label={`${t('common.edit')} — ${m.displayName}`}
+                    title={t('common.edit')}
+                    className={iconButton}
+                    data-testid={`member-edit-${m.id}`}
+                  >
+                    <Pencil size={16} aria-hidden />
+                  </button>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {mergeSourceId ? (
+        <MergeTargetPicker
+          groupId={groupId}
+          sourceMemberId={mergeSourceId}
+          members={members}
+          onClose={() => setMergeSourceId(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Two-step manual merge: pick who the member is really the same person as, then
+ * confirm in MergeDialog (which is where the arithmetic is shown).
+ */
+function MergeTargetPicker({
+  groupId,
+  sourceMemberId,
+  members,
+  onClose,
+}: {
+  groupId: string;
+  sourceMemberId: string;
+  members: MemberLite[];
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [targetId, setTargetId] = useState('');
+  const candidates = members.filter((m) => m.id !== sourceMemberId);
+
+  if (targetId) {
+    return (
+      <MergeDialog
+        groupId={groupId}
+        sourceMemberId={sourceMemberId}
+        targetMemberId={targetId}
+        onClose={onClose}
+      />
+    );
+  }
+  return (
+    <Modal open onClose={onClose} title={t('merge.action')} testId="merge-target-picker">
+      <Select
+        aria-label={t('merge.action')}
+        defaultValue=""
+        data-testid="merge-target-select"
+        onChange={(e) => setTargetId(e.target.value)}
+      >
+        <option value="" disabled>
+          —
+        </option>
+        {candidates.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.displayName}
+          </option>
+        ))}
+      </Select>
+    </Modal>
   );
 }

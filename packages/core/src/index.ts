@@ -74,6 +74,7 @@ export {
   isValidIban,
   normalizeIban,
   formatSpaydDate,
+  SPAYD_MESSAGE_MAX_LENGTH,
 } from './spayd/spayd.js';
 
 // Czech bank accounts (parsing, IBAN conversion, display mask)
@@ -93,6 +94,8 @@ export {
   colorForKey,
   readableTextColor,
   visibleAvatar,
+  normalizeForMatch,
+  nameSimilarity,
 } from './member/identity.js';
 
 // Expense categories + spend stats
