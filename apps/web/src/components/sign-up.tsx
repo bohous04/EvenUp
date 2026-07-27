@@ -1,14 +1,20 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
 
-/** `callbackURL`: where the verification link lands the user (default '/'). */
-export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
+/**
+ * `callbackURL`: where the verification link lands the user — the dashboard by
+ * default. `/` is the public landing page now, so a verified new account has
+ * to land on `/groups` instead or it arrives back on the marketing site.
+ */
+const DASHBOARD = '/groups';
+
+export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const { t } = useI18n();
-  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : '/';
+  const safeCallback = /^\/(?!\/)/.test(callbackURL) ? callbackURL : DASHBOARD;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,13 +56,13 @@ export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
             >
               {t('auth.verifySent')}
             </p>
-            <Link
+            <AppLink
               href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
               className="text-sm text-brand-600 dark:text-brand-100"
               data-testid="verify-email-link"
             >
               {t('auth.resend')}
-            </Link>
+            </AppLink>
           </div>
         ) : (
           <div className="space-y-4">
@@ -115,13 +121,13 @@ export function SignUp({ callbackURL = '/' }: { callbackURL?: string }) {
               </Button>
             </form>
             <div className="text-center text-sm">
-              <Link
-                href="/"
+              <AppLink
+                href="/groups"
                 data-testid="signin-link"
                 className="text-brand-600 dark:text-brand-100"
               >
                 {t('auth.haveAccount')}
-              </Link>
+              </AppLink>
             </div>
           </div>
         )}

@@ -17,6 +17,7 @@ export const cs = {
   'common.back': 'Zpět',
   'common.confirm': 'Potvrdit',
   'common.loading': 'Načítání…',
+  'common.retry': 'Zkusit znovu',
   'common.search': 'Hledat',
   'common.required': 'Povinné',
   'common.optional': 'Nepovinné',
@@ -28,7 +29,6 @@ export const cs = {
   // Fallback label for a settlement with no note of its own — never persisted
   // to the DB (that used to leak the English word into the Czech UI).
   'transaction.settlement': 'Vyrovnání',
-  'settings.openRouterKey': 'OpenRouter API klíč',
   'settings.apiKey': 'API klíč',
   'qr.alt': 'QR platba',
 
@@ -48,8 +48,9 @@ export const cs = {
   'errors.recipientNoIban': 'Příjemce nemá uložený IBAN; vyrovnejte hotově nebo ručně.',
   'errors.tooManyScans': 'Příliš mnoho skenování účtenek; chvíli počkejte a zkuste to znovu.',
   'errors.noSharedKey': 'Není nastaven sdílený OpenRouter klíč; požádejte administrátora.',
-  'errors.ocrNoAccess':
-    'Přidejte svůj OpenRouter API klíč v nastavení, nebo požádejte administrátora o VIP přístup.',
+  'errors.noScansRemaining': 'Nemáte žádné skeny. Předplaťte si VIP nebo dokupte kredit.',
+  'errors.ocrConsentRequired':
+    'Skenování účtenek vyžaduje váš souhlas s odesláním obrázku našemu poskytovateli OCR.',
   'errors.inviteNotFound': 'Pozvánka nenalezena',
   'errors.inviteExpired': 'Platnost pozvánky vypršela',
   'errors.inviteLimitReached': 'Byl dosažen limit použití pozvánky',
@@ -60,6 +61,10 @@ export const cs = {
   'errors.addMembersBeforeImport': 'Před importem přidejte členy',
   'errors.payerNotMember': 'Plátce není členem skupiny',
   'errors.payersTotalMismatch': 'Součet plateb neodpovídá celkové částce.',
+  'errors.billingNotConfigured': 'Platby nejsou na této instanci nastavené.',
+  'errors.acknowledgeImmediate': 'Potvrďte okamžité dodání a pokračujte.',
+  'errors.unknownPack': 'Neznámý balíček kreditů.',
+  'errors.subscriptionExists': 'Předplatné už máte, spravujte ho v zákaznickém portálu.',
 
   'auth.continueGoogle': 'Pokračovat přes Google',
   'auth.continueApple': 'Pokračovat přes Apple',
@@ -96,8 +101,88 @@ export const cs = {
   'nav.transactions': 'Transakce',
   'nav.settings': 'Nastavení',
   'nav.admin': 'Správa',
+  // The header's route to the purchase page. Nothing in the app linked there
+  // before, so the only way to pay was to type the address.
+  'nav.vip': 'VIP',
   'nav.signOut': 'Odhlásit se',
   'vip.badge': 'VIP',
+  'vip.title': 'EvenUp VIP',
+  // Distinct from `vip.title` (the page's own `<h1>`) so the subscription
+  // card doesn't repeat the page heading verbatim — see settings.page's
+  // `profile.title` vs `nav.settings` for the same pattern.
+  'vip.subscription.title': 'Předplatné VIP',
+  'vip.subtitle': 'Skenujte účtenky, my je přečteme za vás.',
+  'vip.benefit.scans': '150 skenů účtenek měsíčně',
+  // `{days}` je RECEIPT_RETENTION_DAYS ze `config/retention.ts`, stejné číslo,
+  // jaké uvádějí obchodní podmínky i zásady ochrany osobních údajů – bez něj
+  // panel sliboval uložení bez konce, zatímco úklidová úloha fotky maže.
+  // „po {days} dnech“ (lokál), ne „{days} dnů“ (genitiv): retence je
+  // nastavitelná, takže hodnoty 2, 3 a 4 jsou reálné a „2 dnů“ je špatně.
+  // Stejná úvaha jako u `legal.privacy.s7.li1`.
+  'vip.benefit.storage': 'Fotky účtenek zůstanou uložené – po {days} dnech je smažeme',
+  'vip.benefit.cancel': 'Zrušíte kdykoli',
+  'vip.subscribe': 'Předplatit VIP',
+  // Nabídka pro toho, kdo u nás předplatné ještě nikdy neměl; `trialEligible`
+  // z `billing.summary` rozhoduje, který z těch dvou popisků tlačítko dostane.
+  //
+  // `{trialDays}` je `TRIAL_PERIOD_DAYS` z `billing/prices.ts` – tedy přesně
+  // to číslo, které checkout pošle Stripu jako `trial_period_days`, aby
+  // tlačítko nemohlo slíbit jiné zkušební období, než jaké se doopravdy
+  // založí.
+  //
+  // Záměrně `{trialDays}`, ne `{days}`: `{days}` po celém katalogu i v
+  // právních dokumentech znamená retenci fotek účtenek a `LegalDocument`
+  // dosazuje jednu a tutéž hodnotu do každého klíče. Dvě různá čísla pod
+  // jedním jménem by se dřív nebo později prohodila.
+  //
+  // Genitiv „{trialDays} dní“ sedí pro 5 a víc – tedy i pro dnešních 7 –, ale
+  // rozbije se na 2, 3 a 4 („3 dní“ místo „3 dny“), stejně jako u
+  // `marketing.pricing.vip.body`. Zkrátí-li se zkušební období pod pět dnů,
+  // musí se řetězec přepsat na `plural()`. Věty níž se tomu vyhýbají lokálem
+  // („po {trialDays} dnech“), který je správný pro každou hodnotu ≥ 2.
+  'vip.trial.subscribe': 'Vyzkoušet {trialDays} dní zdarma',
+  // Kartu Stripe vyžaduje i ve zkušebním období, takže to musí zaznít dřív,
+  // než člověk klikne – jinak je to nemilé překvapení až v checkoutu.
+  //
+  // „Pokud … zrušíte“, ne „Zrušíte-li“: `-li` je rejstřík právních dokumentů,
+  // kdežto tenhle katalog i sousední `vip.subscription.trialing` používají
+  // „Pokud“. Dva řetězce na jednom panelu se nemají lišit.
+  'vip.trial.note':
+    'Kartu zadáte hned, ale platit začnete až po {trialDays} dnech. Pokud předplatné do té doby zrušíte, nestrhneme vám nic.',
+  'vip.manage': 'Spravovat předplatné',
+  'vip.balance': 'Zbývá skenů: {count}',
+  'vip.credits.title': 'Nebo si dokupte jednotlivé skeny',
+  'vip.credits.pack': '{scans} skenů',
+  // Displayed price of the subscription; `{price}` is already formatted for
+  // the locale by `formatCurrency`, so no currency symbol belongs in here.
+  'vip.price.month': '{price} měsíčně',
+  'vip.credits.buy': 'Koupit',
+  'vip.credits.ack':
+    'Souhlasím, aby skeny byly dodány ihned, a beru na vědomí, že tím ztrácím právo na odstoupení od smlouvy do 14 dnů.',
+  'vip.disabled': 'Placené funkce nejsou na této instanci zapnuté.',
+  // Replaces the Subscribe button when no VIP price is configured for the
+  // request's currency — `STRIPE_PRICE_{CZK,EUR}_VIP` is a separate variable
+  // per currency, so a partially-configured instance really does hit this.
+  'vip.subscription.unavailable': 'Předplatné teď není k dispozici. Skeny si můžete dokoupit níž.',
+  // `past_due` / `unpaid` / `incomplete`: the subscription exists but its
+  // payment failed. Offering "Subscribe" here would sell a second one.
+  'vip.subscription.paymentProblem':
+    'Platba předplatného neprošla. Zkontrolujte si kartu v zákaznickém portálu, jinak vám VIP zanikne.',
+  // Stav `trialing`. `{date}` je `currentPeriodEnd` – Stripe po dobu zkušebního
+  // období nastavuje období předplatného právě na ni, takže je to zároveň den
+  // první platby. Zdravý stav jako `active`, ale zákazník potřebuje vidět,
+  // kdy mu začneme účtovat; bez data by se zkušební období nedalo uhlídat.
+  // `{date}` jde přes `formatDate` (`Intl`, cs-CZ), který vrací „2. srpna 2026“
+  // – genitiv, tedy tvar, kterým se v češtině určuje den i bez předložky.
+  //
+  // Ne „běží do {date}“: „do 2. srpna“ se čte včetně toho dne, takže věta
+  // „a ten den vám strhneme platbu“ na to zněla jako protimluv. „Končí {date}“
+  // pojmenuje týž den bez té dvojznačnosti.
+  'vip.subscription.trialing':
+    'Zkušební období končí {date}. Pokud předplatné do té doby nezrušíte, ten den vám strhneme první platbu.',
+  'vip.checkout.success': 'Zaplaceno, díky. Skeny se připíšou během chviličky.',
+  'vip.checkout.cancelled': 'Platbu jste zrušili. Nic jsme vám nestrhli.',
+  'vip.signedOut': 'Přihlaste se a můžete si předplatit VIP nebo dokoupit skeny.',
   'admin.instanceKey': 'Sdílený OpenRouter klíč',
   'admin.instanceKey.desc': 'Používají ho VIP uživatelé pro skenování účtenek.',
   'admin.ocrModel': 'OCR model',
@@ -105,14 +190,17 @@ export const cs = {
   'admin.errors': 'Chyby',
   'admin.col.vip': 'VIP',
   'admin.col.admin': 'Správce',
-  'admin.col.key': 'Vlastní klíč',
   'admin.col.joined': 'Registrace',
   'admin.col.disabled': 'Zablokován',
+  'admin.col.credits': 'Kredity',
   'admin.col.actions': 'Akce',
   'admin.delete.confirm': 'Opravdu smazat uživatele {email}? Tuto akci nelze vzít zpět.',
   'admin.you': '(vy)',
   'admin.errors.empty': 'Zatím žádné chyby.',
   'admin.loadMore': 'Načíst další',
+  'admin.grantCredits': 'Přidat kredity',
+  'admin.grantCredits.placeholder': 'Skeny',
+  'admin.grantCredits.granted': 'Kredity přidány.',
 
   'locale.czech': 'Čeština',
   'locale.english': 'Angličtina',
@@ -286,9 +374,7 @@ export const cs = {
   'ocr.receiptTitle': 'Účtenka',
   'ocr.lowConfidence': 'Nízká jistota rozpoznání — zkontrolujte položky',
   'ocr.failed': 'Rozpoznání selhalo. Zadejte položky ručně.',
-  'ocr.apiKeyRequired': 'Pro skenování zadejte svůj OpenRouter API klíč',
-  'ocr.accessRequired':
-    'Ke skenování účtenek potřebujete VIP přístup, nebo vlastní OpenRouter API klíč. Přidejte ho v Nastavení.',
+  'ocr.buyScans': 'Dokoupit skeny',
   'ocr.addItem': 'Přidat položku',
   'ocr.itemName': 'Název položky',
   'ocr.perPerson': 'Na osobu',
@@ -308,6 +394,12 @@ export const cs = {
   'ocr.itemNeedsPrice': 'Každá položka musí mít cenu — doplňte ji u zvýrazněných.',
   'ocr.assignAll': 'Přiřadit ke všem položkám',
   'ocr.totalMatches': 'Položky sedí na částku z účtenky',
+
+  'ocr.consent.title': 'Souhlas se skenováním účtenek',
+  'ocr.consent.body':
+    'Fotku účtenky odešleme poskytovateli umělé inteligence, který ji přečte. Zpracování může probíhat mimo EU. Účtenka může prozradit citlivé údaje — třeba nákup v lékárně. Souhlas můžete kdykoli odvolat v Nastavení.',
+  'ocr.consent.accept': 'Souhlasím, naskenovat',
+  'ocr.consent.cancel': 'Zrušit',
 
   'receipt.view': 'Zobrazit účtenku',
   'receipt.viewCount': 'Zobrazit účtenku ({count})',
@@ -353,6 +445,11 @@ export const cs = {
   'settings.data.export': 'Exportovat moje data',
   'settings.data.delete': 'Smazat účet',
   'settings.data.deleteConfirm': 'Opravdu smazat účet? Tuto akci nelze vzít zpět.',
+
+  'settings.ocrConsent.title': 'Skenování účtenek',
+  'settings.ocrConsent.granted': 'Souhlas udělen {date}',
+  'settings.ocrConsent.notGranted': 'Souhlas zatím neudělen',
+  'settings.ocrConsent.revoke': 'Odvolat souhlas',
 
   'profile.title': 'Profil',
   'profile.nickname': 'Přezdívka',
@@ -432,6 +529,10 @@ export const cs = {
   'security.error.generic': 'Něco se nepovedlo. Zkuste to znovu.',
   'security.error.invalidPassword': 'Nesprávné heslo.',
   'security.error.invalidCode': 'Neplatný nebo vypršelý kód.',
+
+  'notFound.title': 'Stránka nenalezena',
+  'notFound.body': 'Tahle adresa nikam nevede. Zkuste to od začátku.',
+  'notFound.home': 'Zpět na úvod',
 } as const;
 
 export type MessageKey = keyof typeof cs;

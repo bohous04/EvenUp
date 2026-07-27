@@ -8,9 +8,9 @@ Security tab) or email the maintainers. We aim to acknowledge within 72 hours.
 
 ## What we protect
 
-- **Secrets at rest** — BYO OpenRouter API keys and member IBANs are encrypted
-  with **AES-256-GCM** (`ENCRYPTION_KEY`, server-managed). They are never
-  returned to clients after saving and never logged.
+- **Secrets at rest** — the instance's OpenRouter API key and member IBANs are
+  encrypted with **AES-256-GCM** (`ENCRYPTION_KEY`, server-managed). They are
+  never returned to clients after saving and never logged.
 - **Sessions** — httpOnly, SameSite cookies on web; secure token storage on
   mobile.
 - **Input validation** — all API inputs are validated server-side with zod;

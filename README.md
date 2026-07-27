@@ -25,8 +25,9 @@ Android aplikace. Zdarma, bez reklam._
   via greedy min-cash-flow netting. If `A → B → C` for equal amounts, it
   collapses to `A → C`.
 - **OCR receipts** — photograph a receipt → structured line items (via
-  OpenRouter, **your own API key**, encrypted at rest) → assign each item to
-  people by tapping **colored initial chips**. Manual entry is always available.
+  OpenRouter, using the instance's shared API key set from `/admin`, encrypted
+  at rest) → assign each item to people by tapping **colored initial chips**.
+  Manual entry is always available.
 - **SPAYD QR ("QR Platba")** — generate a Czech bank-transfer QR for a
   suggested payment, then mark it settled.
 - **Multi-currency** with daily FX rates and a manual per-expense override.

@@ -1,8 +1,8 @@
 /**
- * AES-256-GCM "secret box" for encrypting secrets at rest — BYO OpenRouter API
- * keys and member IBANs (PRD §9.2, FR-6, FR-7.2). The server-managed key comes
- * from `ENCRYPTION_KEY`. Tokens are self-describing: `iv.tag.ciphertext`, each
- * part base64. Authentication tag detects tampering.
+ * AES-256-GCM "secret box" for encrypting secrets at rest — the instance
+ * OpenRouter API key and member IBANs (PRD §9.2, FR-6, FR-7.2). The
+ * server-managed key comes from `ENCRYPTION_KEY`. Tokens are self-describing:
+ * `iv.tag.ciphertext`, each part base64. Authentication tag detects tampering.
  */
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 

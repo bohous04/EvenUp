@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '../trpc.js';
 import { deleteUserAccount } from '../services/account.js';
+import { grantCredits } from '../billing/ledger.js';
 
 const INSTANCE_ID = 'singleton';
 
@@ -32,17 +33,16 @@ export const adminRouter = router({
         isAdmin: true,
         isVip: true,
         disabledAt: true,
-        openRouterKeyEncrypted: true,
         createdAt: true,
+        creditBalance: true,
         _count: { select: { members: true } },
       },
     });
     let nextCursor: string | undefined;
     if (rows.length > limit) nextCursor = rows.pop()!.id;
     return {
-      users: rows.map(({ openRouterKeyEncrypted, _count, ...u }) => ({
+      users: rows.map(({ _count, ...u }) => ({
         ...u,
-        hasOwnKey: openRouterKeyEncrypted !== null,
         memberships: _count.members,
       })),
       nextCursor,
@@ -103,7 +103,15 @@ export const adminRouter = router({
           message: 'You cannot delete your own account here; use settings.',
         });
       }
-      await deleteUserAccount(ctx.prisma, input.userId);
+      await deleteUserAccount(ctx.prisma, input.userId, ctx.objectStore);
+      return { ok: true };
+    }),
+
+  /** Manual remedy — e.g. returning a credit lost to a mid-scan crash. */
+  grantCredits: adminProcedure
+    .input(z.object({ userId: z.string(), scans: z.number().int().min(1).max(1000) }))
+    .mutation(async ({ ctx, input }) => {
+      await grantCredits(ctx.prisma, input.userId, input.scans);
       return { ok: true };
     }),
 

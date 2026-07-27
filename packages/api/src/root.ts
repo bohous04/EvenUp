@@ -14,6 +14,7 @@ import { activityRouter } from './routers/activity.js';
 import { adminRouter } from './routers/admin.js';
 import { categoryRouter } from './routers/category.js';
 import { notificationRouter } from './routers/notification.js';
+import { billingRouter } from './routers/billing.js';
 
 export const appRouter = router({
   group: groupRouter,
@@ -30,6 +31,7 @@ export const appRouter = router({
   admin: adminRouter,
   category: categoryRouter,
   notification: notificationRouter,
+  billing: billingRouter,
 });
 
 export type AppRouter = typeof appRouter;

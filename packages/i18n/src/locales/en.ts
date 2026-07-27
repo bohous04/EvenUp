@@ -17,6 +17,7 @@ export const en: Messages = {
   'common.back': 'Back',
   'common.confirm': 'Confirm',
   'common.loading': 'Loading…',
+  'common.retry': 'Retry',
   'common.search': 'Search',
   'common.required': 'Required',
   'common.optional': 'Optional',
@@ -26,7 +27,6 @@ export const en: Messages = {
   'common.language': 'Language',
   'transactions.showMore': 'Show more transactions',
   'transaction.settlement': 'Settlement',
-  'settings.openRouterKey': 'OpenRouter API key',
   'settings.apiKey': 'API key',
   'qr.alt': 'QR payment',
 
@@ -46,7 +46,9 @@ export const en: Messages = {
   'errors.recipientNoIban': 'Recipient has no saved IBAN; settle in cash or manually (FR-7.4).',
   'errors.tooManyScans': 'Too many receipt scans; please wait a moment and try again.',
   'errors.noSharedKey': 'No shared OpenRouter key is configured; ask an admin.',
-  'errors.ocrNoAccess': 'Add your OpenRouter API key in settings, or ask an admin for VIP access.',
+  'errors.noScansRemaining': 'No scans remaining. Subscribe or buy credits to continue.',
+  'errors.ocrConsentRequired':
+    'Receipt scanning requires your consent to send the image to our OCR provider.',
   'errors.inviteNotFound': 'Invite not found',
   'errors.inviteExpired': 'Invite expired',
   'errors.inviteLimitReached': 'Invite usage limit reached',
@@ -57,6 +59,13 @@ export const en: Messages = {
   'errors.addMembersBeforeImport': 'Add members before importing',
   'errors.payerNotMember': 'Payer is not a group member',
   'errors.payersTotalMismatch': 'The payer amounts do not add up to the expense total.',
+  'errors.billingNotConfigured': 'Billing is not configured on this instance.',
+  'errors.acknowledgeImmediate': 'Acknowledge immediate delivery to continue.',
+  'errors.unknownPack': 'Unknown credit pack.',
+  // Must match `billing.checkoutSubscription`'s thrown message verbatim — the
+  // tRPC error formatter localizes by reverse-mapping the English text back
+  // to its key (see packages/api/src/trpc.ts).
+  'errors.subscriptionExists': 'You already have a subscription; manage it in the billing portal.',
 
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueApple': 'Continue with Apple',
@@ -93,8 +102,40 @@ export const en: Messages = {
   'nav.transactions': 'Transactions',
   'nav.settings': 'Settings',
   'nav.admin': 'Admin',
+  'nav.vip': 'VIP',
   'nav.signOut': 'Sign out',
   'vip.badge': 'VIP',
+  'vip.title': 'EvenUp VIP',
+  // Distinct from `vip.title` (the page's own `<h1>`) so the subscription
+  // card doesn't repeat the page heading verbatim — see settings.page's
+  // `profile.title` vs `nav.settings` for the same pattern.
+  'vip.subscription.title': 'VIP subscription',
+  'vip.subtitle': 'Photograph a receipt; we read it for you.',
+  'vip.benefit.scans': '150 receipt scans a month',
+  'vip.benefit.storage': 'Receipt photos stay saved — we delete them {days} days after the scan',
+  'vip.benefit.cancel': 'Cancel any time',
+  'vip.subscribe': 'Subscribe to VIP',
+  'vip.trial.subscribe': 'Try {trialDays} days free',
+  'vip.trial.note':
+    'We need your card up front, but the first payment only comes after {trialDays} days. Cancel before then and you pay nothing.',
+  'vip.manage': 'Manage subscription',
+  'vip.balance': 'Scans remaining: {count}',
+  'vip.credits.title': 'Or buy scans one pack at a time',
+  'vip.credits.pack': '{scans} scans',
+  'vip.price.month': '{price} per month',
+  'vip.credits.buy': 'Buy',
+  'vip.credits.ack':
+    'I agree the scans are delivered immediately, and I understand this means I lose my right to withdraw within 14 days.',
+  'vip.disabled': 'Paid features are not enabled on this instance.',
+  'vip.subscription.unavailable':
+    'The subscription is not available right now. You can still buy scan packs below.',
+  'vip.subscription.paymentProblem':
+    "Your subscription payment didn't go through. Check your card in the billing portal or VIP will lapse.",
+  'vip.subscription.trialing':
+    'Your free trial runs until {date}. Unless you cancel before then, that is the day of your first payment.',
+  'vip.checkout.success': 'Payment received, thank you. Your scans will appear in a moment.',
+  'vip.checkout.cancelled': "Payment cancelled. You haven't been charged.",
+  'vip.signedOut': 'Sign in to subscribe to VIP or buy scan packs.',
   'admin.instanceKey': 'Shared OpenRouter key',
   'admin.instanceKey.desc': 'Used by VIP users to scan receipts.',
   'admin.ocrModel': 'OCR model',
@@ -102,14 +143,17 @@ export const en: Messages = {
   'admin.errors': 'Errors',
   'admin.col.vip': 'VIP',
   'admin.col.admin': 'Admin',
-  'admin.col.key': 'Own key',
   'admin.col.joined': 'Joined',
   'admin.col.disabled': 'Disabled',
+  'admin.col.credits': 'Credits',
   'admin.col.actions': 'Actions',
   'admin.delete.confirm': 'Really delete user {email}? This cannot be undone.',
   'admin.you': '(you)',
   'admin.errors.empty': 'No errors yet.',
   'admin.loadMore': 'Load more',
+  'admin.grantCredits': 'Grant credits',
+  'admin.grantCredits.placeholder': 'Scans',
+  'admin.grantCredits.granted': 'Credits granted.',
 
   'locale.czech': 'Czech',
   'locale.english': 'English',
@@ -280,9 +324,7 @@ export const en: Messages = {
   'ocr.receiptTitle': 'Receipt',
   'ocr.lowConfidence': 'Low recognition confidence — please check the items',
   'ocr.failed': 'Recognition failed. Enter the items manually.',
-  'ocr.apiKeyRequired': 'Enter your OpenRouter API key to scan receipts',
-  'ocr.accessRequired':
-    'To scan receipts you need VIP access, or your own OpenRouter API key. Add one in Settings.',
+  'ocr.buyScans': 'Buy scans',
   'ocr.addItem': 'Add item',
   'ocr.itemName': 'Item name',
   'ocr.perPerson': 'Per person',
@@ -302,6 +344,12 @@ export const en: Messages = {
   'ocr.itemNeedsPrice': 'Every item needs a price — fill in the highlighted ones.',
   'ocr.assignAll': 'Assign to all items',
   'ocr.totalMatches': 'Items match the receipt total',
+
+  'ocr.consent.title': 'Consent to receipt scanning',
+  'ocr.consent.body':
+    'We send the receipt photo to an AI provider that reads it. Processing may take place outside the EU. A receipt can reveal sensitive information — a pharmacy purchase, for example. You can withdraw consent at any time in Settings.',
+  'ocr.consent.accept': 'Agree and scan',
+  'ocr.consent.cancel': 'Cancel',
 
   'receipt.view': 'View receipt',
   'receipt.viewCount': 'View receipt ({count})',
@@ -347,6 +395,11 @@ export const en: Messages = {
   'settings.data.export': 'Export my data',
   'settings.data.delete': 'Delete account',
   'settings.data.deleteConfirm': 'Really delete your account? This cannot be undone.',
+
+  'settings.ocrConsent.title': 'Receipt scanning',
+  'settings.ocrConsent.granted': 'Consent given {date}',
+  'settings.ocrConsent.notGranted': 'Consent not given yet',
+  'settings.ocrConsent.revoke': 'Withdraw consent',
 
   'profile.title': 'Profile',
   'profile.nickname': 'Nickname',
@@ -426,4 +479,8 @@ export const en: Messages = {
   'security.error.generic': 'Something went wrong. Try again.',
   'security.error.invalidPassword': 'Incorrect password.',
   'security.error.invalidCode': 'Invalid or expired code.',
+
+  'notFound.title': 'Page not found',
+  'notFound.body': 'This address leads nowhere. Try starting over.',
+  'notFound.home': 'Back to the start',
 };

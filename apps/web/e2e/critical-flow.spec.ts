@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { signIn, uniqueEmail, openGroupSheet, closeSheet } from './helpers';
+import { signIn, uniqueEmail, openGroupSheet, closeSheet, ensureInstanceOcrKey } from './helpers';
 
 test.describe('EvenUp critical journey (PRD §10.1)', () => {
   // Guarantee a test never leaves its context offline (avoids cross-test cascades).
@@ -144,7 +144,7 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await page.getByTestId('profile-name-save').click();
     await expect(page.getByTestId('profile-name-saved')).toBeVisible();
 
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByText('Nick').click();
     await openGroupSheet(page, 'members');
     await expect(page.getByTestId('member-list').getByText('Michal Novák')).toBeVisible();
@@ -161,18 +161,25 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
     expect(vipRes.ok()).toBeTruthy();
 
-    // Save a (mock) OpenRouter key in settings.
+    // Scanning also requires the shared instance OpenRouter key (admin-set,
+    // replacing the old per-user BYO key) to exist before it can proceed.
+    await ensureInstanceOcrKey(page);
+    await signIn(page, email);
+
+    // OCR now runs on the shared instance key (no more per-user BYO key), so
+    // there's nothing to configure here — visit settings only so the a11y
+    // check below still covers that page. A fresh user hasn't granted OCR
+    // consent yet, and there is nothing yet to revoke.
     await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('api-key-input').fill('sk-or-test-key');
-    await page.getByTestId('save-key-btn').click();
-    await expect(page.getByTestId('key-status')).toBeVisible();
+    await expect(page.getByTestId('ocr-consent-status')).toBeVisible();
+    await expect(page.getByTestId('ocr-consent-revoke')).toHaveCount(0);
 
     // A11y check on the settings page (§9.4).
     const settingsA11y = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(settingsA11y.violations, JSON.stringify(settingsA11y.violations, null, 2)).toEqual([]);
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Večeře');
     await page.getByTestId('create-group-submit').click();
@@ -201,8 +208,13 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
       mimeType: 'image/png',
       buffer: tinyPng,
     });
-    // The gallery picker queues into the review list; scan the queued page(s).
+    // The gallery picker queues into the review list; scanning is gated behind
+    // one-time OCR consent (GDPR Art. 9) for a user who hasn't granted it yet
+    // — accept it, which resumes this queued scan automatically.
     await page.getByTestId('ocr-scan-pages-btn').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeVisible();
+    await page.getByTestId('ocr-consent-accept').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeHidden();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     // Items are editable inputs pre-filled from the mock extraction.
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
@@ -300,14 +312,16 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     const vipRes = await page.request.post(`/api/dev/make-vip?email=${encodeURIComponent(email)}`);
     expect(vipRes.ok()).toBeTruthy();
 
-    // Save a (mock) OpenRouter key in settings.
-    await page.getByRole('link', { name: /settings|nastavení/i }).click();
-    await page.getByTestId('api-key-input').fill('sk-or-test-key');
-    await page.getByTestId('save-key-btn').click();
-    await expect(page.getByTestId('key-status')).toBeVisible();
+    // Scanning also requires the shared instance OpenRouter key (admin-set,
+    // replacing the old per-user BYO key) to exist before it can proceed.
+    await ensureInstanceOcrKey(page);
+    await signIn(page, email);
+
+    // OCR now runs on the shared instance key (no more per-user BYO key), so
+    // there's no settings setup needed before scanning.
 
     // New group + a second member.
-    await page.goto('/');
+    await page.goto('/groups');
     await page.getByTestId('new-group-btn').click();
     await page.getByTestId('group-name-input').fill('Nákup');
     await page.getByTestId('create-group-submit').click();
@@ -338,7 +352,12 @@ test.describe('EvenUp critical journey (PRD §10.1)', () => {
     await expect(page.getByTestId('ocr-page-0')).toBeVisible();
     await expect(page.getByTestId('ocr-page-1')).toBeVisible();
 
+    // Consent is granted per-user, not per-scan; accepting it here resumes
+    // this queued multi-page scan.
     await page.getByTestId('ocr-scan-pages-btn').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeVisible();
+    await page.getByTestId('ocr-consent-accept').click();
+    await expect(page.getByTestId('ocr-consent-dialog')).toBeHidden();
     await expect(page.getByTestId('ocr-items')).toBeVisible();
     await expect(page.getByTestId('ocr-item-name-0')).toHaveValue('Mléko');
 

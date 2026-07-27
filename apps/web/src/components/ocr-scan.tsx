@@ -19,6 +19,8 @@ import { moveItem } from '@/lib/move-item';
 import { parseLocalDate } from '@/lib/local-date';
 import { expandItemQuantities } from '@/lib/expand-items';
 import { type EditorItem, ItemizedEditor, itemPriceToMinor } from '@/components/itemized-editor';
+import { OcrConsentDialog } from '@/components/ocr-consent-dialog';
+import { AppLink } from '@/components/app-link';
 
 interface MemberLite {
   id: string;
@@ -87,12 +89,11 @@ export function OcrScan({
 }) {
   const { t, locale } = useI18n();
   const utils = trpc.useUtils();
+  // Receipt OCR is metered server-side by entitlement (VIP, subscription, or
+  // purchased credits) against the shared instance key — there is no per-user
+  // key to check client-side, so we don't gate the button; a blocked scan
+  // reports the reason via `scan`'s onError below.
   const me = trpc.user.me.useQuery();
-  // Receipt OCR needs either VIP access (shared instance key) or the user's own
-  // BYO OpenRouter key. Without either, scanning always fails server-side, so we
-  // tell them upfront instead of after a doomed attempt. Default to allowed
-  // while the profile is still loading to avoid flashing the notice.
-  const lacksOcrAccess = me.data ? !me.data.isVip && !me.data.hasOpenRouterKey : false;
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -115,11 +116,59 @@ export function OcrScan({
   // prices is overriding, so their item sum wins unless they opt back in.
   const [reconcile, setReconcile] = useState(false);
   const [payerId, setPayerId] = useState(members[0]?.id ?? '');
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // True only while the *current* error is the entitlement refusal
+  // (PAYMENT_REQUIRED), which is the one the user can fix by buying. The
+  // error banner then offers a link to `/vip`; the message alone says
+  // "Subscribe or buy credits" and used to point nowhere.
+  const [outOfScans, setOutOfScans] = useState(false);
+  /**
+   * Every other error path goes through this and clears the flag, so a later,
+   * unrelated failure (a save validation, a failed expense create) can never
+   * inherit the previous error's "buy scans" link.
+   */
+  function setError(message: string | null) {
+    setErrorMessage(message);
+    setOutOfScans(false);
+  }
+  const error = errorMessage;
   // Multi-page picker preview (FR-5.4/5.9): screenshots + a PDF collected here,
   // reordered/removed by the user, then sent as `pages[]` to `ocr.scan`.
   const [pages, setPages] = useState<PagePreview[]>([]);
   const MAX_PAGES = 10;
+  // Holds the action (open the camera/gallery/PDF picker, or send already-picked
+  // pages) the user was trying to do when we discovered consent was missing, so
+  // it can resume automatically once they agree — no second tap.
+  const [consentPrompt, setConsentPrompt] = useState<null | (() => void)>(null);
+  const setOcrConsent = trpc.user.setOcrConsent.useMutation();
+
+  /**
+   * Run `action` now if consent is already granted, else prompt for it first.
+   * `user.me` hasn't necessarily resolved yet (cold start): treating unknown
+   * state as "consent exists" would let the action reach the server and come
+   * back FORBIDDEN instead of showing the dialog, so a genuinely *pending*
+   * query is a no-op — the trigger buttons are disabled while `me.isPending`,
+   * so there's nothing more to do here than wait.
+   *
+   * If `me` instead *errored* (e.g. the default 3 retries were exhausted), it
+   * settles `isPending` to false forever with `data` still undefined — so
+   * gating on `!me.data` would disable these triggers permanently, with no
+   * way to recover. Don't: fall through to `action()` and let the server be
+   * the real gate. It already returns a localized, actionable message for a
+   * missing consent (`FORBIDDEN`, handled in `scan`'s onError above) — a
+   * degraded-but-usable path beats a dead button.
+   */
+  function withConsent(action: () => void) {
+    if (me.isPending) return;
+    if (me.data && !me.data.ocrConsentAt) {
+      // Clear any error from a previous failed attempt so a reopened dialog
+      // doesn't show stale state.
+      setOcrConsent.reset();
+      setConsentPrompt(() => action);
+    } else {
+      action();
+    }
+  }
 
   /** Clear the review state back to the pre-scan screen (after save or cancel). */
   function resetScan() {
@@ -165,10 +214,27 @@ export function OcrScan({
       setError(null);
     },
     // Surface the actionable reason rather than a blanket "recognition failed":
-    // no VIP access and no BYO OpenRouter key is a config problem the user can
-    // fix (PRECONDITION_FAILED), not an unreadable photo.
-    onError: (e) =>
-      setError(e.data?.code === 'PRECONDITION_FAILED' ? t('ocr.accessRequired') : t('ocr.failed')),
+    // no shared instance key configured (PRECONDITION_FAILED) or no scans left
+    // (PAYMENT_REQUIRED) are config/entitlement problems the user can act on —
+    // both come back already localized via the server's errors.* catalog — not
+    // an unreadable photo.
+    onError: (e) => {
+      // "No scans remaining. Subscribe or buy credits to continue." is the one
+      // refusal that names an action, and until now it named one the user had
+      // no way to take: nothing in the app linked to `/vip`. Flag it so the
+      // banner below can offer the link.
+      setErrorMessage(
+        e.data?.code === 'PRECONDITION_FAILED' ||
+          e.data?.code === 'PAYMENT_REQUIRED' ||
+          // The consent gate throws FORBIDDEN. Without this branch the user is
+          // told "Recognition failed. Enter the items manually", which is a lie
+          // and gives them no way to fix it.
+          e.data?.code === 'FORBIDDEN'
+          ? e.message
+          : t('ocr.failed'),
+      );
+      setOutOfScans(e.data?.code === 'PAYMENT_REQUIRED');
+    },
   });
 
   const createExpense = trpc.transaction.createExpense.useMutation({
@@ -359,105 +425,96 @@ export function OcrScan({
       />
 
       {!items ? (
-        lacksOcrAccess ? (
-          <div
-            className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300"
-            data-testid="ocr-access-required"
-          >
-            {t('ocr.accessRequired')}
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => withConsent(() => cameraRef.current?.click())}
+              disabled={scan.isPending || me.isPending}
+              className="flex-1"
+              data-testid="ocr-upload-btn"
+            >
+              <Camera size={16} aria-hidden />
+              {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => withConsent(() => galleryRef.current?.click())}
+              disabled={scan.isPending || me.isPending}
+              className="flex-1"
+              data-testid="ocr-gallery-btn"
+            >
+              <ImageIcon size={16} aria-hidden />
+              {t('ocr.fromGallery')}
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => cameraRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-upload-btn"
-              >
-                <Camera size={16} aria-hidden />
-                {scan.isPending ? t('ocr.processing') : t('ocr.scan')}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => galleryRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-gallery-btn"
-              >
-                <ImageIcon size={16} aria-hidden />
-                {t('ocr.fromGallery')}
-              </Button>
-            </div>
 
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="secondary"
-                onClick={() => pdfRef.current?.click()}
-                disabled={scan.isPending}
-                className="flex-1"
-                data-testid="ocr-add-pdf-btn"
-              >
-                <FileText size={16} aria-hidden /> {t('ocr.importPdf')}
-              </Button>
-            </div>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => withConsent(() => pdfRef.current?.click())}
+              disabled={scan.isPending || me.isPending}
+              className="flex-1"
+              data-testid="ocr-add-pdf-btn"
+            >
+              <FileText size={16} aria-hidden /> {t('ocr.importPdf')}
+            </Button>
+          </div>
 
-            {pages.length > 0 ? (
-              <div className="mt-3 space-y-2" data-testid="ocr-pages">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
-                {pages.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
-                    data-testid={`ocr-page-${i}`}
-                  >
-                    {p.preview ? (
-                      <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
-                    ) : (
-                      <FileText size={20} aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.moveUp')}
-                      disabled={i === 0}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
-                      onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
-                    >
-                      <ChevronUp size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.moveDown')}
-                      disabled={i === pages.length - 1}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
-                      onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
-                    >
-                      <ChevronDown size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('ocr.removePage')}
-                      data-testid={`ocr-page-remove-${i}`}
-                      className="rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
-                      onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </div>
-                ))}
-                <Button
-                  onClick={scanPages}
-                  disabled={scan.isPending}
-                  data-testid="ocr-scan-pages-btn"
+          {pages.length > 0 ? (
+            <div className="mt-3 space-y-2" data-testid="ocr-pages">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.pagesSelected')}</p>
+              {pages.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800"
+                  data-testid={`ocr-page-${i}`}
                 >
-                  {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
-                </Button>
-              </div>
-            ) : null}
-          </>
-        )
+                  {p.preview ? (
+                    <img src={p.preview} alt="" className="h-10 w-10 rounded object-cover" />
+                  ) : (
+                    <FileText size={20} aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm">{p.label}</span>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.moveUp')}
+                    disabled={i === 0}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                    onClick={() => setPages((prev) => moveItem(prev, i, i - 1))}
+                  >
+                    <ChevronUp size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.moveDown')}
+                    disabled={i === pages.length - 1}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 dark:hover:bg-zinc-800"
+                    onClick={() => setPages((prev) => moveItem(prev, i, i + 1))}
+                  >
+                    <ChevronDown size={16} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ocr.removePage')}
+                    data-testid={`ocr-page-remove-${i}`}
+                    className="rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                    onClick={() => setPages((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
+                </div>
+              ))}
+              <Button
+                onClick={() => withConsent(scanPages)}
+                disabled={scan.isPending || me.isPending}
+                data-testid="ocr-scan-pages-btn"
+              >
+                {scan.isPending ? t('ocr.processing') : t('ocr.scanPages')}
+              </Button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="space-y-3" data-testid="ocr-items">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('ocr.assignItems')}</p>
@@ -575,8 +632,46 @@ export function OcrScan({
             aria-hidden
             className="mt-0.5 shrink-0 text-red-500 dark:text-red-400"
           />
-          <span>{error}</span>
+          <span>
+            {error}
+            {outOfScans ? (
+              <>
+                {' '}
+                <AppLink
+                  href="/vip"
+                  className="font-semibold underline"
+                  data-testid="ocr-buy-scans-link"
+                >
+                  {t('ocr.buyScans')}
+                </AppLink>
+              </>
+            ) : null}
+          </span>
         </div>
+      ) : null}
+
+      {consentPrompt ? (
+        <OcrConsentDialog
+          pending={setOcrConsent.isPending}
+          // Surfaced *inside* the dialog (not just the page-level `error`
+          // banner above) because the dialog sits on the native top layer —
+          // a banner in normal document flow would be invisible behind it.
+          error={setOcrConsent.isError ? t('error.generic') : null}
+          onCancel={() => setConsentPrompt(null)}
+          onAccept={() => {
+            const action = consentPrompt;
+            setOcrConsent.mutate(
+              { granted: true },
+              {
+                onSuccess: () => {
+                  void utils.user.me.invalidate();
+                  setConsentPrompt(null);
+                  action();
+                },
+              },
+            );
+          }}
+        />
       ) : null}
     </div>
   );

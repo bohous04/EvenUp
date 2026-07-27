@@ -18,8 +18,22 @@ export {
   formatDate,
   formatNameList,
   pluralCategory,
+  TRIMMED_PRICE_FORMAT,
   type Locale,
+  type FormatCurrencyOptions,
 } from './format.js';
 export { cs } from './locales/cs.js';
 export { en } from './locales/en.js';
 export type { Messages } from './locales/cs.js';
+/**
+ * The marketing namespace is exported separately from the app catalogs: only
+ * the public landing page under `app/[locale]/(marketing)` reads it, and its
+ * keys are intentionally not assignable to `MessageKey` (nor the reverse).
+ */
+export {
+  tMarketing,
+  createMarketingTranslator,
+  marketingCatalogs,
+  type MarketingKey,
+} from './marketing.js';
+export { marketingCs, marketingEn, type MarketingMessages } from './locales/marketing.js';

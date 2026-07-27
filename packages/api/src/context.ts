@@ -1,7 +1,7 @@
 /**
  * tRPC request context: the Prisma client, the authenticated user (if any —
  * participation never requires an account, FR-1.1), and the secret box used to
- * encrypt BYO keys and IBANs at rest.
+ * encrypt the instance OpenRouter key and IBANs at rest.
  */
 import type { PrismaClient } from '@evenup/db';
 import type { Locale } from '@evenup/i18n';

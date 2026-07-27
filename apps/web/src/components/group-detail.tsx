@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { AppLink } from '@/components/app-link';
 import { visibleAvatar } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
@@ -97,9 +97,9 @@ export function GroupDetail({
     return (
       <Card>
         <p className="text-red-700 dark:text-red-400">{t('error.notFound')}</p>
-        <Link href="/" className="mt-2 inline-block text-brand-600 underline">
+        <AppLink href="/groups" className="mt-2 inline-block text-brand-600 underline">
           {t('common.back')}
-        </Link>
+        </AppLink>
       </Card>
     );
   }
@@ -162,13 +162,13 @@ export function GroupDetail({
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            href="/"
+          <AppLink
+            href="/groups"
             className="inline-flex items-center gap-0.5 text-xs text-zinc-500 hover:underline dark:text-zinc-400"
           >
             <ChevronLeft size={13} aria-hidden />
             {t('nav.groups')}
-          </Link>
+          </AppLink>
           <h1 className="truncate text-2xl font-extrabold tracking-tight" data-testid="group-title">
             {group.data.name}
           </h1>

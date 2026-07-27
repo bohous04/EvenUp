@@ -30,17 +30,21 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // EvenUp settings (PRD §7.2)
-  locale                 String  @default("cs")
-  defaultCurrency        String  @default("CZK")
-  openRouterKeyEncrypted String? // BYO OpenRouter key, AES-GCM encrypted at rest
-  bankAccountEncrypted   String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
-  ocrModel               String?
-  hideProfilePhoto       Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
+  locale               String  @default("cs")
+  defaultCurrency      String  @default("CZK")
+  bankAccountEncrypted String? // CZ account "[prefix-]number/bankCode" as entered, AES-GCM at rest (§9.2)
+  ocrModel             String? // per-user OCR model override; independent of key ownership
+  hideProfilePhoto     Boolean @default(false) // prefer initials+color over the uploaded/OAuth photo everywhere
 
   // Operator/tier fields (hosted-instance management dashboard).
   isAdmin    Boolean   @default(false) // may access /admin (seeded from ADMIN_EMAILS)
   isVip      Boolean   @default(false) // may use the shared OCR key + store receipt photos
   disabledAt DateTime? // soft-disabled: sign-in is blocked while set
+
+  // Billing fields
+  stripeCustomerId String? @unique
+  creditBalance    Int     @default(0) // scans remaining; never expires
+  ocrConsentAt     DateTime? // explicit consent to send receipts to the OCR provider
 
   // Global notification opt-out (FR-11.2). Per-group mute lives on
   // NotificationPreference; this switch overrides every one of them.
@@ -58,12 +62,15 @@ model User {
   notificationPreferences NotificationPreference[]
   notificationDeliveries  NotificationDelivery[]
   twoFactor               TwoFactor[]
+  subscriptions           Subscription[]
+  scanLedger              ScanLedger[]
   mergeDismissals         MergeDismissal[]
 }
 
 // ---------------------------------------------------------------------------
 // Instance-level operator config (hosted deployment). Single row (id fixed to
-// "singleton"); the shared OpenRouter key is encrypted at rest like BYO keys.
+// "singleton"); it holds the one OpenRouter key OCR uses, encrypted at rest —
+// there is no per-user key (removed; see migration drop_user_byo_key).
 // ---------------------------------------------------------------------------
 
 model InstanceConfig {
@@ -529,4 +536,54 @@ model NotificationDelivery {
 
   @@index([userId, createdAt])
   @@index([status, attempts])
+}
+
+// ---------------------------------------------------------------------------
+// Billing (subscriptions and scan credits)
+// ---------------------------------------------------------------------------
+
+enum LedgerReason {
+  PURCHASE
+  VIP_SCAN
+  CREDIT_SCAN
+  REFUND
+  ADMIN_GRANT
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  // Nullable so a deleted account can retain the billing record (GDPR vs
+  // accounting-law retention). See services/account.ts.
+  userId               String?
+  user                 User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stripeSubscriptionId String    @unique
+  status               String
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model ScanLedger {
+  id            String       @id @default(cuid())
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// +n for purchases and grants, -1 for a credit-funded scan, 0 for a
+  /// subscription scan (which is counted, not charged). The invariant is
+  /// User.creditBalance == sum(delta).
+  delta         Int
+  reason        LedgerReason
+  /// Stripe event id; unique so a replayed webhook cannot double-credit.
+  stripeEventId String?      @unique
+  receiptId     String?
+  /// Set on PURCHASE rows: the customer acknowledged immediate performance and
+  /// the loss of the 14-day withdrawal right. Required by EU distance selling.
+  withdrawalConsentAt DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, reason, createdAt])
 }

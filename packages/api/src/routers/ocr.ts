@@ -1,4 +1,4 @@
-/** OCR receipt scanning via OpenRouter, BYO key (PRD §4.5, §6). */
+/** OCR receipt scanning via OpenRouter, using the shared instance key, metered by entitlement (PRD §4.5, §6). */
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { fromMinor } from '@evenup/db';
@@ -6,6 +6,9 @@ import { router, protectedProcedure } from '../trpc.js';
 import { assertGroupAccess } from '../access.js';
 import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-adapter.js';
 import { parseDataUrl } from '../storage/object-store.js';
+import { loadEntitlement } from '../billing/scan-access.js';
+import { reserveCredit, refundCredit, recordVipScan } from '../billing/ledger.js';
+import { receiptRetentionDays } from '../config/retention.js';
 
 const MAX_PAGES = 10;
 // ~15 MB decoded; clears the client 10 MB PDF guard with margin while bounding abuse.
@@ -41,6 +44,22 @@ export const ocrRouter = router({
       const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
       await assertGroupAccess(ctx.prisma, ctx.user, groupId);
 
+      const user = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.user.id },
+        select: { ocrModel: true, ocrConsentAt: true },
+      });
+
+      // Explicit, revocable consent gate (GDPR Art. 9): a receipt can disclose
+      // special-category data (e.g. a pharmacy purchase reveals health
+      // information) and is sent to a third-party AI provider, so this must be
+      // checked before anything else that spends money or calls out.
+      if (!user.ocrConsentAt) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Receipt scanning requires your consent to send the image to our OCR provider.',
+        });
+      }
+
       if (ctx.ocrRateLimit && !ctx.ocrRateLimit.check(ctx.user.id)) {
         throw new TRPCError({
           code: 'TOO_MANY_REQUESTS',
@@ -52,34 +71,37 @@ export const ocrRouter = router({
         where: { id: groupId },
         select: { baseCurrency: true },
       });
-      const user = await ctx.prisma.user.findUniqueOrThrow({
-        where: { id: ctx.user.id },
-        select: { openRouterKeyEncrypted: true, ocrModel: true, isVip: true },
-      });
 
-      // Key resolution (FR-5.2 + hosted VIP tier): a user's own BYO key wins for
-      // everyone; otherwise a VIP may use the shared instance key; otherwise OCR
-      // is unavailable. Receipt-image storage is a separate VIP-only privilege.
-      let apiKey: string;
-      let model: string;
-      if (user.openRouterKeyEncrypted) {
-        apiKey = ctx.secretBox.decrypt(user.openRouterKeyEncrypted);
-        model = user.ocrModel ?? DEFAULT_OCR_MODEL;
-      } else if (user.isVip) {
-        const cfg = await ctx.prisma.instanceConfig.findUnique({ where: { id: 'singleton' } });
-        if (!cfg?.openRouterKeyEncrypted) {
-          throw new TRPCError({
-            code: 'PRECONDITION_FAILED',
-            message: 'No shared OpenRouter key is configured; ask an admin.',
-          });
-        }
-        apiKey = ctx.secretBox.decrypt(cfg.openRouterKeyEncrypted);
-        model = user.ocrModel ?? cfg.ocrModel ?? DEFAULT_OCR_MODEL;
-      } else {
+      // Entitlement (paid tiers) replaces the old BYO-key resolution: the
+      // instance key is the only key now, and access is metered.
+      const entitlement = await loadEntitlement(ctx.prisma, ctx.user.id, new Date());
+      if (!entitlement.allow) {
+        throw new TRPCError({
+          code: 'PAYMENT_REQUIRED',
+          message: 'No scans remaining. Subscribe or buy credits to continue.',
+        });
+      }
+
+      const cfg = await ctx.prisma.instanceConfig.findUnique({ where: { id: 'singleton' } });
+      if (!cfg?.openRouterKeyEncrypted) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: 'Add your OpenRouter API key in settings, or ask an admin for VIP access.',
+          message: 'No shared OpenRouter key is configured; ask an admin.',
         });
+      }
+      const apiKey = ctx.secretBox.decrypt(cfg.openRouterKeyEncrypted);
+      const model = user.ocrModel ?? cfg.ocrModel ?? DEFAULT_OCR_MODEL;
+
+      // Reserve before spending money at OpenRouter so concurrent scans cannot
+      // overdraw a single credit. Refunded below if the scan throws.
+      if (entitlement.consume === 'CREDIT') {
+        const reserved = await reserveCredit(ctx.prisma, ctx.user.id);
+        if (!reserved) {
+          throw new TRPCError({
+            code: 'PAYMENT_REQUIRED',
+            message: 'No scans remaining. Subscribe or buy credits to continue.',
+          });
+        }
       }
 
       try {
@@ -94,12 +116,16 @@ export const ocrRouter = router({
           targetLang: input.lang,
         });
 
+        if (entitlement.consume === 'VIP_SCAN') {
+          await recordVipScan(ctx.prisma, ctx.user.id);
+        }
+
         // Best-effort image storage (FR-5.8): a storage failure must never block
-        // OCR. Storing the receipt photo is a VIP-only privilege.
+        // OCR. Storing the receipt photo is subscription-scoped (mayStoreImage),
+        // not comp-VIP-scoped.
         const storageKeys: string[] = [];
-        const parsedRetentionDays = Number.parseInt(process.env.RECEIPT_RETENTION_DAYS ?? '30', 10);
-        const retentionDays = Number.isFinite(parsedRetentionDays) ? parsedRetentionDays : 30;
-        if (ctx.objectStore && user.isVip) {
+        const retentionDays = receiptRetentionDays();
+        if (ctx.objectStore && entitlement.mayStoreImage) {
           for (const page of pages) {
             try {
               const { bytes, contentType, ext } = parseDataUrl(page);
@@ -131,6 +157,9 @@ export const ocrRouter = router({
         });
         return { receiptId: receipt.id, result };
       } catch (err) {
+        if (entitlement.consume === 'CREDIT') {
+          await refundCredit(ctx.prisma, ctx.user.id);
+        }
         // Log the real reason server-side (the client only ever sees a generic
         // fallback message) so failures are diagnosable from the app logs.
         console.error('[ocr] extractReceipt failed:', err instanceof Error ? err.message : err);
