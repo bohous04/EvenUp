@@ -5,6 +5,8 @@ const config: ExpoConfig = {
   name: 'EvenUp',
   slug: 'evenup',
   scheme: 'evenup',
+  // EAS account that owns the cloud builds (the login has access to more).
+  owner: 'bohous04',
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
@@ -23,7 +25,7 @@ const config: ExpoConfig = {
     usesAppleSignIn: true,
     // Universal links so an invite / password-reset link opens the app when
     // installed (needs an Apple-App-Site-Association file served at the domain).
-    associatedDomains: ['applinks:evenup.lnrt.cz'],
+    associatedDomains: ['applinks:evenup.cz'],
     infoPlist: {
       NSCameraUsageDescription: 'EvenUp uses the camera to scan receipts.',
       NSPhotoLibraryUsageDescription:
@@ -43,7 +45,7 @@ const config: ExpoConfig = {
       {
         action: 'VIEW',
         autoVerify: true,
-        data: [{ scheme: 'https', host: 'evenup.lnrt.cz', pathPrefix: '/invite' }],
+        data: [{ scheme: 'https', host: 'evenup.cz', pathPrefix: '/invite' }],
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
@@ -61,7 +63,9 @@ const config: ExpoConfig = {
   ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000',
-    eas: { projectId: process.env.EAS_PROJECT_ID ?? '00000000-0000-0000-0000-000000000000' },
+    // EAS project @bohous04/evenup (created by `eas init`); EXPO_PUBLIC_API_URL
+    // can still override apiUrl for release builds.
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? 'c87ab274-a175-4f89-a532-a3cd7f21a52b' },
   },
 };
 
