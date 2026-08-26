@@ -35,6 +35,15 @@ describe('locale middleware', () => {
     }
   });
 
+  it('leaves /.well-known alone so Apple can fetch universal-links files', () => {
+    // The locale rewrite would send /.well-known/apple-app-site-association to
+    // the [locale] catch-all and 404 it — Apple's CDN then rejects the domain
+    // and invite links stop opening the app.
+    const res = middleware(req('/.well-known/apple-app-site-association'));
+    expect(res.headers.get('x-middleware-rewrite')).toBeNull();
+    expect(res.status).toBe(200);
+  });
+
   it('preserves the query string through a rewrite', () => {
     const res = middleware(req('/invite/tok?ref=x'));
     expect(res.headers.get('x-middleware-rewrite')).toContain('ref=x');

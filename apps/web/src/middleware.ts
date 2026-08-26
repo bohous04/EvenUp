@@ -12,7 +12,7 @@ const DEFAULT_LOCALE = 'cs';
  * string "api"), so `/apifoo` and `/api-docs` are correctly left alone by
  * both — the two are kept in sync on purpose.
  */
-const EXCLUDED_PREFIXES = ['/api', '/_next'] as const;
+const EXCLUDED_PREFIXES = ['/api', '/_next', '/.well-known'] as const;
 const EXCLUDED_PATHS = ['/sw.js', '/manifest.webmanifest'] as const;
 /**
  * Mirrors the matcher's `.*\.[a-zA-Z0-9]+$`; the `i` flag covers uppercase
@@ -76,8 +76,11 @@ export function middleware(req: NextRequest) {
  * `api/` and `api$` (rather than a bare `api`) require the same segment
  * boundary the guard enforces, so `/api-docs` or `/apifoo` are correctly left
  * alone by both, and `.*\.[a-zA-Z0-9]+$` matches the guard's case-insensitive
- * file-extension check. The two must stay in sync.
+ * file-extension check. The `.well-known` alternation likewise requires the
+ * segment boundary (`\\.well-known/` or `$`). The two must stay in sync.
  */
 export const config = {
-  matcher: ['/((?!api/|api$|_next/|_next$|sw\\.js$|manifest\\.webmanifest$|.*\\.[a-zA-Z0-9]+$).*)'],
+  matcher: [
+    '/((?!api/|api$|_next/|_next$|\\.well-known/|\\.well-known$|sw\\.js$|manifest\\.webmanifest$|.*\\.[a-zA-Z0-9]+$).*)',
+  ],
 };
