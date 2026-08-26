@@ -1,5 +1,8 @@
 import type { ExpoConfig } from 'expo/config';
 
+/** EAS project @bohous04/evenup (created by `eas init`). */
+const EAS_PROJECT_ID = 'c87ab274-a175-4f89-a532-a3cd7f21a52b';
+
 /** Expo app configuration (PRD §8.2 — Expo / React Native, iOS + Android). */
 const config: ExpoConfig = {
   name: 'EvenUp',
@@ -11,6 +14,10 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  // EAS Update (configured by `eas credentials:configure-build`/build wizard;
+  // written by hand because dynamic configs can't be auto-edited).
+  updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
+  runtimeVersion: { policy: 'appVersion' },
   icon: './assets/icon.png',
   splash: {
     image: './assets/icon.png',
@@ -60,12 +67,13 @@ const config: ExpoConfig = {
       { photosPermission: 'EvenUp uses your photo library to pick receipt images to scan.' },
     ],
     'expo-notifications',
+    'expo-updates',
   ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000',
-    // EAS project @bohous04/evenup (created by `eas init`); EXPO_PUBLIC_API_URL
-    // can still override apiUrl for release builds.
-    eas: { projectId: process.env.EAS_PROJECT_ID ?? 'c87ab274-a175-4f89-a532-a3cd7f21a52b' },
+    // EAS project @bohous04/evenup; EXPO_PUBLIC_API_URL can still override
+    // apiUrl for release builds.
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? EAS_PROJECT_ID },
   },
 };
 
