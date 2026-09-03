@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { LOCALES } from '@evenup/i18n';
 import '../globals.css';
 import { Providers } from '@/components/providers';
@@ -73,6 +74,13 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full">
         <Providers locale={locale}>{children}</Providers>
+        {/* Umami: cookieless analytics. `data-domains` keeps the evenup.lnrt.cz alias out of the stats. */}
+        <Script
+          src="https://analytics.lnrt.cz/script.js"
+          data-website-id="157f3911-6d2c-458c-acec-4968b5421798"
+          data-domains="evenup.cz"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
