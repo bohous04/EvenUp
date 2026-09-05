@@ -4,14 +4,17 @@
 > the number of debts** between people. Web first, with iOS + Android apps.
 > Free, no ads, no monetization. **MIT licensed.**
 
-[![CI](https://github.com/your-org/evenup/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/evenup/actions/workflows/ci.yml)
+[![CI](https://github.com/bohous04/EvenUp/actions/workflows/ci.yml/badge.svg)](https://github.com/bohous04/EvenUp/actions/workflows/ci.yml)
 &nbsp;Languages: **Čeština** (default) + **English**
+&nbsp;Live: **[evenup.cz](https://evenup.cz)**
 
 🇨🇿 _Otevřená, self-hostovatelná aplikace pro dělení společných výdajů, která
 **minimalizuje počet dluhů** mezi lidmi. Nejdřív web, pak plnohodnotné iOS a
 Android aplikace. Zdarma, bez reklam._
 
 ---
+
+<!-- screenshot: docs/screenshot.png (to be added) -->
 
 ## What it does
 
