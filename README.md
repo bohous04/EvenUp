@@ -14,7 +14,7 @@ Android aplikace. Zdarma, bez reklam._
 
 ---
 
-<!-- screenshot: docs/screenshot.png (to be added) -->
+![EvenUp landing page](docs/screenshot.png)
 
 ## What it does
 
@@ -99,4 +99,4 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). By participating you agree to the
 
 ## License
 
-[MIT](LICENSE) © EvenUp contributors.
+[MIT](LICENSE) © Michal Lénert.
