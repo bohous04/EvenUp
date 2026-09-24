@@ -11,6 +11,54 @@
 
 :root {
   color-scheme: light dark;
+
+  /*
+   * Semantic tokens for the landing-page settlement demo (app/landing.css).
+   *
+   * `--debt` (amber) vs `--brand` (indigo) encodes owes/is-owed. The pair is
+   * deliberately NOT colour-only information — every node carries a name and
+   * the section has a legend — and it was chosen by measuring the separation
+   * rather than by eye: ΔE 31.7 under protanopia and 27.0 under tritanopia,
+   * against a ΔE ≥ 8 target for colour-vision-deficient readers.
+   */
+  --debt: #b45309;
+  --debt-wash: #fef3c7;
+  --brand-ink: #4338ca;
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.05), 0 10px 30px -14px rgb(24 24 27 / 0.14);
+
+  /*
+   * SVG presentation tokens. `fill="var(--x)"` in the settlement diagrams
+   * needs plain custom properties, because Tailwind's `@theme` utilities
+   * (`--color-brand-50` and friends) are not addressable from a presentation
+   * attribute. These mirror the zinc/brand palette above. Every one of them
+   * must be defined in BOTH themes: an undefined `var()` in a `fill` resolves to
+   * nothing and the shape paints black, which looks like a rendering bug rather
+   * than a missing token — and no text- or a11y-based test can see it.
+   */
+  --surface: #ffffff;
+  --brand: #4f46e5;
+  --brand-wash: #eef2ff;
+  --ink: #18181b;
+  --ink-soft: #52525b;
+  --ink-faint: #71717a;
+  --line-strong: #d4d4d8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --debt: #fbbf24;
+    --debt-wash: #451a03;
+    --brand-ink: #a5b4fc;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+
+    --surface: #18181b;
+    --brand: #818cf8;
+    --brand-wash: #1e1b4b;
+    --ink: #fafafa;
+    --ink-soft: #a1a1aa;
+    --ink-faint: #71717a;
+    --line-strong: #3f3f46;
+  }
 }
 
 html,
@@ -35,5 +83,13 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    /*
+     * Zeroing the duration but NOT the delay is a trap: an animation with
+     * `animation-fill-mode: both` holds its *from* state through the delay, so
+     * a 3s-delayed fade would sit invisible for 3s and then snap in. Resetting
+     * the delay too is what actually makes "reduced motion" mean "no motion".
+     */
+    animation-delay: 0.01ms !important;
+    transition-delay: 0.01ms !important;
   }
 }

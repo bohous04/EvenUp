@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  t,
   tMarketing,
   formatCurrency,
   TRIMMED_PRICE_FORMAT,
@@ -17,8 +16,10 @@ import {
 import { VIP_SCANS_PER_PERIOD } from '@evenup/api/billing/entitlement';
 import { env } from '@/server/env';
 import { LandingCta } from '@/components/landing-cta';
+import { ScaleExamples, SettleDemo, SettleDemoDefs } from '@/components/settle-demo';
 import { resolveLocale } from '@/lib/locale-param';
 import { localizedPath } from '@/lib/locale-path';
+import '@/app/landing.css';
 
 /**
  * The public landing page — the product's front door, at `/` in Czech and
@@ -108,7 +109,18 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
 
   return (
     <>
+      {/* Arrow-head defs for every settlement diagram on the page. */}
+      <SettleDemoDefs />
+      {/*
+        The order is the argument: the differentiator is demonstrated before it
+        is described. The demo is the hero, the two scale examples show it holds
+        up as the group grows, the screenshots prove it is a real product, and
+        only then do the feature list, price and FAQ support a decision the
+        visitor has already been given the reason to make.
+      */}
       <Hero locale={locale} />
+      <ScaleProof locale={locale} />
+      <Screenshots locale={locale} />
       <Features locale={locale} />
       <Pricing locale={locale} />
       <Faq locale={locale} />
@@ -152,13 +164,26 @@ function Hero({ locale }: { locale: Locale }) {
   const tm = (key: MarketingKey) => tMarketing(locale, key);
   return (
     <Section className="pt-16 pb-6 text-center sm:pt-24">
-      <h1 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
+      <span className="inline-block rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-bold tracking-widest text-brand-600 uppercase dark:border-brand-700 dark:bg-brand-600/10 dark:text-brand-100">
+        {tm('marketing.hero.eyebrow')}
+      </span>
+      <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-extrabold tracking-tight text-balance sm:text-5xl">
         {tm('marketing.hero.title')}
+        <br />
+        {/* zinc-400 on the page ground is 2.51:1 and fails WCAG AA for this
+            size; zinc-500 clears it. The de-emphasis stays, the violation
+            doesn't. */}
+        <span className="text-zinc-500 dark:text-zinc-400">{tm('marketing.hero.titleAccent')}</span>
       </h1>
       <p className="mx-auto mt-5 max-w-2xl text-lg text-zinc-600 dark:text-zinc-300">
         {tm('marketing.hero.subtitle')}
       </p>
-      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+
+      <div className="mt-10">
+        <SettleDemo locale={locale} />
+      </div>
+
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Link
           href={localizedPath('/sign-up', locale)}
           data-testid="landing-signup"
@@ -166,15 +191,109 @@ function Hero({ locale }: { locale: Locale }) {
         >
           {tm('marketing.hero.ctaPrimary')}
         </Link>
+        <a
+          href="#how"
+          className={`w-full sm:w-auto ${secondaryButtonClass}`}
+          data-testid="landing-how"
+        >
+          {tm('marketing.hero.ctaSecondary')}
+        </a>
+      </div>
+      <div className="mt-6 flex justify-center">
         <LandingCta
           testId="landing-hero-app"
           href={localizedPath('/groups', locale)}
           signedOutLabel={tm('marketing.hero.ctaSignIn')}
           signedInLabel={tm('marketing.hero.ctaApp')}
-          className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 sm:w-auto dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          className="text-sm font-semibold text-zinc-500 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
         />
       </div>
-      <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{t(locale, 'app.tagline')}</p>
+    </Section>
+  );
+}
+
+/** The two real settlement graphs, as a check that the demo isn't a fluke. */
+function ScaleProof({ locale }: { locale: Locale }) {
+  return (
+    <Section id="how">
+      <SectionHeading>{tMarketing(locale, 'marketing.examples.title')}</SectionHeading>
+      <p className="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-300">
+        {tMarketing(locale, 'marketing.examples.subtitle')}
+      </p>
+      <ScaleExamples locale={locale} />
+    </Section>
+  );
+}
+
+/**
+ * Real captures of the running app, served from `/public/marketing` rather than
+ * inlined as data URIs — see the test in `e2e/landing.spec.ts` that asserts the
+ * `src` is a real file. A base64 screenshot would add ~180 KB to every cached
+ * HTML response, including the crawler's.
+ */
+function Screenshots({ locale }: { locale: Locale }) {
+  const tm = (key: MarketingKey) => tMarketing(locale, key);
+  return (
+    <Section>
+      <SectionHeading>{tm('marketing.shots.title')}</SectionHeading>
+      <p className="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-300">
+        {tm('marketing.shots.subtitle')}
+      </p>
+      <div className="mt-8 grid gap-7" data-testid="app-screenshots">
+        <figure className="m-0">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div
+              aria-hidden="true"
+              className="h-7 border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle 4px at 14px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%), radial-gradient(circle 4px at 28px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%), radial-gradient(circle 4px at 42px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%)',
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+            <img
+              src="/marketing/group-screen.png"
+              width={768}
+              height={1375}
+              loading="lazy"
+              decoding="async"
+              alt={tm('marketing.shots.groupCaption')}
+              className="block h-[600px] w-full object-cover object-top"
+            />
+          </div>
+          <figcaption className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+            {tm('marketing.shots.groupCaption')}
+          </figcaption>
+        </figure>
+
+        <figure className="m-0 w-[86%] justify-self-end max-sm:w-full">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div
+              aria-hidden="true"
+              className="h-7 border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle 4px at 14px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%), radial-gradient(circle 4px at 28px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%), radial-gradient(circle 4px at 42px 50%, var(--line-strong, #d4d4d8) 99%, transparent 100%)',
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+            <img
+              src="/marketing/add-expense.png"
+              width={1024}
+              height={1400}
+              loading="lazy"
+              decoding="async"
+              alt={tm('marketing.shots.expenseCaption')}
+              className="block h-[600px] w-full object-cover object-top max-sm:h-[420px]"
+            />
+          </div>
+          <figcaption className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+            {tm('marketing.shots.expenseCaption')}
+          </figcaption>
+        </figure>
+      </div>
     </Section>
   );
 }
@@ -196,6 +315,9 @@ function Features({ locale }: { locale: Locale }) {
   return (
     <Section id="features">
       <SectionHeading>{tMarketing(locale, 'marketing.features.title')}</SectionHeading>
+      <p className="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-300">
+        {tMarketing(locale, 'marketing.features.subtitle')}
+      </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map(([title, body]) => (
           <article key={title} className={cardClass}>
