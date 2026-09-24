@@ -81,10 +81,11 @@ export function EmptyState({ title, icon }: { title: string; icon?: ReactNode })
 }
 
 /** Inline error text — web `text-sm text-red-700 dark:text-red-400`, `role="alert"`. */
-export function ErrorText({ children }: { children: string }) {
+export function ErrorText({ children, testID }: { children: string; testID?: string }) {
   const c = useTheme();
   return (
     <Text
+      testID={testID}
       accessibilityRole="alert"
       style={{ color: c.dangerText, fontSize: c.type.label.fontSize }}
     >
