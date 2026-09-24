@@ -41,7 +41,23 @@ describe('tMarketing', () => {
   });
 
   test('returns the English string', () => {
-    expect(tMarketing('en', 'marketing.hero.title')).toBe('Send two payments instead of eight');
+    expect(tMarketing('en', 'marketing.hero.title')).toBe('Two debts cancel out.');
+  });
+
+  /**
+   * The hero's payoff line and the feature body's headline figure are claims
+   * about what `minimizeDebts` actually does, so they are pinned here. The old
+   * copy said a seven-person week meant "twenty payments" collapsing to "a
+   * couple"; running the real algorithm over a realistic shared week gives
+   * 17 → 5, so both numbers in that sentence were unearned. These assertions
+   * exist so a future copy edit cannot quietly reintroduce a figure the code
+   * does not produce.
+   */
+  test('the settlement figures quoted in marketing are the ones the code produces', () => {
+    expect(tMarketing('en', 'marketing.feature.debts.body')).toContain('seventeen');
+    expect(tMarketing('en', 'marketing.feature.debts.body')).toContain('five');
+    expect(tMarketing('en', 'marketing.feature.debts.body')).not.toContain('twenty');
+    expect(tMarketing('cs', 'marketing.feature.debts.body')).not.toContain('dvacet');
   });
 
   test('interpolates named placeholders', () => {

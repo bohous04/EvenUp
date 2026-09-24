@@ -50,17 +50,44 @@ const marketingOnlyCs = {
   'marketing.nav.pricing': 'Ceník',
   'marketing.nav.faq': 'Časté otázky',
 
-  'marketing.hero.title': 'Místo osmi plateb pošlete dvě',
+  'marketing.hero.eyebrow': 'Dlužníček',
+  'marketing.hero.title': 'Dva dluhy se zruší.',
+  'marketing.hero.titleAccent': 'Prostředník v řetězci nezaplatí nic.',
   'marketing.hero.subtitle':
-    'Chata, dovolená, spolubydlení. Zapíšete, kdo co zaplatil, a dlužníček spočítá, kdo má komu kolik poslat, aby byli všichni vyrovnaní.',
+    'Jiné aplikace přidělí dluh ke každému výdaji. Dlužníček je navzájem vyruší a nabídne jen ty převody, které jsou nutné – nejméně, jak to jde.',
   'marketing.hero.ctaPrimary': 'Začít zdarma',
+  'marketing.hero.ctaSecondary': 'Jak to funguje',
   'marketing.hero.ctaSignIn': 'Přihlásit se',
   'marketing.hero.ctaApp': 'Přejít do aplikace',
 
+  'marketing.demo.before': '2 platby',
+  'marketing.demo.net': 'vyrušíme je proti sobě',
+  'marketing.demo.after': '1 platba',
+  'marketing.demo.zero': '0 Kč',
+  'marketing.demo.names': 'Jirka, Petr a Honza',
+
+  'marketing.examples.title': 'Funguje to i ve větší skupině.',
+  'marketing.examples.subtitle':
+    'Záruka je nejvýše n−1 plateb pro n lidí a každý zůstatek dosedne přesně na nulu. Čísla níže jsou skutečný výstup algoritmu, ne ilustrace.',
+  'marketing.examples.cottage': 'Chata, 4 lidé, 5 výdajů',
+  'marketing.examples.holiday': 'Dovolená, 7 lidí, 7 společných výdajů',
+  'marketing.examples.cottageAlt':
+    'Čtyři lidé, dva dluží a dva jsou jim zavázáni. Tři platby vyrovnají všechny dluhy.',
+  'marketing.examples.holidayAlt':
+    'Sedm lidí, tři dluží, tři jsou jim zavázáni a jeden je vyrovnaný. Pět plateb vyrovná všechny dluhy.',
+
   'marketing.features.title': 'Proč dlužníček?',
+  'marketing.features.subtitle':
+    'Vyčíslení dluhů je to hlavní. Zbytek je to, co potřebujete, abyste na výlet opravdu vyrazili.',
+
+  'marketing.shots.title': 'Je to skutečná aplikace, ne obrázek.',
+  'marketing.shots.subtitle':
+    'Vlevo skupina: zůstatky, které dosedají na nulu, a přesné převody, které je vyrovnají. Vpravo přidání výdaje – pět způsobů, jak ho rozdělit.',
+  'marketing.shots.groupCaption': 'Skupina – zůstatky, transakce a kdo komu kolik posílá.',
+  'marketing.shots.expenseCaption': 'Přidání výdaje – nejdřív částka, pak pět způsobů rozdělení.',
   'marketing.feature.debts.title': 'Co nejméně plateb',
   'marketing.feature.debts.body':
-    'Když si sedm lidí dluží navzájem, nemusí posílat dvacet plateb. Dlužníček dluhy proti sobě vyruší a najde nejmenší počet plateb, které je vynulují – obvykle stačí pár.',
+    'Sedm lidí na týdnu dovolené: sedmnáct dluhů mezi sebou se zruší v pět převodů. Dlužníček je navzájem vyruší a najde nejmenší počet plateb, které všechny vynulují.',
   'marketing.feature.ocr.title': 'Účtenka z fotky',
   'marketing.feature.ocr.body':
     'Vyfoťte účtenku a položky se přepíšou samy, včetně cen. Zbývá jen naklikat, kdo si co dal – a dělit se dá i po položkách, ne jen rovným dílem.',
@@ -190,17 +217,44 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.nav.pricing': 'Pricing',
   'marketing.nav.faq': 'FAQ',
 
-  'marketing.hero.title': 'Send two payments instead of eight',
+  'marketing.hero.eyebrow': 'EvenUp',
+  'marketing.hero.title': 'Two debts cancel out.',
+  'marketing.hero.titleAccent': 'The person in the middle pays nothing.',
   'marketing.hero.subtitle':
-    'A cabin weekend, a holiday, a flatshare. Log who paid for what and EvenUp works out who owes whom how much, so everyone ends up square.',
+    'Other apps hand everyone a debt for every expense. EvenUp nets them against each other and asks for the fewest transfers that clear them.',
   'marketing.hero.ctaPrimary': 'Start for free',
+  'marketing.hero.ctaSecondary': 'See how it works',
   'marketing.hero.ctaSignIn': 'Sign in',
   'marketing.hero.ctaApp': 'Open the app',
 
+  'marketing.demo.before': '2 payments',
+  'marketing.demo.net': 'net them off',
+  'marketing.demo.after': '1 payment',
+  'marketing.demo.zero': '0',
+  'marketing.demo.names': 'Jirka, Petr and Honza',
+
+  'marketing.examples.title': 'It holds up as the group grows.',
+  'marketing.examples.subtitle':
+    'The guarantee is at most n−1 payments for n people, and every balance lands exactly on zero. The figures below are real output from the algorithm, not illustrations.',
+  'marketing.examples.cottage': 'Cottage, 4 people, 5 expenses',
+  'marketing.examples.holiday': 'Holiday, 7 people, 7 shared costs',
+  'marketing.examples.cottageAlt':
+    'Four people: two owe money and two are owed it. Three payments clear every debt.',
+  'marketing.examples.holidayAlt':
+    'Seven people: three owe money, three are owed it, and one is square. Five payments clear every debt.',
+
   'marketing.features.title': 'Why EvenUp?',
+  'marketing.features.subtitle':
+    'Settling the debts is the point. The rest is what you need to actually go on the trip.',
+
+  'marketing.shots.title': "It's a real app, not a diagram.",
+  'marketing.shots.subtitle':
+    'On the left, a group: balances that settle to zero, and the exact transfers that clear them. On the right, adding an expense — five ways to split it.',
+  'marketing.shots.groupCaption': 'A group — balances, transactions, and who pays whom.',
+  'marketing.shots.expenseCaption': 'Adding an expense — amount first, then five ways to split it.',
   'marketing.feature.debts.title': 'The fewest payments possible',
   'marketing.feature.debts.body':
-    'When seven people owe each other, nobody needs to send twenty payments. EvenUp nets the debts against each other and finds the smallest number of payments that clears them — usually just a couple.',
+    'Seven people on a week of holiday: seventeen pairwise debts become five transfers. EvenUp nets them against each other and finds the smallest number of payments that clears them all.',
   'marketing.feature.ocr.title': 'Receipts from a photo',
   'marketing.feature.ocr.body':
     'Photograph a receipt and the line items are transcribed for you, prices included. All that is left is tapping who had what — you can split item by item, not only down the middle.',
