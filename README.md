@@ -81,6 +81,7 @@ Migrations run automatically on container start. See
 ```bash
 pnpm test                       # unit + integration (needs DATABASE_URL for api)
 pnpm --filter @evenup/core test:coverage   # >= 95% gate on the core math
+pnpm --filter @evenup/api test:coverage    # >= 80% gate on the API
 pnpm --filter @evenup/web test:e2e         # Playwright E2E + axe a11y
 ```
 
@@ -90,6 +91,9 @@ pnpm --filter @evenup/web test:e2e         # Playwright E2E + axe a11y
 - **Integration tests** run tRPC + Prisma against an ephemeral Postgres.
 - **Playwright** covers the critical web journeys with visual + a11y checks; the
   OCR adapter is tested against **recorded fixtures** (no live API calls in CI).
+- Coverage gates are enforced in CI for `packages/core` (95%), `packages/i18n`
+  and `packages/api` (80%). `apps/web` is covered by Playwright rather than a
+  unit-coverage threshold; see [PRD §10.2](docs/PRD.md) for the full table.
 
 ## Contributing
 
