@@ -530,7 +530,30 @@ evenup/
 - **Performance smoke (optional)** — k6 script for the balance/settlement endpoint on a large group.
 
 ### 10.2 Coverage gates
-- `packages/core` ≥ 95%; overall project ≥ 80% lines/branches. PRs failing the gate are blocked.
+
+PRs failing any of these thresholds are blocked.
+
+| Package | Gate | Status |
+| --- | --- | --- |
+| `packages/core` | ≥ 95% lines/branches/functions/statements | Enforced |
+| `packages/i18n` | ≥ 90/90/85/90 (lines/functions/branches/statements) | Enforced |
+| `packages/api` | ≥ 80% lines/branches/functions/statements | Enforced |
+| `apps/mobile` | none — Jest runs in CI, numbers reported as an artifact | Reported only |
+| `apps/web` | none — see below | Not applicable |
+
+**On `apps/web`:** a unit-coverage percentage would be meaningless here. Vitest
+only counts files the unit tests actually import, and `apps/web` is covered by
+**Playwright E2E** (10 specs × 4 browser projects, with axe a11y assertions) —
+which exercises the React components that a unit-coverage denominator would
+otherwise count as 0%. Reporting a low number there would measure the test
+*style*, not the code. Web's coverage guarantee is its E2E suite, not a
+threshold.
+
+> An earlier revision of this section claimed a blanket "overall project ≥ 80%
+> lines/branches … PRs failing the gate are blocked". No such gate existed:
+> `packages/api` collected coverage with no thresholds and `apps/web` had no
+> coverage configuration at all, so a large regression in the API layer passed
+> CI silently. The per-package table above is what is actually enforced.
 
 ### 10.3 Definition of Done (per feature)
 A feature is "done" only when: code + unit/integration/component tests + relevant E2E (web and, where
