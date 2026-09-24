@@ -28,10 +28,22 @@ export const createGroupInput = z.object({
   simplifyDebts: z.boolean().default(true),
 });
 
+/**
+ * A per-group locked exchange rate (FR-8.3), as a positive decimal string.
+ * `null` clears the lock and returns the group to daily cached rates.
+ */
+const lockedRateDecimal = z
+  .string()
+  .trim()
+  .regex(/^\d+(\.\d+)?$/, 'Must be a positive decimal rate')
+  .refine((s) => Number(s) > 0, 'Must be greater than zero');
+
 export const updateGroupInput = z.object({
   groupId: z.string(),
   name: z.string().trim().min(1).max(120).optional(),
   simplifyDebts: z.boolean().optional(),
+  baseCurrency: currencyCode.optional(),
+  fxLockedRate: lockedRateDecimal.nullable().optional(),
 });
 
 export const addMemberInput = z.object({

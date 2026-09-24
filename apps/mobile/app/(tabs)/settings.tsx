@@ -343,6 +343,7 @@ export default function SettingsScreen() {
 
       {/* Account menu — web's `MenuSheet` rows rather than stacked buttons. */}
       <Card gap={0} style={{ padding: c.spacing[2] }}>
+        <MenuRow icon="star-outline" label={t('vip.title')} onPress={() => router.push('/vip')} />
         {me.data?.isAdmin ? (
           <MenuRow
             icon="shield-checkmark-outline"

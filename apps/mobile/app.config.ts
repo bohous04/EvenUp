@@ -18,11 +18,15 @@ const config: ExpoConfig = {
   // written by hand because dynamic configs can't be auto-edited).
   updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
   runtimeVersion: { policy: 'appVersion' },
+  // Brand mark (balance scale) shared with apps/web/src/app/icon.svg. The
+  // source SVGs sit next to the PNGs in assets/; icon.png is the full-bleed
+  // 1024pt square Apple requires (no rounded corners, no alpha), while
+  // adaptive-icon.png is the Android foreground kept inside the safe zone.
   icon: './assets/icon.png',
   splash: {
-    image: './assets/icon.png',
+    image: './assets/adaptive-icon.png',
     resizeMode: 'contain',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#4f46e5',
   },
   ios: {
     bundleIdentifier: 'company.lnrt.evenup',
@@ -46,7 +50,7 @@ const config: ExpoConfig = {
   android: {
     package: 'company.lnrt.evenup',
     versionCode: 1,
-    adaptiveIcon: { foregroundImage: './assets/icon.png', backgroundColor: '#2563eb' },
+    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#4f46e5' },
     permissions: ['CAMERA'],
     intentFilters: [
       {
