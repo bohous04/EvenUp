@@ -1,6 +1,7 @@
 /** Group CRUD (PRD §4.2). */
 import { z } from 'zod';
 import { deriveInitials, colorForIndex } from '@evenup/core';
+import { Prisma } from '@evenup/db';
 import type { Locale } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { createGroupInput, updateGroupInput } from '../schemas.js';
@@ -103,7 +104,19 @@ export const groupRouter = router({
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
     const updated = await ctx.prisma.group.update({
       where: { id: input.groupId },
-      data: { name: input.name, simplifyDebts: input.simplifyDebts },
+      data: {
+        name: input.name,
+        simplifyDebts: input.simplifyDebts,
+        baseCurrency: input.baseCurrency,
+        // `null` is meaningful here: it clears the lock (FR-8.3), so it must be
+        // passed through rather than treated as "field absent".
+        fxLockedRate:
+          input.fxLockedRate === undefined
+            ? undefined
+            : input.fxLockedRate === null
+              ? null
+              : new Prisma.Decimal(input.fxLockedRate),
+      },
     });
     await logActivity(ctx.prisma, input.groupId, ctx.user.id, 'group.updated', {
       name: updated.name,

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
 import { Button, BottomSheet, Checkbox, Input } from '@/ui';
 
-/** Group settings: rename, simplify-debts toggle, archive/restore (FR-2.7/2.8). */
+/** Group settings: rename, simplify-debts toggle, FX lock, archive (FR-2.7/2.8/8.3). */
 export function GroupSettingsSheet({
   visible,
   onClose,
@@ -13,6 +13,8 @@ export function GroupSettingsSheet({
   name,
   simplifyDebts,
   archived,
+  baseCurrency,
+  fxLockedRate,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -20,11 +22,16 @@ export function GroupSettingsSheet({
   name: string;
   simplifyDebts: boolean;
   archived: boolean;
+  /** Group base currency — the quote side of the lock, shown in the hint. */
+  baseCurrency: string;
+  /** The locked rate as stored (a decimal string), or null when unlocked. */
+  fxLockedRate: string | null;
 }) {
   const { t } = useI18n();
   const c = useTheme();
   const utils = trpc.useUtils();
   const [draftName, setDraftName] = useState(name);
+  const [draftRate, setDraftRate] = useState('');
 
   const invalidate = () => {
     void utils.group.get.invalidate({ groupId });
@@ -38,6 +45,11 @@ export function GroupSettingsSheet({
       onClose();
     },
   });
+
+  // The API validates the decimal; here we only avoid firing a request for an
+  // empty or already-locked value.
+  const rateToLock = draftRate.trim().replace(',', '.');
+  const canLock = /^\d+(\.\d+)?$/.test(rateToLock) && Number(rateToLock) > 0;
 
   return (
     <BottomSheet
@@ -64,6 +76,42 @@ export function GroupSettingsSheet({
           checked={simplifyDebts}
           onChange={(next) => update.mutate({ groupId, simplifyDebts: next })}
         />
+
+        <View style={{ gap: c.spacing[2] }}>
+          <Text style={{ fontWeight: '600' }}>{t('group.fxLockTitle')}</Text>
+          <Text style={{ opacity: 0.7, fontSize: 13 }}>{t('group.fxLockHint')}</Text>
+          {fxLockedRate ? (
+            <View style={{ flexDirection: 'row', gap: c.spacing[2], alignItems: 'center' }}>
+              <Text testID="fx-locked-rate">{t('group.fxLocked', { rate: fxLockedRate })}</Text>
+              <Button
+                testID="fx-unlock"
+                title={t('group.fxUnlock')}
+                variant="secondary"
+                loading={update.isPending}
+                onPress={() => update.mutate({ groupId, fxLockedRate: null })}
+              />
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: c.spacing[2], alignItems: 'flex-end' }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  testID="fx-lock-input"
+                  label={t('group.fxLockRate', { quote: '?', base: baseCurrency })}
+                  value={draftRate}
+                  onChangeText={setDraftRate}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <Button
+                testID="fx-lock-submit"
+                title={t('group.fxLockSubmit')}
+                loading={update.isPending}
+                disabled={!canLock}
+                onPress={() => update.mutate({ groupId, fxLockedRate: rateToLock })}
+              />
+            </View>
+          )}
+        </View>
 
         <Button
           title={archived ? t('group.restore') : t('group.archive')}

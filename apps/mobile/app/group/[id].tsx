@@ -328,6 +328,8 @@ export default function GroupScreen() {
         name={group.data.name}
         simplifyDebts={group.data.simplifyDebts}
         archived={!!group.data.archivedAt}
+        baseCurrency={baseCurrency}
+        fxLockedRate={group.data.fxLockedRate?.toString() ?? null}
       />
 
       <SettleSheet
