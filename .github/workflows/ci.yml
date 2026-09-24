@@ -140,11 +140,13 @@ jobs:
           path: apps/web/playwright-report
           if-no-files-found: ignore
 
-  e2e-mobile:
-    name: E2E (mobile)
-    runs-on: ubuntu-latest
-    # Maestro flows run on PRs touching mobile, plus the nightly full run.
-    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[mobile]')
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "Maestro mobile E2E runs in the nightly workflow (see apps/mobile/.maestro)."
+  # There is deliberately no mobile E2E job here. A previous version of this
+  # workflow had an `e2e-mobile` job whose only step was an `echo` claiming
+  # Maestro "runs in the nightly workflow" — there is no nightly workflow, and
+  # its `if:` was also dead (`head_commit` is null on `pull_request`). It
+  # reported a green check while running nothing.
+  #
+  # Maestro flows (apps/mobile/.maestro) need a simulator/emulator, a built
+  # app, and a reachable backend, so they are run manually against a staging
+  # build — see CONTRIBUTING. What CI *does* enforce for mobile is the Jest
+  # suite, via the `test` job's `turbo run test:coverage`.

@@ -43,6 +43,11 @@ See the table in the [README](README.md#tech-stack). Shared math goes in
 
 - Unit + property-based (fast-check) for `packages/core`.
 - Integration (tRPC + Prisma vs. ephemeral Postgres) for `packages/api`.
-- Playwright E2E + axe for `apps/web`; Maestro for `apps/mobile`.
+- Playwright E2E + axe for `apps/web`, running in CI on every PR.
+- Jest unit tests for `apps/mobile`, running in CI on every PR. The Maestro
+  flows in `apps/mobile/.maestro` are **not** run in CI: they need a
+  simulator/emulator, a built app, and a reachable backend. Run them by hand
+  against a staging build (`pnpm --filter @evenup/mobile test:e2e` with
+  `EXPO_PUBLIC_API_URL` pointed at that staging instance).
 - OCR is tested against recorded fixtures — **never** make live OpenRouter calls
   in tests.

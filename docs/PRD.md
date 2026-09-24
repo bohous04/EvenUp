@@ -525,7 +525,8 @@ evenup/
   - switch language CZ↔EN; verify formatting
   - Includes **visual regression snapshots** and **`@axe-core/playwright` accessibility assertions**.
 - **End-to-end mobile** — **Maestro** (preferred for Expo) — same critical flows on iOS Simulator and
-  Android Emulator, including native camera (mocked) → OCR → chip assignment → save.
+  Android Emulator, including native camera (mocked) → OCR → chip assignment → save. *Currently run
+  manually against a staging build, not in CI — see §11.1.*
 - **Performance smoke (optional)** — k6 script for the balance/settlement endpoint on a large group.
 
 ### 10.2 Coverage gates
@@ -552,9 +553,14 @@ Pipeline jobs (pnpm with caching, Turborepo task graph):
    coverage gates enforced.
 5. **build** — build `web` and shared packages; build the mobile bundle (typecheck/bundle validation).
 6. **e2e-web** — Playwright across browser projects; upload HTML report + traces + screenshots on failure.
-7. **e2e-mobile** — Maestro flows on emulator/simulator (on PRs touching mobile, plus nightly full run).
-8. Branch protection: all required jobs green before merge. Conventional commits + Changesets for
+7. Branch protection: all required jobs green before merge. Conventional commits + Changesets for
    versioning. Renovate/Dependabot for dependency updates.
+
+> **Not yet in CI:** Maestro mobile E2E. The flows exist in `apps/mobile/.maestro` but need a
+> simulator/emulator, a built app, and a reachable backend, so they are run manually against a
+> staging build. Mobile *unit* tests (Jest) do run in CI, via job 4. An earlier revision of the
+> workflow carried an `e2e-mobile` job that only echoed a message pointing at a nightly workflow
+> that did not exist; it reported green while running nothing, and was removed rather than left.
 
 ### 11.2 Continuous Delivery (on merge to `main`)
 1. Build and publish a **multi-stage Docker image** for the web app.
@@ -599,8 +605,8 @@ Pipeline jobs (pnpm with caching, Turborepo task graph):
 - **Phase 2 — OCR + Multi-currency + PWA.** Receipt scanning (BYO OpenRouter key), itemized split via
   **colored chips**, multi-currency with FX (override/lock), PWA install + offline reading.
 - **Phase 3 — Mobile apps (iOS + Android).** Expo apps reusing `packages/core` + tRPC API, native camera
-  OCR, push notifications, store-ready EAS builds, **Maestro E2E**. *(The fully functional, fully tested
-  apps requested as part of the core deliverable.)*
+  OCR, push notifications, store-ready EAS builds, **Maestro E2E** (manual). *(The fully functional,
+  fully tested apps requested as part of the core deliverable.)*
 - **Phase 4 — Polish.** Recurring expenses, categories + simple spend stats, CSV/Splitwise import,
   richer activity feed, real-time sync, advanced offline write-sync.
 
