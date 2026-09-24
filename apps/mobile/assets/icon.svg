@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="EvenUp">
+  <!-- iOS / fallback icon. Full-bleed square with NO rounded corners and no
+       alpha: iOS applies its own mask and App Store Connect rejects alpha.
+       The artwork is the same balance-scale mark as apps/web/src/app/icon.svg,
+       re-centred and scaled for a 1024pt canvas. -->
+  <rect width="1024" height="1024" fill="#4f46e5" />
+  <g
+    transform="translate(51.2,44) scale(1.8)"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="26"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M256 110v300" />
+    <path d="M150 150h212" />
+    <path d="M150 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
+    <path d="M362 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
+    <path d="M196 410h120" />
+  </g>
+</svg>
