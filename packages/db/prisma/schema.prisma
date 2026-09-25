@@ -347,6 +347,12 @@ model Transaction {
   id                 String          @id @default(cuid())
   groupId            String
   group              Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  /// Client-generated idempotency key, set ONLY by the offline queue. Scoped to
+  /// the group (not globally) so two devices can independently mint keys
+  /// without coordinating. A retried create carrying a key that already landed
+  /// returns the existing transaction instead of booking the expense twice —
+  /// without this, any offline queue would double-post on a lost response.
+  clientMutationId   String?
   type               TransactionType
   title              String
   note               String?
@@ -386,6 +392,7 @@ model Transaction {
 
   @@index([groupId])
   @@index([date])
+  @@unique([clientMutationId, groupId])
 }
 
 model TransactionPayer {

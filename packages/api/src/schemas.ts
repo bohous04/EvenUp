@@ -140,6 +140,11 @@ export const createExpenseInput = z.object({
   /** Exchange rate to the group base currency, as a decimal string. Defaults to 1. */
   exchangeRateToBase: z.string().optional(),
   receiptId: z.string().optional(),
+  /**
+   * Idempotency key, set only by the offline queue. Omitted by every ordinary
+   * caller, which keeps the old behaviour exactly.
+   */
+  clientMutationId: z.string().min(1).max(64).optional(),
 });
 
 export const recordTransferInput = z.object({
