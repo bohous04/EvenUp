@@ -133,6 +133,35 @@ function fxArgs(ctx: Context) {
 export const transactionRouter = router({
   createExpense: protectedProcedure.input(createExpenseInput).mutation(async ({ ctx, input }) => {
     await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
+
+    /*
+     * Idempotency, and it has to come FIRST — before the custom-category check,
+     * before the member checks, before any of the maths.
+     *
+     * A retry of a request that already landed must return that transaction
+     * rather than book a second one. A queued offline expense will be retried
+     * by definition, and the common failure is a request that succeeded whose
+     * *response* was lost to a bad connection: retrying naively double-books it.
+     *
+     * The first write wins even if the retry carries a different payload — the
+     * queue may have been re-hydrated from storage with an edited record, and
+     * the user has already seen the original. `findUniqueOrThrow` rather than
+     * `upsert`, so the unique index stays a backstop for a genuine race instead
+     * of the mechanism that makes the happy path work.
+     */
+    if (input.clientMutationId) {
+      const existing = await ctx.prisma.transaction.findUnique({
+        where: {
+          clientMutationId_groupId: {
+            clientMutationId: input.clientMutationId,
+            groupId: input.groupId,
+          },
+        },
+        include: transactionInclude,
+      });
+      if (existing) return existing;
+    }
+
     const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: input.groupId } });
 
     if (input.category && isCustomCategoryKey(input.category)) {
@@ -167,6 +196,7 @@ export const transactionRouter = router({
     const transaction = await ctx.prisma.transaction.create({
       data: {
         groupId: input.groupId,
+        clientMutationId: input.clientMutationId ?? null,
         type: input.type,
         title: input.title,
         note: input.note,
