@@ -430,6 +430,11 @@ export const en: Messages = {
   'profile.nicknameHint': 'Renaming applies in all your groups.',
   'profile.bankAccount': 'Bank account',
   'profile.bankAccountHint': 'Used for QR payments in all your groups.',
+  'onboarding.title': 'One more thing, then you are set',
+  'onboarding.subtitle':
+    'The account number you pay from. We ask up front because we only need it for QR payments — and for nothing else.',
+  'onboarding.continue': 'Continue',
+  'onboarding.skip': 'Skip',
   'profile.bankAccountInvalid': 'Invalid account number. Check the 19-2000145399/0800 format.',
   'profile.photo': 'Profile picture',
   'profile.photoHint': 'Upload a custom photo to replace your monogram across all your groups.',

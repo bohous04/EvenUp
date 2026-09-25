@@ -27,6 +27,7 @@ export const userRouter = router({
         // Needed by the client to decide whether to prompt for OCR consent.
         // A timestamp, not a boolean, so support can see when it was given.
         ocrConsentAt: true,
+        onboardingCompletedAt: true,
       },
     });
     // Expose only derived, non-sensitive facts here — `me` is fetched on many
@@ -65,6 +66,10 @@ export const userRouter = router({
         defaultCurrency: currencyCode.optional(),
         ocrModel: z.string().max(120).optional(),
         hideProfilePhoto: z.boolean().optional(),
+        // `true` marks onboarding done-or-skipped. The client sends the
+        // timestamp rather than a boolean so a skipped onboarding is recorded
+        // as a real moment, not confused with "never seen it" (NULL).
+        onboardingCompletedAt: z.coerce.date().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
