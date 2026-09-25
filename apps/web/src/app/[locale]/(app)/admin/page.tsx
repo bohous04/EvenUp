@@ -478,7 +478,9 @@ function Stat({
         {value}
       </p>
       {hint ? (
-        <p className="mt-0.5 text-[11px] leading-tight text-zinc-400 dark:text-zinc-500">{hint}</p>
+        /* zinc-500, not zinc-400: at 11px this needs the full 4.5:1 and
+           zinc-400 is 2.62:1 on white. Caught by the admin a11y e2e. */
+        <p className="mt-0.5 text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">{hint}</p>
       ) : null}
     </div>
   );
@@ -540,7 +542,7 @@ function Series({
           );
         })}
       </svg>
-      <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
         {series[0]?.date} → {series[series.length - 1]?.date}
       </p>
     </figure>
