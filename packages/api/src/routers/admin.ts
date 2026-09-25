@@ -9,6 +9,8 @@ import { TRPCError } from '@trpc/server';
 import { router, adminProcedure } from '../trpc.js';
 import { deleteUserAccount } from '../services/account.js';
 import { grantCredits } from '../billing/ledger.js';
+import { getStripe } from '../billing/stripe.js';
+import { isBillingEnabled } from '../billing/prices.js';
 
 const INSTANCE_ID = 'singleton';
 
@@ -153,6 +155,122 @@ export const adminRouter = router({
       });
       return { ok: true };
     }),
+
+  /**
+   * Billing dashboard: subscription counts, credits outstanding, and the daily
+   * activity series behind the admin charts.
+   *
+   * **MRR is read from Stripe or reported as unknown — never derived here.**
+   * A local `Subscription` row stores the Stripe id, the status and the period,
+   * but deliberately not the amount: the VIP price is per-locale (CZK or EUR)
+   * and whichever was charged is never written down. Multiplying the
+   * *display* price by a subscription count would produce a confident-looking
+   * number that is wrong for every EUR subscriber, so `mrr` is `null` whenever
+   * Stripe is not reachable, with a reason. Zero would be worse than null —
+   * it reads as "no revenue" rather than "we do not know".
+   *
+   * The counts and the two daily series are computed locally and are exact, so
+   * a self-hosted instance with billing switched off still gets a useful
+   * panel — it just knows less about money than a hosted one does.
+   */
+  billingStats: adminProcedure.query(async ({ ctx }) => {
+    const DAY_MS = 86_400_000;
+    // UTC day buckets, matching how the FX cache keys its own dates. Local
+    // midnight would make the same query return different numbers depending on
+    // where the admin happens to be sitting.
+    const todayUtc = new Date();
+    const todayKey = todayUtc.toISOString().slice(0, 10);
+    const since = new Date(todayUtc.getTime() - 29 * DAY_MS);
+    since.setUTCHours(0, 0, 0, 0);
+
+    const [subs, credits, signups, scans] = await Promise.all([
+      ctx.prisma.subscription.groupBy({ by: ['status'], _count: { _all: true } }),
+      ctx.prisma.user.aggregate({ _sum: { creditBalance: true } }),
+      ctx.prisma.user.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      ctx.prisma.scanLedger.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const statusCount = (status: string) => subs.find((s) => s.status === status)?._count._all ?? 0;
+
+    // A dense series, one entry per day, zeros included: a sparse one leaves
+    // gaps that a chart draws as missing data rather than as a flat zero.
+    const series = (rows: { createdAt: Date }[]) => {
+      const byDay = new Map<string, number>();
+      for (const r of rows) {
+        const key = r.createdAt.toISOString().slice(0, 10);
+        byDay.set(key, (byDay.get(key) ?? 0) + 1);
+      }
+      return Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(since.getTime() + i * DAY_MS);
+        const date = d.toISOString().slice(0, 10);
+        return { date, count: byDay.get(date) ?? 0 };
+      });
+    };
+
+    // Cancelling subscriptions are still `active` until the period ends, so
+    // they are counted in both buckets rather than being netted out: an
+    // operator needs to know how much revenue is actually about to disappear.
+    const canceling = await ctx.prisma.subscription.count({
+      where: { status: 'active', cancelAtPeriodEnd: true },
+    });
+
+    let mrr: { amountMinor: number; currency: string } | null = null;
+    // A CODE, not a sentence. This string reaches a Czech admin page, and a
+    // hardcoded English reason would be the one untranslated string in the
+    // app — the client localizes it.
+    let mrrUnavailableReason: 'stripe-not-configured' | 'stripe-unreachable' | null = null;
+    const stripe = getStripe();
+    if (!stripe) {
+      mrrUnavailableReason = 'stripe-not-configured';
+    } else {
+      try {
+        let amountMinor = 0;
+        let currency: string | null = null;
+        // Paginate: an instance with more than 100 live subscriptions would
+        // otherwise report a fraction of its revenue as the whole.
+        for await (const s of stripe.subscriptions.list({
+          status: 'active',
+          limit: 100,
+          expand: ['data.items.data.price'],
+        })) {
+          for (const item of s.items.data) {
+            const price = item.price;
+            if (!price?.unit_amount) continue;
+            amountMinor += price.unit_amount * (item.quantity ?? 1);
+            currency = currency ?? price.currency.toUpperCase();
+          }
+        }
+        mrr = { amountMinor, currency: currency ?? 'CZK' };
+      } catch {
+        // A Stripe outage must not take the admin panel down with it; the
+        // local counts above are still good.
+        mrrUnavailableReason = 'stripe-unreachable';
+      }
+    }
+
+    return {
+      stripeConfigured: isBillingEnabled(),
+      mrr,
+      mrrUnavailableReason,
+      subscriptions: {
+        active: statusCount('active'),
+        trialing: statusCount('trialing'),
+        pastDue: statusCount('past_due'),
+        cancelingAtPeriodEnd: canceling,
+        total: subs.reduce((a, s) => a + s._count._all, 0),
+      },
+      creditsOutstanding: credits._sum.creditBalance ?? 0,
+      signupsPerDay: series(signups),
+      scansPerDay: series(scans),
+      today: todayKey,
+    };
+  }),
 
   listErrors: adminProcedure.input(pageInput).query(async ({ ctx, input }) => {
     const limit = input?.limit ?? 50;
