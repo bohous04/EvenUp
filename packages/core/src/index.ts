@@ -164,3 +164,22 @@ export type SplitType = (typeof SPLIT_TYPES)[number];
 /** Transaction kinds (PRD §3, §4.3). */
 export const TRANSACTION_TYPES = ['expense', 'income', 'transfer'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
+export {
+  SYNC_DEFAULTS,
+  backoffDelayMs,
+  claimDue,
+  isTerminal,
+  markFailed,
+  markSucceeded,
+  nextDelayFor,
+  pendingCount,
+  type OfflineQueueItem,
+  type SyncOptions,
+} from './offline/sync-policy.js';
+export {
+  drainQueue,
+  type DrainResult,
+  type OfflineQueueStore,
+  type SendQueuedExpense,
+  type SyncEnvironment,
+} from './offline/queue.js';
