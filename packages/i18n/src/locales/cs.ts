@@ -472,6 +472,11 @@ export const cs = {
   'profile.nicknameHint': 'Změna se projeví ve všech vašich skupinách.',
   'profile.bankAccount': 'Číslo účtu',
   'profile.bankAccountHint': 'Použije se pro QR platby ve všech vašich skupinách.',
+  'onboarding.title': 'Ještě jedna věc a můžete začít',
+  'onboarding.subtitle':
+    'Číslo účtu, ze kterého posíláte peníze. Říkáme to rovnou, protože potřebujeme jen pro QR platby a nikam jinam.',
+  'onboarding.continue': 'Pokračovat',
+  'onboarding.skip': 'Přeskočit',
   'profile.bankAccountInvalid': 'Neplatné číslo účtu. Zkontrolujte formát 19-2000145399/0800.',
   'profile.photo': 'Profilová fotka',
   'profile.photoHint': 'Nahrajte vlastní fotku, která nahradí monogram ve všech vašich skupinách.',

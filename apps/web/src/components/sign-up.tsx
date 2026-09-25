@@ -10,7 +10,7 @@ import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
  * default. `/` is the public landing page now, so a verified new account has
  * to land on `/groups` instead or it arrives back on the marketing site.
  */
-const DASHBOARD = '/groups';
+const DASHBOARD = '/onboarding';
 
 export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const { t } = useI18n();

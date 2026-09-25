@@ -1,6 +1,6 @@
 import { type Page, expect } from '@playwright/test';
 
-const TEST_PASSWORD = 'test-password-123';
+export const TEST_PASSWORD = 'test-password-123';
 
 /** Create a verified-in-dev user and sign in through the password form. */
 export async function signIn(page: Page, email: string): Promise<void> {
