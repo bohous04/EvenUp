@@ -16,7 +16,7 @@ export const positiveMinorUnits = minorUnits.refine((n) => n > 0, 'Must be posit
 export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color');
 
 export const groupTemplate = z.enum(['TRIP', 'HOUSEHOLD', 'COUPLE', 'EVENT', 'OTHER']);
-export const memberRole = z.enum(['ADMIN', 'MEMBER']);
+export const memberRole = z.enum(['ADMIN', 'MEMBER', 'GUEST']);
 export const settlementMethod = z.enum(['CASH', 'BANK', 'QR']);
 
 // --- Groups & members ---

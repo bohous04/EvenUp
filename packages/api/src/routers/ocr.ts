@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { fromMinor } from '@evenup/db';
 import { router, protectedProcedure } from '../trpc.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupWrite } from '../access.js';
 import { extractReceipt, OcrError, DEFAULT_OCR_MODEL } from '../ocr/openrouter-adapter.js';
 import { parseDataUrl } from '../storage/object-store.js';
 import { loadEntitlement } from '../billing/scan-access.js';
@@ -42,7 +42,7 @@ export const ocrRouter = router({
     .mutation(async ({ ctx, input }) => {
       const groupId = input.groupId;
       const pages = 'pages' in input ? input.pages : [input.imageDataUrl];
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, groupId);
 
       const user = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.user.id },

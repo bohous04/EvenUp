@@ -105,6 +105,14 @@ export function GroupDetail({
   }
 
   const activeMembers = group.data.members.filter((m) => m.isActive);
+  /*
+   * The viewer's own role, reported by `group.get`. Deliberately NOT derived
+   * from the roster: the member projection carries no user id, so a client
+   * cannot work out which row is "me", and guessing wrong would either hide the
+   * add-expense button from someone who needs it or leave it showing for a
+   * guest.
+   */
+  const isGuest = group.data.viewerRole === 'GUEST';
   const memberLite = activeMembers.map((m) => ({
     id: m.id,
     displayName: m.displayName,
@@ -128,34 +136,55 @@ export function GroupDetail({
     setPanel(p);
   };
 
+  /*
+   * `write: true` marks the menu entries whose panel can change the group.
+   * A guest keeps the read-only ones (roster, stats, activity) and loses the
+   * rest, so the menu never offers an action `assertGroupWrite` will refuse.
+   */
   const menuItems = [
     {
       key: 'members',
       icon: Users,
       label: t('group.members'),
       onSelect: () => openPanel('members'),
+      write: false,
     },
-    { key: 'invite', icon: Mail, label: t('invite.create'), onSelect: () => openPanel('invite') },
+    {
+      key: 'invite',
+      icon: Mail,
+      label: t('invite.create'),
+      onSelect: () => openPanel('invite'),
+      write: true,
+    },
     {
       key: 'stats',
       icon: BarChart3,
       label: t('stats.spendByCategory'),
       onSelect: () => openPanel('stats'),
+      write: false,
     },
     {
       key: 'categories',
       icon: Tags,
       label: t('group.categories'),
       onSelect: () => openPanel('categories'),
+      write: true,
     },
     {
       key: 'activity',
       icon: History,
       label: t('nav.activity'),
       onSelect: () => openPanel('activity'),
+      write: false,
     },
-    { key: 'csv', icon: FileUp, label: t('csv.import'), onSelect: () => openPanel('csv') },
-  ];
+    {
+      key: 'csv',
+      icon: FileUp,
+      label: t('csv.import'),
+      onSelect: () => openPanel('csv'),
+      write: true,
+    },
+  ].filter((item) => !isGuest || !item.write);
 
   return (
     <div className="space-y-4 pb-24">
@@ -193,6 +222,16 @@ export function GroupDetail({
       </div>
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+
+      {isGuest ? (
+        <p
+          role="status"
+          data-testid="guest-readonly-banner"
+          className="rounded-xl border border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-200"
+        >
+          {t('group.readOnlyBanner')}
+        </p>
+      ) : null}
 
       <AlreadyMemberBanner groupId={groupId} show={alreadyMemberNotice} />
 
@@ -310,13 +349,16 @@ export function GroupDetail({
         groupName={group.data.name}
       />
 
-      {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it). */}
+      {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it).
+          Hidden for a guest — the server refuses the write regardless, so the FAB
+          would only ever open a form that cannot be saved. */}
       {activeMembers.length > 0 ? (
         <AddExpenseForm
           groupId={groupId}
           members={memberLite}
           baseCurrency={group.data.baseCurrency}
           customCategories={customCategories.data ?? []}
+          readOnly={isGuest}
         />
       ) : null}
 

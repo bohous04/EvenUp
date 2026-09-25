@@ -4,7 +4,7 @@ import { CUSTOM_CATEGORY_ICONS } from '@evenup/core';
 import { TRPCError } from '@trpc/server';
 import { Prisma, type PrismaClient } from '@evenup/db';
 import { router, protectedProcedure } from '../trpc.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupAccess, assertGroupWrite } from '../access.js';
 import { logActivity } from '../services/activity.js';
 
 const nameInput = z.string().trim().min(1).max(40);
@@ -36,7 +36,7 @@ export const categoryRouter = router({
   create: protectedProcedure
     .input(z.object({ groupId: z.string(), name: nameInput, iconName: iconInput }))
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       const existing = await ctx.prisma.groupCategory.findUnique({
         where: { groupId_name: { groupId: input.groupId, name: input.name } },
       });
@@ -71,7 +71,7 @@ export const categoryRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { groupId } = await groupIdForCategory(ctx.prisma, input.categoryId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, groupId);
       let updated;
       try {
         updated = await ctx.prisma.groupCategory.update({
@@ -95,7 +95,7 @@ export const categoryRouter = router({
     .input(z.object({ categoryId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { groupId, name } = await groupIdForCategory(ctx.prisma, input.categoryId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, groupId);
       await ctx.prisma.$transaction(async (tx) => {
         // Reassign, don't lose: the category's expenses land in built-in "other".
         await tx.transaction.updateMany({

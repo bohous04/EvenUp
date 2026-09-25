@@ -20,7 +20,7 @@ import {
   type SplitConfig,
   type CreateExpenseInput,
 } from '../schemas.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupAccess, assertGroupWrite } from '../access.js';
 import { planExpense } from '../services/transaction-service.js';
 import { resolveRateDecimal, convertToBase } from '../services/fx-service.js';
 import { logActivity } from '../services/activity.js';
@@ -132,7 +132,7 @@ function fxArgs(ctx: Context) {
 
 export const transactionRouter = router({
   createExpense: protectedProcedure.input(createExpenseInput).mutation(async ({ ctx, input }) => {
-    await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
     const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: input.groupId } });
 
     if (input.category && isCustomCategoryKey(input.category)) {
@@ -203,7 +203,7 @@ export const transactionRouter = router({
   }),
 
   recordTransfer: protectedProcedure.input(recordTransferInput).mutation(async ({ ctx, input }) => {
-    await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
     const group = await ctx.prisma.group.findUniqueOrThrow({ where: { id: input.groupId } });
     await assertMembersInGroup(ctx.prisma, input.groupId, [input.fromMemberId, input.toMemberId]);
     const date = input.date ?? new Date();
@@ -276,7 +276,7 @@ export const transactionRouter = router({
       where: { id: input.transactionId },
       select: { groupId: true, type: true },
     });
-    await assertGroupAccess(ctx.prisma, ctx.user, existing.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, existing.groupId);
     if (existing.type === 'TRANSFER') {
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -362,7 +362,7 @@ export const transactionRouter = router({
       where: { id: input.transactionId },
       select: { groupId: true, type: true, date: true },
     });
-    await assertGroupAccess(ctx.prisma, ctx.user, existing.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, existing.groupId);
     if (existing.type !== 'TRANSFER') {
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -454,7 +454,7 @@ export const transactionRouter = router({
         where: { id: input.transactionId },
         select: { groupId: true, date: true },
       });
-      await assertGroupAccess(ctx.prisma, ctx.user, txn.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, txn.groupId);
       return ctx.prisma.transaction.update({
         where: { id: input.transactionId },
         data: {
@@ -475,7 +475,7 @@ export const transactionRouter = router({
   materializeDue: protectedProcedure
     .input(z.object({ groupId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       return materializeRecurring({ prisma: ctx.prisma, now: new Date(), groupId: input.groupId });
     }),
 
@@ -490,7 +490,7 @@ export const transactionRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       const group = await ctx.prisma.group.findUniqueOrThrow({
         where: { id: input.groupId },
         include: { members: { where: { isActive: true } } },
@@ -571,7 +571,7 @@ export const transactionRouter = router({
         where: { id: input.transactionId },
         select: { groupId: true, title: true },
       });
-      await assertGroupAccess(ctx.prisma, ctx.user, txn.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, txn.groupId);
       await ctx.prisma.transaction.delete({ where: { id: input.transactionId } });
       await logActivity(ctx.prisma, txn.groupId, ctx.user.id, 'transaction.deleted', {
         title: txn.title,
