@@ -223,6 +223,13 @@ export const en: Messages = {
   'invite.pickYourName': 'Find your name below',
   'invite.thisIsMe': 'This is me',
   'invite.notOnList': "I'm not on the list",
+  'invite.joinAsGuest': 'Join as a guest',
+  'invite.joinAsGuestHint':
+    'You will see the balances, the transactions and who owes what, but you cannot change anything. You can switch to being a member at any time.',
+  'group.readOnlyBanner':
+    'You are a guest here. You can look at everything, but you cannot change it.',
+  'group.readOnlyShort': 'View only',
+  'member.role.guest': 'Guest',
   'invite.confirmNewTitle': 'Sure none of these is you?',
   'invite.confirmNewBody':
     'If you create a new account, the debts stay on the original name and nobody takes them over for you.',

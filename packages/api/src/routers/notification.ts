@@ -1,7 +1,7 @@
 /** Notification preferences: global opt-out + per-group mute (FR-11.2). */
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupAccess, assertGroupWrite } from '../access.js';
 
 export const notificationRouter = router({
   /** The account-wide switch. When off, nothing is ever sent, group mute or not. */
@@ -88,7 +88,7 @@ export const notificationRouter = router({
   setGroupMute: protectedProcedure
     .input(z.object({ groupId: z.string(), muted: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       await ctx.prisma.notificationPreference.upsert({
         where: { userId_groupId: { userId: ctx.user.id, groupId: input.groupId } },
         // A first-time row starts its watermark now: un-muting a group must not

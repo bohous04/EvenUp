@@ -5,7 +5,7 @@ import { deriveInitials, colorForIndex } from '@evenup/core';
 import type { PrismaClient, Prisma } from '@evenup/db';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupWrite } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
@@ -51,7 +51,7 @@ export const inviteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       const token = randomBytes(18).toString('base64url');
       const expiresAt = input.expiresInDays
         ? new Date(Date.now() + input.expiresInDays * 86_400_000)
@@ -162,6 +162,13 @@ export const inviteRouter = router({
         token: z.string(),
         memberId: z.string().optional(),
         displayName: z.string().trim().min(1).max(80).optional(),
+        /**
+         * Join as a view-only guest instead of a full member. A GUEST can read
+         * the group — balances, transactions, the settlement — and every
+         * mutating procedure refuses them (see `assertGroupWrite`). Defaults to
+         * a normal join, so an existing caller that omits it is unaffected.
+         */
+        role: z.enum(['MEMBER', 'GUEST']).default('MEMBER'),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -260,6 +267,7 @@ export const inviteRouter = router({
               initials: deriveInitials(name),
               color: colorForIndex(count),
               userId: ctx.user.id,
+              role: input.role,
             },
           });
         }

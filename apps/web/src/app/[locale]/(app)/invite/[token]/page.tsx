@@ -109,14 +109,15 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   // "not on the list" link, the confirm-dialog CTA, and the welcome-back CTA)
   // routes through this, so the in-flight guard can't be bypassed by any one
   // of them.
-  const submitClaim = (memberId?: string) => {
+  const submitClaim = (memberId?: string, role: 'MEMBER' | 'GUEST' = 'MEMBER') => {
     if (pendingRef.current) return;
     pendingRef.current = true;
-    claim.mutate(memberId ? { token, memberId } : { token }, {
+    claim.mutate(memberId ? { token, memberId, role } : { token, role }, {
       onError: (e) => setError(e.message),
     });
   };
   const joinAsNew = () => submitClaim();
+  const joinAsGuest = () => submitClaim(undefined, 'GUEST');
 
   // A returning ex-member: the server reactivates THEIR row and only theirs
   // (claiming anyone else is refused with CONFLICT), so the picker and the
@@ -200,6 +201,26 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
           </li>
         ))}
       </ul>
+
+      {/* Joining as a view-only guest. A separate, clearly-secondary action
+          rather than a checkbox on the member rows: "guest" and "member" are
+          different kinds of participation, not a variation of picking your name,
+          and the invitee should be told what a guest cannot do before they
+          choose — not discover it by hitting a disabled button later. */}
+      <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+        <button
+          type="button"
+          data-testid="invite-join-guest"
+          disabled={claim.isPending}
+          onClick={joinAsGuest}
+          className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-400 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-100"
+        >
+          <span className="block text-sm font-semibold">{t('invite.joinAsGuest')}</span>
+          <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+            {t('invite.joinAsGuestHint')}
+          </span>
+        </button>
+      </div>
 
       {/* Demoted from a primary button to a text link, and it no longer mutates
           directly — the confirmation is what actually creates the account. */}

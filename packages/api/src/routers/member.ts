@@ -12,7 +12,7 @@ import { TRPCError } from '@trpc/server';
 import { t as translate } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { addMemberInput, setBankDetailInput, memberRole } from '../schemas.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupAccess, assertGroupWrite } from '../access.js';
 import { logActivity } from '../services/activity.js';
 import { getGroupBalances } from '../services/balance-service.js';
 
@@ -59,7 +59,7 @@ const DUPLICATE_MATCH_THRESHOLD = 0.8;
 
 export const memberRouter = router({
   add: protectedProcedure.input(addMemberInput).mutation(async ({ ctx, input }) => {
-    await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
     const count = await ctx.prisma.member.count({ where: { groupId: input.groupId } });
     const member = await ctx.prisma.member.create({
       data: {
@@ -100,7 +100,7 @@ export const memberRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const groupId = await groupIdForMember(ctx, input.memberId);
-      await assertGroupAccess(ctx.prisma, ctx.user, groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, groupId);
       const updated = await ctx.prisma.member.update({
         where: { id: input.memberId },
         data: {
@@ -125,7 +125,7 @@ export const memberRouter = router({
         select: { groupId: true, userId: true },
       });
       if (!member) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found' });
-      await assertGroupAccess(ctx.prisma, ctx.user, member.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, member.groupId);
       // Members that appear in any transaction are deactivated, not deleted
       // (FR-2.4). Members linked to a user account (userId !== null) are
       // deactivated too, for a second reason: invite.claim's "already a
@@ -180,7 +180,7 @@ export const memberRouter = router({
           message: 'Members belong to different groups',
         });
       }
-      await assertGroupAccess(ctx.prisma, ctx.user, source.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, source.groupId);
 
       // Two real accounts must never be silently collapsed, whoever asks.
       if (source.userId && target.userId && source.userId !== target.userId) {
@@ -504,7 +504,7 @@ export const memberRouter = router({
       if (source.groupId !== target.groupId) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Members belong to different groups' });
       }
-      await assertGroupAccess(ctx.prisma, ctx.user, source.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, source.groupId);
 
       // Idempotent: clicking "not the same" twice must not 500 on the unique.
       await ctx.prisma.mergeDismissal.upsert({
@@ -597,7 +597,7 @@ export const memberRouter = router({
   /** @deprecated Per-member bank details are legacy; the web app now stores the account on the User (spec 2026-07-09). Kept for mobile/back-compat and as a read fallback in generateSpayd. */
   setBankDetail: protectedProcedure.input(setBankDetailInput).mutation(async ({ ctx, input }) => {
     const groupId = await groupIdForMember(ctx, input.memberId);
-    await assertGroupAccess(ctx.prisma, ctx.user, groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, groupId);
     const iban = normalizeIban(input.iban);
     if (!isValidIban(iban)) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid IBAN' });

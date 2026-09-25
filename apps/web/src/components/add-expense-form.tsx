@@ -149,6 +149,7 @@ export function AddExpenseForm({
   customCategories,
   editing = null,
   onClose,
+  readOnly = false,
 }: {
   groupId: string;
   members: MemberLite[];
@@ -158,6 +159,14 @@ export function AddExpenseForm({
   editing?: EditableTransaction | null;
   /** Called to close the sheet in edit mode (the parent controls visibility). */
   onClose?: () => void;
+  /**
+   * The viewer is a GUEST: hide the button that opens this sheet.
+   *
+   * Purely a courtesy — `assertGroupWrite` already refuses the mutation server
+   * side, and that is the check that actually protects anything. Hiding the FAB
+   * just stops offering an action that is guaranteed to fail.
+   */
+  readOnly?: boolean;
 }) {
   const { t, formatDate } = useI18n();
   const utils = trpc.useUtils();
@@ -573,7 +582,7 @@ export function AddExpenseForm({
 
   return (
     <>
-      {!isEdit ? (
+      {!isEdit && !readOnly ? (
         <Fab
           onClick={() => {
             // Start every new expense from clean defaults — a draft left behind

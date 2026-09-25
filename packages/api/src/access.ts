@@ -15,23 +15,76 @@ import { TRPCError } from '@trpc/server';
 import type { PrismaClient } from '@evenup/db';
 import type { AuthUser } from './context.js';
 
+/**
+ * The caller's role in a group, or `null` if they are not an active member.
+ *
+ * The creator is not looked up as a member row: `group.create` seeds one, but a
+ * creator whose own row was removed is still the creator, and the original
+ * `assertGroupAccess` honoured that. Treating a creator as ADMIN here keeps
+ * that behaviour instead of silently demoting them to "not a member".
+ */
+export async function groupRole(
+  prisma: PrismaClient,
+  user: AuthUser,
+  groupId: string,
+): Promise<'ADMIN' | 'MEMBER' | 'GUEST' | null> {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: {
+      createdById: true,
+      members: {
+        where: { userId: user.id, isActive: true },
+        select: { role: true },
+        take: 1,
+      },
+    },
+  });
+  if (!group) return null;
+  if (group.createdById === user.id) return 'ADMIN';
+  return group.members[0]?.role ?? null;
+}
+
 export async function assertGroupAccess(
   prisma: PrismaClient,
   user: AuthUser,
   groupId: string,
 ): Promise<void> {
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    select: {
-      id: true,
-      createdById: true,
-      members: { where: { userId: user.id, isActive: true }, select: { id: true } },
-    },
-  });
-  if (!group) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
+  const role = await groupRole(prisma, user, groupId);
+  if (role === null) {
+    // Distinguish "no such group" from "not a member": a caller who is neither
+    // should not be able to probe which group ids exist.
+    const exists = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true } });
+    throw exists
+      ? new TRPCError({ code: 'FORBIDDEN', message: 'You are not a member of this group' })
+      : new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
   }
-  if (group.createdById !== user.id && group.members.length === 0) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'You are not a member of this group' });
+}
+
+/**
+ * The write gate. Read-only GUESTs may read a group but never change it.
+ *
+ * Every mutating procedure must call THIS, not `assertGroupAccess`. The two are
+ * separate on purpose: a guest's reads must keep working, so the read paths stay
+ * on `assertGroupAccess` and only the writes move here. Enforcing "read-only"
+ * in the UI alone would be no protection at all — the API is reachable directly
+ * and the mobile client is not the only caller.
+ */
+export async function assertGroupWrite(
+  prisma: PrismaClient,
+  user: AuthUser,
+  groupId: string,
+): Promise<void> {
+  const role = await groupRole(prisma, user, groupId);
+  if (role === 'GUEST') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You are a guest in this group and cannot change it',
+    });
+  }
+  if (role === null) {
+    const exists = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true } });
+    throw exists
+      ? new TRPCError({ code: 'FORBIDDEN', message: 'You are not a member of this group' })
+      : new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' });
   }
 }

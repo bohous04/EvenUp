@@ -272,6 +272,12 @@ export const cs = {
   'invite.pickYourName': 'Najdi se v seznamu',
   'invite.thisIsMe': 'To jsem já',
   'invite.notOnList': 'Nejsem v seznamu',
+  'invite.joinAsGuest': 'Připojit se jako host',
+  'invite.joinAsGuestHint':
+    'Uvidíš zůstatky, transakce i kdo komu co dluží, ale nic tu nezměníš. Můžeš se kdykoli změnit na člena.',
+  'group.readOnlyBanner': 'Jsi tu jako host. Můžeš si všechno prohlížet, ale nic tu nezměníš.',
+  'group.readOnlyShort': 'Jen prohlížení',
+  'member.role.guest': 'Host',
   'invite.confirmNewTitle': 'Opravdu tu nikdo z nich nejsi ty?',
   'invite.confirmNewBody':
     'Když si založíš nový účet, dluhy zůstanou přiřazené původnímu jménu a nikdo je za tebe nepřevezme.',

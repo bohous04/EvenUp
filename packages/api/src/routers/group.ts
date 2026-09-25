@@ -5,7 +5,7 @@ import { Prisma } from '@evenup/db';
 import type { Locale } from '@evenup/i18n';
 import { router, protectedProcedure } from '../trpc.js';
 import { createGroupInput, updateGroupInput } from '../schemas.js';
-import { assertGroupAccess } from '../access.js';
+import { assertGroupAccess, assertGroupWrite, groupRole } from '../access.js';
 import { logActivity } from '../services/activity.js';
 
 /**
@@ -85,6 +85,15 @@ export const groupRouter = router({
 
   get: protectedProcedure.input(z.object({ groupId: z.string() })).query(async ({ ctx, input }) => {
     await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+    /**
+     * The viewer's own role in this group, reported rather than left for the
+     * client to infer from the roster. The member projection deliberately
+     * carries no user id (it is PII-adjacent and the roster never needs it), so
+     * a client literally cannot work out which row is "me" — and guessing wrong
+     * hides the add-expense button from someone who may use it, or leaves it
+     * showing for a guest.
+     */
+    const viewerRole = await groupRole(ctx.prisma, ctx.user, input.groupId);
     const group = await ctx.prisma.group.findUniqueOrThrow({
       where: { id: input.groupId },
       include: {
@@ -97,11 +106,11 @@ export const groupRouter = router({
         },
       },
     });
-    return group;
+    return { ...group, viewerRole };
   }),
 
   update: protectedProcedure.input(updateGroupInput).mutation(async ({ ctx, input }) => {
-    await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+    await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
     const updated = await ctx.prisma.group.update({
       where: { id: input.groupId },
       data: {
@@ -127,7 +136,7 @@ export const groupRouter = router({
   archive: protectedProcedure
     .input(z.object({ groupId: z.string(), archived: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
-      await assertGroupAccess(ctx.prisma, ctx.user, input.groupId);
+      await assertGroupWrite(ctx.prisma, ctx.user, input.groupId);
       const updated = await ctx.prisma.group.update({
         where: { id: input.groupId },
         data: { archivedAt: input.archived ? new Date() : null },

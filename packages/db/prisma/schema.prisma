@@ -191,6 +191,12 @@ enum GroupTemplate {
 enum MemberRole {
   ADMIN
   MEMBER
+  // View-only. A guest can read a group — balances, transactions, the
+  // settlement — but every mutating procedure rejects them (see
+  // `assertGroupWrite` in packages/api/src/access.ts). This is the one
+  // privilege tier in the model: ADMIN and MEMBER are deliberately equal, and
+  // GUEST is not a lesser MEMBER but a different kind of participant.
+  GUEST
 }
 
 model Group {
