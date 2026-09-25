@@ -81,5 +81,11 @@ export async function resetDb(): Promise<void> {
   await testPrisma.session.deleteMany();
   await testPrisma.fxRate.deleteMany();
   await testPrisma.scanLedger.deleteMany();
+  // Before `user`, and it was missing entirely: a Subscription row whose userId
+  // still points at a deleted user is left behind by `user.deleteMany()` (the
+  // relation is `onDelete: SetNull`, so the row survives as an orphan). Those
+  // orphans then leak into any admin billing count, making the numbers depend
+  // on test order rather than on the data under test.
+  await testPrisma.subscription.deleteMany();
   await testPrisma.user.deleteMany();
 }

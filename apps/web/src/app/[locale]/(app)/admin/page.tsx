@@ -373,6 +373,182 @@ function ErrorsSection() {
   );
 }
 
+/**
+ * Billing + activity dashboard.
+ *
+ * **The MRR tile is either a real number or an explicit "unknown" — never
+ * zero.** A local `Subscription` row has no amount on it, and the VIP price is
+ * per-locale, so there is no honest way to total revenue from this database
+ * alone. Showing 0 would read as "we have no revenue", which is a different and
+ * false claim; showing a computed guess would read as authoritative and be
+ * wrong for every EUR subscriber. `billingStats` returns `mrr: null` with a
+ * reason and the panel says so.
+ *
+ * The counts and the two daily series ARE computed locally and are exact, so a
+ * self-hosted instance with billing switched off still gets a useful panel.
+ */
+function BillingSection() {
+  const { t, formatCurrency } = useI18n();
+  const stats = trpc.admin.billingStats.useQuery();
+
+  if (stats.isLoading || !stats.data) return null;
+  const d = stats.data;
+  const maxCount = Math.max(
+    1,
+    ...d.signupsPerDay.map((x) => x.count),
+    ...d.scansPerDay.map((x) => x.count),
+  );
+
+  return (
+    <Card>
+      <h3 className="mb-1 font-semibold">{t('admin.billing.title')}</h3>
+      <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">{t('admin.billing.desc')}</p>
+
+      {/* Summary first: a number an operator can act on before any chart. */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat
+          label={t('admin.billing.mrr')}
+          value={d.mrr ? formatCurrency(d.mrr.amountMinor, d.mrr.currency) : '—'}
+          hint={
+            d.mrr
+              ? d.mrr.currency
+              : d.mrrUnavailableReason
+                ? t(`admin.billing.${d.mrrUnavailableReason}`)
+                : ''
+          }
+          testId="admin-mrr"
+        />
+        <Stat
+          label={t('admin.billing.active')}
+          value={String(d.subscriptions.active)}
+          hint={`${d.subscriptions.trialing} ${t('admin.billing.trialing')}`}
+          testId="admin-subs-active"
+        />
+        <Stat
+          label={t('admin.billing.canceling')}
+          value={String(d.subscriptions.cancelingAtPeriodEnd)}
+          hint={t('admin.billing.cancelingHint')}
+          testId="admin-subs-canceling"
+        />
+        <Stat
+          label={t('admin.billing.credits')}
+          value={String(d.creditsOutstanding)}
+          hint={t('admin.billing.creditsHint')}
+          testId="admin-credits"
+        />
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Series
+          title={t('admin.billing.signups')}
+          series={d.signupsPerDay}
+          max={maxCount}
+          color="var(--brand)"
+        />
+        <Series
+          title={t('admin.billing.scans')}
+          series={d.scansPerDay}
+          max={maxCount}
+          color="var(--series-2)"
+        />
+      </div>
+    </Card>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  testId,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  testId: string;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p
+        className="text-2xl font-extrabold tabular-nums tracking-tight"
+        data-testid={testId}
+        title={hint}
+      >
+        {value}
+      </p>
+      {hint ? (
+        /* zinc-500, not zinc-400: at 11px this needs the full 4.5:1 and
+           zinc-400 is 2.62:1 on white. Caught by the admin a11y e2e. */
+        <p className="mt-0.5 text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 30 daily bars, one hue (each chart is a single series, so hue carries no
+ * identity — the title does). The final bar is emphasised because "today" is
+ * the one a reader looks for, and an axis would add ink without adding a value
+ * this small.
+ */
+function Series({
+  title,
+  series,
+  max,
+  color,
+}: {
+  title: string;
+  series: { date: string; count: number }[];
+  max: number;
+  color: string;
+}) {
+  const H = 72;
+  const gap = 2;
+  const w = 300;
+  const barW = (w - gap * (series.length - 1)) / series.length;
+  const total = series.reduce((a, x) => a + x.count, 0);
+  return (
+    <figure className="m-0">
+      <figcaption className="mb-1 flex items-baseline justify-between text-sm">
+        <span className="font-semibold">{title}</span>
+        <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{total}</span>
+      </figcaption>
+      <svg
+        viewBox={`0 0 ${w} ${H}`}
+        role="img"
+        aria-label={`${title}: ${total}`}
+        className="w-full"
+      >
+        {/* Recessive baseline instead of a full grid: 30 bars need no y-axis to
+            be read, and the ink would cost more than the information. */}
+        <line x1="0" y1={H - 0.5} x2={w} y2={H - 0.5} stroke="var(--line-strong, #d4d4d8)" />
+        {series.map((d, i) => {
+          const h = d.count === 0 ? 1 : Math.max(2, (d.count / max) * (H - 4));
+          const isLast = i === series.length - 1;
+          return (
+            <rect
+              key={d.date}
+              x={i * (barW + gap)}
+              y={H - h}
+              width={barW}
+              height={h}
+              rx={1.5}
+              fill={color}
+              // A zero bar is still drawn, at 1px, so the series reads as a
+              // continuous run of days rather than a gap in the data.
+              opacity={d.count === 0 ? 0.25 : isLast ? 1 : 0.55}
+            />
+          );
+        })}
+      </svg>
+      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+        {series[0]?.date} → {series[series.length - 1]?.date}
+      </p>
+    </figure>
+  );
+}
+
 export default function AdminPage() {
   const { t } = useI18n();
   const { data: session, isPending } = useSession();
@@ -399,6 +575,7 @@ export default function AdminPage() {
       <h1 className="text-2xl font-extrabold tracking-tight" data-testid="admin-title">
         {t('nav.admin')}
       </h1>
+      <BillingSection />
       <InstanceKeySection />
       <UsersSection meId={me.data.id} />
       <ErrorsSection />
