@@ -13,6 +13,8 @@ import { InviteSheet } from '@/components/InviteSheet';
 import { GroupSettingsSheet } from '@/components/GroupSettingsSheet';
 import { SettleSheet, type PendingPayment } from '@/components/SettleSheet';
 import { NextRoundCard } from '@/components/NextRoundCard';
+import { OfflineQueueBadge } from '@/components/OfflineQueueBadge';
+import { useExpenseQueue } from '@/lib/offline/use-expense-queue';
 import { MemberBreakdownSheet } from '@/components/MemberBreakdownSheet';
 import { SpendStatsCard } from '@/components/SpendStatsCard';
 import { CategoryManagerSheet } from '@/components/CategoryManagerSheet';
@@ -61,6 +63,28 @@ export default function GroupScreen() {
   const styles = makeStyles(c);
 
   const group = trpc.group.get.useQuery({ groupId });
+  /*
+   * A second view of the same queue the expense form writes to. Both read the
+   * module-level AsyncStorage store and both re-read after a drain, so the
+   * badge and the form never disagree; a duplicate AppState listener costs
+   * nothing next to threading the hook through props.
+   */
+  const queueCreate = trpc.transaction.createExpense.useMutation();
+  const queueRecur = trpc.transaction.setRecurrence.useMutation();
+  const offlineQueue = useExpenseQueue({
+    send: async (item) => {
+      const { _recurrence, ...body } = item.payload as Record<string, unknown> & {
+        _recurrence?: string;
+      };
+      const created = await queueCreate.mutateAsync({
+        ...(body as Parameters<typeof queueCreate.mutateAsync>[0]),
+        clientMutationId: item.id,
+      });
+      if (_recurrence) {
+        await queueRecur.mutateAsync({ transactionId: created.id, interval: _recurrence as never });
+      }
+    },
+  });
   const balances = trpc.balance.get.useQuery({ groupId });
   // Same query key as `SpendStatsCard` below, so React Query serves both from
   // one fetch; it feeds the total-spent subline under the title (web parity).
@@ -117,6 +141,13 @@ export default function GroupScreen() {
         </View>
 
         <NextRoundCard groupId={groupId} baseCurrency={baseCurrency} />
+
+        <OfflineQueueBadge
+          pending={offlineQueue.pending}
+          stuckItems={offlineQueue.stuck}
+          onRetry={() => void offlineQueue.drain()}
+          onDiscard={(id) => void offlineQueue.discard(id)}
+        />
 
         {/* Balances: a bar per member diverging from a centre tick — right and
             green when owed, left and red when owing. */}
