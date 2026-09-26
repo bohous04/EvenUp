@@ -43,6 +43,10 @@ beforeEach(() => {
   // cannot be reassigned.
   queue.splice(0, queue.length);
   vi.restoreAllMocks();
+  // jsdom reports `navigator.onLine === false` by default, and the runner
+  // correctly refuses to send while offline — so the "sends it" tests have to
+  // declare a connected browser explicitly.
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
 
 /** Lets the hook's internal promises settle. */
@@ -243,7 +247,7 @@ describe('useExpenseQueue — counts and discarding', () => {
     await waitFor(() => expect(result.current.pending).toBe(1));
   });
 
-  it('counts an item that used up its attempts as stuck, not pending', async () => {
+  it('surfaces an item that used up its attempts as stuck, with its title', async () => {
     queue.splice(
       0,
       queue.length,
@@ -259,7 +263,11 @@ describe('useExpenseQueue — counts and discarding', () => {
       ],
     );
     const { result } = renderQueue(async () => {});
-    await waitFor(() => expect(result.current.stuck).toBe(1));
+    // Stuck items are listed with their titles, not counted: the badge has to
+    // name them, because an expense the user watched vanish is the worst
+    // outcome this feature can produce.
+    await waitFor(() => expect(result.current.stuck).toHaveLength(1));
+    expect(result.current.stuck[0]!.title).toBe('Chata');
     expect(result.current.pending).toBe(0);
   });
 

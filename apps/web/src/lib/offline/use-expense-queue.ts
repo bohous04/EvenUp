@@ -32,8 +32,21 @@ export interface UseExpenseQueueOptions {
 
 export function useExpenseQueue({ send, onSynced }: UseExpenseQueueOptions) {
   const [pending, setPending] = useState(0);
-  const [stuck, setStuck] = useState(0);
-  const sending = useRef(false);
+  // Stuck items are kept whole rather than counted, because the badge has to
+  // name them: an expense the user watched disappear is the worst outcome
+  // this feature can produce.
+  const [stuck, setStuck] = useState<{ id: string; title: string }[]>([]);
+  // Set when something is queued *while* a drain is in flight. Without it the
+  // new item waits for the next foreground/online event, so an expense saved
+  // mid-drain would sit in the badge until the user happened to background the
+  // app again.
+  const drainAgain = useRef(false);
+  // The promise of the pass currently running, so a caller that awaits
+  // `drain()` waits for the pass that will handle *its* item. Returning early
+  // from a deferred call would otherwise let `enqueue` read the queue before
+  // its own expense had been sent, and report "still waiting" for one that had
+  // landed.
+  const inFlight = useRef<Promise<void> | null>(null);
   // Held in a ref so changing the caller's identity (a new arrow function
   // every render) does not re-subscribe the listeners on every render.
   const sendRef = useRef(send);
@@ -43,31 +56,52 @@ export function useExpenseQueue({ send, onSynced }: UseExpenseQueueOptions) {
 
   const refreshCounts = useCallback(async () => {
     const queue = await indexedDbQueueStore.read();
+    const stuckItems = queue.filter((i) => !pendingCount([i]));
     setPending(pendingCount(queue));
-    setStuck(queue.length - pendingCount(queue));
+    setStuck(
+      stuckItems.map((i) => ({
+        id: i.id,
+        title: String(i.payload?.title ?? '—'),
+      })),
+    );
   }, []);
 
   /**
-   * One batch, guarded against overlap. Two drains racing would both read the
-   * queue, both send the same items, and the second would overwrite the first's
-   * write — losing whatever the first had already removed.
+   * One batch at a time, guarded by the in-flight promise. Two drains racing
+   * would both read the queue, both send the same items, and the second write
+   * would overwrite the first's removal — losing whatever the first had
+   * already sent.
    */
-  const drain = useCallback(async () => {
-    if (sending.current) return;
-    sending.current = true;
-    try {
-      const result = await drainQueue(indexedDbQueueStore, (item) => sendRef.current(item), {
-        now: () => Date.now(),
-        random: () => Math.random(),
-        isOnline: () => (typeof navigator === 'undefined' ? true : navigator.onLine),
-      });
-      setPending(result.remaining);
-      setStuck(result.stuck);
-      if (result.sent > 0) onSyncedRef.current?.();
-    } finally {
-      sending.current = false;
+  const drain = useCallback((): Promise<void> => {
+    if (inFlight.current) {
+      // Loop again once the in-flight pass finishes, so an item queued
+      // mid-drain is picked up rather than waiting for the next event.
+      drainAgain.current = true;
+      return inFlight.current;
     }
-  }, []);
+    const run = (async () => {
+      do {
+        drainAgain.current = false;
+        const result = await drainQueue(indexedDbQueueStore, (item) => sendRef.current(item), {
+          now: () => Date.now(),
+          random: () => Math.random(),
+          // `false` by default in jsdom, which is why the tests declare a
+          // connected browser explicitly. In a real browser this is the flag,
+          // and the runner still backs off on failure, because "online" also
+          // means captive portal.
+          isOnline: () => (typeof navigator === 'undefined' ? true : navigator.onLine),
+        });
+        if (result.sent > 0) onSyncedRef.current?.();
+        // Re-read rather than trusting the result: `result` counts, the badge
+        // needs the titles, and this is once per drain — not hot.
+        await refreshCounts();
+      } while (drainAgain.current);
+    })().finally(() => {
+      inFlight.current = null;
+    });
+    inFlight.current = run;
+    return run;
+  }, [refreshCounts]);
 
   /**
    * Save an expense: durable first, then sent. Returns whether it landed

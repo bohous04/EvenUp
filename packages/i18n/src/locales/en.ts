@@ -104,6 +104,13 @@ export const en: Messages = {
   'nav.admin': 'Admin',
   'nav.vip': 'VIP',
   'nav.signOut': 'Sign out',
+  'offline.pending': 'Waiting to send',
+  'offline.pendingCount': 'Waiting to send: {count}',
+  'offline.savedQueued': 'Saved — it will send when you are back online.',
+  'offline.stuck': 'Could not send',
+  'offline.stuckBody': 'These expenses could not be sent. We will try again.',
+  'offline.retry': 'Try again',
+  'offline.discard': 'Discard',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
   // Distinct from `vip.title` (the page's own `<h1>`) so the subscription

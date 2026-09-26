@@ -10,6 +10,7 @@ import {
 } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useExpenseQueue } from '@/lib/offline/use-expense-queue';
 import { clampAmountDecimals } from '@/lib/amount-input';
 import { parseLocalDate, todayLocalIso, localIso } from '@/lib/local-date';
 import type { MessageKey } from '@evenup/i18n';
@@ -231,6 +232,42 @@ export function AddExpenseForm({
     setError(null);
   };
 
+  /*
+   * Offline entry: a new expense is written to IndexedDB and then drained, so
+   * an expense that never reaches the network is still on disk. The immediate
+   * success case is identical to the online one — a user should not be able to
+   * tell which path their expense took.
+   */
+  const createQueued = trpc.transaction.createExpense.useMutation();
+  const recurQueued = trpc.transaction.setRecurrence.useMutation();
+  const sendQueued = useExpenseQueue({
+    send: async (item) => {
+      const { _recurrence, ...payload } = item.payload as Record<string, unknown> & {
+        _recurrence?: string;
+      };
+      // The queue stores an untyped record; it was written by this component
+      // from its own typed input, so casting back is restoring information,
+      // not discarding a check.
+      const created = await createQueued.mutateAsync({
+        ...(payload as Parameters<typeof createQueued.mutateAsync>[0]),
+        clientMutationId: item.id,
+      });
+      // Recurrence can only be set once the server has handed back a
+      // transaction id — exactly the moment a queued expense stops existing
+      // offline. Carrying it in the payload keeps the user's intent rather
+      // than dropping it when they saved without signal.
+      if (_recurrence) {
+        await recurQueued.mutateAsync({
+          transactionId: created.id,
+          interval: _recurrence as never,
+        });
+      }
+    },
+    onSynced: () => {
+      invalidateGroup();
+    },
+  });
+
   const createExpense = trpc.transaction.createExpense.useMutation({
     onSuccess: (created) => {
       if (recurrence !== 'none') {
@@ -405,8 +442,25 @@ export function AddExpenseForm({
     // Same payload either way; in edit mode it carries the transaction id and
     // updates in place, otherwise it creates a new expense.
     const runMutation = (payload: Parameters<typeof createExpense.mutate>[0]) => {
-      if (isEdit && editing) updateExpense.mutate({ transactionId: editing.id, ...payload });
-      else createExpense.mutate(payload);
+      if (isEdit && editing) {
+        // Editing an existing transaction is not queued: the server has the
+        // original, so there is nothing to lose by failing loudly.
+        updateExpense.mutate({ transactionId: editing.id, ...payload });
+        return;
+      }
+      // A new expense always goes through the queue, online or not.
+      void sendQueued
+        .enqueue(groupId, {
+          ...payload,
+          ...(recurrence !== 'none' ? { _recurrence: recurrence } : {}),
+        })
+        .then((landed: boolean) => {
+          resetForm();
+          setOpen(false);
+          // Same close-and-reset either way; the badge is the only difference
+          // the user sees, and only while the expense is still queued.
+          if (landed) invalidateGroup();
+        });
     };
 
     // Common fields incl. multi-currency (FR-8.x): a non-base currency carries

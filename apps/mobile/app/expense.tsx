@@ -11,6 +11,7 @@ import {
 } from '@evenup/core';
 import { useSession } from '@/lib/auth';
 import { trpc } from '@/lib/trpc';
+import { useExpenseQueue } from '@/lib/offline/use-expense-queue';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/ui/theme';
 import {
@@ -169,6 +170,37 @@ export default function ExpenseScreen() {
   });
   const update = trpc.transaction.updateExpense.useMutation({ onSuccess: onSaved });
 
+  /*
+   * Offline entry. A new expense is written to AsyncStorage and then drained,
+   * so one that never reaches the network is still on the phone. The policy —
+   * when to retry, how long to wait, when to give up — comes from the shared
+   * runner in @evenup/core, so this app and the PWA cannot drift into
+   * different battery behaviour.
+   */
+  const queueCreate = trpc.transaction.createExpense.useMutation();
+  const queueRecur = trpc.transaction.setRecurrence.useMutation();
+  const offlineQueue = useExpenseQueue({
+    send: async (item) => {
+      const { _recurrence, ...body } = item.payload as Record<string, unknown> & {
+        _recurrence?: string;
+      };
+      // Recurrence can only be set once the server has returned a transaction
+      // id — exactly when a queued expense stops existing offline — so the
+      // intent travels with the item. `createExpenseInput` strips unknown keys,
+      // so the field is inert on the wire.
+      const created = await queueCreate.mutateAsync({
+        ...(body as Parameters<typeof queueCreate.mutateAsync>[0]),
+        clientMutationId: item.id,
+      });
+      if (_recurrence) {
+        await queueRecur.mutateAsync({
+          transactionId: created.id,
+          interval: _recurrence as never,
+        });
+      }
+    },
+  });
+
   if (group.isLoading || !group.data) {
     return (
       <Screen>
@@ -231,8 +263,18 @@ export default function ExpenseScreen() {
       split: built.split,
       exchangeRateToBase: currency !== baseCurrency && fxRate ? fxRate : undefined,
     };
-    if (editingId) update.mutate({ transactionId: editingId, ...payload });
-    else create.mutate(payload);
+    if (editingId) {
+      // Editing is not queued: the server already has the original, so failing
+      // loudly beats queueing.
+      update.mutate({ transactionId: editingId, ...payload });
+      return;
+    }
+    void offlineQueue
+      .enqueue(gid, {
+        ...payload,
+        ...(recurrence !== 'none' ? { _recurrence: recurrence } : {}),
+      })
+      .then(() => onSaved());
   }
 
   const perMemberValue = (id: string) =>

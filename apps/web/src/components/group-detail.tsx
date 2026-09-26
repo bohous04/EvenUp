@@ -12,6 +12,8 @@ import { DuplicateBanner } from '@/components/merge-members';
 import { AlreadyMemberBanner } from '@/components/already-member-banner';
 import { AddMemberForm } from '@/components/add-member-form';
 import { AddExpenseForm } from '@/components/add-expense-form';
+import { OfflineQueueBadge } from '@/components/offline-queue-badge';
+import { useExpenseQueue } from '@/lib/offline/use-expense-queue';
 import { EditTransferSheet } from '@/components/edit-transfer-sheet';
 import { SettleCard } from '@/components/settle-card';
 import { BalancesCard } from '@/components/balances-card';
@@ -60,6 +62,36 @@ export function GroupDetail({
   const [copied, setCopied] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [viewingReceiptTx, setViewingReceiptTx] = useState<Transaction | null>(null);
+
+  /*
+   * A second view of the same queue as the add-expense form's. Both read the
+   * module-level IndexedDB store and both re-read after a drain, so the badge
+   * and the form never disagree — and a duplicate listener on `online` costs
+   * nothing next to the alternative of threading the hook through props.
+   */
+  const queueCreate = trpc.transaction.createExpense.useMutation();
+  const queueRecur = trpc.transaction.setRecurrence.useMutation();
+  const queue = useExpenseQueue({
+    send: async (item) => {
+      const { _recurrence, ...payload } = item.payload as Record<string, unknown> & {
+        _recurrence?: string;
+      };
+      const created = await queueCreate.mutateAsync({
+        ...(payload as Parameters<typeof queueCreate.mutateAsync>[0]),
+        clientMutationId: item.id,
+      });
+      if (_recurrence) {
+        await queueRecur.mutateAsync({
+          transactionId: created.id,
+          interval: _recurrence as never,
+        });
+      }
+    },
+    onSynced: () => {
+      void transactions.refetch();
+      void group.refetch();
+    },
+  });
 
   const createInvite = trpc.invite.create.useMutation({
     onSuccess: (invite) => {
@@ -222,6 +254,13 @@ export function GroupDetail({
       </div>
 
       <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+
+      <OfflineQueueBadge
+        pending={queue.pending}
+        stuckItems={queue.stuck}
+        onRetry={() => void queue.drain()}
+        onDiscard={(id) => void queue.discard(id)}
+      />
 
       {isGuest ? (
         <p

@@ -105,6 +105,13 @@ export const cs = {
   // before, so the only way to pay was to type the address.
   'nav.vip': 'VIP',
   'nav.signOut': 'Odhlásit se',
+  'offline.pending': 'Čeká na odeslání',
+  'offline.pendingCount': 'Čeká na odeslání: {count}',
+  'offline.savedQueued': 'Uloženo – odešle se, až budeš online.',
+  'offline.stuck': 'Nepodařilo se odeslat',
+  'offline.stuckBody': 'Tyto výdaje se nepodařilo odeslat. Zkusíme to znovu.',
+  'offline.retry': 'Zkusit znovu',
+  'offline.discard': 'Zahodit',
   'vip.badge': 'VIP',
   'vip.title': 'EvenUp VIP',
   // Distinct from `vip.title` (the page's own `<h1>`) so the subscription
