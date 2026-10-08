@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // No floating dev-tools badge: `next dev` should look like the page users
+  // get. Build and runtime errors still open the overlay.
+  devIndicators: false,
   // Workspace packages ship TypeScript source; transpile them in the app build.
   transpilePackages: ['@evenup/core', '@evenup/api', '@evenup/db', '@evenup/i18n'],
   eslint: {

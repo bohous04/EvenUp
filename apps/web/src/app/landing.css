@@ -1,189 +1,401 @@
 /*
- * Landing-page demo styles.
+ * ===========================================================================
+ *  EvenUp marketing — the visual system. Read this before touching a section.
+ * ===========================================================================
  *
- * The rule that makes this safe: **every animated element's base style is its
- * FINAL state.** The keyframes below only ever animate *toward* that resting
- * appearance, never away from it. So with `prefers-reduced-motion: reduce` —
- * or in a browser that never runs the animation — the diagram is simply there,
- * fully drawn. Nothing is ever hidden behind an animation that might not fire.
+ * References: mercury.com (calm, space, typographic confidence) and ramp.com
+ * (a money product shown as crisp, real UI moving with precision).
  *
- * The whole demo is server-rendered SVG, so this is the only thing that
- * animates it. There is no client island and no hydration.
+ * TYPE — one family: Geist Sans (variable, self-hosted via next/font/local,
+ *   `display: optional` + metric-adjusted fallback → never shifts layout).
+ *   display   clamp(2.75rem → 5.25rem)  weight 560  tracking -0.045em  lh 0.98
+ *   h2        clamp(2rem → 3.25rem)     weight 540  tracking -0.035em  lh 1.04
+ *   h3        1.125rem                  weight 560  tracking -0.015em
+ *   lede      clamp(1.125rem → 1.3125rem) ink-2, lh 1.45, max 34rem
+ *   body      1rem / 1.6, ink-2          small 0.875rem    label 0.8125rem ink-3
+ *   Numbers are tabular. Headlines are left-aligned — never centre a section.
+ *
+ * COLOUR — near-neutral ground, ink in three steps, hairlines, ONE accent.
+ *   --lp-ground / --lp-raised / --lp-sunken    page, lifted UI, recessed plate
+ *   --lp-ink / --lp-ink-2 / --lp-ink-3         all text (every step ≥ 4.5:1)
+ *   --lp-line / --lp-line-2                    1px rules, never boxes-for-boxes
+ *   --lp-accent                                indigo; ONLY for the thing the
+ *     product produces (the netted payment, the trial line, focus rings).
+ *   The primary button is ink (black in light, white in dark) — not accent.
+ *   `--debt` amber (globals.css) appears only inside settlement diagrams.
+ *
+ * SPACE — 8px rhythm. Sections breathe: --lp-section (96 → 176px) top and
+ *   bottom; after a section's hairline, --lp-runin (56 → 88px) to its first
+ *   line, the same in every section. Content sits in --lp-max (1200px) with --lp-gutter sides; prose
+ *   in --lp-measure. Separation is whitespace first, a hairline second, a
+ *   box last. Radii: 6px controls, 12px UI panels, 999px buttons only.
+ *
+ * MOTION — one language, CSS only, no JS.
+ *   easing    --lp-ease  cubic-bezier(0.22, 1, 0.36, 1)  (fast out, long settle)
+ *             --lp-ease-travel cubic-bezier(0.6, 0, 0.3, 1) for point-to-point
+ *             travel (payment lines drawing, scanner sweeps)
+ *   durations --lp-fast 180ms (hover/focus) · --lp-med 600ms (enter) ·
+ *             --lp-slow 1100ms (lines drawing, bars filling)
+ *   On load   the hero lifts: .lp-enter wipes up out of a clip (clip-path +
+ *             0.35em rise), staggered by --i × 70ms. No opacity: the text is
+ *             at full contrast in every frame (axe runs mid-animation). The
+ *             h1 lines and the lede only rise (lp-settle, no clip): either
+ *             can be the LCP element (the lede is, on phones), and a clipped
+ *             first frame paints nothing, so LCP would wait out the whole
+ *             wipe. `fill: backwards`, so
+ *             once done the element is its plain base style again.
+ *   On scroll .lp-reveal / .lp-stagger fade up 20px (lp-rise, opacity 0→1),
+ *             driven by `animation-timeline: view()` inside @supports —
+ *             browsers without scroll timelines simply show the content.
+ *   RULES     every animated element's BASE style is its final state; all
+ *             motion lives inside @media (prefers-reduced-motion: no-preference);
+ *             animate only transform, opacity, clip-path, stroke-dashoffset —
+ *             never width/height/top/margin (zero layout shift).
+ *
+ * BANNED (AI slop): eyebrow pill badges, gradient glows/blobs, icon or
+ *   feature card grids, "title + subtitle + three cards" sections, filler
+ *   adjectives, fake browser-chrome dots, centred-everything, uniform
+ *   rounded-2xl boxes, coloured closing banners, drop-shadow soup, emoji.
+ *
+ * Shared primitives live here (tokens, container, headings, buttons, links,
+ * motion utilities). Each section's own look lives in
+ * components/landing/<key>.css and touches nothing outside its root.
  */
 
-.landing-svg {
-  display: block;
+.lp {
+  --lp-ground: #fafaf9;
+  --lp-raised: #ffffff;
+  --lp-sunken: #f2f2f0;
+  --lp-ink: #111113;
+  --lp-ink-2: #48484e;
+  --lp-ink-3: #67676d;
+  --lp-line: #e6e6e3;
+  --lp-line-2: #d3d3cf;
+  --lp-accent: #4f46e5;
+  --lp-accent-ink: #4338ca;
+  --lp-accent-wash: #eef0ff;
+  --lp-on-ink: #ffffff;
+
+  --lp-font: var(--font-landing), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --lp-max: 1200px;
+  --lp-gutter: clamp(20px, 4vw, 40px);
+  --lp-measure: 34rem;
+  --lp-section: clamp(96px, 11vw, 176px);
+  /* From a section's hairline down to its first line: one value page-wide. */
+  --lp-runin: clamp(56px, 6vw, 88px);
+
+  --lp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* For things that travel between two points (a payment line drawing, a
+     scanner sweeping): ease in and out, one curve page-wide. */
+  --lp-ease-travel: cubic-bezier(0.6, 0, 0.3, 1);
+  --lp-fast: 180ms;
+  --lp-med: 600ms;
+  --lp-slow: 1100ms;
+
+  --lp-shadow-panel: 0 1px 0 rgb(17 17 19 / 0.04), 0 24px 48px -28px rgb(17 17 19 / 0.22);
+
+  background: var(--lp-ground);
+  color: var(--lp-ink);
+  font-family: var(--lp-font);
+  font-feature-settings: 'ss01' 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lp {
+    --lp-ground: #0c0c0e;
+    --lp-raised: #151518;
+    --lp-sunken: #111114;
+    --lp-ink: #f3f3f4;
+    --lp-ink-2: #b4b4bb;
+    --lp-ink-3: #8e8e96;
+    --lp-line: #232327;
+    --lp-line-2: #34343a;
+    --lp-accent: #8b8cf8;
+    --lp-accent-ink: #b4b5ff;
+    --lp-accent-wash: #1b1b3a;
+    --lp-on-ink: #0c0c0e;
+    --lp-shadow-panel: 0 1px 0 rgb(255 255 255 / 0.04), 0 24px 48px -28px rgb(0 0 0 / 0.8);
+  }
+}
+
+.lp ::selection {
+  background: var(--lp-accent-wash);
+  color: var(--lp-ink);
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.lp-wrap {
   width: 100%;
-  height: auto;
+  max-width: calc(var(--lp-max) + 2 * var(--lp-gutter));
+  margin-inline: auto;
+  padding-inline: var(--lp-gutter);
 }
 
-.landing-nm {
-  font-size: 13px;
-  font-weight: 700;
-  fill: var(--ink);
+.lp-section {
+  padding-block: var(--lp-section);
 }
-.landing-nm.landing-sm {
-  font-size: 9.5px;
+
+/* A section boundary is a hairline across the content width, not a box. */
+.lp-section + .lp-section {
+  padding-top: 0;
 }
-.landing-nm.landing-xs {
-  font-size: 9px;
+.lp-section + .lp-section > .lp-wrap::before {
+  content: '';
+  display: block;
+  height: 1px;
+  background: var(--lp-line);
+  margin-bottom: var(--lp-runin);
+}
+
+/* ------------------------------------------------------------- type */
+
+.lp-display {
+  font-size: clamp(2.75rem, 1.4rem + 5.2vw, 5.25rem);
+  font-weight: 560;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.lp-h2 {
+  font-size: clamp(2rem, 1.35rem + 2.6vw, 3.25rem);
+  font-weight: 540;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.lp-h3 {
+  font-size: 1.125rem;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.lp-lede {
+  font-size: clamp(1.125rem, 1.02rem + 0.4vw, 1.3125rem);
+  line-height: 1.45;
   letter-spacing: -0.01em;
-}
-.landing-amt {
-  font-size: 12px;
-  font-weight: 650;
-  fill: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
+  color: var(--lp-ink-2);
+  max-width: var(--lp-measure);
+  text-wrap: pretty;
+  margin: 0;
 }
 
-.landing-bridge {
-  display: flex;
-  justify-content: center;
-  padding: 14px 0 10px;
+.lp-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+  margin: 0;
 }
-.landing-bridge span {
+
+.lp-small {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--lp-ink-3);
+  margin: 0;
+}
+
+.lp-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--lp-ink-3);
+}
+
+.lp-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.lp-mute {
+  color: var(--lp-ink-3);
+}
+
+/* ------------------------------------------------------------ controls */
+
+.lp-btn {
   display: inline-flex;
-  gap: 7px;
-  font-size: 12.5px;
-  font-weight: 650;
-  color: var(--brand-ink);
-  background: var(--brand-wash);
-  border: 1px solid var(--brand-tint);
-  padding: 5px 13px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  height: 48px;
+  padding-inline: 22px;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 540;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--lp-fast) var(--lp-ease),
+    color var(--lp-fast) var(--lp-ease),
+    border-color var(--lp-fast) var(--lp-ease),
+    transform var(--lp-fast) var(--lp-ease);
+}
+
+.lp-btn-primary {
+  background: var(--lp-ink);
+  color: var(--lp-on-ink);
+}
+.lp-btn-primary:hover {
+  background: color-mix(in srgb, var(--lp-ink) 84%, var(--lp-ground));
+}
+
+.lp-btn-quiet {
+  background: transparent;
+  color: var(--lp-ink);
+  border: 1px solid var(--lp-line-2);
+}
+.lp-btn-quiet:hover {
+  border-color: var(--lp-ink-3);
+}
+
+.lp-btn:active {
+  transform: scale(0.98);
+}
+
+/* A text link with an arrow that nudges on hover. */
+.lp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--lp-ink);
+  font-weight: 520;
+  text-decoration: underline;
+  text-decoration-color: var(--lp-line-2);
+  text-underline-offset: 0.3em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color var(--lp-fast) var(--lp-ease);
+}
+.lp-link:hover {
+  text-decoration-color: currentColor;
+}
+.lp-link .lp-arrow {
+  display: inline-block;
+  transition: transform var(--lp-fast) var(--lp-ease);
+}
+.lp-link:hover .lp-arrow {
+  transform: translateX(3px);
+}
+
+.lp :focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.lp .lp-btn:focus-visible {
   border-radius: 999px;
 }
 
-.landing-count {
-  display: flex;
-  justify-content: center;
-  padding-top: 12px;
-}
-.landing-count-n {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--brand);
-}
+/* ---------------------------------------------------------------- motion */
 
-/* Scale-example cards. */
-.landing-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card, 18px);
-  box-shadow: var(--shadow-card);
-}
-.landing-tally {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0 0 3px;
-}
-.landing-from {
-  font-size: 21px;
-  font-weight: 800;
-  color: var(--ink-faint);
-  font-variant-numeric: tabular-nums;
-}
-.landing-arrow {
-  color: var(--ink-faint);
-  font-size: 12px;
-}
-.landing-to {
-  font-size: 29px;
-  font-weight: 800;
-  color: var(--brand);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-}
-.landing-unit {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-.landing-cap {
-  font-size: 12px;
-  color: var(--ink-soft);
-  margin: 0 0 10px;
-}
-
-/* The one orchestrated sequence: nodes pop, arrows draw, the debts dim while
-   the middle node is struck through, then the single transfer draws. */
 @media (prefers-reduced-motion: no-preference) {
-  .landing-pop {
-    animation: landingPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-    transform-box: fill-box;
-    transform-origin: center;
+  /* Hero, on load. */
+  .lp-enter {
+    animation: lp-lift 800ms var(--lp-ease) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms + 60ms);
   }
-  .landing-draw {
-    animation: landingDraw 0.5s ease-out both;
-  }
-  .landing-dim {
-    animation: landingDim 0.3s 1.5s both;
-  }
-  .landing-bridge {
-    animation: landingRise 0.4s 1.35s both;
-  }
-  .landing-after {
-    animation: landingRise 0.4s 1.7s both;
-  }
-  .landing-strike {
-    animation: landingDraw 0.35s 1.85s both;
-  }
-  .landing-after-line {
-    animation: landingDraw 0.7s 2.25s both;
-  }
-  .landing-final {
-    animation: landingPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 3.05s both;
-  }
-  .landing-n1 {
-    animation-delay: 0.05s;
-  }
-  .landing-n2 {
-    animation-delay: 0.17s;
-  }
-  .landing-n3 {
-    animation-delay: 0.29s;
-  }
-  .landing-e1 {
-    animation-delay: 0.55s;
-  }
-  .landing-e2 {
-    animation-delay: 0.75s;
+  /* The headline is the LCP element: a fully clipped first frame paints
+     nothing, which pushes LCP behind hydration. Its lines rise without the
+     clip, so they paint whole on the first frame. */
+  .lp-hero-title > .lp-enter,
+  .lp-hero-lede.lp-enter {
+    animation-name: lp-settle;
   }
 
-  @keyframes landingPop {
-    from {
-      opacity: 0;
-      transform: scale(0.55);
+  /* Everything below the fold, on scroll. */
+  @supports (animation-timeline: view()) {
+    .lp-reveal,
+    .lp-stagger > * {
+      animation: lp-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
     }
-    to {
-      opacity: 1;
-      transform: scale(1);
+    .lp-stagger > :nth-child(2) {
+      animation-range: entry 8% entry 78%;
     }
-  }
-  @keyframes landingDraw {
-    from {
-      stroke-dashoffset: var(--len);
+    .lp-stagger > :nth-child(3) {
+      animation-range: entry 16% entry 86%;
     }
-    to {
-      stroke-dashoffset: 0;
+    .lp-stagger > :nth-child(4) {
+      animation-range: entry 24% entry 94%;
     }
-  }
-  @keyframes landingRise {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
+    .lp-stagger > :nth-child(n + 5) {
+      animation-range: entry 30% entry 100%;
     }
   }
-  @keyframes landingDim {
-    from {
-      opacity: 1;
-    }
-    to {
-      opacity: 0.22;
-    }
+}
+
+/* Opacity 0, not 0.01: an element waiting below the fold must read as hidden
+   (axe skips it) rather than as near-invisible low-contrast text. */
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The hero's on-load entrance: a wipe up out of a clip. Ends slightly
+   outside the box so descenders never pop on the last frame. */
+@keyframes lp-lift {
+  from {
+    transform: translateY(0.35em);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-0.3em -0.2em -0.3em -0.2em);
+  }
+}
+
+@keyframes lp-settle {
+  from {
+    transform: translateY(0.3em);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes lp-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes lp-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.lp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

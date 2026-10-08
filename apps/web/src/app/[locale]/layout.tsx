@@ -74,12 +74,17 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <body className="min-h-full">
         <Providers locale={locale}>{children}</Providers>
-        {/* Umami: cookieless analytics. `data-domains` keeps the evenup.lnrt.cz alias out of the stats. */}
+        {/* Umami: cookieless analytics. `data-domains` keeps the evenup.lnrt.cz alias out of the stats.
+            `lazyOnload`, not `afterInteractive`: the latter also emits a
+            `<link rel="preload">` for this third-party origin in the head,
+            which opens a new connection inside the critical path of every
+            page's first paint (it cost the landing page its Lighthouse 95).
+            Loading at idle still records the page view. */}
         <Script
           src="https://analytics.lnrt.cz/script.js"
           data-website-id="157f3911-6d2c-458c-acec-4968b5421798"
           data-domains="evenup.cz"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
       </body>
     </html>

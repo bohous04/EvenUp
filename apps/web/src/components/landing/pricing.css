@@ -1,0 +1,805 @@
+/*
+ * Pricing: one block, three columns, hairlines between — a row of figures
+ * (Free · €2 · from €1) the eye reads across, then each column read down.
+ * Columns are a subgrid so name / price / terms / detail align row by row.
+ */
+
+/* One flat grid. On a desk: title, lede and actions stacked left, the
+   receipt every plan is priced by standing right of all three, the price
+   row and its note full width beneath. The section's run-in hairline (the
+   wrap's ::before, from landing.css) gets a row of its own above it all. */
+.lp-pricing-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-rows: auto auto auto auto 1fr auto auto;
+  grid-template-areas:
+    'rule rule'
+    'title receipt'
+    'lede receipt'
+    'actions receipt'
+    '. receipt'
+    'plans plans'
+    'note note';
+  column-gap: clamp(32px, 6vw, 96px);
+}
+.lp-pricing-wrap::before {
+  grid-area: rule;
+}
+.lp-pricing-title {
+  grid-area: title;
+  max-width: 40rem;
+}
+.lp-pricing-lede {
+  grid-area: lede;
+  margin-top: 20px;
+  max-width: 30rem;
+}
+.lp-pricing-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 32px;
+}
+.lp-receipt {
+  grid-area: receipt;
+  align-self: start;
+}
+/* On a desk the plate is exactly as tall as the column of words beside it —
+   its top on the title's cap line, its foot on the buttons' baseline — so the
+   head is one block with one bottom edge and the price row starts right
+   under it. The figure gives the rows no height of its own (the plate is
+   absolutely placed in it), so the words set the height and the slip is
+   pinned to the plate's foot: a long till print whose top runs off the
+   plate, its total and torn edge always in view. */
+@media (min-width: 861px) {
+  .lp-receipt {
+    position: relative;
+    align-self: stretch;
+    min-height: 296px;
+  }
+  .lp-receipt .lp-receipt-plate {
+    position: absolute;
+    inset: 0;
+    justify-content: flex-start;
+    align-items: flex-end;
+    overflow: hidden;
+    padding: 0 0 30px;
+  }
+  /* The slip and its label are one composition centred in the plate; the
+     slot is placed by the same numbers, so it always sits exactly over the
+     paper whatever the plate's width. (Set on the children: the plate is
+     the container, so only they can answer its container query.) */
+  .lp-receipt .lp-receipt-paper,
+  .lp-receipt .lp-receipt-slot {
+    --lp-slip-w: 252px;
+    --lp-slip-room: 158px;
+    --lp-slip-x: max(16px, calc(50% - (var(--lp-slip-w) + var(--lp-slip-room)) / 2));
+  }
+  .lp-receipt .lp-receipt-paper {
+    width: var(--lp-slip-w);
+    margin-left: var(--lp-slip-x);
+    margin-right: 0;
+    /* Straight out of the printer: a slot does not feed paper at an angle. */
+    transform: none;
+  }
+  .lp-receipt .lp-receipt-caption {
+    transform: none;
+  }
+  .lp-receipt .lp-receipt-slot {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: calc(var(--lp-slip-x) - 14px);
+    width: calc(var(--lp-slip-w) + 28px);
+    height: 10px;
+    border-radius: 0 0 6px 6px;
+    background: var(--lp-slot);
+    /* The lip's shadow falls on the paper just below it. */
+    box-shadow: 0 6px 10px -4px rgb(17 17 19 / 0.22);
+  }
+  /* A narrower desk plate: a narrower slip keeps the label beside it. */
+  @container lp-receipt (max-width: 450px) {
+    .lp-receipt .lp-receipt-paper,
+    .lp-receipt .lp-receipt-slot {
+      --lp-slip-w: 208px;
+    }
+  }
+  /* Narrowest: the label drops under the slip (the shared rule below lifts
+     the slip to make room), so the slip centres on its own. */
+  @container lp-receipt (max-width: 380px) {
+    .lp-receipt .lp-receipt-paper,
+    .lp-receipt .lp-receipt-slot {
+      --lp-slip-w: 232px;
+      --lp-slip-room: 0px;
+    }
+  }
+}
+.lp-receipt-slot {
+  display: none;
+}
+.lp-plans {
+  grid-area: plans;
+}
+.lp-pricing-note {
+  grid-area: note;
+}
+
+/* ---------------------------------------------------------- receipt */
+
+/* One object in a recessed plate, the way Mercury sets a single rendered
+   thing in a tile: a till slip with a torn edge. Every size below comes from
+   its text, so the box is known before paint and nothing can shift. */
+.lp-receipt {
+  margin: 0;
+  min-width: 0;
+  --lp-paper: #ffffff;
+  --lp-paper-ink: #1d1d20;
+  --lp-paper-ink-2: #55555b;
+  --lp-paper-rule: #c9c9c4;
+  --lp-slot: #1d1d20;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .lp-receipt {
+    --lp-paper: #1f1f23;
+    --lp-paper-ink: #f0f0f2;
+    --lp-paper-ink-2: #b0b0b8;
+    --lp-paper-rule: #44444b;
+    --lp-slot: #000000;
+  }
+}
+:root[data-theme='dark'] .lp-receipt {
+  --lp-paper: #1f1f23;
+  --lp-paper-ink: #f0f0f2;
+  --lp-paper-ink-2: #b0b0b8;
+  --lp-paper-rule: #44444b;
+  --lp-slot: #000000;
+}
+
+.lp-receipt-plate {
+  display: flex;
+  justify-content: center;
+  padding: 32px 24px 40px;
+  border-radius: 12px;
+  background: var(--lp-sunken);
+  box-shadow: inset 0 0 0 1px var(--lp-line);
+  container-type: inline-size;
+  container-name: lp-receipt;
+}
+
+.lp-receipt-paper {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 232px);
+  /* Leaves room on the right for the label hanging off the total. */
+  margin-right: 150px;
+  padding: 22px 20px 18px;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--lp-paper-ink);
+  font-variant-numeric: tabular-nums;
+  transform: rotate(-1.25deg);
+}
+/* The paper itself, behind the print: a drop shadow and a torn bottom edge
+   cut by a mask (a sawtooth, not a glow). */
+.lp-receipt-sheet {
+  position: absolute;
+  inset: 0 0 -7px;
+  z-index: -1;
+  filter: drop-shadow(0 1px 0 rgb(17 17 19 / 0.06)) drop-shadow(0 18px 22px rgb(17 17 19 / 0.12));
+}
+.lp-receipt-sheet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lp-paper);
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / 12px 7px repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / 12px 7px repeat-x;
+}
+
+.lp-receipt-shop {
+  margin: 0;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lp-receipt-when {
+  margin: 2px 0 0;
+  text-align: center;
+  color: var(--lp-paper-ink-2);
+}
+.lp-receipt-items {
+  margin: 14px 0 0;
+  padding: 10px 0;
+  list-style: none;
+  border-block: 1px dashed var(--lp-paper-rule);
+}
+.lp-receipt-item,
+.lp-receipt-sum {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lp-receipt-item {
+  margin-inline: -4px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.lp-receipt-sum {
+  position: relative;
+  margin-top: 10px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+/* Only the label is set in caps: "Kč" must never become "KČ". */
+.lp-receipt-sum > :first-child {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.lp-receipt-thanks {
+  margin: 12px 0 0;
+  text-align: center;
+  color: var(--lp-paper-ink-2);
+}
+
+/* The frame the scan draws round what it read. */
+.lp-receipt-total {
+  position: absolute;
+  inset: -5px -8px;
+  border: 1.5px solid var(--lp-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lp-accent) 7%, transparent);
+}
+
+/* The label hangs off the frame, outside the paper, joined by a tick. */
+.lp-receipt-caption {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 24px);
+  translate: 0 -50%;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--lp-ink);
+  color: var(--lp-on-ink);
+  font-family: var(--lp-font);
+  font-size: 0.8125rem;
+  font-weight: 540;
+  line-height: 1.2;
+  white-space: nowrap;
+  transform: rotate(1.25deg);
+}
+.lp-receipt-caption::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 16px;
+  height: 1.5px;
+  background: var(--lp-accent);
+}
+
+/* The scan line travels the paper's full height: a full-size layer whose
+   top edge is the beam, so translateY(100%) is exactly one slip long. */
+.lp-receipt-scan {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lp-receipt-beam {
+  position: absolute;
+  inset: 0;
+  border-top: 2px solid var(--lp-accent);
+  background: linear-gradient(
+    color-mix(in srgb, var(--lp-accent) 10%, transparent),
+    transparent 28px
+  );
+  /* Final state: the scan is over, the beam is gone. */
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+/* Too narrow for a label beside the slip: it moves under the total. */
+@container lp-receipt (max-width: 380px) {
+  .lp-receipt-paper {
+    margin-right: 0;
+    margin-bottom: 52px;
+  }
+  .lp-receipt-caption {
+    top: calc(100% + 74px);
+    left: auto;
+    right: -8px;
+    translate: 0 0;
+    transform: rotate(1.25deg);
+  }
+  .lp-receipt-caption::before {
+    top: auto;
+    bottom: 100%;
+    right: 24px;
+    width: 1.5px;
+    height: 68px;
+  }
+}
+
+.lp-plans {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto auto 1fr;
+  margin-top: clamp(40px, 4vw, 56px);
+}
+
+/* The top rule is its own element so it can draw in on scroll. */
+.lp-plans::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--lp-line-2);
+  transform-origin: left center;
+}
+
+.lp-plan {
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  align-content: start;
+  padding: 36px clamp(24px, 3vw, 44px) 4px;
+}
+.lp-plan:first-child {
+  padding-left: 0;
+}
+.lp-plan:last-child {
+  padding-right: 0;
+}
+.lp-plan + .lp-plan {
+  border-left: 1px solid var(--lp-line);
+}
+
+.lp-plan-name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 540;
+  letter-spacing: 0;
+  color: var(--lp-ink-3);
+}
+
+.lp-plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-size: clamp(2.75rem, 2rem + 2.2vw, 4rem);
+  font-weight: 540;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.lp-plan-unit {
+  font-size: 0.9375rem;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  color: var(--lp-ink-3);
+}
+
+.lp-plan-body {
+  margin: 20px 0 0;
+  max-width: 21rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--lp-ink-2);
+  text-wrap: pretty;
+}
+
+.lp-plan-detail {
+  margin: 24px 0 0;
+}
+
+/* ---------------------------------------------------------- VIP trial */
+
+.lp-trial {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  row-gap: 12px;
+  max-width: 21rem;
+}
+.lp-trial-track {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 2px;
+  margin-inline: 4px;
+  background: var(--lp-line-2);
+}
+.lp-trial-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--lp-accent);
+  transform-origin: left center;
+}
+.lp-trial-track::before,
+.lp-trial-track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+}
+.lp-trial-track::before {
+  left: -4px;
+  background: var(--lp-accent);
+}
+.lp-trial-track::after {
+  right: -4px;
+  background: var(--lp-ground);
+  box-shadow: inset 0 0 0 2px var(--lp-accent);
+}
+.lp-trial-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lp-trial-stop-end {
+  align-items: flex-end;
+  text-align: right;
+}
+.lp-trial-amount {
+  font-size: 1rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  color: var(--lp-ink);
+}
+.lp-trial-when {
+  font-size: 0.8125rem;
+  color: var(--lp-ink-3);
+}
+
+.lp-plan-trial {
+  margin: 20px 0 0;
+  max-width: 21rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--lp-ink-3);
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------- ruled rows (free, packs) */
+
+.lp-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--lp-line);
+  font-size: 0.9375rem;
+}
+.lp-row:last-child {
+  border-bottom: 1px solid var(--lp-line);
+}
+.lp-row dt {
+  color: var(--lp-ink-2);
+}
+.lp-row dd {
+  margin: 0;
+  font-weight: 560;
+  color: var(--lp-ink);
+}
+
+/* ---------------------------------------------------------- note */
+
+.lp-pricing-note {
+  margin: 28px 0 0;
+}
+
+/* ---------------------------------------------------------- narrow */
+
+/* Stacked, each plan reads as a price-list row: name left, figure right,
+   terms beneath. */
+@media (max-width: 860px) {
+  .lp-plans {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .lp-plan,
+  .lp-plan:first-child,
+  .lp-plan:last-child {
+    grid-row: auto;
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 16px;
+    padding: 24px 0 28px;
+  }
+  .lp-plan + .lp-plan {
+    border-left: 0;
+    border-top: 1px solid var(--lp-line);
+  }
+  .lp-plan-name {
+    font-size: 1.0625rem;
+    color: var(--lp-ink);
+  }
+  .lp-plan-price {
+    margin: 0;
+    justify-self: end;
+    font-size: 2.25rem;
+  }
+  .lp-plan-body,
+  .lp-plan-detail {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+  .lp-plan-body {
+    margin-top: 14px;
+  }
+  .lp-plan-detail {
+    margin-top: 24px;
+  }
+  .lp-trial,
+  .lp-plan-trial {
+    max-width: none;
+  }
+  /* On a phone the figures come straight after the lede: the price row is
+     what a visitor scrolled here for, so it is on the first screen of the
+     section, with the actions and the note directly under it and the
+     receipt — the picture of the unit — last. */
+  .lp-pricing-wrap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      'rule'
+      'title'
+      'lede'
+      'plans'
+      'note'
+      'actions'
+      'receipt';
+  }
+  .lp-plans {
+    margin-top: 28px;
+  }
+  .lp-pricing-actions {
+    margin-top: 28px;
+  }
+  .lp-receipt {
+    margin-top: 40px;
+  }
+  /* The next plan's top rule closes a stacked list; a second rule 32px
+     above it would only double the line. */
+  .lp-plan:not(:last-child) .lp-row:last-child {
+    border-bottom: 0;
+  }
+  .lp-pricing-note {
+    margin-top: 8px;
+  }
+  .lp-receipt-plate {
+    padding: 32px 16px 28px;
+  }
+}
+
+/* ---------------------------------------------------------- motion */
+
+/* Every base style above is the final state; motion only ever starts from
+   somewhere else and lands there, so reduced motion simply skips it.
+
+   Where scroll-TRIGGERED animations exist, the section plays a timed entrance
+   once it comes into view: the rule draws, the columns rise in order, the
+   beam reads the receipt top to bottom, the total is framed and labelled,
+   and the trial bar fills from today to the first payment. Elsewhere the same
+   steps are scrubbed by the scroll position (scroll-driven), and with
+   neither, everything simply stands in its final state. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (timeline-trigger: --t view()) {
+    /* Each part triggers on its own entry, so the order of arrival follows
+       the order on screen whichever way the grid is laid out. */
+    .lp-pricing-title,
+    .lp-pricing-lede,
+    .lp-pricing-actions {
+      timeline-trigger: --lp-pricing-in view() entry 20% exit 100%;
+      animation: lp-rise var(--lp-med) var(--lp-ease) both;
+      animation-trigger: --lp-pricing-in play-forwards;
+    }
+    .lp-pricing-lede {
+      animation-delay: 80ms;
+    }
+    .lp-pricing-actions {
+      animation-delay: 160ms;
+    }
+    .lp-plans {
+      timeline-trigger: --lp-pricing-plans view() entry 0% exit 100%;
+    }
+    .lp-receipt {
+      timeline-trigger: --lp-pricing-head view() entry 20% exit 100%;
+      animation: lp-rise var(--lp-med) var(--lp-ease) 120ms both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+    .lp-receipt-paper {
+      animation: lp-pricing-feed 900ms var(--lp-ease) 150ms both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+    /* On a desk the slip prints down out of the slot instead. */
+    @media (min-width: 861px) {
+      .lp-receipt .lp-receipt-paper {
+        animation-name: lp-pricing-print;
+        animation-duration: 1100ms;
+        animation-timing-function: var(--lp-ease-travel);
+      }
+    }
+    .lp-receipt-beam {
+      animation: lp-pricing-scan 1500ms var(--lp-ease-travel) 700ms both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+    /* Each line registers as the beam crosses it. */
+    .lp-receipt-item {
+      animation: lp-pricing-read 700ms var(--lp-ease) calc(1050ms + var(--i) * 130ms) both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+    .lp-receipt-total {
+      animation: lp-pricing-frame 480ms var(--lp-ease) 1950ms both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+    .lp-receipt-caption {
+      animation: lp-pricing-label 480ms var(--lp-ease) 2200ms both;
+      animation-trigger: --lp-pricing-head play-forwards;
+    }
+
+    .lp-plans::before {
+      animation: lp-grow-x var(--lp-slow) var(--lp-ease) both;
+      animation-trigger: --lp-pricing-plans play-forwards;
+    }
+    /* Each plan triggers on its own entry: stacked on a phone they arrive
+       one screen apart, side by side they arrive together and the delays
+       stagger them. */
+    .lp-plan {
+      timeline-trigger: --lp-pricing-plan view() entry 15% exit 100%;
+      animation: lp-rise var(--lp-med) var(--lp-ease) 120ms both;
+      animation-trigger: --lp-pricing-plan play-forwards;
+    }
+    .lp-plan:nth-child(2) {
+      animation-delay: 220ms;
+    }
+    .lp-plan:nth-child(3) {
+      animation-delay: 320ms;
+    }
+    .lp-plan-price {
+      animation: lp-lift var(--lp-med) var(--lp-ease) 200ms both;
+      animation-trigger: --lp-pricing-plan play-forwards;
+    }
+    .lp-plan:nth-child(2) .lp-plan-price {
+      animation-delay: 300ms;
+    }
+    .lp-plan:nth-child(3) .lp-plan-price {
+      animation-delay: 400ms;
+    }
+    .lp-trial-fill {
+      animation: lp-grow-x var(--lp-slow) var(--lp-ease) 700ms both;
+      animation-trigger: --lp-pricing-plan play-forwards;
+    }
+  }
+
+  @supports (animation-timeline: view()) and (not (timeline-trigger: --t view())) {
+    .lp-pricing-title,
+    .lp-pricing-lede,
+    .lp-pricing-actions,
+    .lp-receipt {
+      animation: lp-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    .lp-receipt-paper {
+      animation: lp-pricing-feed linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 90%;
+    }
+    @media (min-width: 861px) {
+      .lp-receipt .lp-receipt-paper {
+        animation-name: lp-pricing-print;
+      }
+    }
+    .lp-receipt-beam {
+      animation: lp-pricing-scan linear both;
+      animation-timeline: view();
+      animation-range: entry 60% cover 50%;
+    }
+    .lp-receipt-total,
+    .lp-receipt-caption {
+      animation: lp-pricing-label linear both;
+      animation-timeline: view();
+      animation-range: cover 40% cover 50%;
+    }
+    .lp-plans::before {
+      animation: lp-grow-x linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+    .lp-plan {
+      animation: lp-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 65%;
+    }
+    .lp-plan:nth-child(2) {
+      animation-range: entry 12% entry 72%;
+    }
+    .lp-plan:nth-child(3) {
+      animation-range: entry 19% entry 79%;
+    }
+    .lp-plan-price {
+      animation: lp-lift linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+    .lp-trial-fill {
+      animation: lp-grow-x linear both;
+      animation-timeline: view();
+      animation-range: entry 100% cover 30%;
+    }
+  }
+}
+
+/* The slip feeds up out of the printer slot: it rises into place, never
+   fading, so its text is at full contrast in every frame. */
+@keyframes lp-pricing-feed {
+  from {
+    transform: translateY(32px) rotate(0deg);
+  }
+}
+
+/* Printed: the slip advances down out of the slot to where it rests. */
+@keyframes lp-pricing-print {
+  from {
+    transform: translateY(-64px);
+  }
+}
+
+/* The beam sweeps the slip top to bottom, then goes out. */
+@keyframes lp-pricing-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  8% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+/* A brief accent wash on a line as it is read; ends as no background. */
+@keyframes lp-pricing-read {
+  30% {
+    background-color: color-mix(in srgb, var(--lp-accent) 14%, transparent);
+  }
+}
+
+@keyframes lp-pricing-frame {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* Animates `transform` (which carries only the counter-rotation), so the
+   caption's own `translate` centring is left alone. */
+@keyframes lp-pricing-label {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) rotate(1.25deg);
+  }
+}

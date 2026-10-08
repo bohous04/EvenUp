@@ -1,0 +1,298 @@
+/* The real product as one staged moment: the add-expense sheet, whole, and the
+   balances it just moved, set on a photograph of the lake it was spent at. */
+
+/* Below the fold on every first paint: skip its layout and paint until it
+   nears the viewport, so the lake photo and both screenshots (~100 kB) are not
+   fetched in the window before the headline paints. The placeholder is the
+   section's measured content height (its bottom padding is added on top);
+   `auto` then remembers the real one after the first render, so an anchor
+   jump past it (#features, #pricing) barely moves. */
+.lp-product {
+  content-visibility: auto;
+  contain-intrinsic-size: auto min(calc(584px + 21vw), 894px);
+}
+@media (max-width: 860px) {
+  .lp-product {
+    contain-intrinsic-size: auto 846px;
+  }
+}
+@media (max-width: 480px) {
+  .lp-product {
+    contain-intrinsic-size: auto 756px;
+  }
+}
+
+.lp-product-head {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 16px clamp(32px, 6vw, 96px);
+  align-items: end;
+}
+.lp-product-head .lp-lede {
+  max-width: 26rem;
+}
+
+/* The page's one full-bleed moment: the photograph runs edge to edge, the
+   product sits on the content grid inside it. The plate has no padding at
+   its foot — the add-expense sheet is docked to that edge the way a bottom
+   sheet opens on a phone, square-cornered where it meets it. Its height comes
+   from in-flow content (images sized by width with intrinsic ratios), so it
+   is fixed before anything decodes. */
+.lp-product-plate {
+  position: relative;
+  margin: clamp(28px, 3vw, 40px) 0 0;
+  padding: clamp(36px, 3vw, 44px) var(--lp-gutter) 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #2b3141; /* the photograph's own dusk, shown while it decodes */
+}
+
+.lp-product-scene {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 46%;
+}
+
+/* Sheet left, consequence right, both on the content grid and sized to fill
+   it: the balances are the payoff, so they are the larger of the two, not a
+   floating aside. They sit level with the sheet's "paid by" row, so the eye
+   travels from Lucie's chip straight across to Lucie's +1 024. */
+.lp-product-stage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(32px, 4vw, 64px);
+  max-width: var(--lp-max);
+  margin: 0 auto;
+}
+
+/* WebP with a PNG fallback: the <picture> wrapper drops out of the box
+   tree, so the img itself stays the stage's flex item. */
+.lp-product-stage > picture {
+  display: contents;
+}
+.lp-product-shot {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.lp-product-sheet {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 400px;
+  border-radius: 21px 21px 0 0;
+  box-shadow:
+    0 0 0 1px rgb(17 17 19 / 0.06),
+    0 -2px 6px rgb(8 12 24 / 0.08),
+    0 -32px 80px -32px rgb(8 12 24 / 0.55);
+}
+
+.lp-product-card {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  flex: 0 1 580px;
+  min-width: 0;
+  /* Lucie's row level with Lucie's chip: 0.703 × sheet width down the sheet,
+     less 0.13 × card width down the card. */
+  margin-top: 206px;
+  /* The capture's own corner (20px at 460px), scaled with the card. */
+  border-radius: 25px;
+  /* Clips the sweep to the card; the card's own shadow is not clipped. */
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgb(17 17 19 / 0.06),
+    0 2px 4px rgb(8 12 24 / 0.08),
+    0 40px 80px -28px rgb(8 12 24 / 0.6);
+}
+.lp-product-balances {
+  width: 100%;
+}
+
+@media (max-width: 1140px) and (min-width: 861px) {
+  .lp-product-sheet {
+    width: 360px;
+  }
+  .lp-product-card {
+    flex-basis: 420px;
+    margin-top: 198px;
+    border-radius: 18px;
+  }
+}
+
+/* The recalculation pass: a 1px accent hairline with a short wake above it.
+   Its base state is spent (invisible), so with reduced motion, no support or
+   no CSS there is nothing to see and nothing to wait for. */
+.lp-product-sweep {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 28%;
+  pointer-events: none;
+  opacity: 0;
+  border-bottom: 1px solid var(--lp-accent);
+  background: linear-gradient(to bottom, transparent, rgb(79 70 229 / 0.07));
+}
+
+@media (max-width: 860px) {
+  .lp-product-head {
+    grid-template-columns: 1fr;
+  }
+  /* One phone-height moment, told the way a phone tells it: two sheets
+     stacked. The add-expense sheet (the cause) sits behind, a step narrower;
+     the balances card (what Save produced) has slid up over its lower half,
+     covering it to its foot, and floats a step above the plate's edge. The
+     amount, the title and Lucie's chip stay in view above it. The sheet is
+     the only in-flow box (height fixed by width and ratio); the balances are
+     positioned against it, so the overlap is known before either decodes. */
+  .lp-product-plate {
+    padding: 32px 16px 16px;
+  }
+  .lp-product-stage {
+    display: block;
+    position: relative;
+    max-width: 440px;
+  }
+  .lp-product-sheet {
+    width: 92%;
+    margin-inline: auto;
+    border-radius: 18px 18px 0 0;
+  }
+  .lp-product-card {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    margin: 0;
+    border-radius: 16px;
+    box-shadow:
+      0 0 0 1px rgb(17 17 19 / 0.06),
+      0 -2px 6px rgb(8 12 24 / 0.1),
+      0 -28px 56px -24px rgb(8 12 24 / 0.55),
+      0 16px 32px -16px rgb(8 12 24 / 0.5);
+  }
+}
+
+/* Motion: when the plate scrolls into view the sheet is already there and
+   opens up out of the plate's foot, the balances follow a beat later as the
+   consequence. The photograph drifts a few percent as the plate crosses the
+   viewport (scroll-scrubbed, clipped by the plate). Transform and opacity
+   only, never more than 72 px of travel; the base styles above are the final
+   state, so reduced motion, no support or no CSS simply shows the still. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (timeline-trigger-name: --lp-product) {
+    .lp-product-plate {
+      timeline-trigger: --lp-product view() entry 35% exit 100%;
+    }
+    .lp-product-sheet,
+    .lp-product-card {
+      animation-trigger: --lp-product play-forwards;
+      animation-fill-mode: both;
+      animation-timing-function: var(--lp-ease);
+    }
+    .lp-product-sheet {
+      animation-name: lp-product-rise;
+      animation-duration: 900ms;
+    }
+    .lp-product-card {
+      animation-name: lp-product-follow;
+      animation-duration: 800ms;
+      animation-delay: 220ms;
+    }
+    /* Once the card has landed, the hairline runs down its rows once:
+       every balance takes the expense, top to bottom. */
+    .lp-product-sweep {
+      animation: lp-product-sweep 1100ms var(--lp-ease-travel) 700ms both;
+      animation-trigger: --lp-product play-forwards;
+    }
+  }
+
+  /* Scroll timelines without triggers: the same entrance, scrubbed by scroll. */
+  @supports (animation-timeline: view()) and (not (timeline-trigger-name: --lp-product)) {
+    .lp-product-sheet,
+    .lp-product-card {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: view();
+    }
+    .lp-product-sheet {
+      animation-name: lp-product-rise;
+      animation-range: entry 0% entry 70%;
+    }
+    .lp-product-card {
+      animation-name: lp-product-follow;
+      animation-range: entry 15% entry 90%;
+    }
+    .lp-product-sweep {
+      animation: lp-product-sweep var(--lp-ease-travel) both;
+      animation-timeline: view();
+      animation-range: entry 60% cover 50%;
+    }
+  }
+
+  /* The scene drifts with scroll wherever scroll timelines exist. */
+  @supports (animation-timeline: view()) {
+    .lp-product-scene {
+      animation: lp-product-drift linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+@keyframes lp-product-drift {
+  from {
+    transform: scale(1.12) translateY(-3%);
+  }
+  to {
+    transform: scale(1.12) translateY(3%);
+  }
+}
+
+/* The sheet opens: it slides up out of the plate's foot (clipped by the
+   plate, so it emerges from the edge rather than fading in). */
+@keyframes lp-product-rise {
+  from {
+    transform: translateY(72px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lp-product-follow {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Travels from above the card's top edge to past its foot (translate is in
+   the sweep's own height, 28% of the card), visible only in between. */
+@keyframes lp-product-sweep {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(357%);
+  }
+}

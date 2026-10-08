@@ -49,45 +49,64 @@ const marketingOnlyCs = {
   'marketing.nav.features': 'Funkce',
   'marketing.nav.pricing': 'Ceník',
   'marketing.nav.faq': 'Časté otázky',
+  'marketing.nav.label': 'Hlavní navigace',
 
-  'marketing.hero.eyebrow': 'Dlužníček',
   'marketing.hero.title': 'Dva dluhy se zruší.',
-  'marketing.hero.titleAccent': 'Prostředník v řetězci nezaplatí nic.',
+  'marketing.hero.titleAccent': 'Prostředník v\u00a0řetězci nezaplatí nic.',
   'marketing.hero.subtitle':
-    'Jiné aplikace přidělí dluh ke každému výdaji. Dlužníček je navzájem vyruší a nabídne jen ty převody, které jsou nutné – nejméně, jak to jde.',
+    'Jiné aplikace zapíšou dluh ke každé útratě. Dlužníček je navzájem vyruší a nechá jen platby, které jsou opravdu potřeba.',
   'marketing.hero.ctaPrimary': 'Začít zdarma',
   'marketing.hero.ctaSecondary': 'Jak to funguje',
   'marketing.hero.ctaSignIn': 'Přihlásit se',
   'marketing.hero.ctaApp': 'Přejít do aplikace',
+  'marketing.hero.invited': 'Pozvali vás do skupiny?',
+  'marketing.hero.invitedLink': 'Otevřete ji',
+  'marketing.hero.panel.aria':
+    'Ukázka z aplikace: čtyři přátelé zapsali na horách čtyři útraty, z nichž by jiné aplikace udělaly 8 dluhů. Dlužníček je navzájem vyruší: Ondra pošle Evě {amount} a Filip s Klárou neplatí nic. Místo osmi plateb jedna.',
+  'marketing.hero.panel.title': 'Vyrovnání',
+  'marketing.hero.panel.naive': 'Útrata po útratě',
+  'marketing.hero.panel.netted': 'S\u00a0Dlužníčkem',
+  'marketing.hero.panel.naiveCount': '{count} plateb',
+  'marketing.hero.panel.nettedCount': '1 platba',
+  'marketing.hero.panel.expenses': 'Útraty',
+  'marketing.hero.panel.dates': '12.–15. února',
+  'marketing.hero.panel.e1': 'Chata, 3 noci',
+  'marketing.hero.panel.e2': 'Nákup v Albertu',
+  'marketing.hero.panel.e3': 'Skipasy',
+  'marketing.hero.panel.e4': 'Pivo na Luční boudě',
+  'marketing.hero.panel.paid': 'platí {name} · na {count} osoby',
+  'marketing.hero.panel.nothing': 'Filip a Klára neplatí nic',
 
   'marketing.demo.before': '2 platby',
   'marketing.demo.net': 'vyrušíme je proti sobě',
   'marketing.demo.after': '1 platba',
-  'marketing.demo.zero': '0 Kč',
   'marketing.demo.names': 'Jirka, Petr a Honza',
+  'marketing.demo.unit': 'platba',
+  'marketing.how.app.group': 'Chata v Tatrách',
+  'marketing.how.app.balances': 'Zůstatky',
+  'marketing.how.app.payments': 'Platby',
+  'marketing.how.app.settled': 'Vyrovnáno',
+  'marketing.how.app.debt1': 'Jirka dluží Petrovi',
+  'marketing.how.app.debt2': 'Petr dluží Honzovi',
+  'marketing.how.app.result': 'Jirka pošle Honzovi',
+  'marketing.how.app.markPaid': 'Zaplaceno',
+  'marketing.how.title': 'Méně plateb, ať je vás kolik chce.',
+  'marketing.how.body':
+    'Jirka dluží Petrovi a Petr Honzovi, takže Jirka pošle peníze rovnou Honzovi a Petr neplatí nic.',
 
-  'marketing.examples.title': 'Funguje to i ve větší skupině.',
-  'marketing.examples.subtitle':
-    'Záruka je nejvýše n−1 plateb pro n lidí a každý zůstatek dosedne přesně na nulu. Čísla níže jsou skutečný výstup algoritmu, ne ilustrace.',
-  'marketing.examples.cottage': 'Chata, 4 lidé, 5 výdajů',
-  'marketing.examples.holiday': 'Dovolená, 7 lidí, 7 společných výdajů',
-  'marketing.examples.cottageAlt':
-    'Čtyři lidé, dva dluží a dva jsou jim zavázáni. Tři platby vyrovnají všechny dluhy.',
-  'marketing.examples.holidayAlt':
-    'Sedm lidí, tři dluží, tři jsou jim zavázáni a jeden je vyrovnaný. Pět plateb vyrovná všechny dluhy.',
+  'marketing.features.title': 'Sedmnáct dluhů.',
+  'marketing.features.titleAfter': 'Pět plateb.',
 
-  'marketing.features.title': 'Proč dlužníček?',
-  'marketing.features.subtitle':
-    'Vyčíslení dluhů je to hlavní. Zbytek je to, co potřebujete, abyste na výlet opravdu vyrazili.',
-
-  'marketing.shots.title': 'Je to skutečná aplikace, ne obrázek.',
-  'marketing.shots.subtitle':
-    'Vlevo skupina: zůstatky, které dosedají na nulu, a přesné převody, které je vyrovnají. Vpravo přidání výdaje – pět způsobů, jak ho rozdělit.',
-  'marketing.shots.groupCaption': 'Skupina – zůstatky, transakce a kdo komu kolik posílá.',
-  'marketing.shots.expenseCaption': 'Přidání výdaje – nejdřív částka, pak pět způsobů rozdělení.',
-  'marketing.feature.debts.title': 'Co nejméně plateb',
+  'marketing.shots.title': 'Zapíšete jednou. Zůstatky se pohnou všem.',
+  'marketing.shots.lede':
+    'Částka, název a kdo platil. Dlužníček to rozdělí a zůstatky celé skupiny sedí dřív, než se okno zavře.',
+  'marketing.shots.groupCaption':
+    'Zůstatky skupiny po chatě za {amount}: Lucii přibylo {gain}, každému dalšímu ubylo {share}. Lucie a Martin jsou v plusu, Pavel, Tomáš a Kateřina v minusu.',
+  'marketing.shots.expenseCaption':
+    'Nový výdaj Chata Štrbské Pleso za 1 280 Kč, který zaplatila Lucie a dělí se rovným dílem mezi pět lidí po 256 Kč.',
   'marketing.feature.debts.body':
-    'Sedm lidí na týdnu dovolené: sedmnáct dluhů mezi sebou se zruší v pět převodů. Dlužníček je navzájem vyruší a najde nejmenší počet plateb, které všechny vynulují.',
+    'Sedm lidí, týden na horách, sedmnáct dluhů mezi nimi. Dlužníček je navzájem započítá na co nejméně převodů, které vyrovnají všechny.',
+  'marketing.feature.debts.short': 'Započteno na co nejméně převodů.',
   'marketing.feature.ocr.title': 'Účtenka z fotky',
   'marketing.feature.ocr.body':
     'Vyfoťte účtenku a položky se přepíšou samy, včetně cen. Zbývá jen naklikat, kdo si co dal – a dělit se dá i po položkách, ne jen rovným dílem.',
@@ -101,13 +120,50 @@ const marketingOnlyCs = {
   'marketing.feature.guests.body':
     'Kvůli jedné chatě si účet nikdo zakládat nechce. Člena přidáte jenom jménem a hned se s ním můžete dělit o útratu; když se zaregistruje později, jen ho spárujete s jeho účtem.',
 
-  'marketing.pricing.title': 'Ceník',
-  'marketing.pricing.subtitle':
-    'Dělení útraty je zdarma a bez limitu. Platí se jen za skenování účtenek.',
+  'marketing.fx.debts.before': '17 dluhů',
+  'marketing.fx.debts.after': '5 plateb',
+  'marketing.fx.debts.group': 'Krkonoše · 7 lidí',
+  'marketing.fx.debts.total': 'Celkem se přesune',
+  'marketing.fx.debts.via': 'QR na účet {account}',
+  'marketing.fx.debts.paid': 'Zaplaceno',
+  'marketing.fx.debts.progress': 'Zaplaceno {paid} z {count}',
+  'marketing.fx.ocr.place': 'Hospoda U Rozvědčíka',
+  'marketing.fx.ocr.item1': 'Svíčková ×2',
+  'marketing.fx.ocr.item2': 'Smažený sýr',
+  'marketing.fx.ocr.item3': 'Pivo 0,5 l ×6',
+  'marketing.fx.ocr.item4': 'Kofola',
+  'marketing.fx.ocr.total': 'Celkem',
+  'marketing.fx.ocr.read': 'Položky načtené z fotky: {count}',
+  'marketing.fx.qr.to': 'Příjemce',
+  'marketing.fx.qr.account': 'Účet',
+  'marketing.fx.qr.amount': 'Částka',
+  'marketing.fx.qr.message': 'Zpráva',
+  'marketing.fx.qr.note': 'Chata Krkonoše',
+  'marketing.fx.cur.paid': 'Zaplaceno',
+  'marketing.fx.cur.what': 'Večeře ve Vídni',
+  'marketing.fx.cur.rate': '1 EUR = {rate} Kč · kurz ke dni výdaje',
+  'marketing.fx.cur.group': 'Ve skupině',
+  'marketing.fx.guests.you': 'Vy',
+  'marketing.fx.guests.linked': 'Propojený účet',
+  'marketing.fx.guests.guest': 'Jen jméno',
+  'marketing.fx.guests.granny': 'Babička',
+  'marketing.fx.guests.add': 'Přidat jménem',
+
+  'marketing.pricing.title': 'Dělení je zdarma. Platí se jen skenování.',
   'marketing.pricing.free.title': 'Základní',
   'marketing.pricing.free.price': 'Zdarma',
-  'marketing.pricing.free.body':
-    'Neomezené skupiny, útraty, vyrovnání i QR platby. Bez reklam. Zdarma napořád, ne jen na zkoušku.',
+  // Head of the price list, beside the title: the whole model in a sentence.
+  'marketing.pricing.lede':
+    'Skupiny, útraty i vyrovnání nestojí nic a nikdy stát nebudou. Platíte jen za to, že vám dlužníček přečte účtenky.',
+  'marketing.pricing.free.body': 'Zdarma napořád, ne jen na zkoušku.',
+  // What the free plan includes, as label/value rows — the same hairline rows
+  // as the scan packs beside it, so all three columns end in a ruled list.
+  'marketing.pricing.free.groups': 'Skupiny a útraty',
+  'marketing.pricing.free.groupsValue': 'Neomezeně',
+  'marketing.pricing.free.settle': 'Vyrovnání QR platbou',
+  'marketing.pricing.free.settleValue': 'V ceně',
+  'marketing.pricing.free.ads': 'Reklamy',
+  'marketing.pricing.free.adsValue': 'Žádné',
   'marketing.pricing.vip.title': 'VIP',
   'marketing.pricing.vip.period': 'měsíčně',
   // `{scans}` is `VIP_SCANS_PER_PERIOD` — the constant that actually gates a
@@ -151,7 +207,7 @@ const marketingOnlyCs = {
   // „strhneme“ je tu schválně stejné jako v aplikaci (`vip.trial.note`)
   // i v podmínkách – ceník má mluvit stejnou řečí jako zbytek produktu.
   'marketing.pricing.vip.trial':
-    '{trialDays}denní zkušební období zdarma. Kartu zadáte hned, ale strhneme z ní až po {trialDays} dnech – a jen když předplatné nezrušíte.',
+    '{trialDays}denní zkušební období zdarma. Kartu zadáte hned, strhneme z ní až po {trialDays} dnech – a jen když nezrušíte.',
   'marketing.pricing.packs.title': 'Balíčky skenů',
   'marketing.pricing.packs.body':
     'Skenujete jen občas? Kupte si balíček bez předplatného. Skeny nevyprší.',
@@ -160,6 +216,34 @@ const marketingOnlyCs = {
   // *one* would read „Balíček 1 skenů"; if `PACK_SIZES` ever gains a 1, this
   // string has to become a `plural()` call rather than a template.
   'marketing.pricing.packs.item': 'Balíček {scans} skenů',
+  // Prefix to the cheapest pack's price in the price row („od 20 Kč"). The
+  // amount itself comes from `display-prices.ts` via `formatCurrency`.
+  'marketing.pricing.packs.from': 'od',
+  // The VIP trial drawn as a two-point timeline: what you pay today, and on
+  // which day the first payment comes. Purely visual; the sentence in
+  // `marketing.pricing.vip.trial` carries the same facts for screen readers.
+  'marketing.pricing.vip.today': 'Dnes',
+  // „Po 7 dnech“, ne „7. den“: první platba přichází až po uplynutí celého
+  // zkušebního období (osmý den sedmidenního), jak říká i `vip.trial`.
+  'marketing.pricing.vip.day': 'Po {trialDays} dnech',
+  // The receipt photo beside the price list. The caption names the unit every
+  // plan is priced in — one receipt costs one scan — so the picture explains
+  // the table rather than decorating it.
+  // The receipt beside the price list is drawn in HTML, not photographed: a
+  // till slip from a weekend at a cottage that the scan reads top to bottom.
+  // Item names are copy; their amounts are formatted by `formatCurrency`.
+  'marketing.pricing.scan.alt':
+    'Účtenka z potravin za 5 položek; sken z ní přečte celkovou částku. Jedna účtenka je jeden sken.',
+  'marketing.pricing.scan.caption': '1 účtenka = 1 sken',
+  'marketing.pricing.scan.shop': 'Potraviny U Lesa',
+  'marketing.pricing.scan.when': 'Sobota 18:42 · pokladna 2',
+  'marketing.pricing.scan.item1': 'Chléb kmínový',
+  'marketing.pricing.scan.item2': 'Eidam 30 %',
+  'marketing.pricing.scan.item3': 'Pivo 6 × 0,5 l',
+  'marketing.pricing.scan.item4': 'Špekáčky',
+  'marketing.pricing.scan.item5': 'Dřevo na oheň',
+  'marketing.pricing.scan.total': 'Celkem',
+  'marketing.pricing.scan.thanks': 'Děkujeme za nákup',
   'marketing.pricing.note': 'Platby zpracovává Stripe. Předplatné zrušíte kdykoli v aplikaci.',
   // Míří na `/sign-up`, ne do checkoutu (`page.tsx`). Dokud v témže bloku
   // nestála nabídka zkušebního období, četlo se dřívější „Vyzkoušet zdarma“
@@ -186,12 +270,17 @@ const marketingOnlyCs = {
   'marketing.faq.a4':
     'Ano, dlužníček je open source. Bez napojení na Stripe se placené funkce prostě nenabízejí a zbytek aplikace funguje dál.',
 
-  'marketing.cta.title': 'Příště se vyrovnáte dvěma platbami',
+  'marketing.cta.title': 'Příští výlet vyrovnáte dvěma platbami.',
   'marketing.cta.body': 'Založte skupinu, přidejte lidi a zapište první útratu. Zabere to minutu.',
-  'marketing.cta.button': 'Založit skupinu',
+  'marketing.cta.button': 'Začít zdarma',
+  'marketing.cta.note': 'Dělení, vyrovnání i QR platby zdarma.',
+  'marketing.cta.group': 'Páteční večeře',
+  'marketing.cta.cardLabel': 'Ukázka z aplikace: skupina Páteční večeře vyrovnaná dvěma platbami.',
 
   'marketing.footer.tagline': 'Dělení útraty ve skupině. Open source.',
   'marketing.footer.source': 'Zdrojový kód',
+  'marketing.footer.product': 'Produkt',
+  'marketing.faq.more': 'Další otázku nám napište',
 } as const;
 
 /** Marketing copy and the legal documents, as one public-pages namespace. */
@@ -216,45 +305,64 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.nav.features': 'Features',
   'marketing.nav.pricing': 'Pricing',
   'marketing.nav.faq': 'FAQ',
+  'marketing.nav.label': 'Main',
 
-  'marketing.hero.eyebrow': 'EvenUp',
   'marketing.hero.title': 'Two debts cancel out.',
   'marketing.hero.titleAccent': 'The person in the middle pays nothing.',
   'marketing.hero.subtitle':
-    'Other apps hand everyone a debt for every expense. EvenUp nets them against each other and asks for the fewest transfers that clear them.',
+    'Other apps log a debt for every expense. EvenUp nets them against each other and asks only for the payments actually needed.',
   'marketing.hero.ctaPrimary': 'Start for free',
   'marketing.hero.ctaSecondary': 'See how it works',
   'marketing.hero.ctaSignIn': 'Sign in',
   'marketing.hero.ctaApp': 'Open the app',
+  'marketing.hero.invited': 'Invited to a group?',
+  'marketing.hero.invitedLink': 'Open it',
+  'marketing.hero.panel.aria':
+    'From the app: four friends logged four expenses on a mountain trip, which other apps would turn into 8 separate debts. EvenUp nets them off: Ondra sends {amount} to Eva, and Filip and Klára pay nothing. One payment instead of eight.',
+  'marketing.hero.panel.title': 'Settle up',
+  'marketing.hero.panel.naive': 'Expense by expense',
+  'marketing.hero.panel.netted': 'With EvenUp',
+  'marketing.hero.panel.naiveCount': '{count} payments',
+  'marketing.hero.panel.nettedCount': '1 payment',
+  'marketing.hero.panel.expenses': 'Expenses',
+  'marketing.hero.panel.dates': 'Feb 12–15',
+  'marketing.hero.panel.e1': 'Cabin, 3 nights',
+  'marketing.hero.panel.e2': 'Groceries at Albert',
+  'marketing.hero.panel.e3': 'Ski passes',
+  'marketing.hero.panel.e4': 'Beer at Luční bouda',
+  'marketing.hero.panel.paid': '{name} paid · split {count} ways',
+  'marketing.hero.panel.nothing': 'Filip and Klára pay nothing',
 
   'marketing.demo.before': '2 payments',
   'marketing.demo.net': 'net them off',
   'marketing.demo.after': '1 payment',
-  'marketing.demo.zero': '0',
   'marketing.demo.names': 'Jirka, Petr and Honza',
+  'marketing.demo.unit': 'payment',
+  'marketing.how.app.group': 'Tatras cabin',
+  'marketing.how.app.balances': 'Balances',
+  'marketing.how.app.payments': 'Payments',
+  'marketing.how.app.settled': 'Settled',
+  'marketing.how.app.debt1': 'Jirka owes Petr',
+  'marketing.how.app.debt2': 'Petr owes Honza',
+  'marketing.how.app.result': 'Jirka pays Honza',
+  'marketing.how.app.markPaid': 'Mark paid',
+  'marketing.how.title': 'Fewer payments, however many of you there are.',
+  'marketing.how.body':
+    'Jirka owes Petr and Petr owes Honza, so Jirka pays Honza and Petr pays nothing.',
 
-  'marketing.examples.title': 'It holds up as the group grows.',
-  'marketing.examples.subtitle':
-    'The guarantee is at most n−1 payments for n people, and every balance lands exactly on zero. The figures below are real output from the algorithm, not illustrations.',
-  'marketing.examples.cottage': 'Cottage, 4 people, 5 expenses',
-  'marketing.examples.holiday': 'Holiday, 7 people, 7 shared costs',
-  'marketing.examples.cottageAlt':
-    'Four people: two owe money and two are owed it. Three payments clear every debt.',
-  'marketing.examples.holidayAlt':
-    'Seven people: three owe money, three are owed it, and one is square. Five payments clear every debt.',
+  'marketing.features.title': 'Seventeen debts.',
+  'marketing.features.titleAfter': 'Five payments.',
 
-  'marketing.features.title': 'Why EvenUp?',
-  'marketing.features.subtitle':
-    'Settling the debts is the point. The rest is what you need to actually go on the trip.',
-
-  'marketing.shots.title': "It's a real app, not a diagram.",
-  'marketing.shots.subtitle':
-    'On the left, a group: balances that settle to zero, and the exact transfers that clear them. On the right, adding an expense — five ways to split it.',
-  'marketing.shots.groupCaption': 'A group — balances, transactions, and who pays whom.',
-  'marketing.shots.expenseCaption': 'Adding an expense — amount first, then five ways to split it.',
-  'marketing.feature.debts.title': 'The fewest payments possible',
+  'marketing.shots.title': 'Add it once. Every balance moves.',
+  'marketing.shots.lede':
+    'An amount, a name and who paid. EvenUp splits it, and the whole group’s balances are right before the sheet closes.',
+  'marketing.shots.groupCaption':
+    'The group’s balances after the {amount} chalet: Lucie is up {gain}, everyone else down {share}. Lucie and Martin are in credit; Pavel, Tomáš and Kateřina owe.',
+  'marketing.shots.expenseCaption':
+    'A new expense, the chalet at Štrbské Pleso for 1,280 CZK, paid by Lucie and split equally between five people at 256 CZK each.',
   'marketing.feature.debts.body':
-    'Seven people on a week of holiday: seventeen pairwise debts become five transfers. EvenUp nets them against each other and finds the smallest number of payments that clears them all.',
+    'Seven people, a week in the mountains, seventeen debts between them. EvenUp nets them against each other into the fewest transfers that settle everyone.',
+  'marketing.feature.debts.short': 'Netted down to the fewest transfers.',
   'marketing.feature.ocr.title': 'Receipts from a photo',
   'marketing.feature.ocr.body':
     'Photograph a receipt and the line items are transcribed for you, prices included. All that is left is tapping who had what — you can split item by item, not only down the middle.',
@@ -268,23 +376,72 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.feature.guests.body':
     'Nobody signs up for one weekend away. Just add a member by name and split with them straight away; if they register later, you link the name to their account.',
 
-  'marketing.pricing.title': 'Pricing',
-  'marketing.pricing.subtitle':
-    'Splitting is free and unlimited. You only pay for scanning receipts.',
+  'marketing.fx.debts.before': '17 debts',
+  'marketing.fx.debts.after': '5 payments',
+  'marketing.fx.debts.group': 'Krkonoše · 7 people',
+  'marketing.fx.debts.total': 'Moves in total',
+  'marketing.fx.debts.via': 'QR to {account}',
+  'marketing.fx.debts.paid': 'Paid',
+  'marketing.fx.debts.progress': '{paid} of {count} paid',
+  'marketing.fx.ocr.place': 'U Rozvědčíka pub',
+  'marketing.fx.ocr.item1': 'Svíčková ×2',
+  'marketing.fx.ocr.item2': 'Fried cheese',
+  'marketing.fx.ocr.item3': 'Beer 0.5 l ×6',
+  'marketing.fx.ocr.item4': 'Kofola',
+  'marketing.fx.ocr.total': 'Total',
+  'marketing.fx.ocr.read': '{count} items read from the photo',
+  'marketing.fx.qr.to': 'To',
+  'marketing.fx.qr.account': 'Account',
+  'marketing.fx.qr.amount': 'Amount',
+  'marketing.fx.qr.message': 'Message',
+  'marketing.fx.qr.note': 'Mountain cottage',
+  'marketing.fx.cur.paid': 'Paid',
+  'marketing.fx.cur.what': 'Dinner in Vienna',
+  'marketing.fx.cur.rate': '1 EUR = {rate} CZK · rate on the day',
+  'marketing.fx.cur.group': 'In the group',
+  'marketing.fx.guests.you': 'You',
+  'marketing.fx.guests.linked': 'Linked account',
+  'marketing.fx.guests.guest': 'Name only',
+  'marketing.fx.guests.granny': 'Grandma',
+  'marketing.fx.guests.add': 'Add by name',
+
+  'marketing.pricing.title': 'Splitting is free. Only scanning is paid.',
   'marketing.pricing.free.title': 'Core',
   'marketing.pricing.free.price': 'Free',
-  'marketing.pricing.free.body':
-    'Unlimited groups, expenses, settlements and QR payments. No ads. Free for good, not just for a trial.',
+  'marketing.pricing.lede':
+    'Groups, expenses and settling up cost nothing, and never will. You only pay for EvenUp to read your receipts.',
+  'marketing.pricing.free.body': 'Free for good, not just for a trial.',
+  'marketing.pricing.free.groups': 'Groups and expenses',
+  'marketing.pricing.free.groupsValue': 'Unlimited',
+  'marketing.pricing.free.settle': 'Settle up by QR payment',
+  'marketing.pricing.free.settleValue': 'Included',
+  'marketing.pricing.free.ads': 'Ads',
+  'marketing.pricing.free.adsValue': 'None',
   'marketing.pricing.vip.title': 'VIP',
   'marketing.pricing.vip.period': 'per month',
   'marketing.pricing.vip.body':
     '{scans} receipt scans a month. The photos stay saved, and {days} days after the scan we delete them. Cancel any time.',
   'marketing.pricing.vip.trial':
-    'A {trialDays}-day free trial to start. We need your card up front, but the first payment only comes after {trialDays} days — and only if you have not cancelled.',
+    'A {trialDays}-day free trial. Your card goes in up front; the first charge comes after {trialDays} days, and only if you have not cancelled.',
   'marketing.pricing.packs.title': 'Scan packs',
   'marketing.pricing.packs.body':
     'Only scan now and then? Buy a pack instead of subscribing. Scans do not expire.',
   'marketing.pricing.packs.item': 'Pack of {scans} scans',
+  'marketing.pricing.packs.from': 'from',
+  'marketing.pricing.vip.today': 'Today',
+  'marketing.pricing.vip.day': 'After {trialDays} days',
+  'marketing.pricing.scan.alt':
+    'A five-item grocery receipt; the scan reads its total. One receipt is one scan.',
+  'marketing.pricing.scan.caption': '1 receipt = 1 scan',
+  'marketing.pricing.scan.shop': 'Potraviny U Lesa',
+  'marketing.pricing.scan.when': 'Saturday 18:42 · till 2',
+  'marketing.pricing.scan.item1': 'Rye bread',
+  'marketing.pricing.scan.item2': 'Edam cheese',
+  'marketing.pricing.scan.item3': 'Beer 6 × 0.5 l',
+  'marketing.pricing.scan.item4': 'Sausages',
+  'marketing.pricing.scan.item5': 'Firewood',
+  'marketing.pricing.scan.total': 'Total',
+  'marketing.pricing.scan.thanks': 'Thank you',
   'marketing.pricing.note':
     'Payments are handled by Stripe. Cancel your subscription any time in the app.',
   'marketing.pricing.cta': 'Create a free account',
@@ -304,13 +461,18 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.faq.a4':
     'Yes, EvenUp is open source. Without a Stripe connection the paid features are simply never offered and the rest of the app keeps working.',
 
-  'marketing.cta.title': 'Next time, two payments and you are done',
+  'marketing.cta.title': 'Settle the next trip in two payments.',
   'marketing.cta.body':
     'Create a group, add the people, log the first expense. It takes about a minute.',
-  'marketing.cta.button': 'Create a group',
+  'marketing.cta.button': 'Start for free',
+  'marketing.cta.note': 'Splitting, settling and QR payments are free.',
+  'marketing.cta.group': 'Friday dinner',
+  'marketing.cta.cardLabel': 'From the app: the Friday dinner group, settled with two payments.',
 
   'marketing.footer.tagline': 'Group expense splitting. Open source.',
   'marketing.footer.source': 'Source code',
+  'marketing.footer.product': 'Product',
+  'marketing.faq.more': 'Ask us anything else',
 };
 
 export const marketingEn: MarketingMessages = { ...marketingOnlyEn, ...legalEn };

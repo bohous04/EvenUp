@@ -1,0 +1,1159 @@
+/*
+ * The feature story: debt minimising on its own full-width board, then four
+ * pairs of "the bit of the app that proves it, then the claim as its
+ * caption" in two columns. A recessed stage for each fragment, raised UI
+ * inside it. Everything below is the final frame;
+ * motion is layered on at the bottom, behind prefers-reduced-motion.
+ */
+
+/* Lead: the two-beat headline and the one paragraph that explains it, on
+   one line; the settle-up board under them at full width. */
+.lp-fx-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  column-gap: clamp(32px, 6vw, 96px);
+  row-gap: clamp(28px, 2.8vw, 40px);
+  align-items: end;
+  padding-bottom: clamp(48px, 6vw, 88px);
+}
+.lp-fx-title {
+  margin: 0;
+  /* Same run-in under the hairline as every other section heading. */
+  align-self: start;
+}
+/* The headline is the claim in two beats: the mess, then the answer. */
+.lp-fx-title-after {
+  display: block;
+  color: var(--lp-ink-3);
+}
+.lp-fx-lead-copy {
+  margin: 0;
+}
+.lp-fx-lead-short {
+  display: none;
+}
+/* The board sits straight on the page: one surface, no tray under it. */
+.lp-fx-lead-stage {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+}
+
+/* The four supporting features: two columns of "proof, then claim", the way
+   a product shows itself — the UI fragment is the headline, the words are
+   its caption. No box around the words, no icon, no hairline cage; one
+   generous gutter between the columns and whitespace between the pairs. */
+.lp-fx-list {
+  list-style: none;
+  margin: 0;
+  /* Added to the lead's own bottom space: one run-in between board and pairs. */
+  padding: clamp(8px, 2vw, 32px) 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(24px, 2.6vw, 40px);
+  row-gap: 0;
+}
+/* The space between one line of pairs and the next. */
+.lp-fx-row:nth-child(n + 3) {
+  margin-top: clamp(56px, 6vw, 96px);
+}
+
+/* Each pair spans two rows of a subgrid, so the two plates in a line share
+   one height and their captions start on one baseline. */
+.lp-fx-row {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: clamp(20px, 2vw, 28px);
+}
+/* Picture first, then the words — in the DOM the heading leads, for
+   screen readers and the outline. */
+.lp-fx-row > .lp-fx-stage {
+  order: -1;
+}
+
+.lp-fx-copy {
+  max-width: 30rem;
+}
+.lp-fx-copy .lp-body {
+  margin: 0;
+}
+.lp-fx-h3 {
+  font-size: 1.125rem;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  text-wrap: balance;
+  margin: 0 0 6px;
+}
+
+/* The recessed stage every fragment sits on: the page's one plate (sunken,
+   hairline inset, 12px), the same as the hero's and the pricing receipt's. */
+.lp-fx-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* Sized by its fragment: the UI fills the stage instead of floating in it. */
+  min-height: clamp(300px, 26vw, 380px);
+  padding: clamp(24px, 3vw, 36px) clamp(16px, 3vw, 40px);
+  overflow: hidden;
+  background: var(--lp-sunken);
+  box-shadow: inset 0 0 0 1px var(--lp-line);
+  border-radius: 12px;
+}
+
+/* --------------------------------------------------------------- parts */
+
+.lp-fx-panel {
+  background: var(--lp-raised);
+  border: 1px solid var(--lp-line);
+  border-radius: 12px;
+  box-shadow: var(--lp-shadow-panel);
+  color: var(--lp-ink);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.lp-fx-av {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.lp-fx-av-photo {
+  display: block;
+  object-fit: cover;
+  background: var(--lp-sunken);
+}
+/* The app's monogram: the member colour as a tint, the initial in that
+   colour at full strength (AA on its own tint in both schemes). */
+.lp-fx-av-guest {
+  background: transparent;
+  border: 1px dashed var(--lp-ink-3);
+  color: var(--lp-ink-2);
+}
+
+.lp-fx-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--lp-ink-3);
+}
+
+.lp-fx-accent {
+  color: var(--lp-accent-ink);
+}
+
+/* ---------------------------------------------------- 1. settle board */
+
+.lp-fx-board {
+  /* The board is a plate, not a panel: the same recessed plate the four
+     fragments below sit on, edge to edge. The graph is drawn straight onto
+     it; the ledger is the one raised surface — the app's answer, lifted off
+     the working. No header bar, no divider, no box inside a box. */
+  width: 100%;
+  display: grid;
+  row-gap: clamp(8px, 1vw, 12px);
+  padding: clamp(14px, 1.8vw, 24px);
+  background: var(--lp-sunken);
+  box-shadow: inset 0 0 0 1px var(--lp-line);
+  border-radius: 12px;
+  color: var(--lp-ink);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  overflow: hidden;
+}
+.lp-fx-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-left: clamp(4px, 0.8vw, 10px);
+}
+.lp-fx-board-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* Segmented control: "17 debts | 5 payments", resting on the second. */
+.lp-fx-seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 8px;
+  /* A track one step deeper than the plate it sits on. */
+  background: color-mix(in srgb, var(--lp-ink) 5%, var(--lp-sunken));
+  box-shadow: inset 0 0 0 1px var(--lp-line);
+  font-size: 0.8125rem;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.lp-fx-seg-thumb {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: calc(50% - 3px);
+  border-radius: 6px;
+  background: var(--lp-raised);
+  box-shadow:
+    0 0 0 1px var(--lp-line-2),
+    0 1px 2px rgb(17 17 19 / 0.1);
+  transform: translateX(100%);
+}
+.lp-fx-seg-a,
+.lp-fx-seg-b {
+  position: relative;
+  padding: 6px 14px;
+  text-align: center;
+}
+.lp-fx-seg-a {
+  color: var(--lp-ink-3);
+}
+.lp-fx-seg-b {
+  color: var(--lp-ink);
+}
+
+.lp-fx-board-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  column-gap: clamp(16px, 2vw, 28px);
+}
+/* The graph sits on the same plate as the feature fragments below:
+   a working surface, edge to edge, no white half with a diagram adrift. */
+.lp-fx-graph {
+  display: grid;
+  place-items: center;
+  padding: 8px clamp(8px, 1.6vw, 24px);
+}
+.lp-fx-graph svg {
+  display: block;
+  width: 100%;
+  max-width: 580px;
+  height: auto;
+  overflow: visible;
+}
+.lp-fx-debts path {
+  fill: none;
+  stroke: var(--lp-ink);
+  stroke-linecap: round;
+  /* Near a hairline at the board's 1.5x desktop scale. The seventeen debts
+     exist only in motion: they draw in, hold, and clear away completely, so
+     the final (and reduced-motion) frame is the five payments alone. */
+  stroke-width: 0.75;
+  opacity: 0;
+}
+/* The answer is the heaviest ink on the board: five ink arcs with solid
+   heads, each carrying its amount. Colour stays with the people. */
+.lp-fx-pay-line {
+  fill: none;
+  stroke: var(--lp-ink);
+  stroke-width: 1.75;
+  stroke-linecap: butt;
+}
+.lp-fx-pay-head {
+  fill: var(--lp-ink);
+  stroke: var(--lp-ink);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+/* The amount chip: the app's own pill, raised off the plate, sitting on
+   its arc. No halo tricks — a real surface under the figure. */
+.lp-fx-chip {
+  fill: var(--lp-raised);
+  stroke: var(--lp-line-2);
+  stroke-width: 0.75;
+}
+.lp-fx-chip-t {
+  fill: var(--lp-ink);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+/* The lift belongs to the avatar mount only; a filter on the whole node
+   would smear the name beside it. */
+.lp-fx-node-ring {
+  filter: drop-shadow(0 1px 1.5px rgb(17 17 19 / 0.16));
+}
+/* Everyone wears a white mount; whoever receives money wears an ink ring. */
+.lp-fx-node-ring {
+  fill: var(--lp-raised);
+}
+.lp-fx-node-in .lp-fx-node-ring {
+  fill: var(--lp-raised);
+  stroke: var(--lp-ink);
+  stroke-width: 1.5;
+}
+.lp-fx-node-n {
+  fill: var(--lp-ink);
+  font-size: 9.5px;
+  font-weight: 540;
+  letter-spacing: -0.005em;
+  /* A thin knock-out where a hairline of the web passes under a name. */
+  paint-order: stroke;
+  stroke: var(--lp-sunken);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+/* The ledger: the five payments as the app lists them, carrying what the
+   graph cannot: where each one goes (the account its QR code fills in) and
+   whether it has gone out yet. One flush list, rows parted by hairlines. */
+.lp-fx-ledger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 24px 0;
+  font-size: 0.9375rem;
+}
+.lp-fx-pay {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* The five rows share the column's height: no empty band above the total. */
+  flex: 1;
+  grid-auto-rows: 1fr;
+}
+.lp-fx-pay li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 64px;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--lp-line);
+}
+.lp-fx-pay .lp-fx-av {
+  width: 36px;
+  height: 36px;
+}
+.lp-fx-pay-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.lp-fx-pay-who,
+.lp-fx-pay-via {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-fx-pay-who {
+  color: var(--lp-ink-2);
+  font-weight: 500;
+}
+.lp-fx-pay-who b {
+  color: var(--lp-ink);
+  font-weight: 620;
+}
+.lp-fx-to {
+  color: var(--lp-ink-3);
+  font-weight: 400;
+}
+.lp-fx-pay-via {
+  color: var(--lp-ink-3);
+  font-size: 0.8125rem;
+}
+/* Sent payments step back; the ones still to send keep full ink. */
+.lp-fx-paid .lp-fx-fig {
+  color: var(--lp-ink-3);
+}
+/* Status: a quiet "Paid" with a tick, or the QR to scan. Fixed column. */
+.lp-fx-state {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.lp-fx-state-paid {
+  color: var(--lp-accent-ink);
+}
+.lp-fx-state-paid svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lp-fx-state-qr {
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--lp-ink);
+  box-shadow: inset 0 0 0 1px var(--lp-line-2);
+}
+.lp-fx-state-qr path {
+  fill: currentColor;
+}
+/* Amounts: the figure heavy and tabular, the currency code light. */
+.lp-fx-money {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  white-space: nowrap;
+}
+.lp-fx-fig {
+  color: var(--lp-ink);
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+.lp-fx-cur-code {
+  color: var(--lp-ink-3);
+  font-size: 0.8em;
+  font-weight: 500;
+}
+.lp-fx-ledger-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 18px 0 22px;
+  color: var(--lp-ink-3);
+  font-size: 0.8125rem;
+}
+.lp-fx-progress {
+  display: grid;
+  gap: 8px;
+}
+/* Five segments, one per payment; the sent ones filled. */
+.lp-fx-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 22px);
+  gap: 3px;
+}
+.lp-fx-bar span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--lp-line-2);
+}
+.lp-fx-bar .lp-fx-bar-on {
+  background: var(--lp-accent);
+}
+.lp-fx-total {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  margin: 0;
+}
+.lp-fx-total .lp-fx-fig {
+  font-size: 1.5rem;
+  font-weight: 660;
+  letter-spacing: -0.025em;
+}
+
+/* ------------------------------------------------------------ 2. ocr */
+
+.lp-fx-ocr {
+  position: relative;
+  width: min(352px, 100%);
+}
+.lp-fx-paper {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 20px 30px;
+  background: var(--lp-raised);
+  color: var(--lp-ink);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  box-shadow: var(--lp-shadow-panel);
+  border-radius: 4px 4px 0 0;
+  /* A torn, zig-zag foot — the one thing that says "paper". */
+  -webkit-mask:
+    conic-gradient(from 135deg at 50% 100%, #0000, #000 1deg 89deg, #0000 90deg) 50% 100% / 12px 7px
+      repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat;
+  mask:
+    conic-gradient(from 135deg at 50% 100%, #0000, #000 1deg 89deg, #0000 90deg) 50% 100% / 12px 7px
+      repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat;
+}
+.lp-fx-paper-head {
+  margin: 0 0 14px;
+  font-weight: 580;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.lp-fx-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lp-fx-lines li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-top: 1px dashed var(--lp-line-2);
+}
+.lp-fx-line-name {
+  color: var(--lp-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-fx-who {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 52px;
+}
+.lp-fx-who .lp-fx-av {
+  width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  font-size: 0.625rem;
+  box-shadow: 0 0 0 2px var(--lp-raised);
+}
+.lp-fx-paper-total {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--lp-ink);
+  font-weight: 580;
+}
+/* The scanner line. Its base state is invisible; the loop sweeps it. */
+.lp-fx-beam {
+  position: absolute;
+  inset: 0;
+  border-top: 2px solid var(--lp-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.lp-fx-chip {
+  position: relative;
+  float: right;
+  margin-top: -2px;
+  margin-right: -24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--lp-ink);
+  color: var(--lp-on-ink);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 520;
+  white-space: nowrap;
+  box-shadow: var(--lp-shadow-panel);
+}
+.lp-fx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lp-accent-wash);
+}
+
+/* ------------------------------------------------------------- 3. qr */
+
+.lp-fx-qr {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  width: min(520px, 100%);
+  padding: 24px;
+}
+.lp-fx-qr-code {
+  position: relative;
+  padding: 10px;
+  color: var(--lp-ink);
+}
+.lp-fx-qr-code svg {
+  display: block;
+  width: 148px;
+  height: 148px;
+}
+/* Viewfinder corners: eight 2px strokes, no box. */
+.lp-fx-qr-scan {
+  position: absolute;
+  inset: 0;
+  --c: var(--lp-accent);
+  background:
+    linear-gradient(var(--c) 0 0) left top / 18px 2px,
+    linear-gradient(var(--c) 0 0) left top / 2px 18px,
+    linear-gradient(var(--c) 0 0) right top / 18px 2px,
+    linear-gradient(var(--c) 0 0) right top / 2px 18px,
+    linear-gradient(var(--c) 0 0) left bottom / 18px 2px,
+    linear-gradient(var(--c) 0 0) left bottom / 2px 18px,
+    linear-gradient(var(--c) 0 0) right bottom / 18px 2px,
+    linear-gradient(var(--c) 0 0) right bottom / 2px 18px;
+  background-repeat: no-repeat;
+}
+.lp-fx-fields {
+  margin: 0;
+}
+.lp-fx-fields div {
+  display: grid;
+  gap: 2px;
+  padding-block: 8px;
+  border-top: 1px solid var(--lp-line);
+}
+.lp-fx-fields div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.lp-fx-fields dt {
+  font-size: 0.75rem;
+  color: var(--lp-ink-3);
+}
+.lp-fx-fields dd {
+  margin: 0;
+  font-weight: 540;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------- 4. currency */
+
+.lp-fx-cur {
+  display: grid;
+  width: min(420px, 100%);
+}
+.lp-fx-cur .lp-fx-panel {
+  display: grid;
+  gap: 4px;
+  padding: 18px 20px;
+}
+.lp-fx-cur-what {
+  font-weight: 540;
+}
+.lp-fx-big {
+  font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem);
+  font-weight: 540;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.lp-fx-cur-to {
+  margin-left: clamp(24px, 5vw, 56px);
+}
+.lp-fx-cur-rate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding-left: 32px;
+}
+.lp-fx-rule {
+  align-self: stretch;
+  width: 1px;
+  background: var(--lp-ink-3);
+  transform-origin: top;
+}
+
+/* ---------------------------------------------------------- 5. guests */
+
+.lp-fx-guests {
+  width: min(400px, 100%);
+  padding: 8px 20px 20px;
+}
+.lp-fx-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lp-fx-members li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--lp-line);
+  font-weight: 500;
+}
+.lp-fx-tag {
+  padding: 3px 8px;
+  border: 1px solid var(--lp-line-2);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--lp-ink-3);
+}
+.lp-fx-tag-ok {
+  border-color: transparent;
+  background: var(--lp-accent-wash);
+  color: var(--lp-accent-ink);
+}
+.lp-fx-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-top: 16px;
+  padding-inline: 12px;
+  border: 1px solid var(--lp-ink);
+  border-radius: 6px;
+  font-weight: 500;
+}
+.lp-fx-add-plus {
+  color: var(--lp-ink-3);
+}
+.lp-fx-caret {
+  width: 1.5px;
+  height: 18px;
+  margin-left: -8px;
+  background: var(--lp-accent);
+}
+.lp-fx-add-hint {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--lp-ink-3);
+}
+
+/* ----------------------------------------------------------- responsive */
+
+@media (max-width: 860px) {
+  .lp-fx-lead {
+    grid-template-columns: 1fr;
+  }
+  .lp-fx-board-body {
+    grid-template-columns: 1fr;
+  }
+  .lp-fx-board-body {
+    row-gap: 8px;
+  }
+  .lp-fx-graph {
+    /* The viewBox already holds the outer names; a little side air only. */
+    padding: 4px 0;
+  }
+  .lp-fx-graph svg {
+    max-width: 380px;
+  }
+  .lp-fx-ledger {
+    padding: 2px 16px 0;
+  }
+  .lp-fx-pay li {
+    min-height: 60px;
+    gap: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto 32px;
+  }
+  /* Narrow: the status column keeps only its glyph; "Paid" reads from the
+     tick and the stepped-back amount. */
+  .lp-fx-state-paid {
+    font-size: 0;
+    gap: 0;
+  }
+  .lp-fx-state-paid svg {
+    width: 16px;
+    height: 16px;
+  }
+  .lp-fx-pay {
+    grid-auto-rows: auto;
+  }
+  /* Drawn near 1:1 here, so the chips grow about their own centre. */
+  .lp-fx-arc-amt {
+    transform-box: fill-box;
+    transform-origin: center;
+    scale: 1.3;
+  }
+  /* The graph is drawn near 1:1 on a phone; the desktop label sizes
+     below are set for its 1.5x scale. */
+  .lp-fx-node-n {
+    font-size: 13.5px;
+  }
+  .lp-fx-pay .lp-fx-av {
+    width: 32px;
+    height: 32px;
+  }
+  .lp-fx-ledger-foot {
+    padding-block: 14px 16px;
+  }
+  .lp-fx-total .lp-fx-fig {
+    font-size: 1.25rem;
+  }
+  .lp-fx-list {
+    grid-template-columns: 1fr;
+    padding-top: 16px;
+  }
+  .lp-fx-row {
+    row-gap: 20px;
+  }
+  .lp-fx-row:nth-child(n + 2) {
+    margin-top: 56px;
+  }
+  .lp-fx-row .lp-fx-stage {
+    min-height: 0;
+  }
+}
+@media (max-width: 480px) {
+  .lp-fx-lead {
+    row-gap: 20px;
+    padding-bottom: 48px;
+  }
+  /* One line under the headline on a phone, so the board starts on the
+     first screen. */
+  .lp-fx-lead-long {
+    display: none;
+  }
+  .lp-fx-lead-short {
+    display: inline;
+  }
+  /* On a phone the arcs stay bare; the slips right below carry the amounts. */
+  .lp-fx-arc-amt {
+    display: none;
+  }
+  .lp-fx-board {
+    padding: 10px;
+  }
+  .lp-fx-board-head {
+    gap: 8px;
+    padding-left: 6px;
+  }
+  .lp-fx-board-title {
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lp-fx-seg {
+    font-size: 0.75rem;
+  }
+  .lp-fx-seg-a,
+  .lp-fx-seg-b {
+    padding: 5px 8px;
+  }
+  .lp-fx-qr {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 12px;
+  }
+  .lp-fx-fields {
+    width: 100%;
+  }
+  .lp-fx-chip {
+    margin-right: -8px;
+  }
+}
+
+/* -------------------------------------------------------------- motion */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Ambient, time-based: a scanner that keeps reading the receipt, a field
+     that keeps being typed into. Transform/opacity/clip-path only. */
+  .lp-fx-beam {
+    animation: lp-fx-scan 3.6s var(--lp-ease) 0.6s infinite;
+  }
+  .lp-fx-type {
+    animation: lp-fx-type 4.2s steps(5, end) infinite;
+  }
+  .lp-fx-caret {
+    animation: lp-fx-blink 1.05s steps(1, end) infinite;
+  }
+  .lp-fx-qr-scan {
+    animation: lp-fx-breathe 2.8s ease-in-out infinite;
+  }
+  /* Scroll-driven assembly. Every part runs on its OWN view timeline and is
+     done by the time it is fully on screen, so a still frame never shows a
+     half-built fragment. */
+  @supports (animation-timeline: view()) {
+    .lp-fx-copy {
+      animation: lp-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+    .lp-fx-row .lp-fx-stage > * {
+      animation: lp-fx-lift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+    .lp-fx-lines li,
+    .lp-fx-fields div,
+    .lp-fx-members li {
+      animation: lp-fx-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+    .lp-fx-who .lp-fx-av {
+      animation: lp-fx-pop linear both;
+      animation-timeline: view();
+      animation-range: entry 40% entry 100%;
+    }
+    .lp-fx-cur-to,
+    .lp-fx-chip {
+      animation: lp-fx-in linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 100%;
+    }
+    .lp-fx-rule {
+      animation: lp-fx-grow-y linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+    .lp-fx-qr-code svg {
+      animation: lp-fx-wipe linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+
+    /* The settle-up board plays a ~2s, time-based choreography the moment
+       a third of it is on screen, in three beats:
+         0-0.9s   the board appears and seventeen debts draw in, node to node;
+         0.9-1.9s the control flips to "5 payments", the debts clear away and
+                  each payment arrow draws WITH its ledger row, in step;
+         1.9-2.4s the two payments already sent tick over to "Paid".
+       Trigger: the stage's view timeline flips --fx-go from 0 to 1; while it
+       is 0 a style query holds every part paused on its first frame. Where
+       style queries are unsupported the choreography simply plays on load,
+       off screen, and the visitor meets the final frame. Scrolling back
+       above the board resets nothing it has already played. */
+    .lp-fx-lead-stage {
+      animation: lp-fx-go linear both;
+      animation-timeline: view();
+      animation-range: entry 30% entry 32%;
+    }
+    /* The board enters on opacity alone: nothing slides or scales. */
+    .lp-fx-board {
+      animation: lp-fx-fade 0.45s ease-out both;
+    }
+    .lp-fx-node {
+      animation: lp-fx-fade 0.35s ease-out both;
+      animation-delay: calc(80ms + var(--i) * 40ms);
+    }
+    /* Each debt draws once, node to node, as one clean stroke (the dash is
+       the line's own measured length), holds, then clears away entirely. */
+    .lp-fx-debts path {
+      stroke-dasharray: var(--len) var(--len);
+      animation: lp-fx-debt 1.6s ease-out both;
+      animation-delay: calc(200ms + var(--i) * 18ms);
+    }
+    .lp-fx-seg-thumb {
+      animation: lp-fx-seg 1.5s var(--lp-ease) both;
+    }
+    .lp-fx-seg-a {
+      animation: lp-fx-seg-a 1.5s linear both;
+    }
+    .lp-fx-seg-b {
+      animation: lp-fx-seg-b 1.5s linear both;
+    }
+    /* Payment i: its arrow draws from 900 + i*120ms, and its ledger row
+       slides in on the same beat, so graph and list resolve together. */
+    .lp-fx-pay-line {
+      stroke-dasharray: var(--len) var(--len);
+      animation: lp-fx-draw 0.45s var(--lp-ease) both;
+      animation-delay: calc(900ms + var(--i) * 120ms);
+    }
+    .lp-fx-pay-head,
+    .lp-fx-arc-amt {
+      animation: lp-fx-fade 0.2s ease-out both;
+      animation-delay: calc(1220ms + var(--i) * 120ms);
+    }
+    .lp-fx-node-in .lp-fx-node-ring {
+      animation: lp-fx-node-in 0.4s ease-out both;
+      animation-delay: calc(1220ms + var(--i) * 40ms);
+    }
+    /* The ledger has no empty frame: its surface arrives just before the
+       first row, and every row (hairline included) arrives with its arrow. */
+    .lp-fx-ledger {
+      animation: lp-fx-fade 0.3s ease-out both;
+      animation-delay: 860ms;
+    }
+    .lp-fx-pay li {
+      animation: lp-fx-slip 0.45s var(--lp-ease) both;
+      animation-delay: calc(1000ms + var(--i) * 120ms);
+    }
+    .lp-fx-ledger-foot {
+      animation: lp-fx-fade 0.35s ease-out both;
+      animation-delay: 1560ms;
+    }
+    /* Third beat: the sent payments tick over. */
+    .lp-fx-state-paid {
+      animation: lp-fx-tick 0.35s var(--lp-ease) both;
+      animation-delay: calc(1900ms + var(--i) * 160ms);
+    }
+    .lp-fx-paid .lp-fx-fig {
+      animation: lp-fx-dim 0.35s ease-out both;
+      animation-delay: calc(1900ms + var(--i) * 160ms);
+    }
+    .lp-fx-bar-on {
+      animation: lp-fx-bar 0.35s ease-out both;
+      animation-delay: calc(1900ms + var(--i) * 160ms);
+    }
+    /* Specificity (0,2,0) so it beats the per-part `animation` shorthands
+       above, which would otherwise reset the play state to running. */
+    @container style(--fx-go: 0) {
+      .lp-fx-lead-stage .lp-fx-board,
+      .lp-fx-lead-stage .lp-fx-board *,
+      .lp-fx-lead-stage .lp-fx-board *::after,
+      .lp-fx-lead-stage .lp-fx-board *::before {
+        animation-play-state: paused;
+      }
+    }
+  }
+}
+
+@property --fx-go {
+  syntax: '<integer>';
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes lp-fx-go {
+  from {
+    --fx-go: 0;
+  }
+  to {
+    --fx-go: 1;
+  }
+}
+/* Draw the mess at full strength, hold it a beat, then clear it away as the
+   payments arrive (the base, opacity 0, is where it ends). */
+@keyframes lp-fx-debt {
+  0% {
+    stroke-dashoffset: var(--len);
+    opacity: 0.45;
+  }
+  35%,
+  50% {
+    stroke-dashoffset: 0;
+    opacity: 0.45;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes lp-fx-tick {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes lp-fx-dim {
+  from {
+    color: var(--lp-ink);
+  }
+}
+@keyframes lp-fx-bar {
+  from {
+    background: var(--lp-line-2);
+  }
+}
+@keyframes lp-fx-seg {
+  0%,
+  62% {
+    transform: translateX(0);
+  }
+}
+@keyframes lp-fx-seg-b {
+  0%,
+  62% {
+    color: var(--lp-ink-3);
+  }
+}
+@keyframes lp-fx-seg-a {
+  0%,
+  62% {
+    color: var(--lp-ink);
+  }
+}
+@keyframes lp-fx-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+}
+@keyframes lp-fx-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes lp-fx-node-in {
+  from {
+    stroke: transparent;
+  }
+}
+@keyframes lp-fx-slip {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes lp-fx-lift {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lp-fx-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lp-fx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lp-fx-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes lp-fx-wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes lp-fx-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(100%);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+/* Types "Tomáš" a letter at a time, holds, clears. Ends on the full name. */
+@keyframes lp-fx-type {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  45%,
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes lp-fx-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes lp-fx-breathe {
+  50% {
+    transform: scale(1.04);
+  }
+}
