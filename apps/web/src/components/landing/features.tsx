@@ -135,8 +135,7 @@ const photo = (n: string) => `/marketing/${PEOPLE[n]!.photo}.webp`;
 
 /** A member's avatar; guests (no account yet) wear the app's plain monogram. */
 function Av({ n, tone: kind, size = 28 }: { n: string; tone?: 'guest'; size?: number }) {
-  if (kind || !PEOPLE[n])
-    return <span className="lp-fx-av lp-fx-av-guest">{n.slice(0, 1)}</span>;
+  if (kind || !PEOPLE[n]) return <span className="lp-fx-av lp-fx-av-guest">{n.slice(0, 1)}</span>;
   return (
     <img
       className="lp-fx-av lp-fx-av-photo"
@@ -333,12 +332,7 @@ function SettleBoard({ tm, locale }: { tm: Tm; locale: Locale }) {
                     clipPath="url(#lp-fx-round)"
                     preserveAspectRatio="xMidYMid slice"
                   />
-                  <text
-                    x={n.lx}
-                    y={n.ly}
-                    textAnchor={n.anchor as 'start'}
-                    className="lp-fx-node-n"
-                  >
+                  <text x={n.lx} y={n.ly} textAnchor={n.anchor as 'start'} className="lp-fx-node-n">
                     {n.name}
                   </text>
                 </g>

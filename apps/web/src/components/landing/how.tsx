@@ -137,7 +137,9 @@ function SettleScreen({ tm, money }: { tm: Tm; money: (minor: number) => string 
                 <li
                   key={b.memberId}
                   className={zero ? 'lp-hx-bal lp-hx-bal-zero' : 'lp-hx-bal'}
-                  data-dir={b.balanceMinorUnits < 0 ? 'neg' : b.balanceMinorUnits > 0 ? 'pos' : 'zero'}
+                  data-dir={
+                    b.balanceMinorUnits < 0 ? 'neg' : b.balanceMinorUnits > 0 ? 'pos' : 'zero'
+                  }
                 >
                   <span className="lp-hx-who">
                     <span className="lp-hx-face">
