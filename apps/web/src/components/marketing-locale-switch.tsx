@@ -31,22 +31,13 @@ export function MarketingLocaleSwitch({ locale, label }: { locale: Locale; label
   const pathname = usePathname();
 
   return (
-    <div
-      className="flex overflow-hidden rounded-lg border border-zinc-200 text-xs dark:border-zinc-700"
-      role="group"
-      aria-label={label}
-    >
+    <div className="lp-locale" role="group" aria-label={label}>
       {LOCALES.map((l) => (
         <Link
           key={l}
           href={localizedPath(pathname, l)}
           hrefLang={l}
           aria-current={locale === l ? 'true' : undefined}
-          className={`px-2 py-1 font-medium uppercase ${
-            locale === l
-              ? 'bg-brand-600 text-white'
-              : 'bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300'
-          }`}
         >
           {l}
         </Link>

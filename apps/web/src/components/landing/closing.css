@@ -1,0 +1,776 @@
+/* FAQ, the closing ask, footer. */
+
+/* ------------------------------------------------------------------- faq */
+
+.lp-faq-section {
+  scroll-margin-top: 64px;
+}
+.lp-faq {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(32px, 6vw, 96px);
+  align-items: start;
+}
+/* The shared section hairline is this grid's ::before — span it across both
+   columns, or it takes the first cell and pushes the head into the second. */
+.lp-section + .lp-section > .lp-wrap.lp-faq::before {
+  grid-column: 1 / -1;
+  /* The grid's row gap already sits under it; together they make the run-in. */
+  margin-bottom: max(0px, calc(var(--lp-runin) - clamp(32px, 6vw, 96px)));
+}
+.lp-faq-head {
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+}
+/* On a wide screen the title travels with the list it introduces, so the
+   left column is never an empty well beside an open answer. Sticky is
+   positional only: it adds no box and shifts nothing. */
+@media (min-width: 861px) {
+  .lp-faq-head {
+    position: sticky;
+    top: 112px;
+  }
+}
+.lp-faq-more {
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+.lp-faq-more-text {
+  text-decoration: underline;
+  text-decoration-color: var(--lp-line-2);
+  text-underline-offset: 0.3em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color var(--lp-fast) var(--lp-ease);
+}
+.lp-faq-more:hover .lp-faq-more-text {
+  text-decoration-color: currentColor;
+}
+
+.lp-faq-list {
+  border-top: 1px solid var(--lp-line);
+}
+.lp-faq-item {
+  border-bottom: 1px solid var(--lp-line);
+}
+.lp-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 72px;
+  padding-block: 20px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+.lp-faq-q::-webkit-details-marker {
+  display: none;
+}
+/* Questions are set in full ink at a confident size: a grey closed state
+   read as disabled. The hover cue is the icon, not the text. */
+.lp-faq-q .lp-h3 {
+  font-size: clamp(1.0625rem, 0.98rem + 0.3vw, 1.25rem);
+  font-weight: 520;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+/* A plus drawn from two hairlines; open turns it into a minus. */
+.lp-faq-icon {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line-2);
+  transition:
+    border-color var(--lp-fast) var(--lp-ease),
+    background-color var(--lp-fast) var(--lp-ease);
+}
+.lp-faq-icon::before,
+.lp-faq-icon::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 1.5px;
+  margin: -0.75px 0 0 -5px;
+  background: var(--lp-ink);
+  border-radius: 1px;
+  transition: transform 320ms var(--lp-ease);
+}
+.lp-faq-icon::after {
+  transform: rotate(90deg);
+}
+.lp-faq-item[open] .lp-faq-icon::after {
+  transform: rotate(0deg);
+}
+.lp-faq-q:hover .lp-faq-icon {
+  border-color: var(--lp-ink);
+}
+.lp-faq-item[open] .lp-faq-icon {
+  background: var(--lp-sunken);
+}
+.lp-faq-a {
+  max-width: var(--lp-measure);
+  padding: 0 52px 28px 0;
+}
+
+/* ------------------------------------------------------------------- ask */
+
+/* The last frame of the page: a short bottom so the footer's edge is in the
+   same frame. */
+.lp-section + .lp-ask > .lp-wrap::before {
+  transform-origin: left center;
+}
+/* Two classes, not one: landing.css's `.lp-section` padding is loaded after
+   this sheet, so a single-class rule here silently lost and the page ended
+   in ~160px of dead ground above the footer's edge. */
+.lp-section.lp-ask {
+  padding-bottom: clamp(56px, 4.5vw, 64px);
+}
+
+/* ONE column system for the whole closing frame. The ledger is three equal
+   cells; the ask, and the footer under it, sit on the same thirds and the
+   same inset, so the reason and the button stand exactly over "settled up",
+   and the footer's columns over the two payments and the settled cell.
+   Nothing is aligned by a gap that happens to match at 1440px. */
+.lp-ask,
+.lp-footer {
+  --lp-cc-inset: 24px;
+}
+@media (max-width: 1100px) {
+  .lp-ask,
+  .lp-footer {
+    --lp-cc-inset: 16px;
+  }
+}
+
+/* The headline takes two thirds; the reason and the button sit at its
+   baseline in the last third, so the eye ends on the button. */
+.lp-cta {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  column-gap: 0;
+  row-gap: 32px;
+  align-items: end;
+}
+.lp-cta .lp-cta-title {
+  margin: 0;
+  /* Every section's heading starts one run-in under its hairline; the taller
+     side column settles to the bottom instead of pushing the title down. */
+  align-self: start;
+  /* The hero's size: the page opens and closes on the same voice. */
+  font-size: clamp(2.25rem, 0.9rem + 3.7vw, 4.25rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+  text-wrap: balance;
+}
+.lp-cta-side {
+  display: grid;
+  justify-items: start;
+  padding-bottom: 0.25em;
+  padding-left: var(--lp-cc-inset);
+}
+.lp-cta .lp-cta-body {
+  margin: 0;
+  max-width: 26rem;
+}
+.lp-cta-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 28px;
+}
+.lp-cta-note {
+  margin: 0;
+  max-width: 24rem;
+  text-wrap: pretty;
+}
+.lp-cta-btn .lp-arrow {
+  display: inline-block;
+  transition: transform var(--lp-fast) var(--lp-ease);
+}
+.lp-cta-btn:hover .lp-arrow {
+  transform: translateX(3px);
+}
+
+/* ---------------------------------------------------------------- ledger */
+
+/* One ruled line, not a card: a caption, an ink rule, three cells split by
+   hairlines. Paid, paid, settled — read left to right. */
+.lp-ledger {
+  position: relative;
+  margin: clamp(48px, 5vw, 72px) 0 0;
+  font-size: 0.9375rem;
+}
+.lp-ledger-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  font-size: 0.8125rem;
+  color: var(--lp-ink-3);
+}
+.lp-ledger-group {
+  color: var(--lp-ink);
+  font-weight: 560;
+}
+.lp-ledger-rows {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--lp-line);
+}
+.lp-ledger-rows::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--lp-ink);
+  transform-origin: left center;
+}
+/* Each cell is a figure first: who paid whom on a small line, the amount set
+   large underneath. The amounts are the loudest thing in the closing frame. */
+.lp-ledger-cell {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 20px var(--lp-cc-inset) 26px;
+  white-space: nowrap;
+}
+.lp-ledger-cell:first-child {
+  padding-left: 0;
+}
+.lp-ledger-cell + .lp-ledger-cell {
+  border-left: 1px solid var(--lp-line);
+}
+.lp-ledger-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+  color: var(--lp-ink-2);
+}
+.lp-ledger-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.lp-ledger-to {
+  color: var(--lp-ink-3);
+  margin-inline: 2px;
+}
+.lp-ledger-amount {
+  display: block;
+  font-size: clamp(2.25rem, 1.3rem + 2vw, 3.25rem);
+  font-weight: 540;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  color: var(--lp-ink);
+}
+.lp-ledger-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px 0 7px;
+  border-radius: 6px;
+  background: var(--lp-accent-wash);
+  color: var(--lp-accent-ink);
+  font-size: 0.8125rem;
+  font-weight: 540;
+}
+.lp-ledger-done {
+  color: var(--lp-accent-ink);
+}
+.lp-ledger-done .lp-ledger-line,
+.lp-ledger-done .lp-ledger-amount {
+  color: inherit;
+}
+.lp-ledger-done .lp-ledger-line {
+  gap: 10px;
+  font-weight: 560;
+}
+/* The outstanding balance: three figures stacked in one cell, clipped to one
+   line. At rest only the last (zero) shows; the others are motion only. */
+.lp-ledger-bal {
+  display: grid;
+  overflow: hidden;
+}
+.lp-bal {
+  grid-area: 1 / 1;
+}
+.lp-bal-a,
+.lp-bal-b {
+  opacity: 0;
+}
+.lp-ledger svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lp-ledger-paid path {
+  --len: 11;
+  stroke-dasharray: 11;
+}
+.lp-ledger-done circle {
+  --len: 57;
+  stroke-dasharray: 57;
+  stroke-width: 1.4;
+  transform: rotate(-90deg);
+  transform-origin: 10px 10px;
+}
+.lp-ledger-done path {
+  --len: 13;
+  stroke-dasharray: 13;
+}
+
+@media (max-width: 860px) {
+  .lp-faq {
+    grid-template-columns: 1fr;
+  }
+  .lp-faq-a {
+    padding-right: 0;
+  }
+  .lp-cta {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .lp-cta-side {
+    padding-left: 0;
+  }
+  .lp-ledger-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* A row per cell on a phone: the line on the left, the figure right. */
+  .lp-ledger-cell {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 0;
+  }
+  /* Name and stamp share one line, so all three rows are the same height
+     and the three figures stand in one right-aligned column. */
+  /* On the narrowest phones the stamp drops under the name instead of
+     truncating it, and "settled up" may wrap rather than run under 0. */
+  .lp-ledger-line {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+  .lp-ledger-who {
+    flex: none;
+  }
+  .lp-ledger-done {
+    white-space: normal;
+  }
+  .lp-ledger-done .lp-ledger-line {
+    flex-wrap: nowrap;
+  }
+  .lp-ledger-amount {
+    font-size: 1.75rem;
+    letter-spacing: -0.035em;
+    text-align: right;
+  }
+  .lp-ledger-cell + .lp-ledger-cell {
+    border-left: 0;
+    border-top: 1px solid var(--lp-line);
+  }
+}
+
+/* ---------------------------------------------------------------- motion */
+
+/* Every base style above is the final state; nothing here touches layout.
+   The ask plays once when it scrolls in: the rule draws, the headline rises,
+   the button arrives within 150ms, then the ledger tells its small story —
+   stamp, stamp, settled — by about 2.2s. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Opening a question: the answer settles in. Height is never animated. */
+  .lp-faq-item[open] .lp-faq-a {
+    animation: lp-faq-open 420ms var(--lp-ease) both;
+  }
+
+  @supports (timeline-trigger-name: --t) {
+    .lp-ask,
+    .lp-faq {
+      timeline-trigger-source: view();
+      timeline-trigger-activation-range: entry 10% cover 100%;
+    }
+    .lp-ask {
+      timeline-trigger-name: --lp-ask;
+    }
+    .lp-faq {
+      timeline-trigger-name: --lp-faq;
+    }
+
+    .lp-section + .lp-ask > .lp-wrap::before {
+      animation: lp-grow-x 900ms var(--lp-ease) both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-cta-title {
+      animation: lp-close-lift 820ms var(--lp-ease) 60ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-cta-body {
+      animation: lp-close-in 640ms var(--lp-ease) 120ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-cta-action {
+      animation: lp-close-in 640ms var(--lp-ease) 180ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-cap {
+      animation: lp-close-in 600ms var(--lp-ease) 300ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-rows::before {
+      animation: lp-grow-x 1000ms var(--lp-ease) 320ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-paid {
+      animation: lp-cc-stamp 520ms var(--lp-ease) both;
+      animation-delay: calc(var(--i, 0) * 360ms + 800ms);
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-paid path {
+      animation: lp-draw 420ms var(--lp-ease) both;
+      animation-delay: calc(var(--i, 0) * 360ms + 900ms);
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-done {
+      animation: lp-cc-settle 700ms var(--lp-ease) 1500ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    /* The balance counts itself off, one roll per stamp: 43 → 17 → 0. */
+    .lp-bal {
+      animation-duration: 1500ms;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-bal-a {
+      animation-name: lp-bal-a;
+    }
+    .lp-bal-b {
+      animation-name: lp-bal-b;
+    }
+    .lp-bal-c {
+      animation-name: lp-bal-c;
+    }
+    .lp-ledger-done circle {
+      animation: lp-draw 700ms var(--lp-ease) 1550ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+    .lp-ledger-done path {
+      animation: lp-draw 360ms var(--lp-ease) 1950ms both;
+      animation-trigger: --lp-ask play-forwards;
+    }
+
+    .lp-faq-title,
+    .lp-faq-more {
+      animation: lp-close-in 700ms var(--lp-ease) both;
+      animation-trigger: --lp-faq play-forwards;
+    }
+    .lp-faq-more {
+      animation-delay: 120ms;
+    }
+    .lp-faq-item {
+      animation: lp-close-in 640ms var(--lp-ease) both;
+      animation-delay: calc(var(--i, 0) * 60ms + 80ms);
+      animation-trigger: --lp-faq play-forwards;
+    }
+  }
+
+  /* Browsers with scroll timelines but no triggers: the same gestures,
+     scrubbed by scroll and finished early in the entry. */
+  @supports (animation-timeline: view()) and (not (timeline-trigger-name: --t)) {
+    .lp-section + .lp-ask > .lp-wrap::before {
+      animation: lp-grow-x linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+    .lp-cta-title {
+      animation: lp-close-lift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    .lp-cta-body,
+    .lp-cta-action,
+    .lp-ledger-cap,
+    .lp-faq-head,
+    .lp-faq-item {
+      animation: lp-close-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+    .lp-ledger-rows::before {
+      animation: lp-grow-x linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 40%;
+    }
+    .lp-ledger-paid {
+      animation: lp-cc-stamp linear both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 45%;
+    }
+    .lp-bal {
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 50%;
+    }
+    .lp-bal-a {
+      animation-name: lp-bal-a;
+    }
+    .lp-bal-b {
+      animation-name: lp-bal-b;
+    }
+    .lp-bal-c {
+      animation-name: lp-bal-c;
+    }
+    .lp-ledger-done {
+      animation: lp-cc-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 70% cover 50%;
+    }
+  }
+}
+
+/* The headline rises out of a mask that is already a third open on the first
+   frame, so the frame is never blank. */
+@keyframes lp-close-lift {
+  from {
+    transform: translateY(0.3em);
+    clip-path: inset(0 0 62% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(-0.3em -0.2em -0.3em -0.2em);
+  }
+}
+
+/* Opacity 0, not a faint start: text waiting for its trigger must read as
+   hidden (axe skips it), never as low-contrast text — the shared lp-rise rule. */
+@keyframes lp-close-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lp-cc-stamp {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The settled cell: its colour is the change, from neutral ink to the
+   accent; opacity stays 1 so the text is at full contrast in every frame. */
+/* The balance roll. Each figure enters from below and leaves upward inside
+   the clipped cell; the travel curve is applied per segment so the linear
+   outer timeline keeps the two rolls on the stamps' beats (~880ms, ~1240ms). */
+@keyframes lp-bal-a {
+  0%,
+  58% {
+    opacity: 1;
+    transform: none;
+    animation-timing-function: var(--lp-ease-travel);
+  }
+  73% {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+  74%,
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+@keyframes lp-bal-b {
+  0%,
+  58% {
+    opacity: 1;
+    transform: translateY(100%);
+    animation-timing-function: var(--lp-ease-travel);
+  }
+  73%,
+  82% {
+    opacity: 1;
+    transform: none;
+    animation-timing-function: var(--lp-ease-travel);
+  }
+  97% {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+  98%,
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+@keyframes lp-bal-c {
+  0%,
+  82% {
+    transform: translateY(100%);
+    animation-timing-function: var(--lp-ease-travel);
+  }
+  97%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes lp-cc-settle {
+  from {
+    color: var(--lp-ink-3);
+  }
+  to {
+    color: var(--lp-accent-ink);
+  }
+}
+
+@keyframes lp-faq-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------- footer */
+
+/* The one dark surface: neutral ink in both themes. The light page ends in
+   a rounded edge over it (drawn by ::before), so no extra wrapper is needed. */
+.lp-footer {
+  --lp-f-bg: #111113;
+  --lp-f-ink: #f3f3f4;
+  --lp-f-ink-2: #a8a8b0;
+  --lp-f-line: #2a2a2f;
+  background: var(--lp-f-bg);
+  color: var(--lp-f-ink);
+}
+.lp-footer::before {
+  content: '';
+  display: block;
+  height: 28px;
+  background: var(--lp-ground);
+  border-radius: 0 0 28px 28px;
+}
+@media (prefers-color-scheme: dark) {
+  .lp-footer {
+    --lp-f-bg: #18181b;
+    --lp-f-ink-2: #a8a8b0;
+    --lp-f-line: #2f2f35;
+  }
+}
+
+.lp-footer-grid {
+  display: grid;
+  /* The ledger's thirds, carried through the edge: Product stands under the
+     payments, Legal under "settled up" and the button. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px 0;
+  padding-block: clamp(64px, 7vw, 104px) clamp(56px, 6vw, 88px);
+}
+.lp-footer-col {
+  padding-left: var(--lp-cc-inset);
+}
+.lp-footer-brand {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 12px;
+}
+.lp-footer-mark {
+  margin: 0;
+  font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+  font-weight: 560;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: var(--lp-f-ink);
+  text-decoration: none;
+}
+.lp-footer-tagline {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--lp-f-ink-2);
+}
+.lp-footer-label {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lp-f-line);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--lp-f-ink-2);
+}
+.lp-footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 0.9375rem;
+}
+.lp-footer-links a {
+  color: var(--lp-f-ink);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.3em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color var(--lp-fast) var(--lp-ease);
+}
+.lp-footer-links a:hover {
+  text-decoration-color: currentColor;
+}
+.lp-footer-base {
+  padding-bottom: 32px;
+}
+.lp-footer-base p {
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--lp-f-line);
+  font-size: 0.8125rem;
+  color: var(--lp-f-ink-2);
+}
+.lp .lp-footer :focus-visible {
+  outline-color: #b4b5ff;
+}
+
+@media (max-width: 860px) {
+  .lp-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+  }
+  .lp-footer-col {
+    padding-left: 0;
+  }
+  .lp-footer-brand {
+    grid-column: 1 / -1;
+  }
+}

@@ -54,10 +54,25 @@ describe('tMarketing', () => {
    * does not produce.
    */
   test('the settlement figures quoted in marketing are the ones the code produces', () => {
-    expect(tMarketing('en', 'marketing.feature.debts.body')).toContain('seventeen');
-    expect(tMarketing('en', 'marketing.feature.debts.body')).toContain('five');
-    expect(tMarketing('en', 'marketing.feature.debts.body')).not.toContain('twenty');
-    expect(tMarketing('cs', 'marketing.feature.debts.body')).not.toContain('dvacet');
+    // The claim is set as a two-line heading ("Seventeen debts. Five
+    // payments.") over its body, so it is checked across all three strings.
+    const claim = (locale: 'cs' | 'en') =>
+      (
+        [
+          'marketing.features.title',
+          'marketing.features.titleAfter',
+          'marketing.feature.debts.body',
+        ] as const
+      )
+        .map((key) => tMarketing(locale, key))
+        .join(' ')
+        .toLowerCase();
+    expect(claim('en')).toContain('seventeen');
+    expect(claim('en')).toContain('five');
+    expect(claim('en')).not.toContain('twenty');
+    expect(claim('cs')).toContain('sedmnáct');
+    expect(claim('cs')).toContain('pět');
+    expect(claim('cs')).not.toContain('dvacet');
   });
 
   test('interpolates named placeholders', () => {
