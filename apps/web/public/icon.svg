@@ -1,10 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EvenUp">
-  <rect width="512" height="512" rx="96" fill="#4f46e5" />
-  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M256 110v300" />
-    <path d="M150 150h212" />
-    <path d="M150 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
-    <path d="M362 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
-    <path d="M196 410h120" />
-  </g>
-</svg>
+<svg role="img" aria-label="EvenUp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><g transform="translate(63.951482479784346 437.8059299191375) scale(0.5121293800539084)" ><path d="M435 16Q349 16 282.5-31.5Q216-79 179.5-163Q143-247 143-354L143-354Q143-461 179.5-546Q216-631 282-678.5Q348-726 435-726L435-726Q496-726 547.5-697.5Q599-669 634.5-618Q670-567 685-502L685-502L595-496Q578-562 535-602Q492-642 435-642L435-642Q370-642 324.5-605Q279-568 256-502.5Q233-437 233-354L233-354Q233-271 256.5-206.5Q280-142 325.5-105Q371-68 435-68L435-68Q495-68 539.5-113Q584-158 599-230L599-230L691-224Q678-154 643.5-99.5Q609-45 555.5-14.5Q502 16 435 16L435 16Z" fill="#4f46e5" stroke="#4f46e5" stroke-width="70" stroke-linejoin="round"/><path d="M59-235L59-309L460-309L449-235L59-235ZM59-389L59-463L480-463L469-389L59-389Z" fill="#4f46e5" stroke="#4f46e5" stroke-width="24" stroke-linejoin="round"/></g></svg>
