@@ -347,9 +347,9 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.shots.lede':
     'An amount, a name and who paid. EvenUp splits it, and the whole group’s balances are right before the sheet closes.',
   'marketing.shots.groupCaption':
-    'The group’s balances after the {amount} chalet: Lucie is up {gain}, everyone else down {share}. Lucie and Martin are in credit; Pavel, Tomáš and Kateřina owe.',
+    'The group’s balances after the {amount} chalet: Lucy is up {gain}, everyone else down {share}. Lucy and Martin are in credit; Paul, Tom and Kate owe.',
   'marketing.shots.expenseCaption':
-    'A new expense, the chalet at Štrbské Pleso for 1,280 CZK, paid by Lucie and split equally between five people at 256 CZK each.',
+    'A new expense, the chalet in the Alps for 1,280 CZK, paid by Lucy and split equally between five people at 256 CZK each.',
   'marketing.feature.debts.body':
     'Seven people, a week in the mountains, seventeen debts between them. EvenUp nets them against each other into the fewest transfers that settle everyone.',
   'marketing.feature.debts.short': 'Netted down to the fewest transfers.',
