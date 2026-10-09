@@ -67,7 +67,7 @@ test('the copy is in the server HTML itself, per locale', async ({ request }) =>
 test('the settlement demo is in the server HTML, not a client island', async ({ request }) => {
   const en = await (await request.get('/en')).text();
   // Both halves of the collapse: the two-debt state and the one-payment state.
-  expect(en).toContain('Jirka');
+  expect(en).toContain('Jake');
   expect(en).toContain('net them off');
   expect(en).toContain('2 payments');
   expect(en).toContain('1 payment');

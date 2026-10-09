@@ -11,6 +11,7 @@ import {
 import { currencyForLocale } from '@evenup/api/billing/prices';
 import { LEGAL_DOCUMENTS } from '@/components/legal-document';
 import { localizedPath } from '@/lib/locale-path';
+import { displayName } from './names';
 import './closing.css';
 
 /** Four question/answer pairs. */
@@ -133,11 +134,11 @@ function SettledLedger({ locale }: { locale: Locale }) {
           <li key={p.from} className="lp-ledger-cell" style={{ '--i': i } as CSSProperties}>
             <span className="lp-ledger-line">
               <span className="lp-ledger-who">
-                {p.from}{' '}
+                {displayName(p.from, locale)}{' '}
                 <span className="lp-ledger-to" aria-hidden="true">
                   →
                 </span>
-                <span className="lp-sr">,</span> {p.to}
+                <span className="lp-sr">,</span> {displayName(p.to, locale)}
               </span>
               <span className="lp-ledger-paid">
                 <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">

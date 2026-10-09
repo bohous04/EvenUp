@@ -125,13 +125,7 @@
   font-weight: 600;
   line-height: 1;
 }
-.lp-fx-av-photo {
-  display: block;
-  object-fit: cover;
-  background: var(--lp-sunken);
-}
-/* The app's monogram: the member colour as a tint, the initial in that
-   colour at full strength (AA on its own tint in both schemes). */
+/* A guest (no account yet): the same initial, no tint, a dashed edge. */
 .lp-fx-av-guest {
   background: transparent;
   border: 1px dashed var(--lp-ink-3);
@@ -1137,7 +1131,7 @@
     transform: translateY(100%);
   }
 }
-/* Types "Tomáš" a letter at a time, holds, clears. Ends on the full name. */
+/* Types "Tomáš" ("Tommy" in English) a letter at a time, holds, clears. Ends on the full name. */
 @keyframes lp-fx-type {
   0% {
     clip-path: inset(0 100% 0 0);
