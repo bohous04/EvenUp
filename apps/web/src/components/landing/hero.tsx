@@ -10,6 +10,8 @@ import {
 import { LandingCta } from '@/components/landing-cta';
 import { MarketingLocaleSwitch } from '@/components/marketing-locale-switch';
 import { localizedPath } from '@/lib/locale-path';
+import { AvatarMark } from './avatar';
+import { displayName } from './names';
 import './hero.css';
 
 /**
@@ -57,8 +59,10 @@ export function MarketingHeader({ locale }: { locale: Locale }) {
 }
 
 /**
- * The hero: the claim, one sentence of support, one action — and then the
- * claim happening, once, in the product's own terms.
+ * The hero, read in three seconds: what it is for (the trip's costs), what it
+ * spares you (nobody chasing anybody) and the proof, drawn — four friends'
+ * tangle of debts collapsing into one payment. Text-led: the headline is the
+ * LCP element; the picture is inline SVG, no image request.
  */
 export function Hero({ locale }: { locale: Locale }) {
   const tm = (key: MarketingKey, values?: Record<string, string | number>) =>
@@ -67,22 +71,21 @@ export function Hero({ locale }: { locale: Locale }) {
 
   return (
     <section className="lp-hero" data-gauntlet="hero">
-      <div className="lp-wrap">
-        {/* One claim, set big and alone. Its payoff opens the paragraph in
-            ink, so the eye takes the claim, then the payoff, then the
-            argument: three steps down, nothing competing at headline size.
-            Then the product on its own stage, the biggest thing on screen. */}
-        <h1 className="lp-hero-title">
-          <span className="lp-enter" style={step(0)}>
-            {tm('marketing.hero.title')}
-          </span>
-        </h1>
-        <div className="lp-hero-row">
-          <p className="lp-lede lp-hero-lede lp-enter" style={step(1)}>
+      <div className="lp-wrap lp-hero-grid">
+        <div className="lp-hero-copy">
+          <h1 className="lp-hero-title">
+            <span className="lp-enter" style={step(0)}>
+              {tm('marketing.hero.titleLead')}
+            </span>{' '}
+            <span className="lp-enter" style={step(1)}>
+              {tm('marketing.hero.title')}
+            </span>
+          </h1>
+          <p className="lp-lede lp-hero-lede lp-enter" style={step(2)}>
             <strong className="lp-hero-payoff">{tm('marketing.hero.titleAccent')}</strong>{' '}
             {tm('marketing.hero.subtitle')}
           </p>
-          <div className="lp-hero-act lp-enter" style={step(2)}>
+          <div className="lp-hero-act lp-enter" style={step(3)}>
             <div className="lp-hero-actions">
               <Link
                 href={localizedPath('/sign-up', locale)}
@@ -111,215 +114,159 @@ export function Hero({ locale }: { locale: Locale }) {
           </div>
         </div>
 
-        {/* The stage is the place the trip happened: the Krkonoše ridge at
-            dusk, Sněžka on the right, the group's screen set down on the
-            snow below it. Generated for this page, not stock. Fixed
-            width/height and an absolutely placed frame, so the photo never
-            moves layout; phones get their own crop of the ridge. */}
-        <div className="lp-hero-plate">
-          <picture className="lp-hero-scene" aria-hidden="true">
-            <source media="(max-width: 560px)" srcSet="/marketing/krkonose-m.webp" />
-            <img
-              src="/marketing/krkonose-1280.webp"
-              srcSet="/marketing/krkonose-800.webp 800w, /marketing/krkonose-1280.webp 1280w"
-              sizes="(min-width: 1280px) 1200px, 100vw"
-              width={1280}
-              height={720}
-              alt=""
-              fetchPriority="high"
-              decoding="async"
-            />
-          </picture>
-          <Collapse locale={locale} />
-        </div>
+        <Tangle locale={locale} />
       </div>
     </section>
   );
 }
 
-/* ------------------------------------------------------------ settle-up */
+/* --------------------------------------------------------------- tangle */
 
 type Who = 'ondra' | 'filip' | 'eva' | 'klara';
+type Pt = { x: number; y: number };
 
-const PEOPLE: Record<Who, string> = {
-  ondra: 'Ondra',
-  filip: 'Filip',
-  eva: 'Eva',
-  klara: 'Klára',
+/** The board, in viewBox units. Eva (who paid for the cabin) on the right,
+ *  Ondra opposite her, so the one payment is the board's long axis. */
+const W = 560;
+const H = 420;
+const R = 34;
+const AT: Record<Who, Pt> = {
+  ondra: { x: 96, y: 200 },
+  filip: { x: 280, y: 78 },
+  eva: { x: 464, y: 200 },
+  klara: { x: 280, y: 322 },
 };
 
 /**
- * The trip, as four real expenses in minor units. Each is split equally among
- * the people listed after the payer. Run through the app, the balances come
- * out Ondra −2,310, Eva +2,310, Filip 0, Klára 0: one payment. Per expense —
- * the way other apps keep the books — the same four expenses leave 8 debts
- * worth 13,090 in total (3 + 3 + 1 + 1 debts; 6,930 + 2,310 + 3,080 + 770).
+ * The trip, expense by expense — the way other apps keep the books. Four
+ * expenses (cabin 9,240 paid by Eva for all four; groceries 3,080 by Filip for
+ * all four; ski passes 6,160 by Klára for her and Eva; beer 1,540 by Ondra for
+ * him and Eva) leave these 8 debts. Netted, they come to one: Ondra pays Eva
+ * 2,310; Filip and Klára are square. `bow` bends each line off the straight,
+ * so two debts between the same pair read as two.
  */
-const EXPENSES: { key: MarketingKey; payer: Who; minor: number; among: Who[] }[] = [
-  {
-    key: 'marketing.hero.panel.e1',
-    payer: 'eva',
-    minor: 924000,
-    among: ['ondra', 'filip', 'eva', 'klara'],
-  },
-  {
-    key: 'marketing.hero.panel.e2',
-    payer: 'filip',
-    minor: 308000,
-    among: ['ondra', 'filip', 'eva', 'klara'],
-  },
-  { key: 'marketing.hero.panel.e3', payer: 'klara', minor: 616000, among: ['eva', 'klara'] },
-  { key: 'marketing.hero.panel.e4', payer: 'ondra', minor: 154000, among: ['ondra', 'eva'] },
+const DEBTS: { from: Who; to: Who; bow: number }[] = [
+  { from: 'ondra', to: 'eva', bow: 56 },
+  { from: 'filip', to: 'eva', bow: 24 },
+  { from: 'klara', to: 'eva', bow: -24 },
+  { from: 'ondra', to: 'filip', bow: 18 },
+  { from: 'eva', to: 'filip', bow: 24 },
+  { from: 'klara', to: 'filip', bow: -78 },
+  { from: 'eva', to: 'klara', bow: -24 },
+  { from: 'eva', to: 'ondra', bow: 56 },
 ];
 const NET_MINOR = 231000;
-const NAIVE_COUNT = 8;
-const NAIVE_MINOR = 1309000;
 
-/** A member's photo. Fixed box, so it never moves anything as it loads. */
-function Face({ who, size }: { who: Who; size: number }) {
-  return (
-    <img
-      className="lp-hs-face"
-      src={`/marketing/people/${who}.webp`}
-      width={size}
-      height={size}
-      alt=""
-      decoding="async"
-    />
-  );
+const r1 = (v: number) => Math.round(v * 10) / 10;
+
+/** A quadratic arc from a to b, bowed by `bow`, trimmed clear of both discs. */
+function arc(a: Pt, b: Pt, bow: number, gap = R + 10) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  const c = { x: (a.x + b.x) / 2 - (dy / len) * bow, y: (a.y + b.y) / 2 + (dx / len) * bow };
+  const toward = (p: Pt, q: Pt) => {
+    const l = Math.hypot(q.x - p.x, q.y - p.y);
+    return { x: p.x + ((q.x - p.x) / l) * gap, y: p.y + ((q.y - p.y) / l) * gap };
+  };
+  const s = toward(a, c);
+  const e = toward(b, c);
+  return `M${r1(s.x)} ${r1(s.y)}Q${r1(c.x)} ${r1(c.y)} ${r1(e.x)} ${r1(e.y)}`;
 }
 
+const pct = (p: Pt) =>
+  ({
+    left: `${r1((p.x / W) * 100)}%`,
+    top: `${r1(((p.y + R + 8) / H) * 100)}%`,
+  }) as React.CSSProperties;
+
 /**
- * The hero's product visual: a group's settle-up screen. The expenses the trip
- * logged at the top, each with who paid and a share bar coloured by who it was
- * split between; underneath, what the app makes of them — one payment, Ondra
- * to Eva, while Filip and Klára owe nothing.
- *
- * On load it plays once, in the order the app works: the expenses land, their
- * shares fill, then the single payment draws from Ondra to Eva with its arrowhead
- * riding the tip of the line, and the per-expense tally is struck through
- * under the one netted payment. Every
- * element's resting style is the final frame; the motion only exists inside
- * `prefers-reduced-motion: no-preference` in hero.css. Text is never moved
- * across other text — it wipes up out of its own clip.
+ * The proof. On load it plays once, in the order the trip happened: the four
+ * friends take their places, the eight debts draw in one by one, then fall
+ * back to hairlines as the single payment draws from Ondra to Eva and the
+ * tally strikes "8 payments". The resting style of every element is the last
+ * frame — the still picture still says it: a faint tangle, one bold line.
  */
-function Collapse({ locale }: { locale: Locale }) {
+function Tangle({ locale }: { locale: Locale }) {
   const tm = (key: MarketingKey, values?: Record<string, string | number>) =>
     tMarketing(locale, key, values);
-  const czk = (minor: number) => formatCurrency(minor, 'CZK', locale, TRIMMED_PRICE_FORMAT);
-  const amount = czk(NET_MINOR);
+  const amount = formatCurrency(NET_MINOR, 'CZK', locale, TRIMMED_PRICE_FORMAT);
   const d = (ms: number) => ({ '--d': `${ms}ms` }) as React.CSSProperties;
+  const who = Object.keys(AT) as Who[];
 
   return (
-    <figure
-      className="lp-hero-stage lp-hs"
-      role="img"
-      aria-label={tm('marketing.hero.panel.aria', { amount })}
-    >
-      <div className="lp-hs-head" aria-hidden="true">
-        <div>
-          <span className="lp-hs-group">Krkonoše 2026</span>
-          <span className="lp-hs-dates">{tm('marketing.hero.panel.dates')}</span>
-        </div>
-        <span className="lp-hs-stack">
-          {(Object.keys(PEOPLE) as Who[]).map((who) => (
-            <Face key={who} who={who} size={24} />
-          ))}
+    <figure className="lp-ht" role="img" aria-label={tm('marketing.hero.panel.aria', { amount })}>
+      <div className="lp-ht-head" aria-hidden="true">
+        <span className="lp-ht-group">{locale === 'en' ? 'Alps 2026' : 'Krkonoše 2026'}</span>
+        <span className="lp-ht-meta">{tm('marketing.hero.panel.dates')}</span>
+        <span className="lp-ht-meta lp-ht-count">
+          {tm('marketing.hero.panel.debts', { count: DEBTS.length })}
         </span>
       </div>
 
-      <div className="lp-hs-body" aria-hidden="true">
-        <div className="lp-hs-exp">
-          <p className="lp-hs-label">{tm('marketing.hero.panel.expenses')}</p>
-          <ul className="lp-hs-list">
-            {EXPENSES.map((e, i) => (
-              <li key={e.key} className="lp-hs-row lp-hs-in" style={d(160 + i * 90)}>
-                <Face who={e.payer} size={32} />
-                <span className="lp-hs-what">
-                  <span className="lp-hs-name">{tm(e.key)}</span>
-                  <span className="lp-hs-meta">
-                    {tm('marketing.hero.panel.paid', {
-                      name: PEOPLE[e.payer],
-                      count: e.among.length,
-                    })}
-                  </span>
-                </span>
-                <span className="lp-hs-sum">
-                  <span className="lp-hs-amt lp-num">{czk(e.minor)}</span>
-                  <span className="lp-hs-shares">
-                    {e.among.map((who, j) => (
-                      <span key={who} data-who={who} style={d(520 + i * 110 + j * 70)} />
-                    ))}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="lp-ht-board" aria-hidden="true">
+        <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} focusable="false">
+          {DEBTS.map((e, i) => (
+            <path
+              key={`${e.from}-${e.to}`}
+              className="lp-ht-debt"
+              d={arc(AT[e.from], AT[e.to], e.bow)}
+              pathLength={1}
+              style={
+                {
+                  '--d': `${520 + i * 110}ms`,
+                  '--dur': `${2350 - (520 + i * 110)}ms`,
+                } as React.CSSProperties
+              }
+            />
+          ))}
+          <path
+            className="lp-ht-pay"
+            d={`M${AT.ondra.x + R + 12} ${AT.ondra.y}H${AT.eva.x - R - 16}`}
+            pathLength={1}
+          />
+          <path
+            className="lp-ht-tip"
+            d={`M${AT.eva.x - R - 25} ${AT.eva.y - 9}L${AT.eva.x - R - 14} ${AT.eva.y}L${AT.eva.x - R - 25} ${AT.eva.y + 9}`}
+          />
+          {who.map((p, i) => (
+            <g key={p} className="lp-ht-node" style={d(200 + i * 70)}>
+              <AvatarMark name={p} cx={AT[p].x} cy={AT[p].y} r={R} />
+            </g>
+          ))}
+        </svg>
 
-        <div className="lp-hs-settle">
-          <p className="lp-hs-label lp-hs-rule" style={d(1150)}>
-            {tm('marketing.hero.panel.title')}
-          </p>
-          <div className="lp-hs-pay">
-            <span className="lp-hs-end lp-hs-in" style={d(1250)}>
-              <Face who="ondra" size={36} />
-              <span>{PEOPLE.ondra}</span>
-            </span>
-            <span className="lp-hs-wire">
-              <span className="lp-hs-wire-line" />
-              <span className="lp-hs-wire-head" />
-            </span>
-            <span className="lp-hs-end lp-hs-in" style={d(1300)}>
-              <Face who="eva" size={36} />
-              <span>{PEOPLE.eva}</span>
-            </span>
-            <span className="lp-hs-payamt lp-num lp-hs-in" style={d(2250)}>
-              {amount}
-            </span>
-          </div>
-          <p className="lp-hs-nothing lp-hs-in" style={d(2500)}>
-            <span className="lp-hs-pair">
-              <Face who="filip" size={22} />
-              <Face who="klara" size={22} />
-            </span>
-            <span>{tm('marketing.hero.panel.nothing')}</span>
-            <span className="lp-hs-zero lp-num">{czk(0)}</span>
-          </p>
-        </div>
+        {who.map((p) => (
+          <span key={p} className="lp-ht-name" style={pct(AT[p])}>
+            {displayName(p, locale)}
+            {(p === 'filip' || p === 'klara') && (
+              <span className="lp-ht-square lp-ht-in" style={d(2700)}>
+                {' · '}
+                {tm('marketing.hero.panel.square')}
+              </span>
+            )}
+          </span>
+        ))}
+
+        <span className="lp-ht-amount lp-num">
+          <span className="lp-ht-in" style={d(2400)}>
+            {amount}
+          </span>
+        </span>
       </div>
 
-      {/* The proof, kept on the screen at rest: the same four expenses
-          settled one by one against what EvenUp asks for, side by side.
-          One mark per payment, so 8 against 1 reads before any number is
-          read; the per-expense figures are struck by a drawn rule that
-          covers exactly their own text. */}
-      <div className="lp-hs-foot" aria-hidden="true">
-        <div className="lp-hs-tally lp-hs-naive">
-          <span className="lp-hs-tally-k">{tm('marketing.hero.panel.naive')}</span>
-          <span className="lp-hs-pips">
-            {Array.from({ length: NAIVE_COUNT }, (_, i) => (
-              <span key={i} style={d(500 + i * 60)} />
-            ))}
+      <div className="lp-ht-foot" aria-hidden="true">
+        <span className="lp-ht-tally">
+          <span className="lp-ht-k">{tm('marketing.hero.panel.naive')}</span>
+          <span className="lp-ht-struck lp-num">
+            {tm('marketing.hero.panel.naiveCount', { count: DEBTS.length })}
           </span>
-          <span className="lp-hs-figs lp-num">
-            <span className="lp-hs-struck">
-              {tm('marketing.hero.panel.naiveCount', { count: NAIVE_COUNT })}
-            </span>
-            <span className="lp-hs-struck">{czk(NAIVE_MINOR)}</span>
-          </span>
-        </div>
-        <span className="lp-hs-to" />
-        <div className="lp-hs-tally lp-hs-netted lp-hs-in" style={d(2050)}>
-          <span className="lp-hs-tally-k">{tm('marketing.hero.panel.netted')}</span>
-          <span className="lp-hs-pips">
-            <span />
-          </span>
-          <span className="lp-hs-figs lp-num">
-            <span>{tm('marketing.hero.panel.nettedCount')}</span>
-            <span className="lp-hs-figsum">{amount}</span>
-          </span>
-        </div>
+        </span>
+        <span className="lp-ht-tally lp-ht-netted lp-ht-in" style={d(2400)}>
+          <span className="lp-ht-to">→</span>
+          <span className="lp-ht-k">{tm('marketing.hero.panel.netted')}</span>
+          <span className="lp-num">{tm('marketing.hero.panel.nettedCount')}</span>
+        </span>
       </div>
     </figure>
   );

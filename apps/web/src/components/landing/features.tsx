@@ -6,6 +6,8 @@ import {
   type Locale,
   type MarketingKey,
 } from '@evenup/i18n';
+import { Avatar, AvatarMark, initial, personKey } from './avatar';
+import { displayName } from './names';
 import './features.css';
 
 /**
@@ -119,34 +121,22 @@ function Money({ minor, locale }: { minor: number; locale: Locale }) {
   );
 }
 
-/* The cast: one photo each, the same faces the hero and the how-it-works
-   diagram use, so the page has a single set of people and a single avatar
-   style. The tone is kept for the guest monogram only. */
-const PEOPLE: Record<string, { photo: string }> = {
-  Jirka: { photo: 'how/jirka' },
-  Klára: { photo: 'people/klara' },
-  Filip: { photo: 'people/filip' },
-  Ondra: { photo: 'people/ondra' },
-  Petr: { photo: 'how/petr' },
-  Honza: { photo: 'how/honza' },
-  Eva: { photo: 'people/eva' },
-};
-const photo = (n: string) => `/marketing/${PEOPLE[n]!.photo}.webp`;
-
-/** A member's avatar; guests (no account yet) wear the app's plain monogram. */
-function Av({ n, tone: kind, size = 28 }: { n: string; tone?: 'guest'; size?: number }) {
-  if (kind || !PEOPLE[n]) return <span className="lp-fx-av lp-fx-av-guest">{n.slice(0, 1)}</span>;
-  return (
-    <img
-      className="lp-fx-av lp-fx-av-photo"
-      src={photo(n)}
-      width={size}
-      height={size}
-      alt=""
-      decoding="async"
-      loading="lazy"
-    />
-  );
+/** A member's avatar, the same one the hero and the how-it-works screen use;
+    guests (no account yet) wear the app's untinted, dashed initial. */
+function Av({
+  n,
+  locale,
+  tone: kind,
+  size = 28,
+}: {
+  n: string;
+  locale: Locale;
+  tone?: 'guest';
+  size?: number;
+}) {
+  if (kind || !personKey(n))
+    return <span className="lp-fx-av lp-fx-av-guest">{initial(displayName(n, locale))}</span>;
+  return <Avatar className="lp-fx-av" name={n} size={size} />;
 }
 
 /* The settle-up board. Seven people on a ring; seventeen pairwise debts
@@ -296,11 +286,6 @@ function SettleBoard({ tm, locale }: { tm: Tm; locale: Locale }) {
       <div className="lp-fx-board-body">
         <div className="lp-fx-graph">
           <svg viewBox="-14 0 388 284" width="388" height="284">
-            <defs>
-              <clipPath id="lp-fx-round" clipPathUnits="objectBoundingBox">
-                <circle cx="0.5" cy="0.5" r="0.5" />
-              </clipPath>
-            </defs>
             <g className="lp-fx-debts">
               {G.debts.map(({ d, len }, i) => (
                 <path key={d} d={d} style={{ '--i': i, '--len': len } as React.CSSProperties} />
@@ -323,17 +308,9 @@ function SettleBoard({ tm, locale }: { tm: Tm; locale: Locale }) {
                   style={{ '--i': i } as React.CSSProperties}
                 >
                   <circle className="lp-fx-node-ring" cx={n.x} cy={n.y} r={R + 2.5} />
-                  <image
-                    href={photo(n.name)}
-                    x={n.x - R}
-                    y={n.y - R}
-                    width={R * 2}
-                    height={R * 2}
-                    clipPath="url(#lp-fx-round)"
-                    preserveAspectRatio="xMidYMid slice"
-                  />
+                  <AvatarMark name={n.name} cx={n.x} cy={n.y} r={R} />
                   <text x={n.lx} y={n.ly} textAnchor={n.anchor as 'start'} className="lp-fx-node-n">
-                    {n.name}
+                    {displayName(n.name, locale)}
                   </text>
                 </g>
               ))}
@@ -352,10 +329,11 @@ function SettleBoard({ tm, locale }: { tm: Tm; locale: Locale }) {
                   className={paid ? 'lp-fx-paid' : undefined}
                   style={{ '--i': i } as React.CSSProperties}
                 >
-                  <Av n={from} size={36} />
+                  <Av n={from} locale={locale} size={36} />
                   <span className="lp-fx-pay-text">
                     <span className="lp-fx-pay-who">
-                      <b>{from}</b> <span className="lp-fx-to">→</span> {to}
+                      <b>{displayName(from, locale)}</b> <span className="lp-fx-to">→</span>{' '}
+                      {displayName(to, locale)}
                     </span>
                     <span className="lp-fx-pay-via lp-num">
                       {tm('marketing.fx.debts.via', { account: ACCOUNTS[to]! })}
@@ -429,7 +407,7 @@ function Receipt({ tm, locale }: { tm: Tm; locale: Locale }) {
               <span className="lp-num">{czk(amt, locale)}</span>
               <span className="lp-fx-who">
                 {who.map((w) => (
-                  <Av key={w} n={w} />
+                  <Av key={w} n={w} locale={locale} size={22} />
                 ))}
               </span>
             </li>
@@ -484,7 +462,7 @@ function QrPay({ tm, locale }: { tm: Tm; locale: Locale }) {
       <dl className="lp-fx-fields">
         <div style={{ '--i': 0 } as React.CSSProperties}>
           <dt>{tm('marketing.fx.qr.to')}</dt>
-          <dd>Klára Nováková</dd>
+          <dd>{locale === 'en' ? 'Clara Novak' : 'Klára Nováková'}</dd>
         </div>
         <div style={{ '--i': 1 } as React.CSSProperties}>
           <dt>{tm('marketing.fx.qr.account')}</dt>
@@ -531,34 +509,34 @@ function Currency({ tm, locale }: { tm: Tm; locale: Locale }) {
 }
 
 /** Guests: members added by name; one links to a real account later. */
-function Guests({ tm }: { tm: Tm; locale: Locale }) {
+function Guests({ tm, locale }: { tm: Tm; locale: Locale }) {
   return (
     <div className="lp-fx-panel lp-fx-guests">
       <ul className="lp-fx-members">
         <li>
-          <Av n="Jirka" />
-          <span>Jirka</span>
+          <Av n="Jirka" locale={locale} />
+          <span>{displayName('Jirka', locale)}</span>
           <span className="lp-fx-tag">{tm('marketing.fx.guests.you')}</span>
         </li>
         <li className="lp-fx-linked">
-          <Av n="Klára" />
-          <span>Klára</span>
+          <Av n="Klára" locale={locale} />
+          <span>{displayName('Klára', locale)}</span>
           <span className="lp-fx-tag lp-fx-tag-ok">{tm('marketing.fx.guests.linked')}</span>
         </li>
         <li>
-          <Av n="Ondra" tone="guest" />
-          <span>Ondra</span>
+          <Av n="Ondra" locale={locale} tone="guest" />
+          <span>{displayName('Ondra', locale)}</span>
           <span className="lp-fx-tag">{tm('marketing.fx.guests.guest')}</span>
         </li>
         <li>
-          <Av n="Babička" tone="guest" />
+          <Av n={tm('marketing.fx.guests.granny')} locale={locale} tone="guest" />
           <span>{tm('marketing.fx.guests.granny')}</span>
           <span className="lp-fx-tag">{tm('marketing.fx.guests.guest')}</span>
         </li>
       </ul>
       <div className="lp-fx-add">
         <span className="lp-fx-add-plus">+</span>
-        <span className="lp-fx-type">Tomáš</span>
+        <span className="lp-fx-type">{locale === 'en' ? 'Tommy' : 'Tomáš'}</span>
         <span className="lp-fx-caret" />
         <span className="lp-fx-add-hint">{tm('marketing.fx.guests.add')}</span>
       </div>

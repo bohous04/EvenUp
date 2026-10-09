@@ -75,6 +75,16 @@
   --lp-accent-ink: #4338ca;
   --lp-accent-wash: #eef0ff;
   --lp-on-ink: #ffffff;
+  /* Member avatars (components/landing/avatar.tsx): flat illustrated people
+     with fixed skin, hair and clothes in the SVG and an ink contour on every
+     shape. The disc is ONE fixed token in both themes, like a photo it does
+     not flip: light enough that the contour, black hair and the darkest skin
+     hold >= 3:1 on it. Initials for anyone outside the cast sit on
+     --lp-ava-bg; the ring follows the theme. */
+  --lp-ava-bg: #ecebe7;
+  --lp-ava-fg: #3f3f45;
+  --lp-ava-ring: rgb(17 17 19 / 0.08);
+  --lp-ava-disc: #dcd8d0;
 
   --lp-font: var(--font-landing), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
@@ -118,7 +128,67 @@
     --lp-accent-wash: #1b1b3a;
     --lp-on-ink: #0c0c0e;
     --lp-shadow-panel: 0 1px 0 rgb(255 255 255 / 0.04), 0 24px 48px -28px rgb(0 0 0 / 0.8);
+    --lp-ava-bg: #45454d;
+    --lp-ava-fg: #ffffff;
+    --lp-ava-ring: rgb(255 255 255 / 0.22);
   }
+}
+
+/* A member's avatar (components/landing/avatar.tsx): their silhouette on
+   the fixed disc, or their initial on the shared ground; 1px inner ring. */
+.lp-ava,
+.lp-ava-g {
+  --ava-bg: var(--lp-ava-bg);
+  --ava-fg: var(--lp-ava-fg);
+}
+/* Every cast member sits on the one fixed disc. */
+.lp-ava[data-p],
+.lp-ava-g[data-p] {
+  --ava-bg: var(--lp-ava-disc);
+}
+.lp-ava {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ava-bg);
+  color: var(--ava-fg);
+  font-family: var(--lp-font);
+  font-weight: 580;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: normal;
+  user-select: none;
+}
+.lp-ava::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--lp-ava-ring);
+  pointer-events: none;
+}
+.lp-ava-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The same disc drawn inside an SVG (the settle board's nodes). */
+.lp-ava-g circle {
+  fill: var(--ava-bg);
+  stroke: var(--lp-ava-ring);
+  stroke-width: 1;
+}
+.lp-ava-g clipPath circle {
+  stroke: none;
+}
+.lp-ava-g text {
+  fill: var(--ava-fg);
+  font-family: var(--lp-font);
+  font-weight: 580;
+  letter-spacing: -0.02em;
 }
 
 .lp ::selection {

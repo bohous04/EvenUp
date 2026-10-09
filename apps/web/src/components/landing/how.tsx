@@ -8,6 +8,8 @@ import {
 import { minimizeDebts } from '@evenup/core';
 import { currencyForLocale } from '@evenup/api/billing/prices';
 import type { ReactNode } from 'react';
+import { Avatar as Portrait } from './avatar';
+import { displayName } from './names';
 import './how.css';
 
 /**
@@ -48,7 +50,7 @@ export function How({ locale }: { locale: Locale }) {
           >
             <p className="lp-how-note">{tm('marketing.how.body')}</p>
           </Tally>
-          <SettleScreen tm={tm} money={money} />
+          <SettleScreen tm={tm} money={money} locale={locale} />
         </div>
       </div>
     </section>
@@ -99,23 +101,19 @@ const BALANCES = [
 const CHAIN = minimizeDebts(BALANCES);
 const PAYMENT = CHAIN[0]!;
 
-const face = (name: string) => `/marketing/how/${name.toLowerCase()}.webp`;
-
 function Avatar({ name, size }: { name: string; size: number }) {
-  return (
-    <img
-      className="lp-hx-ava"
-      src={face(name)}
-      alt=""
-      width={size}
-      height={size}
-      loading="lazy"
-      decoding="async"
-    />
-  );
+  return <Portrait className="lp-hx-ava" name={name} size={size} />;
 }
 
-function SettleScreen({ tm, money }: { tm: Tm; money: (minor: number) => string }) {
+function SettleScreen({
+  tm,
+  money,
+  locale,
+}: {
+  tm: Tm;
+  money: (minor: number) => string;
+  locale: Locale;
+}) {
   const max = HUNDRED;
   return (
     <figure className="lp-how-panel" data-testid="settle-demo">
@@ -145,7 +143,7 @@ function SettleScreen({ tm, money }: { tm: Tm; money: (minor: number) => string 
                     <span className="lp-hx-face">
                       <Avatar name={b.memberId} size={32} />
                       {zero ? (
-                        /* Square: the photo greys and the ring breaks to a
+                        /* Square: the avatar greys and the ring breaks to a
                            dashed one, the mark the group screen uses for a
                            member who owes nothing and is owed nothing. */
                         <svg className="lp-hx-ring" viewBox="0 0 40 40" aria-hidden="true">
@@ -160,7 +158,7 @@ function SettleScreen({ tm, money }: { tm: Tm; money: (minor: number) => string 
                         </svg>
                       ) : null}
                     </span>
-                    <span className="lp-hx-name">{b.memberId}</span>
+                    <span className="lp-hx-name">{displayName(b.memberId, locale)}</span>
                     {zero ? (
                       <span className="lp-hx-settled">{tm('marketing.how.app.settled')}</span>
                     ) : null}

@@ -116,45 +116,49 @@
 
 /* ------------------------------------------------------------------ hero */
 
-/* Three bands, top to bottom: the claim across the full measure; its
-   argument and the action on one row; then the product on a recessed stage
-   plate, the widest thing on the screen. At 1440x900 all three close inside
-   the first viewport. */
+/* Two columns on a laptop: the claim and the action on the left, the proof
+   on the right, both inside the first 900px. Phones stack them, the proof
+   under the button. No photo: the headline is the LCP element. */
 .lp-hero {
-  padding-top: clamp(28px, 4.5vw, 64px);
-  padding-bottom: clamp(24px, 4vw, 56px);
+  padding-top: clamp(32px, 6vw, 96px);
+  padding-bottom: clamp(56px, 7vw, 112px);
+}
+
+.lp-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(40px, 5vw, 72px);
+  align-items: center;
 }
 
 .lp-hero-title {
   margin: 0;
-  font-size: clamp(2.75rem, 1.4rem + 5.2vw, 5.25rem);
+  font-size: clamp(2.75rem, 1.6rem + 4vw, 4.5rem);
   font-weight: 560;
   letter-spacing: -0.048em;
   line-height: 0.98;
-  text-wrap: balance;
 }
 .lp-hero-title > span {
   display: block;
+  text-wrap: balance;
+}
+/* The second line is the mechanism, one step quieter than the job. */
+.lp-hero-title > span + span {
+  color: var(--lp-ink-3);
 }
 
-/* The payoff opens the paragraph in ink: the second step down from the
-   claim, not a rival to it. */
+.lp-hero .lp-hero-lede {
+  margin-top: clamp(20px, 2.4vw, 32px);
+  max-width: 31rem;
+}
 .lp-hero-payoff {
   color: var(--lp-ink);
   font-weight: 540;
 }
 
-.lp-hero-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
-  margin-top: clamp(16px, 2.2vw, 28px);
+.lp-hero-act {
+  margin-top: clamp(28px, 3vw, 40px);
 }
-.lp-hero-row .lp-lede {
-  max-width: 36rem;
-  margin: 0;
-}
-
 .lp-hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -163,7 +167,7 @@
 }
 
 .lp-hero-invited {
-  margin: 16px 0 0;
+  margin: 18px 0 0;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--lp-ink-3);
@@ -180,702 +184,315 @@
   text-decoration-color: currentColor;
 }
 
-/* The stage: the trip's own mountain at dusk, the screen set down on the
-   snow under the ridge — a place, not a grey box. The photo is absolutely
-   placed inside a plate whose size the card alone decides, so it can never
-   shift layout; the sky band above the card is the plate's top padding. */
-.lp-hero-plate {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  margin-top: clamp(32px, 4vw, 44px);
-  padding: clamp(72px, 8.4vw, 112px) clamp(12px, 4.4vw, 64px) clamp(12px, 3vw, 36px);
-  border-radius: 12px;
-  /* The snowfield's own tone, under the photo's lower edge. */
-  background: #7c8190;
-}
-/* Sized off the plate's width, not its height, so the ridge sits at the same
-   place above the card at every width: its crest 36px under the plate's top
-   edge (the crest is 21.4% of the frame's width down the photo). */
-.lp-hero-scene {
-  position: absolute;
-  top: 0;
-  left: -6%;
-  width: 112%;
-  aspect-ratio: 16 / 9;
-  margin-top: calc(36px - 21.4%);
-  z-index: -1;
-}
-.lp-hero-scene img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.lp-hero-plate .lp-hero-stage {
-  position: relative;
-}
-@media (prefers-color-scheme: dark) {
-  .lp-hero-plate {
-    background: #4d505a;
-  }
-  .lp-hero-scene img {
-    filter: brightness(0.62) saturate(0.9);
+@media (min-width: 1000px) {
+  .lp-hero-grid {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
   }
 }
 
-@media (min-width: 900px) {
-  .lp-hero-row {
-    grid-template-columns: minmax(0, 36rem) auto;
-    justify-content: space-between;
-    align-items: end;
-    gap: 48px;
-  }
-  .lp-hero-act {
-    padding-bottom: 2px;
-  }
-  .lp-hero-invited {
-    margin-top: 12px;
-  }
-}
+/* ---------------------------------------------------------------- tangle */
 
-/* Phone: tighter air, so the claim, the action and the one payment all sit
-   in the first screen. */
-@media (max-width: 560px) {
-  .lp-hero {
-    padding-top: 20px;
-  }
-  .lp-hero-title {
-    font-size: 2.75rem;
-    letter-spacing: -0.045em;
-  }
-  .lp-hero-row {
-    margin-top: 16px;
-    gap: 20px;
-  }
-  .lp-hero-row .lp-lede {
-    font-size: 1.0625rem;
-  }
-  .lp-hero-actions {
-    gap: 12px 20px;
-  }
-  .lp-hero-invited {
-    margin-top: 10px;
-  }
-  /* Phones: a band of ridge over the full-width screen, from its own crop. */
-  .lp-hero-plate {
-    margin-top: 24px;
-    padding: 84px 0 0;
-  }
-  .lp-hero-scene {
-    --lp-depth: 24px;
-    left: 0;
-    width: 100%;
-    aspect-ratio: 760 / 320;
-    margin-top: -24px;
-  }
-  .lp-hero-plate .lp-hs {
-    border-radius: 12px 12px 0 0;
-    border-inline: 0;
-    border-bottom: 0;
-  }
-}
-
-/* ------------------------------------------------------------ settle-up */
-
-/* The product visual: a group's settle-up screen, drawn as the app draws it.
-   Member colours are the app's own avatar palette; they only ever mark whose
-   share is whose, never meaning. The accent stays reserved for the one thing
-   the product produces: the payment. */
-.lp-hero-stage {
+/* The proof on a recessed plate: the group, its eight debts as hairlines,
+   the one payment in the accent — the only accent on the screen. */
+.lp-ht {
   margin: 0;
-}
-
-.lp-hs {
-  --pad: clamp(16px, 2vw, 24px);
-  --m-ondra: #ea580c;
-  --m-filip: #0d9488;
-  --m-eva: #e11d48;
-  --m-klara: #ca8a04;
-  background: var(--lp-raised);
   border: 1px solid var(--lp-line);
   border-radius: 12px;
-  box-shadow: var(--lp-shadow-panel);
-  overflow: hidden;
-}
-
-.lp-hs-face {
-  display: block;
-  flex: none;
-  border-radius: 999px;
-  object-fit: cover;
   background: var(--lp-sunken);
 }
 
-.lp-hs-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px var(--pad);
-  border-bottom: 1px solid var(--lp-line);
-}
-.lp-hs-group {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
-.lp-hs-dates {
-  margin-left: 10px;
-  font-size: 0.8125rem;
-  color: var(--lp-ink-3);
-}
-.lp-hs-stack {
-  display: flex;
-}
-.lp-hs-stack .lp-hs-face {
-  box-shadow: 0 0 0 2px var(--lp-raised);
-}
-.lp-hs-stack .lp-hs-face + .lp-hs-face {
-  margin-left: -6px;
-}
-
-.lp-hs-body {
-  padding: 16px var(--pad) 18px;
-}
-
-.lp-hs-label {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 560;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--lp-ink-3);
-}
-
-/* ------------------------------------------------------------- expenses */
-
-.lp-hs-list {
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.lp-hs-row {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding-block: 11px;
-  border-bottom: 1px solid var(--lp-line);
-}
-.lp-hs-what {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.lp-hs-name {
-  font-size: 0.9375rem;
-  font-weight: 520;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lp-hs-meta {
-  font-size: 0.8125rem;
-  color: var(--lp-ink-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lp-hs-sum {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
-}
-.lp-hs-amt {
-  font-size: 0.9375rem;
-  font-weight: 560;
-}
-
-/* Who the expense was split between, in their colours, one segment per
-   share. */
-.lp-hs-shares {
-  display: flex;
-  gap: 2px;
-  width: 76px;
-  height: 4px;
-}
-.lp-hs-shares > span {
-  flex: 1;
-  border-radius: 2px;
-  transform-origin: left center;
-}
-.lp-hs-shares > [data-who='ondra'] {
-  background: var(--m-ondra);
-}
-.lp-hs-shares > [data-who='filip'] {
-  background: var(--m-filip);
-}
-.lp-hs-shares > [data-who='eva'] {
-  background: var(--m-eva);
-}
-.lp-hs-shares > [data-who='klara'] {
-  background: var(--m-klara);
-}
-
-/* ------------------------------------------------------------ the result */
-
-.lp-hs-settle {
-  margin-top: 20px;
-}
-.lp-hs-rule {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.lp-hs-rule::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--lp-line);
-  transform-origin: left center;
-}
-
-.lp-hs-pay {
-  display: grid;
-  grid-template-columns: auto minmax(24px, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px 16px 12px 12px;
-  border-radius: 10px;
-  background: var(--lp-accent-wash);
-}
-.lp-hs-end {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9375rem;
-  font-weight: 540;
-}
-.lp-hs-payamt {
-  margin-left: 8px;
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--lp-accent-ink);
-}
-
-/* The payment's line. The arrowhead is its own element so it keeps its shape
-   while the line grows; in motion it rides the line's tip. */
-.lp-hs-wire {
-  container-type: inline-size;
-  position: relative;
-  height: 12px;
-}
-.lp-hs-wire-line {
-  position: absolute;
-  left: 0;
-  right: 8px;
-  top: 5px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--lp-accent);
-  transform-origin: left center;
-}
-.lp-hs-wire-head {
-  position: absolute;
-  right: 0;
-  top: 0.5px;
-  width: 0;
-  height: 0;
-  border-left: 10px solid var(--lp-accent);
-  border-block: 5.5px solid transparent;
-}
-
-.lp-hs-nothing {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 0 0;
-  padding-inline: 12px 16px;
-  font-size: 0.875rem;
-  color: var(--lp-ink-2);
-}
-.lp-hs-pair {
-  display: flex;
-}
-.lp-hs-pair .lp-hs-face {
-  box-shadow: 0 0 0 2px var(--lp-raised);
-}
-.lp-hs-pair .lp-hs-face + .lp-hs-face {
-  margin-left: -6px;
-}
-.lp-hs-zero {
-  margin-left: auto;
-  font-weight: 560;
-  color: var(--lp-ink-2);
-}
-
-/* The proof: the same four expenses settled one by one, against what
-   EvenUp asks for — before | after, side by side. One mark per payment, so
-   eight against one reads at a glance; the figures say the same in words.
-   It stays on screen at rest, so the claim is in the still frame, not only
-   in the motion. */
-.lp-hs-foot {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  column-gap: 16px;
-  padding: 16px var(--pad) 18px;
-  border-top: 1px solid var(--lp-line);
-  background: var(--lp-sunken);
-}
-.lp-hs-tally {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-}
-.lp-hs-tally-k {
-  font-size: 0.8125rem;
-  color: var(--lp-ink-3);
-  white-space: nowrap;
-}
-.lp-hs-netted .lp-hs-tally-k {
-  color: var(--lp-ink);
-  font-weight: 540;
-}
-
-/* One mark per payment the group would have to make. */
-.lp-hs-pips {
-  display: flex;
-  gap: 4px;
-  height: 16px;
-}
-.lp-hs-pips > span {
-  width: 7px;
-  border-radius: 2px;
-  background: var(--lp-ink-3);
-  transform-origin: center bottom;
-}
-.lp-hs-netted .lp-hs-pips > span {
-  background: var(--lp-accent);
-}
-
-.lp-hs-figs {
+.lp-ht-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 12px;
-  row-gap: 2px;
-  white-space: nowrap;
+  gap: 4px 12px;
+  padding: 16px 20px 0;
 }
-.lp-hs-naive .lp-hs-figs {
+.lp-ht-group {
   font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.lp-ht-meta {
+  font-size: 0.8125rem;
+  color: var(--lp-ink-3);
+}
+.lp-ht-count {
+  margin-left: auto;
+}
+
+.lp-ht-board {
+  position: relative;
+  margin: 4px 8px 0;
+}
+.lp-ht-board svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lp-ht-debt {
+  fill: none;
+  stroke: var(--lp-line-2);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+}
+.lp-ht-pay,
+.lp-ht-tip {
+  fill: none;
+  stroke: var(--lp-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lp-ht-pay {
+  stroke-dasharray: 1;
+}
+.lp-ht-tip {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+}
+.lp-ht-node {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Names hang under each disc; positions come from the board's own
+   coordinates, so they track it at every width. */
+.lp-ht-name {
+  position: absolute;
+  translate: -50% 0;
+  font-size: 0.875rem;
+  font-weight: 540;
+  white-space: nowrap;
+  color: var(--lp-ink);
+}
+.lp-ht-square {
+  display: inline-block;
+  font-weight: 450;
+  color: var(--lp-ink-3);
+  white-space: pre;
+}
+
+/* The one payment's amount, hung under the line's midpoint. */
+.lp-ht-amount {
+  position: absolute;
+  left: 50%;
+  top: calc(200 / 420 * 100%);
+  translate: -50% 8px;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--lp-accent-ink);
+}
+.lp-ht-amount > span {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--lp-sunken);
+}
+
+.lp-ht-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin-top: 8px;
+  padding: 14px 20px 16px;
+  border-top: 1px solid var(--lp-line);
+  font-size: 0.9375rem;
+}
+.lp-ht-tally {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lp-ht-k {
+  font-size: 0.8125rem;
+  color: var(--lp-ink-3);
+}
+.lp-ht-to {
+  margin-right: 8px;
+  font-weight: 400;
+  color: var(--lp-ink-3);
+}
+.lp-ht-netted {
+  font-weight: 600;
+  color: var(--lp-accent-ink);
+}
+.lp-ht-netted .lp-ht-k {
+  color: var(--lp-ink);
+  font-weight: 540;
+}
+/* The strike: a drawn rule over exactly its own text, so it can be drawn. */
+.lp-ht-struck {
+  position: relative;
   color: var(--lp-ink-2);
 }
-/* The strike: a drawn rule over exactly its own text, not text-decoration,
-   so it can be drawn on. */
-.lp-hs-struck {
-  position: relative;
-}
-.lp-hs-struck::after {
+.lp-ht-struck::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  left: -2px;
+  right: -2px;
   top: 55%;
   height: 1.5px;
   background: var(--lp-ink-2);
   transform-origin: left center;
 }
-.lp-hs-netted .lp-hs-figs {
-  font-size: 1.0625rem;
-  font-weight: 560;
-  color: var(--lp-ink);
-}
-.lp-hs-netted .lp-hs-figsum {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--lp-accent-ink);
-}
 
-/* Between the two: a hairline with a chevron — "becomes". */
-.lp-hs-to {
-  position: relative;
-  width: 1px;
-  background: var(--lp-line-2);
-}
-.lp-hs-to::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: -3.5px;
-  width: 7px;
-  height: 7px;
-  margin-top: -4px;
-  border-top: 1px solid var(--lp-ink-3);
-  border-right: 1px solid var(--lp-ink-3);
-  background: var(--lp-sunken);
-  transform: rotate(45deg);
-}
-
-/* Wide screens: the screen laid out the way the app lays it out on a
-   laptop — the expenses down the left, what they come to on the right, the
-   tallies under the result. Pure re-flow of the same DOM. */
-@media (min-width: 900px) {
-  .lp-hs {
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
-  }
-  .lp-hs-head {
-    grid-column: 1 / -1;
-  }
-  .lp-hs-body {
-    display: contents;
-  }
-  .lp-hs-exp {
-    grid-column: 1;
-    grid-row: 2 / 4;
-    padding: 18px var(--pad) 8px;
-  }
-  .lp-hs-row:last-child {
-    border-bottom: 0;
-  }
-  .lp-hs-settle {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: center;
-    margin: 0;
-    padding: 18px var(--pad) 22px;
-    border-left: 1px solid var(--lp-line);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  .lp-hs-pay {
-    margin-top: auto;
-    padding: 16px 20px 16px 16px;
-  }
-  .lp-hs-payamt {
-    font-size: 1.375rem;
-  }
-  .lp-hs-nothing {
-    margin: 14px 0 auto;
-  }
-  .lp-hs-foot {
-    grid-column: 2;
-    grid-row: 3;
-    border-left: 1px solid var(--lp-line);
-  }
-}
-
-/* Phone: the screen cropped to what carries the claim — two expenses, the
-   one payment, the tallies — so it sits in the first screen under the CTA. */
 @media (max-width: 560px) {
-  .lp-hs-head {
-    padding-block: 10px;
+  .lp-hero {
+    padding-top: 24px;
   }
-  .lp-hs-body {
-    padding-block: 2px 12px;
+  .lp-hero-grid {
+    gap: 32px;
   }
-  .lp-hs-list {
-    margin-top: 0;
+  .lp-hero-title {
+    font-size: 2.625rem;
+    letter-spacing: -0.045em;
   }
-  .lp-hs-row:nth-child(n + 3),
-  .lp-hs-exp > .lp-hs-label {
+  .lp-hero-lede {
+    margin-top: 16px;
+    font-size: 1.0625rem;
+  }
+  .lp-hero-act {
+    margin-top: 24px;
+  }
+  .lp-hero-actions {
+    gap: 12px 20px;
+  }
+  .lp-hero-invited {
+    margin-top: 12px;
+  }
+  .lp-ht-head {
+    padding: 12px 14px 0;
+  }
+  /* The count matters more than the dates on a phone. */
+  .lp-ht-meta:not(.lp-ht-count) {
     display: none;
   }
-  .lp-hs-row {
-    padding-block: 8px;
+  .lp-ht-board {
+    margin-inline: 0;
   }
-  .lp-hs-row:nth-child(2) {
-    border-bottom: 0;
+  .lp-ht-name {
+    font-size: 0.8125rem;
   }
-  .lp-hs-settle {
-    margin-top: 8px;
+  .lp-ht-amount {
+    font-size: 1.125rem;
+    translate: -50% 4px;
   }
-  .lp-hs-pay {
-    margin-top: 8px;
-    padding-block: 10px;
-  }
-  .lp-hs-end > span {
-    display: none;
-  }
-  .lp-hs-nothing {
-    margin-top: 10px;
-  }
-  .lp-hs-foot {
-    padding-block: 10px 12px;
-    column-gap: 12px;
-  }
-  .lp-hs-tally {
-    gap: 6px;
-  }
-  .lp-hs-figs {
-    flex-direction: column;
+  .lp-ht-foot {
+    padding: 12px 14px 14px;
+    font-size: 0.875rem;
   }
 }
 
 /* ---------------------------------------------------------------- motion */
 
-/* Plays once on load, about three seconds, in the order the app works:
-     0–0.9s    the card rises; the four expenses wipe in, one after another
-     0.5–1.5s  each expense's shares fill in, payer's colours left to right
-     1.15s     the result rule draws; Ondra and Eva take their places
-     0.5–1.4s  the eight per-expense payment marks rise, one by one
-     1.4–2.4s  the payment line draws Ondra → Eva, arrowhead on its tip;
-               the per-expense figures (8 payments) are struck through
-     2.05s     the netted side (1 payment) wipes in; its one mark rises
-     2.25–3.1s the amount, then "Filip and Klára pay nothing", wipe up
-   Only transform and clip-path move; nothing is faded, so every frame is at
-   full contrast, and no text ever travels across other text. The resting
-   styles above are the last frame; with reduced motion none of this applies. */
+/* Plays once, about three seconds, in the order the trip happened:
+     0–0.6s    the copy lifts (.lp-enter, landing.css)
+     0.2–0.7s  the four friends take their places
+     0.5–1.4s  the eight debts draw in, one by one, in ink
+     1.6–2.4s  they fall back to hairlines; the one payment draws
+               Ondra → Eva; "8 payments" is struck
+     2.4–3.1s  "1 payment", the amount, then "square" for Filip and Klára
+   Only transform, clip-path, stroke and dash offsets move: no text is ever
+   faded, and the resting styles above are the last frame. */
 @media (prefers-reduced-motion: no-preference) {
-  /* The ridge settles as the page opens (scale only, so the first paint is
-     the photo at full size — LCP never waits on it). */
-  .lp-hero-scene img {
-    animation: lp-hs-scene 2400ms var(--lp-ease) backwards;
+  .lp-ht {
+    animation: lp-ht-rise 900ms var(--lp-ease) 120ms backwards;
   }
-  .lp-hero-stage {
-    animation: lp-hs-rise 900ms var(--lp-ease) backwards;
-  }
-  .lp-hs-in {
-    animation: lp-hs-in 650ms var(--lp-ease) backwards;
+  .lp-ht-node {
+    animation: lp-ht-pop 560ms var(--lp-ease) backwards;
     animation-delay: var(--d, 0ms);
   }
-  .lp-hs-shares > span {
-    animation: lp-grow-x 600ms var(--lp-ease) backwards;
+  .lp-ht-debt {
+    animation: lp-ht-debt var(--dur, 1800ms) linear backwards;
     animation-delay: var(--d, 0ms);
   }
-  .lp-hs-rule {
-    animation: lp-hs-in 650ms var(--lp-ease) backwards;
+  .lp-ht-pay {
+    animation: lp-ht-draw 800ms var(--lp-ease-travel) 1750ms backwards;
+  }
+  .lp-ht-tip {
+    animation: lp-ht-pop 360ms var(--lp-ease) 2450ms backwards;
+  }
+  .lp-ht-in {
+    animation: lp-ht-in 650ms var(--lp-ease) backwards;
     animation-delay: var(--d, 0ms);
   }
-  .lp-hs-rule::after {
-    animation: lp-grow-x 900ms var(--lp-ease) backwards;
-    animation-delay: 1250ms;
-  }
-  .lp-hs-pay {
-    animation: lp-hs-in 650ms var(--lp-ease) backwards;
-    animation-delay: 1200ms;
-  }
-  /* Same duration, delay and curve for line and head, so the head is always
-     at the line's tip. */
-  .lp-hs-wire-line,
-  .lp-hs-wire-head {
-    animation-duration: 1000ms;
-    animation-delay: 1400ms;
-    animation-timing-function: var(--lp-ease-travel);
-    animation-fill-mode: backwards;
-  }
-  .lp-hs-wire-line {
-    animation-name: lp-grow-x;
-  }
-  .lp-hs-wire-head {
-    animation-name: lp-hs-head;
-  }
-  /* The per-expense tally is struck as the payment lands. */
-  .lp-hs-naive .lp-hs-pips > span {
-    animation: lp-hs-pip 420ms var(--lp-ease) backwards;
-    animation-delay: var(--d, 0ms);
-  }
-  .lp-hs-struck::after {
-    animation: lp-grow-x 600ms var(--lp-ease) backwards;
-    animation-delay: 1750ms;
-  }
-  .lp-hs-struck + .lp-hs-struck::after {
-    animation-delay: 1850ms;
-  }
-  .lp-hs-netted .lp-hs-pips > span {
-    animation: lp-hs-pip 520ms var(--lp-ease) backwards;
-    animation-delay: 2250ms;
+  .lp-ht-struck::after {
+    animation: lp-ht-strike 520ms var(--lp-ease) 2050ms backwards;
   }
 }
 
-/* Depth on the way out: as the stage scrolls off, the ridge drifts down
-   slower than the screen over it (translate only, into the frame's spare
-   top bleed). Before the range starts it is at its base position, and
-   browsers without scroll timelines simply keep the photo still. */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .lp-hero-scene {
-      animation: lp-hs-depth linear both;
-      animation-timeline: view();
-      animation-range: exit 0% exit 100%;
-    }
-  }
-}
-
-@keyframes lp-hs-depth {
+@keyframes lp-ht-rise {
   from {
-    translate: 0 0;
-  }
-  to {
-    translate: 0 var(--lp-depth, 48px);
-  }
-}
-
-@keyframes lp-hs-scene {
-  from {
-    scale: 1.06;
-  }
-  to {
-    scale: 1;
-  }
-}
-
-@keyframes lp-hs-pip {
-  from {
-    transform: scaleY(0);
+    transform: translateY(20px);
   }
   to {
     transform: none;
   }
 }
 
-@keyframes lp-hs-rise {
+@keyframes lp-ht-pop {
   from {
-    transform: translateY(24px);
+    transform: scale(0);
   }
   to {
     transform: none;
   }
 }
 
-/* Wipe up out of its own clip; ends a little outside the box so descenders
-   and the avatar ring never pop on the last frame. */
-@keyframes lp-hs-in {
+/* Draw in ink, hold, then fall back to the resting hairline together,
+   whatever each line's own start. */
+@keyframes lp-ht-debt {
+  0% {
+    stroke-dashoffset: 1;
+    stroke: var(--lp-ink-2);
+    animation-timing-function: var(--lp-ease);
+  }
+  30% {
+    stroke-dashoffset: 0;
+    stroke: var(--lp-ink-2);
+  }
+  62% {
+    stroke: var(--lp-ink-2);
+  }
+  100% {
+    stroke-dashoffset: 0;
+    stroke: var(--lp-line-2);
+  }
+}
+
+@keyframes lp-ht-draw {
   from {
-    transform: translateY(10px);
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes lp-ht-strike {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Wipe up out of its own clip; ends a little outside the box so nothing
+   pops on the last frame. */
+@keyframes lp-ht-in {
+  from {
+    transform: translateY(8px);
     clip-path: inset(0 0 100% 0);
   }
   to {
     transform: none;
-    clip-path: inset(-6px -6px -6px -6px);
-  }
-}
-
-/* The head travels with the line's tip (the line is the wire's width less
-   the head, so the tip sits 8px short of the head's base all the way). It
-   starts at zero size so it never waits on the stage as a stray mark. */
-@keyframes lp-hs-head {
-  0% {
-    translate: calc(10px - 100cqw) 0;
-    scale: 0;
-  }
-  10% {
-    scale: 1;
-  }
-  100% {
-    translate: 0 0;
-    scale: 1;
+    clip-path: inset(-6px);
   }
 }

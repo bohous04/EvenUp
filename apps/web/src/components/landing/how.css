@@ -162,17 +162,17 @@
   height: 32px;
 }
 .lp-hx-ava {
-  display: block;
-  border-radius: 50%;
-  background: var(--lp-sunken);
-  object-fit: cover;
+  display: grid;
 }
 .lp-hx-name {
   font-weight: 540;
 }
+/* Square: the portrait fades toward grey but keeps a trace of Petr's colours
+   (no opacity, so it keeps its contrast), so he still reads as a person,
+   not a disabled row; the dashed zero ring and the "Settled" tag carry the
+   state. */
 .lp-hx-bal-zero .lp-hx-ava {
-  filter: grayscale(1);
-  opacity: 0.6;
+  filter: saturate(0.6);
 }
 .lp-hx-bal-zero .lp-hx-name {
   color: var(--lp-ink-2);
@@ -618,8 +618,7 @@
   }
   @keyframes lp-how-grey {
     from {
-      filter: grayscale(0);
-      opacity: 1;
+      filter: saturate(1);
     }
   }
   @keyframes lp-how-in {
