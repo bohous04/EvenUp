@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EvenUp">
-  <rect width="512" height="512" rx="112" fill="#111113" />
-  <circle cx="132" cy="256" r="60" fill="#f3f3f4" />
-  <circle cx="380" cy="256" r="60" fill="#f3f3f4" />
-  <path d="M206 256h96m-34-38 38 38-38 38" fill="none" stroke="#8b8cf8" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
-</svg>
+<svg role="img" aria-label="EvenUp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><mask id="m7"><path fill="#fff" d="M168 80H432V432H168A88 88 0 0 1 80 344V168A88 88 0 0 1 168 80Z"/><rect x="216" y="176" width="384" height="48" rx="0" fill="#000"/><rect x="216" y="288" width="384" height="48" rx="0" fill="#000"/></mask></defs><g transform="skewX(-10) translate(46 0)"><rect width="512" height="512" fill="#4f46e5" mask="url(#m7)"/></g></svg>
