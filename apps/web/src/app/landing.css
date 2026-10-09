@@ -75,16 +75,14 @@
   --lp-accent-ink: #4338ca;
   --lp-accent-wash: #eef0ff;
   --lp-on-ink: #ffffff;
-  /* Member avatars (components/landing/avatar.tsx): flat illustrated people
-     with fixed skin, hair and clothes in the SVG and an ink contour on every
-     shape. The disc is ONE fixed token in both themes, like a photo it does
-     not flip: light enough that the contour, black hair and the darkest skin
-     hold >= 3:1 on it. Initials for anyone outside the cast sit on
+  /* Member avatars (components/landing/avatar.tsx): botpfp figures on their
+     cream backdrop. The disc is ONE fixed token in both themes, the same
+     cream, so it does not flip with the theme. Initials for anyone outside the cast sit on
      --lp-ava-bg; the ring follows the theme. */
   --lp-ava-bg: #ecebe7;
   --lp-ava-fg: #3f3f45;
   --lp-ava-ring: rgb(17 17 19 / 0.08);
-  --lp-ava-disc: #dcd8d0;
+  --lp-ava-disc: #f4ede2;
 
   --lp-font: var(--font-landing), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
@@ -170,8 +168,9 @@
   box-shadow: inset 0 0 0 1px var(--lp-ava-ring);
   pointer-events: none;
 }
-.lp-ava-svg {
+.lp-ava-img {
   display: block;
+  object-fit: cover;
   width: 100%;
   height: 100%;
 }
@@ -183,6 +182,9 @@
 }
 .lp-ava-g clipPath circle {
   stroke: none;
+}
+.lp-ava-g .lp-ava-edge {
+  fill: none;
 }
 .lp-ava-g text {
   fill: var(--ava-fg);
