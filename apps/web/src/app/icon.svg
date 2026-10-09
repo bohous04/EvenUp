@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EvenUp">
-  <rect width="512" height="512" rx="96" fill="#4f46e5" />
-  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M256 110v300" />
-    <path d="M150 150h212" />
-    <path d="M150 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
-    <path d="M362 150l-58 116a58 58 0 0 0 116 0z" fill="#ffffff" fill-opacity="0.15" />
-    <path d="M196 410h120" />
-  </g>
+  <rect width="512" height="512" rx="112" fill="#111113" />
+  <circle cx="132" cy="256" r="60" fill="#f3f3f4" />
+  <circle cx="380" cy="256" r="60" fill="#f3f3f4" />
+  <path d="M206 256h96m-34-38 38 38-38 38" fill="none" stroke="#8b8cf8" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

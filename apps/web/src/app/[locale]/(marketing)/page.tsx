@@ -85,13 +85,13 @@ export async function generateMetadata({
       description,
       locale: locale === 'cs' ? 'cs_CZ' : 'en_US',
       alternateLocale: locale === 'cs' ? 'en_US' : 'cs_CZ',
-      images: [{ url: '/opengraph-image.png', ...imageProps }],
+      images: [{ url: '/opengraph-image.png?v=2', ...imageProps }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [{ url: '/twitter-image.png', ...imageProps }],
+      images: [{ url: '/twitter-image.png?v=2', ...imageProps }],
     },
   };
 }

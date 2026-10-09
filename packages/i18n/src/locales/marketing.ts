@@ -44,7 +44,7 @@ const marketingOnlyCs = {
   // `opengraph-image.alt.txt` is English-only, so the Czech landing page needs
   // its own description rather than inheriting that one.
   'marketing.meta.ogImageAlt':
-    'dlužníček – open source dělení útraty ve skupině, spočítá nejmenší počet plateb, kterými se všichni vyrovnají.',
+    'EvenUp: rozdělte výlet, dva dluhy se zruší. Osm dluhů čtyř kamarádů se započte na jedinou platbu.',
 
   'marketing.nav.features': 'Funkce',
   'marketing.nav.pricing': 'Ceník',
@@ -295,7 +295,7 @@ const marketingOnlyEn: Record<keyof typeof marketingOnlyCs, string> = {
   'marketing.meta.description':
     'Log who paid for what and EvenUp works out the smallest number of payments that clears the whole group. Receipts from a photo, Czech QR payments, several currencies, members without accounts.',
   'marketing.meta.ogImageAlt':
-    "EvenUp — open-source group expense splitter that settles everyone's debts in the fewest payments.",
+    "EvenUp: split the trip, two debts cancel out. Four friends' eight debts net down to one payment.",
 
   'marketing.nav.features': 'Features',
   'marketing.nav.pricing': 'Pricing',
