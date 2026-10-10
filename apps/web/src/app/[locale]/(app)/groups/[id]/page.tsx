@@ -5,11 +5,13 @@ export default async function GroupPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ already?: string }>;
+  searchParams: Promise<{ already?: string; add?: string }>;
 }) {
   const { id } = await params;
-  const { already } = await searchParams;
+  const { already, add } = await searchParams;
   // Read here rather than with `useSearchParams()` in the client component,
   // which would need a Suspense boundary around the whole group detail.
-  return <GroupDetail groupId={id} alreadyMemberNotice={already === '1'} />;
+  return (
+    <GroupDetail groupId={id} alreadyMemberNotice={already === '1'} openAddExpense={add === '1'} />
+  );
 }

@@ -5,6 +5,8 @@ import { useI18n } from '@/lib/i18n';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { Button, Card, Input, Label } from '@/components/ui';
+import { AuthError, AuthScreen } from '@/components/auth-screen';
+import { Landmark } from '@/components/icons';
 
 /**
  * First run after sign-up.
@@ -71,12 +73,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg py-6">
-      <h1 className="text-2xl font-extrabold tracking-tight">{t('onboarding.title')}</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-300">{t('onboarding.subtitle')}</p>
-
-      <Card className="mt-6">
-        <form onSubmit={submit} className="space-y-3">
+    <AuthScreen
+      icon={<Landmark size={20} strokeWidth={1.75} />}
+      title={t('onboarding.title')}
+      lede={t('onboarding.subtitle')}
+    >
+      <form onSubmit={submit} className="app-auth-form">
+        <div>
           <Label htmlFor="onboarding-account">{t('profile.bankAccount')}</Label>
           <Input
             id="onboarding-account"
@@ -85,48 +88,44 @@ export default function OnboardingPage() {
             placeholder="19-2000145399/0800"
             inputMode="numeric"
             autoComplete="off"
+            aria-describedby="onboarding-account-hint"
+            className="tabular-nums"
             data-testid="onboarding-account-input"
           />
           {/* The "why", in the same words Settings uses — a promise the app
               keeps in two places should be made identically in two places. */}
           <p
-            className="text-sm text-zinc-500 dark:text-zinc-400"
+            id="onboarding-account-hint"
+            className="app-auth-hint"
             data-testid="onboarding-account-hint"
           >
             {t('profile.bankAccountHint')}
           </p>
+        </div>
 
-          {error ? (
-            <p
-              role="alert"
-              className="text-sm text-red-700 dark:text-red-400"
-              data-testid="onboarding-error"
-            >
-              {error}
-            </p>
-          ) : null}
+        {error ? <AuthError testId="onboarding-error">{error}</AuthError> : null}
 
-          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-            <Button
-              type="submit"
-              disabled={busy}
-              className="sm:flex-1"
-              data-testid="onboarding-continue"
-            >
-              {t('onboarding.continue')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={skip}
-              data-testid="onboarding-skip"
-            >
-              {t('onboarding.skip')}
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+        <div className="app-auth-actions">
+          <Button
+            type="submit"
+            disabled={busy}
+            className="w-full"
+            data-testid="onboarding-continue"
+          >
+            {t('onboarding.continue')}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={skip}
+            className="w-full"
+            data-testid="onboarding-skip"
+          >
+            {t('onboarding.skip')}
+          </Button>
+        </div>
+      </form>
+    </AuthScreen>
   );
 }

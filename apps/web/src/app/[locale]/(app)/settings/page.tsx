@@ -1,12 +1,23 @@
 'use client';
-import { useRef, useState } from 'react';
-import { deriveInitials } from '@evenup/core';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
+import { useLocaleSwitch } from '@/components/locale-toggle';
 import { useSession, signOut } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
-import { Button, Card, Input, Label, SectionLabel } from '@/components/ui';
-import { Check } from '@/components/icons';
+import { Card, Input, Label, Panel, Section } from '@/components/ui';
+import {
+  BellRing,
+  Camera,
+  Check,
+  Download,
+  Landmark,
+  Languages,
+  LogOut,
+  ScanText,
+  Trash2,
+} from '@/components/icons';
 import { SecurityCard } from '@/components/security/security-card';
+import { SetField, SetNavRow, SetSwitch } from '@/components/settings-rows';
 import { AppLink, useAppPath } from '@/components/app-link';
 
 /**
@@ -41,6 +52,14 @@ function fileToAvatarDataUrl(file: File, size = 256, quality = 0.8): Promise<str
   });
 }
 
+/** "Jirka" → "J", "Jan Novák" → "JN": the same letters the member avatars use. */
+function monogram(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  const last = words.length > 1 ? words[words.length - 1]!.slice(0, 1) : '';
+  return (words[0]!.slice(0, 1) + last).toLocaleUpperCase();
+}
+
 // Keep the encoded avatar under the server's data-URL cap (300k) with margin.
 const MAX_AVATAR_CHARS = 290_000;
 
@@ -61,6 +80,16 @@ export default function SettingsPage() {
   const [notificationsSaved, setNotificationsSaved] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarError, setAvatarError] = useState(false);
+  const lang = useLocaleSwitch();
+  // The nickname field shows the current name (editable in place) rather than
+  // an empty box with the name as a grey placeholder; it follows the server
+  // value until the user starts typing.
+  const [nameDirty, setNameDirty] = useState(false);
+  const currentName = me.data?.name ?? '';
+  useEffect(() => {
+    if (!nameDirty) setName(currentName);
+  }, [currentName, nameDirty]);
+  const nameChanged = name.trim() !== '' && name.trim() !== currentName;
 
   const notificationSettings = trpc.notification.getSettings.useQuery(undefined, {
     enabled: !!session?.user,
@@ -159,269 +188,317 @@ export default function SettingsPage() {
     );
   }
 
+  const displayName = me.data?.name ?? session.user.name ?? '';
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-extrabold tracking-tight">{t('nav.settings')}</h1>
-        {me.data?.isVip ? (
-          <span
-            className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
-            data-testid="vip-badge"
-          >
-            {t('vip.badge')}
-          </span>
-        ) : null}
-      </div>
-      <Card>
-        <SectionLabel>{t('profile.title')}</SectionLabel>
+    <div className="app-set">
+      <h1 className="text-[1.75rem] font-[600] leading-tight tracking-[-0.035em] lg:text-[2.25rem]">
+        {t('nav.settings')}
+      </h1>
 
-        <div className="mb-5 flex items-center gap-4">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-            {me.data?.image ? (
-              <img
-                src={me.data.image}
-                alt=""
-                className="h-full w-full object-cover"
-                data-testid="avatar-preview"
-              />
-            ) : (
-              <span
-                className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-600 dark:text-zinc-300"
-                data-testid="avatar-monogram"
-              >
-                {me.data?.name ? deriveInitials(me.data.name) : ''}
-              </span>
-            )}
-          </div>
-          <div className="min-w-0">
-            <Label htmlFor="avatar-upload">{t('profile.photo')}</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                data-testid="avatar-input"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void handleAvatarFile(f);
-                  e.target.value = '';
-                }}
-              />
-              <Button
-                id="avatar-upload"
-                variant="secondary"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={setAvatar.isPending}
-                data-testid="avatar-upload"
-              >
-                {setAvatar.isPending ? t('common.loading') : t('profile.uploadPhoto')}
-              </Button>
+      <div className="app-stack app-set-stack">
+        {/* Who you are: the screen's one raised card. The face, the name and
+            the address on top, then the two things that shape how others see
+            you in every group — the nickname and photo-or-colour. */}
+        <section className="app-section app-section-lead app-set-me" aria-labelledby="set-me-title">
+          <h2 id="set-me-title" className="sr-only">
+            {t('profile.title')}
+          </h2>
+          <div className="app-set-id">
+            <div className="app-set-ava">
               {me.data?.image ? (
-                <Button
-                  variant="danger"
-                  onClick={() => clearAvatar.mutate()}
-                  disabled={clearAvatar.isPending}
-                  data-testid="avatar-remove"
-                >
-                  {t('profile.removePhoto')}
-                </Button>
-              ) : null}
+                <img src={me.data.image} alt="" data-testid="avatar-preview" />
+              ) : (
+                <span data-testid="avatar-monogram">{monogram(displayName)}</span>
+              )}
             </div>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              {t('profile.photoHint')}
-            </p>
-            {avatarError ? (
-              <p
-                role="alert"
-                className="mt-1 text-sm text-red-700 dark:text-red-400"
-                data-testid="avatar-error"
-              >
-                {t('profile.photoTooLarge')}
+            <div className="app-set-who">
+              <p className="app-set-name">
+                <span className="truncate">{displayName}</span>
+                {me.data?.isVip ? (
+                  <span className="app-set-tag" data-testid="vip-badge">
+                    {t('vip.badge')}
+                  </span>
+                ) : null}
               </p>
-            ) : null}
-          </div>
-        </div>
-
-        <label className="mb-5 flex items-start gap-3">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 dark:border-zinc-600"
-            checked={me.data?.hideProfilePhoto ?? false}
-            disabled={me.isLoading || updateSettings.isPending}
-            onChange={(e) => updateSettings.mutate({ hideProfilePhoto: e.target.checked })}
-            data-testid="hide-photo-toggle"
-          />
-          <span>
-            <span className="font-medium">{t('profile.hidePhoto')}</span>
-            <span className="mt-1 block text-sm text-zinc-500 dark:text-zinc-400">
-              {t('profile.hidePhotoHint')}
-            </span>
-          </span>
-        </label>
-
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const trimmed = name.trim();
-            if (trimmed) updateProfile.mutate({ name: trimmed });
-          }}
-        >
-          <Label htmlFor="p-name">{t('profile.nickname')}</Label>
-          <div className="flex gap-2">
-            <Input
-              id="p-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={me.data?.name ?? ''}
-              data-testid="profile-name-input"
-            />
-            <Button
-              type="submit"
-              disabled={updateProfile.isPending}
-              data-testid="profile-name-save"
-            >
-              {updateProfile.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('profile.nicknameHint')}</p>
-          {nameSaved ? (
-            <p
-              className="flex items-center gap-1 text-sm text-green-700 dark:text-green-400"
-              data-testid="profile-name-saved"
-            >
-              <Check size={16} aria-hidden /> {t('common.saved')}
-            </p>
-          ) : null}
-        </form>
-
-        <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-          <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
-          {me.data?.hasBankAccount ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold tabular-nums" data-testid="bank-account-value">
-                {bankAccount.data?.account ?? '…'}
-              </span>
-              <Button
-                variant="danger"
-                onClick={() => clearBankAccount.mutate()}
-                disabled={clearBankAccount.isPending}
-                data-testid="bank-account-clear"
-              >
-                {t('common.delete')}
-              </Button>
-            </div>
-          ) : (
-            <form
-              className="space-y-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (account.trim()) setBankAccount.mutate({ account: account.trim() });
-              }}
-            >
-              <div className="flex gap-2">
-                <Input
-                  id="p-account"
-                  value={account}
-                  onChange={(e) => setAccount(e.target.value)}
-                  placeholder="19-2000145399/0800"
-                  inputMode="numeric"
-                  data-testid="bank-account-input"
+              <p className="app-set-email">{session.user.email}</p>
+              <div className="app-set-photo">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  data-testid="avatar-input"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handleAvatarFile(f);
+                    e.target.value = '';
+                  }}
                 />
-                <Button
-                  type="submit"
-                  disabled={setBankAccount.isPending}
-                  data-testid="bank-account-save"
+                <button
+                  type="button"
+                  id="avatar-upload"
+                  className="app-set-link app-set-link-framed"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={setAvatar.isPending}
+                  data-testid="avatar-upload"
                 >
-                  {setBankAccount.isPending ? t('common.loading') : t('common.save')}
-                </Button>
+                  <Camera size={16} strokeWidth={1.75} aria-hidden />
+                  {setAvatar.isPending
+                    ? t('common.loading')
+                    : me.data?.image
+                      ? t('profile.changePhoto')
+                      : t('profile.uploadPhoto')}
+                </button>
+                {me.data?.image ? (
+                  <button
+                    type="button"
+                    className="app-set-link app-set-link-quiet"
+                    onClick={() => clearAvatar.mutate()}
+                    disabled={clearAvatar.isPending}
+                    data-testid="avatar-remove"
+                  >
+                    {t('profile.removePhoto')}
+                  </button>
+                ) : null}
               </div>
-              {accountError ? (
-                <p
-                  role="alert"
-                  className="text-sm text-red-700 dark:text-red-400"
-                  data-testid="bank-account-error"
-                >
-                  {t('profile.bankAccountInvalid')}
-                </p>
-              ) : null}
-            </form>
-          )}
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            {t('profile.bankAccountHint')}
-          </p>
-        </div>
-      </Card>
-      <SecurityCard />
-      <Card>
-        <SectionLabel className="mb-1">{t('settings.notifications.title')}</SectionLabel>
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 dark:border-zinc-600"
-            checked={notificationSettings.data?.notificationsEnabled ?? true}
-            disabled={notificationSettings.isPending || setNotificationsEnabled.isPending}
-            onChange={(e) => setNotificationsEnabled.mutate({ enabled: e.target.checked })}
-            data-testid="notifications-enabled"
-          />
-          <span>
-            <span className="font-medium">{t('settings.notifications.enabled')}</span>
-            <span className="mt-1 block text-sm text-zinc-500 dark:text-zinc-400">
-              {t('settings.notifications.hint')}
-            </span>
-          </span>
-        </label>
-        {notificationsSaved ? (
-          <p className="mt-2 flex items-center gap-1 text-sm text-green-700 dark:text-green-400">
-            <Check size={16} aria-hidden /> {t('settings.notifications.saved')}
-          </p>
-        ) : null}
-      </Card>
-      <Card>
-        <SectionLabel>{t('settings.data.title')}</SectionLabel>
-        <div className="mb-4 flex items-center justify-between gap-3 border-b border-zinc-100 pb-4 dark:border-zinc-800">
-          <div>
-            <p className="font-medium">{t('settings.ocrConsent.title')}</p>
-            <p
-              className="mt-1 text-sm text-zinc-500 dark:text-zinc-400"
-              data-testid="ocr-consent-status"
-            >
-              {me.data?.ocrConsentAt
-                ? t('settings.ocrConsent.granted', { date: formatDate(me.data.ocrConsentAt) })
-                : t('settings.ocrConsent.notGranted')}
-            </p>
+            </div>
           </div>
-          {me.data?.ocrConsentAt ? (
-            <Button
-              variant="danger"
-              onClick={() => setOcrConsent.mutate({ granted: false })}
-              disabled={setOcrConsent.isPending}
-              data-testid="ocr-consent-revoke"
-            >
-              {t('settings.ocrConsent.revoke')}
-            </Button>
+          {avatarError ? (
+            <p role="alert" className="app-set-alert app-set-pad" data-testid="avatar-error">
+              {t('profile.photoTooLarge')}
+            </p>
           ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={handleExport} data-testid="export-data-btn">
-            {t('settings.data.export')}
-          </Button>
-          <Button
-            variant="danger"
-            data-testid="delete-account-btn"
-            disabled={deleteAccount.isPending}
-            onClick={() => {
-              if (window.confirm(t('settings.data.deleteConfirm'))) deleteAccount.mutate();
-            }}
-          >
-            {t('settings.data.delete')}
-          </Button>
-        </div>
-      </Card>
-      <AppLink href="/groups" className="inline-block text-brand-700 underline">
-        ← {t('nav.groups')}
-      </AppLink>
+          <Panel flush>
+            <SetField>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const trimmed = name.trim();
+                  if (trimmed) updateProfile.mutate({ name: trimmed });
+                }}
+              >
+                <Label htmlFor="p-name">{t('profile.nickname')}</Label>
+                {/* Save rides inside the field's right end, and only once
+                    there is something to save: never a dead grey button. */}
+                <div className="app-set-inline" data-dirty={nameChanged || undefined}>
+                  <Input
+                    id="p-name"
+                    value={name}
+                    onChange={(e) => {
+                      setNameDirty(true);
+                      setName(e.target.value);
+                    }}
+                    autoComplete="nickname"
+                    enterKeyHint="done"
+                    aria-describedby="p-name-hint"
+                    data-testid="profile-name-input"
+                  />
+                  <button
+                    type="submit"
+                    className="app-set-save"
+                    disabled={updateProfile.isPending || !nameChanged}
+                    data-testid="profile-name-save"
+                  >
+                    {updateProfile.isPending ? t('common.loading') : t('common.save')}
+                  </button>
+                </div>
+                {nameSaved ? (
+                  <p
+                    id="p-name-hint"
+                    className="app-set-hint app-set-ok"
+                    data-testid="profile-name-saved"
+                  >
+                    <Check size={15} strokeWidth={2.25} aria-hidden /> {t('common.saved')}
+                  </p>
+                ) : (
+                  <p id="p-name-hint" className="app-set-hint">
+                    {t('profile.nicknameHint')}
+                  </p>
+                )}
+              </form>
+            </SetField>
+            <SetSwitch
+              label={t('profile.hidePhoto')}
+              hint={t('profile.hidePhotoHint')}
+              checked={me.data?.hideProfilePhoto ?? false}
+              disabled={me.isLoading || updateSettings.isPending}
+              onChange={(v) => updateSettings.mutate({ hideProfilePhoto: v })}
+              testId="hide-photo-toggle"
+            />
+          </Panel>
+        </section>
+
+        <Section title={t('settings.payments.title')}>
+          <Panel flush>
+            {me.data?.hasBankAccount ? (
+              <div className="app-set-row app-set-nav">
+                <span className="app-set-icon app-set-icon-top" aria-hidden>
+                  <Landmark size={18} strokeWidth={1.75} />
+                </span>
+                <span className="app-set-text">
+                  <span className="app-set-meta app-set-meta-top">{t('profile.bankAccount')}</span>
+                  <span className="app-set-figure" data-testid="bank-account-value">
+                    {bankAccount.data?.account ?? '…'}
+                  </span>
+                  <span className="app-set-meta">{t('profile.bankAccountHint')}</span>
+                </span>
+                <button
+                  type="button"
+                  className="app-set-link app-set-link-quiet"
+                  onClick={() => clearBankAccount.mutate()}
+                  disabled={clearBankAccount.isPending}
+                  data-testid="bank-account-clear"
+                >
+                  {t('profile.bankAccountRemove')}
+                </button>
+              </div>
+            ) : (
+              <SetField>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (account.trim()) setBankAccount.mutate({ account: account.trim() });
+                  }}
+                >
+                  <Label htmlFor="p-account">{t('profile.bankAccount')}</Label>
+                  <div className="app-set-inline" data-dirty={account.trim() ? true : undefined}>
+                    {/* No numeric inputMode: the iOS number pad has no "-" or "/",
+                        and both are part of a Czech account number. */}
+                    <Input
+                      id="p-account"
+                      value={account}
+                      onChange={(e) => setAccount(e.target.value)}
+                      placeholder="19-2000145399/0800"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      enterKeyHint="done"
+                      className="tabular-nums"
+                      aria-invalid={accountError || undefined}
+                      aria-describedby="p-account-hint"
+                      data-testid="bank-account-input"
+                    />
+                    <button
+                      type="submit"
+                      className="app-set-save"
+                      disabled={setBankAccount.isPending || !account.trim()}
+                      data-testid="bank-account-save"
+                    >
+                      {setBankAccount.isPending ? t('common.loading') : t('common.save')}
+                    </button>
+                  </div>
+                  {accountError ? (
+                    <p
+                      id="p-account-hint"
+                      role="alert"
+                      className="app-set-hint app-set-err"
+                      data-testid="bank-account-error"
+                    >
+                      {t('profile.bankAccountInvalid')}
+                    </p>
+                  ) : (
+                    <p id="p-account-hint" className="app-set-hint">
+                      {t('profile.bankAccountHint')}
+                    </p>
+                  )}
+                </form>
+              </SetField>
+            )}
+          </Panel>
+        </Section>
+
+        <SecurityCard />
+
+        <Section title={t('settings.notifications.title')}>
+          <Panel flush>
+            <SetSwitch
+              label={t('settings.notifications.enabled')}
+              icon={<BellRing size={18} strokeWidth={1.75} />}
+              hint={t('settings.notifications.hint')}
+              status={
+                notificationsSaved ? (
+                  <span className="app-set-ok">
+                    <Check size={15} strokeWidth={2.25} aria-hidden />{' '}
+                    {t('settings.notifications.saved')}
+                  </span>
+                ) : undefined
+              }
+              checked={notificationSettings.data?.notificationsEnabled ?? true}
+              disabled={notificationSettings.isPending || setNotificationsEnabled.isPending}
+              onChange={(v) => setNotificationsEnabled.mutate({ enabled: v })}
+              testId="notifications-enabled"
+            />
+          </Panel>
+        </Section>
+
+        <Section title={t('settings.data.title')}>
+          <Panel flush>
+            <div className="app-set-row app-set-nav">
+              <span className="app-set-icon" aria-hidden>
+                <ScanText size={18} strokeWidth={1.75} />
+              </span>
+              <span className="app-set-text">
+                <span className="app-set-label">{t('settings.ocrConsent.title')}</span>
+                <span className="app-set-meta" data-testid="ocr-consent-status">
+                  {me.data?.ocrConsentAt
+                    ? t('settings.ocrConsent.granted', { date: formatDate(me.data.ocrConsentAt) })
+                    : t('settings.ocrConsent.notGranted')}
+                </span>
+              </span>
+              {me.data?.ocrConsentAt ? (
+                <button
+                  type="button"
+                  className="app-set-link app-set-link-quiet"
+                  onClick={() => setOcrConsent.mutate({ granted: false })}
+                  disabled={setOcrConsent.isPending}
+                  data-testid="ocr-consent-revoke"
+                >
+                  {t('settings.ocrConsent.revoke')}
+                </button>
+              ) : null}
+            </div>
+            <SetNavRow
+              label={t('settings.data.export')}
+              icon={<Download size={18} strokeWidth={1.75} />}
+              chevron={false}
+              onClick={handleExport}
+              disabled={exportData.isFetching}
+              data-testid="export-data-btn"
+            />
+            <SetNavRow
+              label={t('settings.data.delete')}
+              icon={<Trash2 size={18} strokeWidth={1.75} />}
+              tone="danger"
+              chevron={false}
+              disabled={deleteAccount.isPending}
+              onClick={() => {
+                if (window.confirm(t('settings.data.deleteConfirm'))) deleteAccount.mutate();
+              }}
+              data-testid="delete-account-btn"
+            />
+          </Panel>
+        </Section>
+
+        {/* Phones: language and sign-out, which the lg rail carries. */}
+        <section className="app-section app-set-end lg:hidden">
+          <Panel flush>
+            <SetNavRow
+              label={<span lang={lang.other}>{lang.otherName}</span>}
+              title={t('common.language')}
+              icon={<Languages size={18} strokeWidth={1.75} />}
+              chevron={false}
+              onClick={lang.go}
+            />
+            <SetNavRow
+              label={t('nav.signOut')}
+              icon={<LogOut size={18} strokeWidth={1.75} />}
+              chevron={false}
+              onClick={() => signOut()}
+            />
+          </Panel>
+        </section>
+      </div>
     </div>
   );
 }

@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
 import { useI18n } from '@/lib/i18n';
 import { authErrorMessage } from '@/lib/auth-errors';
-import { Button, SectionLabel } from '@/components/ui';
-import { GoogleLogo, AppleLogo } from '@/components/icons';
+import { Panel, Section } from '@/components/ui';
+import { GoogleLogo, AppleLogo, Mail } from '@/components/icons';
 
 type Provider = 'google' | 'apple';
 
@@ -49,25 +49,36 @@ export function LinkedAccountsSection({
   ];
 
   return (
-    <div>
-      <SectionLabel>{t('security.linked.title')}</SectionLabel>
-      <ul className="space-y-2" data-testid="linked-accounts">
-        <li className="flex items-center justify-between text-sm">
-          <span>{t('security.linked.password')}</span>
-          <span className="text-zinc-500 dark:text-zinc-400">
+    <Section title={t('security.linked.title')}>
+      <Panel as="ul" flush data-testid="linked-accounts">
+        <li className="app-set-row app-set-nav">
+          <span className="app-set-icon" aria-hidden>
+            <Mail size={18} strokeWidth={1.75} />
+          </span>
+          <span className="app-set-text">
+            <span className="app-set-label">{t('security.linked.password')}</span>
+          </span>
+          <span className="app-set-value">
             {has('credential') ? t('security.linked.connected') : '—'}
           </span>
         </li>
         {social
           .filter((s) => s.enabled)
           .map((s) => (
-            <li key={s.id} className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2">
-                <s.Logo size={16} /> {s.label}
+            <li key={s.id} className="app-set-row app-set-nav">
+              <span className="app-set-icon" aria-hidden>
+                <s.Logo size={18} />
+              </span>
+              <span className="app-set-text">
+                <span className="app-set-label">{s.label}</span>
+                {has(s.id) ? (
+                  <span className="app-set-meta">{t('security.linked.connected')}</span>
+                ) : null}
               </span>
               {has(s.id) ? (
-                <Button
-                  variant="ghost"
+                <button
+                  type="button"
+                  className="app-set-link app-set-link-quiet"
                   disabled={methodCount <= 1}
                   title={methodCount <= 1 ? t('security.linked.lastMethod') : undefined}
                   data-testid={`unlink-${s.id}`}
@@ -78,26 +89,27 @@ export function LinkedAccountsSection({
                   }}
                 >
                   {t('security.linked.unlink')}
-                </Button>
+                </button>
               ) : (
-                <Button
-                  variant="secondary"
+                <button
+                  type="button"
+                  className="app-set-link"
                   data-testid={`link-${s.id}`}
                   onClick={() =>
                     authClient.linkSocial({ provider: s.id, callbackURL: '/settings' })
                   }
                 >
                   {t('security.linked.link')}
-                </Button>
+                </button>
               )}
             </li>
           ))}
-      </ul>
+      </Panel>
       {err ? (
-        <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="app-set-alert">
           {err}
         </p>
       ) : null}
-    </div>
+    </Section>
   );
 }

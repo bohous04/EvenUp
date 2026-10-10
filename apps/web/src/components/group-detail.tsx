@@ -3,10 +3,19 @@ import { useState } from 'react';
 import { AppLink } from '@/components/app-link';
 import { visibleAvatar } from '@evenup/core';
 import { useI18n } from '@/lib/i18n';
+import { useSession } from '@/lib/auth-client';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
-import { Button, Card, SectionLabel, iconButtonClass } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Panel,
+  Section,
+  iconButtonClass,
+  rowClass,
+} from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
-import { MemberChip } from '@/components/member-chip';
+import { AvatarStack, MemberChip } from '@/components/member-chip';
 import { MemberList } from '@/components/member-list';
 import { DuplicateBanner } from '@/components/merge-members';
 import { AlreadyMemberBanner } from '@/components/already-member-banner';
@@ -34,29 +43,40 @@ import {
   Tags,
   MoreHorizontal,
   ChevronLeft,
+  ChevronDown,
   Copy,
   Check,
   Share2,
+  ReceiptText,
+  HandCoins,
 } from '@/components/icons';
 
-type Panel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
+/** The receipt link under a transaction row: aligned with the title, 44px tall. */
+const receiptLinkClass =
+  'ml-16 -mt-3 inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-[var(--app-ink-2)] underline decoration-[var(--app-line-2)] underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600';
+
+type SheetPanel = 'members' | 'invite' | 'stats' | 'activity' | 'csv' | 'categories' | null;
 type Transaction = RouterOutputs['transaction']['list'][number];
 
 export function GroupDetail({
   groupId,
   alreadyMemberNotice = false,
+  openAddExpense = false,
 }: {
   groupId: string;
   alreadyMemberNotice?: boolean;
+  /** Arrived from the groups home's "Add expense" (`?add=1`): open its sheet. */
+  openAddExpense?: boolean;
 }) {
-  const { t, formatCurrency, formatDate } = useI18n();
+  const { t, plural, locale, formatCurrency } = useI18n();
   const group = trpc.group.get.useQuery({ groupId });
   const transactions = trpc.transaction.list.useQuery({ groupId });
   const stats = trpc.stats.byCategory.useQuery({ groupId });
   const customCategories = trpc.category.list.useQuery({ groupId });
+  const { data: session } = useSession();
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanel] = useState<SheetPanel>(null);
   const [showAll, setShowAll] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -159,11 +179,37 @@ export function GroupDetail({
   // Payer chips on transaction rows use the raw member (incl. inactive), so map
   // memberId → profile picture separately from the active-only memberLite.
   const imageByMemberId = new Map(group.data.members.map((m) => [m.id, visibleAvatar(m.user)]));
+  // Your own row (the member linked to your account), if you are on the roster.
+  const myMember = session?.user?.id
+    ? activeMembers.find((m) => m.userId === session.user.id)
+    : undefined;
   const totalSpent = (stats.data ?? []).reduce((a, s) => a + Math.abs(s.totalMinorUnits), 0);
   const txs = transactions.data ?? [];
   const visibleTxs = showAll ? txs : txs.slice(0, 5);
 
-  const openPanel = (p: Exclude<Panel, null>) => {
+  /*
+   * Day headings over the history, the way a bank lists it: "Today",
+   * "Yesterday", then "18 February" (with the year only outside this one).
+   */
+  const dayKey = (d: string | Date) => {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  };
+  const dayLabel = (d: string | Date) => {
+    const x = new Date(d);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (dayKey(x) === dayKey(now)) return t('transactions.today');
+    if (dayKey(x) === dayKey(yesterday)) return t('transactions.yesterday');
+    return new Intl.DateTimeFormat(locale === 'cs' ? 'cs-CZ' : 'en-GB', {
+      day: 'numeric',
+      month: 'long',
+      ...(x.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+    }).format(x);
+  };
+
+  const openPanel = (p: Exclude<SheetPanel, null>) => {
     setMenuOpen(false);
     setPanel(p);
   };
@@ -219,28 +265,17 @@ export function GroupDetail({
   ].filter((item) => !isGuest || !item.write);
 
   return (
-    <div className="space-y-4 pb-24">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <AppLink
-            href="/groups"
-            className="inline-flex items-center gap-0.5 text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-          >
-            <ChevronLeft size={13} aria-hidden />
-            {t('nav.groups')}
-          </AppLink>
-          <h1 className="truncate text-2xl font-extrabold tracking-tight" data-testid="group-title">
-            {group.data.name}
-          </h1>
-          {totalSpent > 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {t('group.spentTotal', {
-                total: formatCurrency(totalSpent, group.data.baseCurrency),
-              })}
-            </p>
-          ) : null}
-        </div>
+    <div className="xl:max-w-[72rem]">
+      {/* Toolbar: back on the left, the group's options on the right — both
+          44px targets on one line, the title free to take the full width. */}
+      <div className="-ml-2 -mr-2 -mt-2 mb-1 flex items-center justify-between">
+        <AppLink
+          href="/groups"
+          className="inline-flex h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[0.9375rem] text-zinc-600 transition-colors hover:bg-zinc-100 active:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:active:bg-zinc-800"
+        >
+          <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
+          {t('nav.groups')}
+        </AppLink>
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
@@ -249,144 +284,256 @@ export function GroupDetail({
           className={iconButtonClass}
           data-testid="group-menu-btn"
         >
-          <MoreHorizontal size={20} aria-hidden />
+          <MoreHorizontal size={22} aria-hidden />
         </button>
       </div>
-
-      <NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
-
-      <OfflineQueueBadge
-        pending={queue.pending}
-        stuckItems={queue.stuck}
-        onRetry={() => void queue.drain()}
-        onDiscard={(id) => void queue.discard(id)}
-      />
-
-      {isGuest ? (
-        <p
-          role="status"
-          data-testid="guest-readonly-banner"
-          className="rounded-xl border border-amber-300 bg-amber-50/70 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-200"
+      {/* Header: the group's name and who is in it. The people and the spend
+          are taps (roster, spending by category) — the two questions a group
+          gets asked most after "how much do I owe". */}
+      <header className="app-gd-head">
+        <h1
+          className="text-[1.75rem] font-[600] leading-tight tracking-[-0.035em] [overflow-wrap:anywhere] lg:text-[2rem]"
+          data-testid="group-title"
         >
-          {t('group.readOnlyBanner')}
-        </p>
-      ) : null}
-
-      <AlreadyMemberBanner groupId={groupId} show={alreadyMemberNotice} />
-
-      <DuplicateBanner groupId={groupId} />
-
-      <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
-
-      {/* Recent transactions */}
-      <Card>
-        <SectionLabel>{t('nav.transactions')}</SectionLabel>
-        {visibleTxs.length > 0 ? (
-          <>
-            <ul
-              className="divide-y divide-zinc-100 dark:divide-zinc-800"
-              data-testid="transactions-list"
-            >
-              {visibleTxs.map((tx) => {
-                const payer = tx.payers[0]?.member;
-                return (
-                  <li key={tx.id} className="py-1">
-                    {/* The row is the tap target for editing; the receipt link sits
-                        below it (a link can't be nested inside a button). */}
-                    <button
-                      type="button"
-                      onClick={() => setEditingTx(tx)}
-                      data-testid="transaction-row"
-                      className="flex w-full items-center gap-3 rounded-xl px-1 py-1.5 text-left transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
-                    >
-                      {payer ? (
-                        <MemberChip
-                          initials={payer.initials}
-                          color={payer.color}
-                          name={payer.displayName}
-                          imageUrl={imageByMemberId.get(payer.id) ?? null}
-                          size="sm"
-                        />
-                      ) : null}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">
-                          {tx.title || t('transaction.settlement')}
-                        </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {tx.type === 'TRANSFER'
-                            ? t('expense.transfer')
-                            : (payer?.displayName ?? '')}{' '}
-                          · {formatDate(tx.date)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <AmountText
-                          minorUnits={Number(tx.baseMinorUnits)}
-                          currency={group.data.baseCurrency}
-                          className="text-sm font-semibold"
-                        />
-                        {tx.currency !== group.data.baseCurrency ? (
-                          <AmountText
-                            minorUnits={Number(tx.totalMinorUnits)}
-                            currency={tx.currency}
-                            className="block text-xs text-zinc-500 dark:text-zinc-400"
-                          />
-                        ) : null}
-                      </div>
-                    </button>
-                    {tx.hasReceiptImage && tx.receiptId ? (
-                      (tx.receiptPageCount ?? 0) > 1 ? (
-                        // Multiple pages: open the in-app lightbox so all pages
-                        // are reachable, rather than a link that only ever
-                        // resolves page 0.
-                        <button
-                          type="button"
-                          onClick={() => setViewingReceiptTx(tx)}
-                          className="ml-11 text-xs text-brand-600 underline"
-                          data-testid="view-receipt"
-                        >
-                          {t('receipt.viewCount', { count: tx.receiptPageCount })}
-                        </button>
-                      ) : (
-                        // A single page (one image, or a PDF) — the plain link
-                        // works for both; no lightbox needed.
-                        <a
-                          href={`/api/receipts/${tx.receiptId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-11 text-xs text-brand-600 underline"
-                          data-testid="view-receipt"
-                        >
-                          {t('receipt.view')}
-                        </a>
-                      )
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-            {!showAll && txs.length > 5 ? (
+          {group.data.name}
+        </h1>
+        <div className="app-gd-meta">
+          <button
+            type="button"
+            className="app-gd-meta-btn"
+            onClick={() => openPanel('members')}
+            aria-label={`${t('group.members')}: ${plural('groups.row.members', activeMembers.length)}`}
+            data-testid="group-members-btn"
+          >
+            <AvatarStack
+              max={5}
+              members={activeMembers.map((m) => ({
+                id: m.id,
+                initials: m.initials,
+                color: m.color,
+                displayName: m.displayName,
+                image: visibleAvatar(m.user),
+              }))}
+            />
+          </button>
+          {totalSpent > 0 ? (
+            <>
               <button
                 type="button"
-                onClick={() => setShowAll(true)}
-                className="mt-2 w-full rounded-xl py-2 text-center text-sm font-semibold text-brand-600 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-brand-600/10"
-                data-testid="tx-show-all"
+                className="app-gd-meta-btn app-gd-meta-spent"
+                onClick={() => openPanel('stats')}
               >
-                {t('transactions.showMore')}
+                {t('group.spentTotal', {
+                  total: formatCurrency(totalSpent, group.data.baseCurrency).replace(
+                    / /g,
+                    '\u00a0',
+                  ),
+                })}
               </button>
-            ) : null}
-          </>
-        ) : (
-          <p className="py-2 text-center text-sm text-zinc-500 dark:text-zinc-400">—</p>
-        )}
-      </Card>
+            </>
+          ) : null}
+        </div>
+      </header>
 
-      <SettleCard
-        groupId={groupId}
-        members={memberLite}
-        baseCurrency={group.data.baseCurrency}
-        groupName={group.data.name}
-      />
+      <div className="space-y-3 empty:hidden mb-6">
+        <OfflineQueueBadge
+          pending={queue.pending}
+          stuckItems={queue.stuck}
+          onRetry={() => void queue.drain()}
+          onDiscard={(id) => void queue.discard(id)}
+        />
+
+        {isGuest ? (
+          <p
+            role="status"
+            data-testid="guest-readonly-banner"
+            className="rounded-xl border border-amber-300 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-200"
+          >
+            {t('group.readOnlyBanner')}
+          </p>
+        ) : null}
+
+        <AlreadyMemberBanner groupId={groupId} show={alreadyMemberNotice} />
+
+        <DuplicateBanner groupId={groupId} />
+      </div>
+
+      <div className="app-gd-grid">
+        {/* Money: your position and the payments that settle it, the round
+            advice right under it, then who pays whom among the others. */}
+        <div className="app-gd-money">
+          <SettleCard
+            groupId={groupId}
+            members={memberLite}
+            baseCurrency={group.data.baseCurrency}
+            groupName={group.data.name}
+            myMemberId={myMember?.id}
+            aside={<NextRoundCard groupId={groupId} baseCurrency={group.data.baseCurrency} />}
+          />
+        </div>
+
+        {/* History, newest first, under day headings. */}
+        <div className="app-gd-history">
+          <Section
+            title={t('nav.transactions')}
+            className="app-gd-tx"
+            trailing={
+              txs.length > 0 ? <span className="app-section-meta">{txs.length}</span> : undefined
+            }
+          >
+            {visibleTxs.length > 0 ? (
+              <>
+                <Panel as="ul" plain data-testid="transactions-list">
+                  {visibleTxs.map((tx, i) => {
+                    const payer = tx.payers[0]?.member;
+                    const transfer = tx.type === 'TRANSFER';
+                    const day = dayKey(tx.date);
+                    const newDay = i === 0 || dayKey(visibleTxs[i - 1]!.date) !== day;
+                    const paidByMe =
+                      !!myMember && tx.payers.some((p) => p.memberId === myMember.id);
+                    const myShareRaw = myMember
+                      ? Number(
+                          tx.splits.find((sp) => sp.memberId === myMember.id)?.computedMinorUnits ??
+                            0,
+                        )
+                      : 0;
+                    // Splits are in the expense's currency; show your share in
+                    // the group's, scaled by the expense's own conversion.
+                    const total = Number(tx.totalMinorUnits);
+                    const myShare =
+                      total > 0
+                        ? Math.round((myShareRaw * Number(tx.baseMinorUnits)) / total)
+                        : myShareRaw;
+                    const from = transfer
+                      ? group.data.members.find((m) => m.id === tx.fromMemberId)
+                      : undefined;
+                    const to = transfer
+                      ? group.data.members.find((m) => m.id === tx.toMemberId)
+                      : undefined;
+                    const face = payer ?? from;
+                    return (
+                      <li key={tx.id} className={newDay ? 'app-gd-day-start' : undefined}>
+                        {newDay ? <p className="app-gd-day">{dayLabel(tx.date)}</p> : null}
+                        {/* The row is the tap target for editing; the receipt link sits
+                            below it (a link can't be nested inside a button). */}
+                        <button
+                          type="button"
+                          onClick={() => setEditingTx(tx)}
+                          data-testid="transaction-row"
+                          className={rowClass}
+                        >
+                          {face ? (
+                            <MemberChip
+                              initials={face.initials}
+                              color={face.color}
+                              name={face.displayName}
+                              imageUrl={imageByMemberId.get(face.id) ?? null}
+                            />
+                          ) : (
+                            <span className="app-gd-tx-mark" aria-hidden>
+                              <HandCoins size={17} strokeWidth={1.9} />
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-[0.9375rem] font-medium leading-snug tracking-[-0.01em] [overflow-wrap:anywhere]">
+                              {tx.title || t('transaction.settlement')}
+                            </p>
+                            <p className="truncate text-[0.8125rem] text-[var(--app-ink-2)]">
+                              {transfer ? (
+                                <>
+                                  {t('expense.transfer')}
+                                  {from && to ? ` · ${from.displayName} → ${to.displayName}` : ''}
+                                </>
+                              ) : (
+                                (payer?.displayName ?? '')
+                              )}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <AmountText
+                              minorUnits={Number(tx.baseMinorUnits)}
+                              currency={group.data.baseCurrency}
+                              className="block text-[0.9375rem] font-medium"
+                            />
+                            {tx.currency !== group.data.baseCurrency ? (
+                              <AmountText
+                                minorUnits={Number(tx.totalMinorUnits)}
+                                currency={tx.currency}
+                                className="block text-[0.8125rem] text-[var(--app-ink-2)]"
+                              />
+                            ) : !transfer && myMember && (paidByMe || myShare > 0) ? (
+                              <span className="block whitespace-nowrap text-[0.8125rem] tabular-nums text-[var(--app-ink-2)]">
+                                {paidByMe
+                                  ? t('groups.recentPaid')
+                                  : t('groups.recentShare', {
+                                      amount: formatCurrency(
+                                        myShare,
+                                        group.data.baseCurrency,
+                                      ).replace(/ /g, '\u00a0'),
+                                    })}
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                        {tx.hasReceiptImage && tx.receiptId ? (
+                          (tx.receiptPageCount ?? 0) > 1 ? (
+                            // Multiple pages: open the in-app lightbox so all pages
+                            // are reachable, rather than a link that only ever
+                            // resolves page 0.
+                            <button
+                              type="button"
+                              onClick={() => setViewingReceiptTx(tx)}
+                              className={receiptLinkClass}
+                              data-testid="view-receipt"
+                            >
+                              {t('receipt.viewCount', { count: tx.receiptPageCount })}
+                            </button>
+                          ) : (
+                            // A single page (one image, or a PDF) — the plain link
+                            // works for both; no lightbox needed.
+                            <a
+                              href={`/api/receipts/${tx.receiptId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={receiptLinkClass}
+                              data-testid="view-receipt"
+                            >
+                              {t('receipt.view')}
+                            </a>
+                          )
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </Panel>
+                {!showAll && txs.length > 5 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(true)}
+                    className="app-row app-section-foot flex min-h-12 w-full items-center gap-2 px-4 text-[0.9375rem] font-medium text-[var(--app-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
+                    data-testid="tx-show-all"
+                  >
+                    {t('transactions.showMore')}
+                    <ChevronDown size={16} aria-hidden />
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <Panel flush>
+                <EmptyState
+                  icon={<ReceiptText size={22} aria-hidden />}
+                  title={t('transactions.empty')}
+                />
+              </Panel>
+            )}
+          </Section>
+        </div>
+
+        {/* Everyone's standing: a step back, after what you act on and read. */}
+        <div className="app-gd-standing">
+          <BalancesCard groupId={groupId} baseCurrency={group.data.baseCurrency} />
+        </div>
+      </div>
 
       {/* Expense entry: a FAB opens the amount-first sheet (OCR scan lives inside it).
           Hidden for a guest — the server refuses the write regardless, so the FAB
@@ -398,6 +545,7 @@ export function GroupDetail({
           baseCurrency={group.data.baseCurrency}
           customCategories={customCategories.data ?? []}
           readOnly={isGuest}
+          autoOpen={openAddExpense}
         />
       ) : null}
 

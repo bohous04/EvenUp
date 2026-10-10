@@ -65,12 +65,15 @@ export function Modal({
       onClick={(e) => {
         if (e.target === ref.current && pressedOnBackdrop.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/40 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      className="app-dialog app-modal m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-[0_24px_48px_-24px_rgb(17_17_19/0.35)] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >
       {open ? (
-        <div className="max-h-[85vh] overflow-y-auto p-5" data-testid={testId}>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 id={titleId} className="text-lg font-semibold">
+        <div
+          className="max-h-[85vh] overflow-y-auto px-4 pb-5 pt-2 sm:px-6 sm:pb-6"
+          data-testid={testId}
+        >
+          <div className="-mr-2 mb-3 flex min-h-12 items-center justify-between gap-3">
+            <h2 id={titleId} className="text-[1.0625rem] font-semibold tracking-[-0.015em]">
               {title}
             </h2>
             <button

@@ -20,12 +20,19 @@ export function Sheet({
   title,
   children,
   testId,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   testId?: string;
+  /**
+   * The sheet's action bar: pinned to the bottom edge of the sheet (under the
+   * thumb, always in view however long the form), with the safe-area inset
+   * below it. A form submits from here with `<button form="…">`.
+   */
+  footer?: React.ReactNode;
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
@@ -102,7 +109,7 @@ export function Sheet({
       // static (in-flow) position in Firefox, pushing it half off-screen.
       // While dragging we follow the finger with no transition; on release the
       // transition animates the snap-back (or close).
-      className={`bottom-0 top-auto m-0 w-full max-w-none rounded-t-2xl border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/40 sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100${
+      className={`app-dialog app-sheet bottom-0 top-auto m-0 w-full max-w-none rounded-t-[20px] border border-b-0 border-zinc-200 bg-white p-0 text-zinc-900 shadow-[0_-12px_40px_-16px_rgb(17_17_19/0.25)] sm:bottom-0 sm:top-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-xl sm:border-b dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100${
         dragging ? '' : ' transition-transform duration-200'
       }`}
     >
@@ -113,7 +120,9 @@ export function Sheet({
           // home indicator). Without it, a tall form's last rows sit behind the
           // toolbar with nothing to scroll them into view. Desktop (centered
           // card, no chrome) keeps the compact padding.
-          className="max-h-[92dvh] overflow-y-auto overscroll-contain p-5 pb-[max(6rem,env(safe-area-inset-bottom))] sm:max-h-[85vh] sm:pb-5"
+          className={`max-h-[92dvh] overflow-y-auto overscroll-contain px-4 sm:max-h-[85vh] sm:px-6 ${
+            footer ? 'pb-0' : 'pb-[max(6rem,env(safe-area-inset-bottom))] sm:pb-6'
+          }`}
           data-testid={testId}
         >
           {/* Grab handle — drag down to dismiss (phones only). Touch events +
@@ -130,14 +139,15 @@ export function Sheet({
             }}
             onTouchEnd={endDrag}
             onTouchCancel={endDrag}
-            className="-mx-5 -mt-5 mb-1 flex touch-none select-none justify-center px-5 pb-2 pt-4 sm:hidden"
+            className="-mx-4 mb-0 flex touch-none select-none justify-center px-4 pb-1 pt-2.5 sm:hidden"
             aria-hidden
             data-testid="sheet-drag-handle"
           >
-            <div className="h-1 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-[5px] w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
           </div>
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 id={titleId} className="text-lg font-bold tracking-tight">
+          {/* Title bar: sticky, so the close button stays reachable in a long form. */}
+          <div className="sticky top-0 z-10 -mx-4 mb-3 flex min-h-14 items-center justify-between gap-3 bg-white pl-4 pr-2 sm:-mx-6 sm:mt-0 sm:pl-6 sm:pr-3 sm:pt-2 dark:bg-zinc-900">
+            <h2 id={titleId} className="text-[1.0625rem] font-semibold tracking-[-0.015em]">
               {title}
             </h2>
             <button
@@ -152,6 +162,11 @@ export function Sheet({
             </button>
           </div>
           {children}
+          {footer ? (
+            <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-[var(--app-line)] bg-[var(--app-raised)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:-mx-6 sm:px-6 sm:pb-5">
+              {footer}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </dialog>

@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { authClient, useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc';
 import { useI18n } from '@/lib/i18n';
-import { Card, SectionLabel } from '@/components/ui';
+import { Panel, Section } from '@/components/ui';
+import { SetNavRow } from '@/components/settings-rows';
+import { KeyRound, ShieldCheck } from '@/components/icons';
 import { PasswordSection } from './password-section';
 import { LinkedAccountsSection } from './linked-accounts-section';
 import { TwoFactorSection } from './two-factor-section';
@@ -22,22 +24,44 @@ export function SecurityCard() {
     });
   }, []);
 
-  if (!session?.user || !me.data || hasPassword === null) return null;
+  if (!session?.user) return null;
+  const ready = !!me.data && hasPassword !== null;
   const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === 'true';
   const appleEnabled = process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true';
 
   return (
-    <Card>
-      <SectionLabel>{t('security.title')}</SectionLabel>
-      <div className="mt-3 space-y-6">
-        <PasswordSection hasPassword={hasPassword} email={session.user.email} />
-        <LinkedAccountsSection googleEnabled={googleEnabled} appleEnabled={appleEnabled} />
-        <TwoFactorSection
-          enabled={me.data.twoFactorEnabled ?? false}
-          hasPassword={hasPassword}
-          onChanged={() => void utils.user.me.invalidate()}
-        />
-      </div>
-    </Card>
+    <>
+      <Section title={t('security.title')}>
+        <Panel flush>
+          {ready ? (
+            <>
+              <PasswordSection hasPassword={hasPassword} email={session.user.email} />
+              <TwoFactorSection
+                enabled={me.data?.twoFactorEnabled ?? false}
+                hasPassword={hasPassword}
+                onChanged={() => void utils.user.me.invalidate()}
+              />
+            </>
+          ) : (
+            // Same rows, inert, while the account loads: nothing below moves.
+            <>
+              <SetNavRow
+                label={t('security.password.title')}
+                icon={<KeyRound size={18} strokeWidth={1.75} />}
+                disabled
+                aria-busy
+              />
+              <SetNavRow
+                label={t('security.2fa.title')}
+                icon={<ShieldCheck size={18} strokeWidth={1.75} />}
+                disabled
+                aria-busy
+              />
+            </>
+          )}
+        </Panel>
+      </Section>
+      <LinkedAccountsSection googleEnabled={googleEnabled} appleEnabled={appleEnabled} />
+    </>
   );
 }
