@@ -17,7 +17,7 @@ Ready-to-paste copy and questionnaire answers for the EvenUp Android listing.
 ## Full description (≤4000 chars)
 
 ```
-EvenUp (dlužníček) splits shared group expenses — on a trip, in a shared flat, or
+EvenUp splits shared group expenses — on a trip, in a shared flat, or
 at an event — and always shows the minimal set of payments needed to settle up.
 
 • Add people to a group in seconds; no account required for participants.

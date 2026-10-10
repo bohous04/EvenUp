@@ -165,7 +165,7 @@ test('prices the landing page in the locale currency, trimmed to a round number'
  * assertions are on the exact path, never a `/groups$` suffix that both match.
  */
 for (const { landing, app, signUp, wordmark } of [
-  { landing: '/', app: '/groups', signUp: '/sign-up', wordmark: 'dlužníček' },
+  { landing: '/', app: '/groups', signUp: '/sign-up', wordmark: 'EvenUp' },
   { landing: '/en', app: '/en/groups', signUp: '/en/sign-up', wordmark: 'EvenUp' },
 ]) {
   test(`the landing page at ${landing} is the front door to the app, not the app itself`, async ({
@@ -233,7 +233,7 @@ test('a 404 keeps the app chrome once JavaScript has run', async ({ page, reques
   const serverHtml = await (await request.get('/nonexistent-page')).text();
   expect(serverHtml).not.toContain('<h1');
 
-  // The app header's logo — its accessible name is `app.name`, "dlužníček".
-  await expect(page.getByRole('link', { name: 'dlužníček' })).toBeVisible();
+  // The app header's logo — its accessible name is `app.name`, "EvenUp".
+  await expect(page.getByRole('link', { name: 'EvenUp' })).toBeVisible();
   await expect(page.getByRole('group', { name: /jazyk|language/i })).toBeVisible();
 });

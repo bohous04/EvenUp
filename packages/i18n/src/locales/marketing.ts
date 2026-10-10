@@ -6,7 +6,7 @@
  * for copy the app itself never shows.
  *
  * Czech is the original, not a translation: the product is Czech-first
- * (`app.name` is literally `dlužníček` in `cs.ts`), so `marketingCs` is
+ * (the brand is EvenUp in both locales), so `marketingCs` is
  * written as native copy and `marketingEn` is its English counterpart, each
  * naming the product the way that locale does.
  *
@@ -36,9 +36,9 @@
 import { legalCs, legalEn } from './legal.js';
 
 const marketingOnlyCs = {
-  'marketing.meta.title': 'dlužníček – vyrovnejte se pár platbami',
+  'marketing.meta.title': 'EvenUp – vyrovnejte se pár platbami',
   'marketing.meta.description':
-    'Zapište, kdo co zaplatil, a dlužníček spočítá nejmenší počet plateb, kterými se celá skupina vyrovná. Účtenky z fotky, QR platba, více měn, členové i bez účtu.',
+    'Zapište, kdo co zaplatil, a EvenUp spočítá nejmenší počet plateb, kterými se celá skupina vyrovná. Účtenky z fotky, QR platba, více měn, členové i bez účtu.',
   // Alt text for the social-share image (`opengraph-image.png` /
   // `twitter-image.png`), per locale — the file convention's own
   // `opengraph-image.alt.txt` is English-only, so the Czech landing page needs
@@ -55,7 +55,7 @@ const marketingOnlyCs = {
   'marketing.hero.title': 'Dva dluhy se zruší.',
   'marketing.hero.titleAccent': 'Nikdo nikoho nehoní.',
   'marketing.hero.subtitle':
-    'Zapište, kdo co platil. Dlužníček vzájemné dluhy vyruší, takže se celý výlet vyrovná co nejmenším počtem plateb.',
+    'Zapište, kdo co platil. EvenUp vzájemné dluhy vyruší, takže se celý výlet vyrovná co nejmenším počtem plateb.',
   'marketing.hero.ctaPrimary': 'Začít zdarma',
   'marketing.hero.ctaSecondary': 'Jak to funguje',
   'marketing.hero.ctaSignIn': 'Přihlásit se',
@@ -63,10 +63,10 @@ const marketingOnlyCs = {
   'marketing.hero.invited': 'Pozvali vás do skupiny?',
   'marketing.hero.invitedLink': 'Otevřete ji',
   'marketing.hero.panel.aria':
-    'Ukázka z aplikace: čtyři přátelé zapsali na horách čtyři útraty, z nichž by jiné aplikace udělaly 8 dluhů. Dlužníček je navzájem vyruší: Ondra pošle Evě {amount} a Filip s Klárou neplatí nic. Místo osmi plateb jedna.',
+    'Ukázka z aplikace: čtyři přátelé zapsali na horách čtyři útraty, z nichž by jiné aplikace udělaly 8 dluhů. EvenUp je navzájem vyruší: Ondra pošle Evě {amount} a Filip s Klárou neplatí nic. Místo osmi plateb jedna.',
   'marketing.hero.panel.naive': 'Útrata po útratě',
   'marketing.hero.panel.debts': '4 útraty, {count} dluhů',
-  'marketing.hero.panel.netted': 'S\u00a0Dlužníčkem',
+  'marketing.hero.panel.netted': 'S\u00a0EvenUpem',
   'marketing.hero.panel.naiveCount': '{count} plateb',
   'marketing.hero.panel.nettedCount': '1 platba',
   'marketing.hero.panel.dates': '12.–15. února',
@@ -94,13 +94,13 @@ const marketingOnlyCs = {
 
   'marketing.shots.title': 'Zapíšete jednou. Zůstatky se pohnou všem.',
   'marketing.shots.lede':
-    'Částka, název a kdo platil. Dlužníček to rozdělí a zůstatky celé skupiny sedí dřív, než se okno zavře.',
+    'Částka, název a kdo platil. EvenUp to rozdělí a zůstatky celé skupiny sedí dřív, než se okno zavře.',
   'marketing.shots.groupCaption':
     'Zůstatky skupiny po chatě za {amount}: Lucii přibylo {gain}, každému dalšímu ubylo {share}. Lucie a Martin jsou v plusu, Pavel, Tomáš a Kateřina v minusu.',
   'marketing.shots.expenseCaption':
     'Nový výdaj Chata Štrbské Pleso za 1 280 Kč, který zaplatila Lucie a dělí se rovným dílem mezi pět lidí po 256 Kč.',
   'marketing.feature.debts.body':
-    'Sedm lidí, týden na horách, sedmnáct dluhů mezi nimi. Dlužníček je navzájem započítá na co nejméně převodů, které vyrovnají všechny.',
+    'Sedm lidí, týden na horách, sedmnáct dluhů mezi nimi. EvenUp je navzájem započítá na co nejméně převodů, které vyrovnají všechny.',
   'marketing.feature.debts.short': 'Započteno na co nejméně převodů.',
   'marketing.feature.ocr.title': 'Účtenka z fotky',
   'marketing.feature.ocr.body':
@@ -149,7 +149,7 @@ const marketingOnlyCs = {
   'marketing.pricing.free.price': 'Zdarma',
   // Head of the price list, beside the title: the whole model in a sentence.
   'marketing.pricing.lede':
-    'Skupiny, útraty i vyrovnání nestojí nic a nikdy stát nebudou. Platíte jen za to, že vám dlužníček přečte účtenky.',
+    'Skupiny, útraty i vyrovnání nestojí nic a nikdy stát nebudou. Platíte jen za to, že vám EvenUp přečte účtenky.',
   'marketing.pricing.free.body': 'Zdarma napořád, ne jen na zkoušku.',
   // What the free plan includes, as label/value rows — the same hairline rows
   // as the scan packs beside it, so all three columns end in a ruled list.
@@ -252,7 +252,7 @@ const marketingOnlyCs = {
   'marketing.pricing.ctaVip': 'Předplatit VIP',
 
   'marketing.faq.title': 'Časté otázky',
-  'marketing.faq.q1': 'Je dlužníček zdarma?',
+  'marketing.faq.q1': 'Je EvenUp zdarma?',
   'marketing.faq.a1':
     'Dělení útraty, vyrovnání i QR platby jsou zdarma a bez limitu. Platí se jen za skenování účtenek – buď měsíčním VIP, nebo jednorázovým balíčkem skenů.',
   'marketing.faq.q2': 'Musí si všichni ve skupině založit účet?',
@@ -261,9 +261,9 @@ const marketingOnlyCs = {
   'marketing.faq.q3': 'Jak funguje QR platba?',
   'marketing.faq.a3':
     'U každé navržené platby najdete QR kód podle českého standardu QR Platba. Číslo účtu, částka i zpráva pro příjemce jsou v něm předvyplněné, takže v bankovní aplikaci stačí platbu potvrdit.',
-  'marketing.faq.q4': 'Můžu si dlužníčka rozjet na vlastním serveru?',
+  'marketing.faq.q4': 'Můžu si EvenUp rozjet na vlastním serveru?',
   'marketing.faq.a4':
-    'Ano, dlužníček je open source. Bez napojení na Stripe se placené funkce prostě nenabízejí a zbytek aplikace funguje dál.',
+    'Ano, EvenUp je open source. Bez napojení na Stripe se placené funkce prostě nenabízejí a zbytek aplikace funguje dál.',
 
   'marketing.cta.title': 'Příští výlet vyrovnáte dvěma platbami.',
   'marketing.cta.body': 'Založte skupinu, přidejte lidi a zapište první útratu. Zabere to minutu.',

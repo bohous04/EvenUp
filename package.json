@@ -2,7 +2,7 @@
   "name": "evenup",
   "version": "0.0.0",
   "private": true,
-  "description": "EvenUp (dlužníček) — open-source, self-hostable group expense splitter that minimizes debts.",
+  "description": "EvenUp — open-source, self-hostable group expense splitter that minimizes debts.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.0.4",

@@ -92,21 +92,21 @@ export const legalCs = {
   /* -------------------------------------------------------------- terms */
 
   'legal.terms.title': 'Obchodní podmínky',
-  'legal.terms.meta.title': 'Obchodní podmínky – dlužníček',
+  'legal.terms.meta.title': 'Obchodní podmínky – EvenUp',
   'legal.terms.meta.description':
-    'Podmínky používání dlužníčka: co je zdarma, jak funguje předplatné a balíčky skenů, jak se předplatné ruší a jaká máte práva.',
+    'Podmínky používání EvenUpu: co je zdarma, jak funguje předplatné a balíčky skenů, jak se předplatné ruší a jaká máte práva.',
   'legal.terms.intro':
-    'Tyto podmínky upravují používání služby dlužníček na evenup.cz. Používáním služby s nimi souhlasíte. Je-li něco nejasné, napište nám – rádi to vysvětlíme.',
+    'Tyto podmínky upravují používání služby EvenUp na evenup.cz. Používáním služby s nimi souhlasíte. Je-li něco nejasné, napište nám – rádi to vysvětlíme.',
 
   'legal.terms.s1.h': 'Kdo službu provozuje',
   'legal.terms.s1.p1':
     'Provozovatelem služby je subjekt uvedený níže. Ve všem, co se těchto podmínek týká, nás kontaktujte na uvedené adrese.',
 
-  'legal.terms.s2.h': 'Co dlužníček dělá',
+  'legal.terms.s2.h': 'Co EvenUp dělá',
   'legal.terms.s2.p1':
-    'Dlužníček eviduje, kdo ve skupině co zaplatil, a spočítá nejmenší počet plateb, kterými se všichni vyrovnají. Umí přečíst účtenku z fotky, přepočítat cizí měnu kurzem ke dni útraty a připravit QR kód podle českého standardu QR Platba.',
+    'EvenUp eviduje, kdo ve skupině co zaplatil, a spočítá nejmenší počet plateb, kterými se všichni vyrovnají. Umí přečíst účtenku z fotky, přepočítat cizí měnu kurzem ke dni útraty a připravit QR kód podle českého standardu QR Platba.',
   'legal.terms.s2.p2':
-    'Dlužníček sám žádné peníze neposílá ani nedrží. Nejsme banka ani platební instituce. QR kód je jen předvyplněný podklad pro vaši banku – platbu zadáváte a potvrzujete vy. Výsledky výpočtů jsou informativní a nenahrazují účetnictví ani daňové poradenství.',
+    'EvenUp sám žádné peníze neposílá ani nedrží. Nejsme banka ani platební instituce. QR kód je jen předvyplněný podklad pro vaši banku – platbu zadáváte a potvrzujete vy. Výsledky výpočtů jsou informativní a nenahrazují účetnictví ani daňové poradenství.',
 
   'legal.terms.s3.h': 'Účet',
   'legal.terms.s3.p1':
@@ -217,7 +217,7 @@ export const legalCs = {
 
   'legal.terms.s12.h': 'Otevřený zdrojový kód',
   'legal.terms.s12.p1':
-    'Dlužníček je open source pod licencí MIT. Licence se vztahuje na zdrojový kód, tyto podmínky na službu provozovanou na evenup.cz. Provozujete-li si vlastní instanci, jste jejím provozovatelem vy a tyto podmínky se na ni nevztahují.',
+    'EvenUp je open source pod licencí MIT. Licence se vztahuje na zdrojový kód, tyto podmínky na službu provozovanou na evenup.cz. Provozujete-li si vlastní instanci, jste jejím provozovatelem vy a tyto podmínky se na ni nevztahují.',
 
   'legal.terms.s13.h': 'Změny podmínek',
   'legal.terms.s13.p1':
@@ -232,11 +232,11 @@ export const legalCs = {
   /* ------------------------------------------------------------ privacy */
 
   'legal.privacy.title': 'Zásady ochrany osobních údajů',
-  'legal.privacy.meta.title': 'Ochrana osobních údajů – dlužníček',
+  'legal.privacy.meta.title': 'Ochrana osobních údajů – EvenUp',
   'legal.privacy.meta.description':
-    'Jaké údaje dlužníček zpracovává, komu je předává, jak dlouho je uchovává a co se s nimi stane, když smažete účet.',
+    'Jaké údaje EvenUp zpracovává, komu je předává, jak dlouho je uchovává a co se s nimi stane, když smažete účet.',
   'legal.privacy.intro':
-    'Tady najdete, jaké údaje o vás dlužníček zpracovává, proč, komu je předává a jak dlouho je uchovává. Sepsali jsme to podle toho, co aplikace opravdu dělá – ne podle vzoru.',
+    'Tady najdete, jaké údaje o vás EvenUp zpracovává, proč, komu je předává a jak dlouho je uchovává. Sepsali jsme to podle toho, co aplikace opravdu dělá – ne podle vzoru.',
 
   'legal.privacy.s1.h': 'Kdo je správce',
   'legal.privacy.s1.p1': 'Správcem osobních údajů je provozovatel služby:',
@@ -410,7 +410,7 @@ export const legalCs = {
   /* ------------------------------------------------------------ refunds */
 
   'legal.refunds.title': 'Odstoupení od smlouvy a reklamace',
-  'legal.refunds.meta.title': 'Odstoupení a reklamace – dlužníček',
+  'legal.refunds.meta.title': 'Odstoupení a reklamace – EvenUp',
   'legal.refunds.meta.description':
     'Kdy můžete od nákupu odstoupit, proč právo na odstoupení u balíčku skenů zaniká a jak reklamovat, když něco nefunguje.',
   'legal.refunds.intro':
@@ -481,7 +481,7 @@ export const legalCs = {
   // přepisem zaškrtávacího prohlášení z aplikace) a obojí se vykresluje stejným
   // blockquotem – jinak by jedna citace uvozovky měla a druhá ne.
   'legal.refunds.s5.quote':
-    '„Oznamuji, že odstupuji od smlouvy o poskytnutí služby dlužníček uzavřené dne (datum nákupu), e-mail účtu (vaše adresa). Žádám o vrácení zaplacené částky.“',
+    '„Oznamuji, že odstupuji od smlouvy o poskytnutí služby EvenUp uzavřené dne (datum nákupu), e-mail účtu (vaše adresa). Žádám o vrácení zaplacené částky.“',
   'legal.refunds.s5.p2':
     'Peníze vrátíme do 14 dnů od doručení odstoupení, a to stejným způsobem, jakým jste platili – tedy zpět přes Stripe na kartu nebo účet, ze kterého platba přišla.',
 
@@ -504,9 +504,9 @@ export const legalCs = {
   /* ------------------------------------------------------------ contact */
 
   'legal.contact.title': 'Kontakt',
-  'legal.contact.meta.title': 'Kontakt – dlužníček',
+  'legal.contact.meta.title': 'Kontakt – EvenUp',
   'legal.contact.meta.description':
-    'Kontaktní údaje provozovatele dlužníčka, adresa pro dotazy, reklamace a žádosti podle GDPR a příslušné dozorové úřady.',
+    'Kontaktní údaje provozovatele EvenUpu, adresa pro dotazy, reklamace a žádosti podle GDPR a příslušné dozorové úřady.',
   'legal.contact.intro': 'Napište nám. Odpovídáme česky i anglicky.',
 
   'legal.contact.s1.h': 'Provozovatel',

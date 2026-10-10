@@ -26,7 +26,7 @@ English is provided as a secondary localization.
 **CZ**
 
 ```
-EvenUp (dlužníček) je jednoduchá aplikace pro rozúčtování společných výdajů —
+EvenUp je jednoduchá aplikace pro rozúčtování společných výdajů —
 na výletě, ve sdíleném bytě nebo na akci.
 
 • Přidejte lidi do skupiny během pár sekund — účet nepotřebují.
@@ -60,7 +60,7 @@ Free. No ads, no subscriptions. Open source.
 ## Keywords (≤100 chars, comma-separated, no spaces)
 
 ```
-split,expenses,group,bill,receipt,ocr,debt,settle,QR,SPAYD,roommates,trip,dlužníček,rozúčtování
+split,expenses,group,bill,receipt,ocr,debt,settle,QR,SPAYD,roommates,trip,rozúčtování
 ```
 
 ## URLs

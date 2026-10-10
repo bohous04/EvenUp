@@ -1,4 +1,4 @@
-# EvenUp — _dlužníček_ ⚖️
+# EvenUp ⚖️
 
 > Open-source, self-hostable app for splitting group expenses and **minimizing
 > the number of debts** between people. Web first, with iOS + Android apps.

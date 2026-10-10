@@ -5,7 +5,7 @@
  * Placeholders use `{name}` syntax and are filled by the `t()` interpolator.
  */
 export const cs = {
-  'app.name': 'dlužníček',
+  'app.name': 'EvenUp',
   'app.tagline': 'Spravedlivé dělení nákladů ve skupině',
 
   'common.save': 'Uložit',
@@ -298,7 +298,7 @@ export const cs = {
   'groups.kind': 'Druh skupiny',
   'groups.empty.title': 'Zatím nemáte žádnou skupinu',
   'groups.empty.body':
-    'Skupina jsou lidé, se kterými sdílíte útraty: na cestách, doma nebo na oslavě. Přidejte je, zapisujte útraty a dlužníček spočítá, kdo komu kolik pošle.',
+    'Skupina jsou lidé, se kterými sdílíte útraty: na cestách, doma nebo na oslavě. Přidejte je, zapisujte útraty a EvenUp spočítá, kdo komu kolik pošle.',
   'groups.empty.step1': 'Založte skupinu',
   'groups.empty.step1Hint': 'Pojmenujte ji a pozvěte ostatní odkazem.',
   'groups.empty.step2': 'Zapisujte útraty',

@@ -1,12 +1,12 @@
 # EvenUp — Product Requirements Document
 
-> **EvenUp** (Czech: **dlužníček**) is an open-source, self-hostable application for splitting shared
+> **EvenUp** is an open-source, self-hostable application for splitting shared
 > group expenses and **minimizing the number of debts** between people. Web first, with fully
 > functional iOS and Android apps. Free, no ads, no monetization.
 
 | | |
 |---|---|
-| **Product name** | EvenUp (CZ: dlužníček) |
+| **Product name** | EvenUp |
 | **Document status** | Draft v1.0 — for review |
 | **Last updated** | 2026-06-22 |
 | **License** | MIT (open source, public GitHub repository) |
