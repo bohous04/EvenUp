@@ -1,11 +1,14 @@
 'use client';
 import {
+  BellRing,
   Mail,
   Camera,
   Image as ImageIcon,
   AlertCircle,
   Check,
   ArrowRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   Trash2,
   Plus,
   Pencil,
@@ -31,6 +34,7 @@ import {
   BarChart3,
   History,
   FileUp,
+  Download,
   Landmark,
   Tags,
   ChevronRight,
@@ -48,9 +52,21 @@ import {
   Beer,
   HandCoins,
   Sparkles,
+  Languages,
+  Gem,
+  Shield,
   Copy,
   Share2,
   Merge,
+  ReceiptText,
+  CalendarDays,
+  Repeat,
+  Backpack,
+  Heart,
+  PartyPopper,
+  KeyRound,
+  ShieldCheck,
+  ScanText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -77,6 +93,28 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   'gamepad-2': Gamepad2,
   beer: Beer,
 };
+
+/** A group's kind (its template) as a glyph: the group list's leading mark. */
+const GROUP_ICONS: Record<string, LucideIcon> = {
+  TRIP: Backpack,
+  HOUSEHOLD: House,
+  COUPLE: Heart,
+  EVENT: PartyPopper,
+  OTHER: Users,
+};
+
+export function GroupIcon({
+  template,
+  size = 20,
+  strokeWidth = 1.75,
+}: {
+  template: string;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const Icon = GROUP_ICONS[template] ?? Users;
+  return <Icon size={size} strokeWidth={strokeWidth} aria-hidden />;
+}
 
 export function CategoryIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = CATEGORY_ICONS[name] ?? Package;
@@ -128,12 +166,15 @@ export function GoogleLogo({ size = 16 }: { size?: number }) {
 }
 
 export {
+  BellRing,
   Mail,
   Camera,
   ImageIcon,
   AlertCircle,
   Check,
   ArrowRight,
+  ArrowDownLeft,
+  ArrowUpRight,
   Trash2,
   Plus,
   Pencil,
@@ -149,6 +190,7 @@ export {
   BarChart3,
   History,
   FileUp,
+  Download,
   Landmark,
   Tags,
   ChevronRight,
@@ -156,8 +198,17 @@ export {
   LogOut,
   HandCoins,
   Sparkles,
+  Languages,
+  Gem,
+  Shield,
   Copy,
   Share2,
   Merge,
+  ReceiptText,
+  CalendarDays,
+  Repeat,
+  KeyRound,
+  ShieldCheck,
+  ScanText,
 };
 export type { LucideIcon };

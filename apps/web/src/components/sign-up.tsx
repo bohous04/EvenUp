@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signUp } from '@/lib/auth-client';
-import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
+import { Button, Input, Label, PasswordInput } from '@/components/ui';
+import { AuthError, AuthScreen, FieldHint } from '@/components/auth-screen';
+import { Mail } from '@/components/icons';
 
 /**
  * `callbackURL`: where the verification link lands the user — the dashboard by
@@ -21,6 +23,7 @@ export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const signInHref = '/groups';
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,99 +42,107 @@ export function SignUp({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
     }
   }
 
+  if (sent) {
+    return (
+      <AuthScreen
+        icon={<Mail size={20} strokeWidth={1.75} />}
+        title={t('auth.verifyTitle')}
+        lede={<span data-testid="signup-verify-sent">{t('auth.verifyBody', { email })}</span>}
+        footer={
+          <AppLink href={signInHref} className="app-auth-alt" data-testid="signin-link">
+            {t('auth.backToSignIn')}
+          </AppLink>
+        }
+      >
+        <div className="app-auth-form">
+          <AppLink
+            href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
+            className="app-auth-alt"
+            data-testid="verify-email-link"
+          >
+            {t('auth.resend')}
+          </AppLink>
+          <button
+            type="button"
+            className="app-auth-link app-auth-link-center"
+            onClick={() => {
+              setSent(false);
+              setPassword('');
+            }}
+          >
+            {t('auth.wrongEmail')}
+          </button>
+        </div>
+      </AuthScreen>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-md py-10">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight" aria-label={t('app.name')}>
-          Even<span className="text-brand-600">Up</span>
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('auth.signUpTitle')}</p>
-      </div>
-      <Card>
-        {sent ? (
-          <div className="space-y-4 text-center">
-            <p
-              data-testid="signup-verify-sent"
-              className="text-sm text-zinc-700 dark:text-zinc-300"
-            >
-              {t('auth.verifySent')}
-            </p>
-            <AppLink
-              href={`/verify-email/pending?email=${encodeURIComponent(email)}`}
-              className="text-sm text-brand-600 dark:text-brand-100"
-              data-testid="verify-email-link"
-            >
-              {t('auth.resend')}
-            </AppLink>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <form onSubmit={submit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">{t('auth.name')}</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="name"
-                  data-testid="signup-name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">{t('auth.email')}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  data-testid="signup-email"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">{t('auth.password')}</Label>
-                <PasswordInput
-                  id="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  minLength={8}
-                  data-testid="signup-password"
-                  showLabel={t('auth.showPassword')}
-                  hideLabel={t('auth.hidePassword')}
-                />
-              </div>
-              {error ? (
-                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full"
-                data-testid="signup-submit"
-              >
-                {loading ? t('common.loading') : t('auth.signUpBtn')}
-              </Button>
-            </form>
-            <div className="text-center text-sm">
-              <AppLink
-                href="/groups"
-                data-testid="signin-link"
-                className="text-brand-600 dark:text-brand-100"
-              >
-                {t('auth.haveAccount')}
-              </AppLink>
-            </div>
-          </div>
-        )}
-      </Card>
-    </div>
+    <AuthScreen
+      title={t('auth.signUpTitle')}
+      lede={t('auth.signUpLede')}
+      footer={
+        <>
+          <p className="app-auth-q">{t('auth.hasAccount')}</p>
+          <AppLink href={signInHref} data-testid="signin-link" className="app-auth-alt">
+            {t('auth.signInBtn')}
+          </AppLink>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="app-auth-form">
+        <div>
+          <Label htmlFor="name">{t('auth.name')}</Label>
+          <Input
+            id="name"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            autoCapitalize="words"
+            aria-describedby="signup-name-hint"
+            data-testid="signup-name"
+          />
+          <FieldHint id="signup-name-hint">{t('auth.nameHint')}</FieldHint>
+        </div>
+        <div>
+          <Label htmlFor="email">{t('auth.email')}</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-testid="signup-email"
+          />
+        </div>
+        <div>
+          <Label htmlFor="password">{t('auth.password')}</Label>
+          <PasswordInput
+            id="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            aria-describedby="signup-password-hint"
+            data-testid="signup-password"
+            showLabel={t('auth.showPassword')}
+            hideLabel={t('auth.hidePassword')}
+          />
+          <FieldHint id="signup-password-hint">{t('auth.passwordHint')}</FieldHint>
+        </div>
+        {error ? <AuthError>{error}</AuthError> : null}
+        <Button type="submit" disabled={loading} className="w-full" data-testid="signup-submit">
+          {loading ? t('common.loading') : t('auth.signUpBtn')}
+        </Button>
+      </form>
+    </AuthScreen>
   );
 }

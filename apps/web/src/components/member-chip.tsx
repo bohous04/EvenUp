@@ -1,11 +1,36 @@
 'use client';
-import { readableTextColor } from '@evenup/core';
+import { MEMBER_COLORS } from '@evenup/core';
 
 /**
- * Colored member chip. Per a11y §9.4, color is never the only signal — the
- * initials (and an accessible label) always accompany it, and the foreground is
- * computed (black/white) for WCAG-AA contrast on every palette color.
+ * A member's avatar (`.app-ava`, app/app.css): a pale wash of the member's
+ * roster colour with the initial in a deep shade of it, so people are told
+ * apart at a glance while the colour stays quiet next to the money. A profile
+ * photo, when the member has one, replaces the initial.
  */
+/*
+ * The landing's illustrated people (public/marketing/avatars, the same files
+ * the marketing page draws its groups with), so a member without a photo gets
+ * a face, not a pastel letter disc. The face follows the member's roster colour, which
+ * the API hands out by join order (colorForIndex) — so the first seven people in
+ * a group always get seven different faces, and the same member looks the same
+ * on every screen. The name (aria-label / the text beside it) carries identity.
+ */
+const FACES = ['honza', 'klara', 'ondra', 'eva', 'petr', 'jirka', 'filip'] as const;
+function faceFor(color: string, initials: string) {
+  let i = (MEMBER_COLORS as readonly string[]).indexOf(color.toLowerCase());
+  if (i < 0) i = [...(color + initials)].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return `/marketing/avatars/${FACES[i % FACES.length]}.webp`;
+}
+
+/** "Klára" → "K", "Jan Novák" → "JN"; falls back to the stored initials. */
+function monogram(name: string | undefined, initials: string) {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return initials.slice(0, 2);
+  const first = words[0]!.slice(0, 1);
+  const last = words.length > 1 ? words[words.length - 1]!.slice(0, 1) : '';
+  return (first + last).toLocaleUpperCase();
+}
+
 export function MemberChip({
   initials,
   color,
@@ -28,28 +53,29 @@ export function MemberChip({
     size === 'xs'
       ? 'h-5 w-5 text-[9px]'
       : size === 'sm'
-        ? 'h-7 w-7 text-xs'
+        ? 'h-7 w-7 text-[0.6875rem]'
         : size === 'lg'
           ? 'h-11 w-11 text-base'
-          : 'h-9 w-9 text-sm';
+          : 'h-9 w-9 text-[0.8125rem]';
   const ring = selected ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-white' : '';
   // shrink-0: inside tight flex rows (balances, settle) a long sibling name
   // otherwise squeezes the circle into a pill. overflow-hidden clips the photo
   // to the circle.
-  const base = `relative inline-flex ${dims} shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold ${ring}`;
-  const style = { backgroundColor: color, color: readableTextColor(color) };
-  // The monogram sits under the photo, so a transparent/late-loading image still
-  // shows the initials rather than an empty circle.
+  const base = `app-ava relative inline-flex ${dims} shrink-0 items-center justify-center overflow-hidden rounded-full font-[560] leading-none tracking-[-0.03em] ${ring}`;
+  const style = { '--m': color } as React.CSSProperties;
+  const letters = monogram(name, initials);
+  // The monogram sits under the picture, so a late-loading image still shows
+  // the initials rather than an empty circle. Fixed box: no shift on load.
   const inner = (
     <>
-      {initials}
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full rounded-full object-cover"
-        />
-      ) : null}
+      {letters}
+      <img
+        src={imageUrl || faceFor(color, initials)}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={`absolute inset-0 h-full w-full rounded-full object-cover ${imageUrl ? '' : 'app-face'}`}
+      />
     </>
   );
 
@@ -84,6 +110,7 @@ export function MemberChip({
 export function AvatarStack({
   members,
   max = 5,
+  size = 'sm',
 }: {
   members: {
     id: string;
@@ -93,6 +120,7 @@ export function AvatarStack({
     image?: string | null;
   }[];
   max?: number;
+  size?: 'xs' | 'sm';
 }) {
   const shown = members.slice(0, max);
   const extra = members.length - shown.length;
@@ -101,19 +129,21 @@ export function AvatarStack({
       {shown.map((m) => (
         <span
           key={m.id}
-          className="-ml-1.5 rounded-full ring-2 ring-white first:ml-0 dark:ring-zinc-900"
+          className={`${size === 'xs' ? '-ml-1.5' : '-ml-2'} rounded-full ring-2 ring-[var(--app-stack-ring,var(--app-raised))] first:ml-0`}
         >
           <MemberChip
             initials={m.initials}
             color={m.color}
             name={m.displayName}
-            size="sm"
+            size={size}
             imageUrl={m.image}
           />
         </span>
       ))}
       {extra > 0 ? (
-        <span className="-ml-1.5 first:ml-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 ring-2 ring-white dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-900">
+        <span
+          className={`ml-1 inline-flex ${size === 'xs' ? 'h-5' : 'h-7 min-w-7'} items-center justify-center rounded-full px-1 text-[0.75rem] font-medium tabular-nums text-[var(--app-ink-2)]`}
+        >
           +{extra}
         </span>
       ) : null}

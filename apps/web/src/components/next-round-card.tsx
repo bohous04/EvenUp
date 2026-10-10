@@ -1,9 +1,8 @@
 'use client';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Card } from '@/components/ui';
 import { MemberChip } from '@/components/member-chip';
-import { HandCoins } from '@/components/icons';
+import { Check } from '@/components/icons';
 
 /**
  * Names who should buy the group's next shared round, so balances drift toward
@@ -16,6 +15,13 @@ import { HandCoins } from '@/components/icons';
  * is a soft conjunction, a statement of fact. The runner-up line — shown only
  * when a single payer is named — is the skip mechanism: if that member will not
  * pay, the table already sees who is next, with no button and no persisted state.
+ */
+/**
+ * Advice, not a list: an insight tile right under your position card
+ * (`.app-gd-round`, app.css "group r2") — a filled plate with no hairline, so
+ * it reads as the group's one computed remark and never as another list. The
+ * payer's face, the kicker "Next round", the headline at row-title size in
+ * ink, and the reason with the runner-up on one meta line.
  */
 export function NextRoundCard({
   groupId,
@@ -30,14 +36,19 @@ export function NextRoundCard({
   const data = nextRound.data;
   if (!data || data.state === 'hidden') return null;
 
+  const title = t('nextRound.label');
+
   if (data.state === 'square') {
     return (
-      <Card data-testid="next-round-card">
-        <p className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-          <HandCoins size={16} aria-hidden />
-          {t('nextRound.square')}
-        </p>
-      </Card>
+      <section className="app-gd-round" data-testid="next-round-card" aria-label={title}>
+        <span className="app-gd-round-glyph" aria-hidden>
+          <Check size={18} strokeWidth={2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="app-gd-round-kicker">{title}</h2>
+          <p className="app-gd-round-title">{t('nextRound.square')}</p>
+        </div>
+      </section>
     );
   }
 
@@ -53,46 +64,44 @@ export function NextRoundCard({
   );
 
   return (
-    <Card data-testid="next-round-card">
-      <div className="flex items-center gap-3">
-        <div className="flex -space-x-1.5">
-          {payers.slice(0, 3).map((p) => (
+    <section className="app-gd-round" data-testid="next-round-card" aria-label={title}>
+      <div className="app-gd-round-faces">
+        {payers.slice(0, 3).map((p) => (
+          <span key={p.memberId} className="app-gd-round-face">
             <MemberChip
-              key={p.memberId}
               initials={p.initials}
               color={p.color}
               name={p.displayName}
               imageUrl={p.image}
             />
-          ))}
-        </div>
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 font-semibold" data-testid="next-round-payer">
-            <HandCoins size={16} aria-hidden />
-            {t(clearsGate ? 'nextRound.title' : 'nextRound.titleBehind', { names })}
-          </p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {t(tied ? 'nextRound.reasonEach' : 'nextRound.reason', {
-              amount: formatCurrency(Math.abs(lead.balanceMinorUnits), baseCurrency),
-            })}
-          </p>
-        </div>
+          </span>
+        ))}
       </div>
-
-      {runnerUp.length > 0 ? (
-        <p
-          className="mt-2 border-t border-zinc-100 pt-2 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
-          data-testid="next-round-runner-up"
-        >
-          {t('nextRound.runnerUp', {
-            names: formatNameList(
-              runnerUp.map((r) => r.displayName),
-              'conjunction',
-            ),
-            amount: formatCurrency(Math.abs(runnerUp[0]!.balanceMinorUnits), baseCurrency),
-          })}
+      <div className="min-w-0 flex-1">
+        <h2 className="app-gd-round-kicker">{title}</h2>
+        <p className="app-gd-round-title" data-testid="next-round-payer">
+          {t(clearsGate ? 'nextRound.title' : 'nextRound.titleBehind', { names })}
         </p>
-      ) : null}
-    </Card>
+        <p className="app-gd-round-meta">
+          {t(tied ? 'nextRound.reasonEach' : 'nextRound.reason', {
+            amount: formatCurrency(Math.abs(lead.balanceMinorUnits), baseCurrency),
+          })}
+          {runnerUp.length > 0 ? (
+            <>
+              <span aria-hidden> · </span>
+              <span data-testid="next-round-runner-up">
+                {t('nextRound.runnerUp', {
+                  names: formatNameList(
+                    runnerUp.map((r) => r.displayName),
+                    'conjunction',
+                  ),
+                  amount: formatCurrency(Math.abs(runnerUp[0]!.balanceMinorUnits), baseCurrency),
+                })}
+              </span>
+            </>
+          ) : null}
+        </p>
+      </div>
+    </section>
   );
 }

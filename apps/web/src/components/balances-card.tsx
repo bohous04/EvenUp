@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { trpc } from '@/lib/trpc';
-import { Card, SectionLabel } from '@/components/ui';
+import { Panel, Section, rowClass } from '@/components/ui';
 import { AmountText } from '@/components/amount-text';
 import { MemberChip } from '@/components/member-chip';
 import { MemberBreakdownSheet } from '@/components/member-breakdown-sheet';
 
-/** Per-member balances as bars diverging from a center line (green = is owed). */
+/** Per-member balances as bars diverging from a center line (accent = is owed, amber = owes). */
 export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseCurrency: string }) {
   const { t } = useI18n();
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
@@ -20,9 +20,8 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
   const max = Math.max(...balances.data.balances.map((b) => Math.abs(b.balanceMinorUnits)), 1);
 
   return (
-    <Card>
-      <SectionLabel>{t('balance.title')}</SectionLabel>
-      <ul className="space-y-2.5">
+    <Section title={t('balance.title')} className="app-gd-bal">
+      <Panel as="ul" plain>
         {balances.data.balances.map((b) => {
           const positive = b.balanceMinorUnits > 0;
           const pct = (Math.abs(b.balanceMinorUnits) / max) * 50;
@@ -36,49 +35,56 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
                 onClick={() => setSelected({ id: b.memberId, name: b.displayName })}
                 data-testid="balance-row"
                 aria-label={b.displayName}
-                className="flex w-full items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
+                className={rowClass}
               >
-                <span className="flex w-28 min-w-0 shrink-0 items-center gap-1.5">
-                  <MemberChip
-                    initials={b.initials}
-                    color={b.color}
-                    name={b.displayName}
-                    imageUrl={b.image}
-                    size="sm"
-                  />
-                  <span className="truncate text-sm" title={b.displayName}>
-                    {label}
+                <MemberChip
+                  initials={b.initials}
+                  color={b.color}
+                  name={b.displayName}
+                  imageUrl={b.image}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span
+                      className="truncate text-[0.9375rem] font-medium tracking-[-0.01em]"
+                      title={b.displayName}
+                    >
+                      {label}
+                    </span>
+                    {/* Amount never shrinks below its content, so large balances
+                      (e.g. "1 761,05 Kč") render in full instead of clipping. */}
+                    <AmountText
+                      minorUnits={b.balanceMinorUnits}
+                      currency={baseCurrency}
+                      colored
+                      className="shrink-0 text-right text-[0.9375rem] font-medium"
+                      testId={`balance-${b.memberId}`}
+                    />
+                  </span>
+                  {/* Diverging bar under the name: right of centre is owed
+                      (accent), left is owes (debt amber). */}
+                  <span
+                    className="relative mt-2 block h-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
+                    aria-hidden
+                  >
+                    <span className="absolute -inset-y-0.5 left-1/2 w-px bg-zinc-300 dark:bg-zinc-700" />
+                    {b.balanceMinorUnits !== 0 ? (
+                      <span
+                        className={`absolute inset-y-0 ${
+                          positive
+                            ? 'left-1/2 rounded-r-full bg-[var(--app-pos-bar)]'
+                            : 'right-1/2 rounded-l-full bg-[var(--app-neg-bar)]'
+                        }`}
+                        style={{ width: `${Math.max(pct, 1.5)}%` }}
+                      />
+                    ) : null}
                   </span>
                 </span>
-                <span
-                  className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800"
-                  aria-hidden
-                >
-                  <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-200 dark:bg-zinc-700" />
-                  {b.balanceMinorUnits !== 0 ? (
-                    <span
-                      className={`absolute inset-y-0 rounded-full ${
-                        positive ? 'left-1/2 bg-green-400' : 'right-1/2 bg-red-400'
-                      }`}
-                      style={{ width: `${Math.max(pct, 2)}%` }}
-                    />
-                  ) : null}
-                </span>
-                {/* Amount never shrinks below its content, so large 4-digit balances
-                  (e.g. "1 761,05 Kč") render in full instead of clipping the
-                  thousands digit; the min width keeps the bars' right edge aligned. */}
-                <AmountText
-                  minorUnits={b.balanceMinorUnits}
-                  currency={baseCurrency}
-                  colored
-                  className="min-w-[7rem] shrink-0 text-right text-sm font-semibold"
-                  testId={`balance-${b.memberId}`}
-                />
               </button>
             </li>
           );
         })}
-      </ul>
+      </Panel>
       {selected ? (
         <MemberBreakdownSheet
           groupId={groupId}
@@ -89,6 +95,6 @@ export function BalancesCard({ groupId, baseCurrency }: { groupId: string; baseC
           onClose={() => setSelected(null)}
         />
       ) : null}
-    </Card>
+    </Section>
   );
 }

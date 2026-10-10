@@ -4,7 +4,8 @@ import { AppLink } from '@/components/app-link';
 import { useI18n } from '@/lib/i18n';
 import { signIn, authClient } from '@/lib/auth-client';
 import { authErrorMessage } from '@/lib/auth-errors';
-import { Button, Card, Input, Label, PasswordInput } from '@/components/ui';
+import { Button, Input, Label, PasswordInput } from '@/components/ui';
+import { AuthError, AuthScreen } from '@/components/auth-screen';
 import { AppleLogo, GoogleLogo } from '@/components/icons';
 
 // Only offer Google/Apple sign-in when the instance has configured them
@@ -76,164 +77,165 @@ export function SignIn({ callbackURL = DASHBOARD }: { callbackURL?: string }) {
     if (res.error) setError(authErrorMessage(res.error.code, t));
   }
 
-  return (
-    <div className="mx-auto max-w-md py-10">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight" aria-label={t('app.name')}>
-          Even<span className="text-brand-600">Up</span>
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{t('app.tagline')}</p>
-      </div>
-      <Card>
-        {twoFactor ? (
-          <form onSubmit={submitTwoFactor} className="space-y-4">
-            <div>
-              <Label htmlFor="signin-2fa">
-                {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
-              </Label>
-              <Input
-                id="signin-2fa"
-                inputMode={useBackup ? 'text' : 'numeric'}
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoFocus
-                data-testid="signin-2fa-code"
-              />
-            </div>
-            {!useBackup ? (
-              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={trustDevice}
-                  onChange={(e) => setTrustDevice(e.target.checked)}
-                />
-                {t('security.2fa.trustDevice')}
-              </label>
-            ) : null}
-            {error ? (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              data-testid="signin-2fa-submit"
-            >
-              {loading ? t('common.loading') : t('security.2fa.confirm')}
-            </Button>
-            <button
-              type="button"
-              className="block text-sm text-brand-600 dark:text-brand-100"
-              onClick={() => {
-                setUseBackup(!useBackup);
-                setCode('');
-                setError(null);
-              }}
-            >
-              {useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <form onSubmit={submit} className="space-y-4">
-              <div>
-                <Label htmlFor="email">{t('auth.email')}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">{t('auth.password')}</Label>
-                <PasswordInput
-                  id="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  data-testid="password-input"
-                  showLabel={t('auth.showPassword')}
-                  hideLabel={t('auth.hidePassword')}
-                />
-              </div>
-              {error ? (
-                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </p>
-              ) : null}
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full"
-                data-testid="signin-submit"
-              >
-                {loading ? t('common.loading') : t('auth.signInBtn')}
-              </Button>
-            </form>
-            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <AppLink
-                href="/forgot-password"
-                data-testid="forgot-link"
-                className="text-brand-600 dark:text-brand-100"
-              >
-                {t('auth.forgotLink')}
-              </AppLink>
-              <AppLink
-                href={
-                  safeCallback === DASHBOARD
-                    ? '/sign-up'
-                    : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`
-                }
-                data-testid="signup-link"
-                className="text-brand-600 dark:text-brand-100"
-              >
-                {t('auth.signUpLink')}
-              </AppLink>
-            </div>
-            {googleEnabled || appleEnabled ? (
-              <>
-                <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
-                  {t('common.or')}
-                  <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" />
-                </div>
-                {googleEnabled ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="flex w-full items-center justify-center gap-2"
-                    onClick={() => signIn.social({ provider: 'google', callbackURL: safeCallback })}
-                    data-testid="google-signin"
-                  >
-                    <GoogleLogo size={16} />
-                    {t('auth.continueGoogle')}
-                  </Button>
-                ) : null}
-                {appleEnabled ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="flex w-full items-center justify-center gap-2"
-                    onClick={() => signIn.social({ provider: 'apple', callbackURL: safeCallback })}
-                    data-testid="apple-signin"
-                  >
-                    <AppleLogo size={16} />
-                    {t('auth.continueApple')}
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
+  const signUpHref =
+    safeCallback === DASHBOARD
+      ? '/sign-up'
+      : `/sign-up?callbackURL=${encodeURIComponent(safeCallback)}`;
+
+  if (twoFactor) {
+    return (
+      <AuthScreen
+        title={t('security.2fa.title')}
+        footer={
+          <button
+            type="button"
+            className="app-auth-alt"
+            onClick={() => {
+              setTwoFactor(false);
+              setCode('');
+              setUseBackup(false);
+              setError(null);
+            }}
+          >
+            {t('auth.backToSignIn')}
+          </button>
+        }
+      >
+        <form onSubmit={submitTwoFactor} className="app-auth-form">
+          <div>
+            <Label htmlFor="signin-2fa">
+              {useBackup ? t('security.2fa.backupTitle') : t('security.2fa.code')}
+            </Label>
+            <Input
+              id="signin-2fa"
+              inputMode={useBackup ? 'text' : 'numeric'}
+              autoComplete="one-time-code"
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              className="app-auth-code"
+              data-testid="signin-2fa-code"
+            />
           </div>
-        )}
-      </Card>
-    </div>
+          {!useBackup ? (
+            <label className="app-auth-check">
+              <input
+                type="checkbox"
+                checked={trustDevice}
+                onChange={(e) => setTrustDevice(e.target.checked)}
+              />
+              <span>{t('security.2fa.trustDevice')}</span>
+            </label>
+          ) : null}
+          {error ? <AuthError>{error}</AuthError> : null}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full"
+            data-testid="signin-2fa-submit"
+          >
+            {loading ? t('common.loading') : t('security.2fa.confirm')}
+          </Button>
+          <button
+            type="button"
+            className="app-auth-link app-auth-link-center"
+            onClick={() => {
+              setUseBackup(!useBackup);
+              setCode('');
+              setError(null);
+            }}
+          >
+            {useBackup ? t('security.2fa.usePassword') : t('security.2fa.useBackup')}
+          </button>
+        </form>
+      </AuthScreen>
+    );
+  }
+
+  return (
+    <AuthScreen
+      title={t('auth.signInTitle')}
+      lede={t('auth.signInLede')}
+      footer={
+        <>
+          <p className="app-auth-q">{t('auth.noAccount')}</p>
+          <AppLink href={signUpHref} data-testid="signup-link" className="app-auth-alt">
+            {t('auth.createAccount')}
+          </AppLink>
+        </>
+      }
+    >
+      {googleEnabled || appleEnabled ? (
+        <div className="app-auth-social">
+          {googleEnabled ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => signIn.social({ provider: 'google', callbackURL: safeCallback })}
+              data-testid="google-signin"
+            >
+              <GoogleLogo size={18} />
+              {t('auth.continueGoogle')}
+            </Button>
+          ) : null}
+          {appleEnabled ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => signIn.social({ provider: 'apple', callbackURL: safeCallback })}
+              data-testid="apple-signin"
+            >
+              <AppleLogo size={18} />
+              {t('auth.continueApple')}
+            </Button>
+          ) : null}
+          <p className="app-auth-or">
+            <span>{t('common.or')}</span>
+          </p>
+        </div>
+      ) : null}
+      <form onSubmit={submit} className="app-auth-form">
+        <div>
+          <Label htmlFor="email">{t('auth.email')}</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+        </div>
+        <div>
+          <div className="app-auth-label-row">
+            <Label htmlFor="password">{t('auth.password')}</Label>
+            <AppLink href="/forgot-password" data-testid="forgot-link" className="app-auth-link">
+              {t('auth.forgotLink')}
+            </AppLink>
+          </div>
+          <PasswordInput
+            id="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            data-testid="password-input"
+            showLabel={t('auth.showPassword')}
+            hideLabel={t('auth.hidePassword')}
+          />
+        </div>
+        {error ? <AuthError>{error}</AuthError> : null}
+        <Button type="submit" disabled={loading} className="w-full" data-testid="signin-submit">
+          {loading ? t('common.loading') : t('auth.signInBtn')}
+        </Button>
+      </form>
+    </AuthScreen>
   );
 }

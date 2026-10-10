@@ -23,18 +23,23 @@ export function MenuSheet({
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title} testId="group-menu">
-      <ul className="-mx-2">
+      <ul className="-mx-4 sm:-mx-6">
         {items.map((it) => (
           <li key={it.key}>
             <button
               type="button"
               onClick={it.onSelect}
               data-testid={`menu-${it.key}`}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 dark:hover:bg-zinc-800"
+              className="app-row flex min-h-14 w-full items-center gap-4 px-4 text-left text-[0.9375rem] font-medium tracking-[-0.01em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600 sm:px-6"
             >
-              <it.icon size={18} aria-hidden className="text-zinc-400 dark:text-zinc-500" />
+              <it.icon
+                size={20}
+                strokeWidth={1.75}
+                aria-hidden
+                className="text-zinc-500 dark:text-zinc-400"
+              />
               <span className="flex-1">{it.label}</span>
-              <ChevronRight size={16} aria-hidden className="text-zinc-300 dark:text-zinc-600" />
+              <ChevronRight size={18} aria-hidden className="text-zinc-400 dark:text-zinc-500" />
             </button>
           </li>
         ))}
