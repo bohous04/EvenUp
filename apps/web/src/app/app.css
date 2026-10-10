@@ -934,19 +934,12 @@
 }
 
 /* ---- Avatars (components/member-chip.tsx) -------------------------------
- * A member is a face: the landing's illustrated people, or their own photo.
- * The disc under it is the illustrations' warm paper with a hairline ring, and
- * the monogram (ink on paper, 9:1) shows only until the picture paints.
+ * Initials on the member's roster colour (set inline, with a black or white
+ * ink chosen for AA contrast), with a hairline ring so pale colours still
+ * hold their edge on the page.
  */
 .app-ava {
-  background: #f1ece2;
-  color: #3f3f45;
-  box-shadow: inset 0 0 0 1px rgb(17 17 19 / 0.06);
-}
-@media (prefers-color-scheme: dark) {
-  .app-ava > .app-face {
-    filter: brightness(0.92);
-  }
+  box-shadow: inset 0 0 0 1px rgb(17 17 19 / 0.08);
 }
 
 /* ---- Split bar (groups summary) ------------------------------------------
