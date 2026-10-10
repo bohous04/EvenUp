@@ -1,27 +1,13 @@
 'use client';
-import { MEMBER_COLORS } from '@evenup/core';
+import { readableTextColor } from '@evenup/core';
 
 /**
- * A member's avatar (`.app-ava`, app/app.css): a pale wash of the member's
- * roster colour with the initial in a deep shade of it, so people are told
- * apart at a glance while the colour stays quiet next to the money. A profile
- * photo, when the member has one, replaces the initial.
+ * A member's avatar (`.app-ava`, app/app.css): the initials on the member's
+ * roster colour. Colour is never the only signal (a11y §9.4): the initials and
+ * an accessible name always go with it, and the ink is black or white,
+ * whichever holds WCAG AA on that colour. A profile photo, when the member has
+ * one, covers the initials.
  */
-/*
- * The landing's illustrated people (public/marketing/avatars, the same files
- * the marketing page draws its groups with), so a member without a photo gets
- * a face, not a pastel letter disc. The face follows the member's roster colour, which
- * the API hands out by join order (colorForIndex) — so the first seven people in
- * a group always get seven different faces, and the same member looks the same
- * on every screen. The name (aria-label / the text beside it) carries identity.
- */
-const FACES = ['honza', 'klara', 'ondra', 'eva', 'petr', 'jirka', 'filip'] as const;
-function faceFor(color: string, initials: string) {
-  let i = (MEMBER_COLORS as readonly string[]).indexOf(color.toLowerCase());
-  if (i < 0) i = [...(color + initials)].reduce((a, c) => a + c.charCodeAt(0), 0);
-  return `/marketing/avatars/${FACES[i % FACES.length]}.webp`;
-}
-
 /** "Klára" → "K", "Jan Novák" → "JN"; falls back to the stored initials. */
 function monogram(name: string | undefined, initials: string) {
   const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -62,20 +48,22 @@ export function MemberChip({
   // otherwise squeezes the circle into a pill. overflow-hidden clips the photo
   // to the circle.
   const base = `app-ava relative inline-flex ${dims} shrink-0 items-center justify-center overflow-hidden rounded-full font-[560] leading-none tracking-[-0.03em] ${ring}`;
-  const style = { '--m': color } as React.CSSProperties;
+  const style = { backgroundColor: color, color: readableTextColor(color) };
   const letters = monogram(name, initials);
-  // The monogram sits under the picture, so a late-loading image still shows
+  // The monogram sits under the picture, so a late-loading photo still shows
   // the initials rather than an empty circle. Fixed box: no shift on load.
   const inner = (
     <>
       {letters}
-      <img
-        src={imageUrl || faceFor(color, initials)}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className={`absolute inset-0 h-full w-full rounded-full object-cover ${imageUrl ? '' : 'app-face'}`}
-      />
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full rounded-full object-cover"
+        />
+      ) : null}
     </>
   );
 
